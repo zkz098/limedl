@@ -3,9 +3,6 @@ type: integration
 title: Aria2 JSON-RPC Compatibility Server
 description: The aria2-compatible HTTP and WebSocket server of limedl — method routing, GID derivation and caching, three auth modes with Argon2 token storage, aria2 option translation, notification ownership, and the graceful hot-reload port handoff.
 tags: [aria2, rpc, integration, authentication, json-rpc, websocket]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-8ec1f0436491ce5daa75720b
     resource: repo://crates/limedl-core/src/aria2_rpc/context.rs
@@ -27,7 +24,12 @@ sources:
     resource: repo://crates/limedl-core/src/aria2_rpc/token.rs
   - id: openwiki-source-093388d09b520118fa26ce32
     resource: repo://crates/limedl-core/src/bt_backend/alerts.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+  - id: openwiki-source-7ef10e5bb7f9bf65c86b6285
+    resource: repo://crates/limedl-core/src/types/settings.rs
+generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T05:35:23.596Z
 ---
 
 # Aria2 JSON-RPC Compatibility Server
@@ -53,7 +55,19 @@ assembles an axum `Router` with `POST /jsonrpc` (HTTP JSON-RPC) and
 CORS defaults to `http://localhost` / `http://127.0.0.1`; configured origins that
 all fail to parse fall back to localhost with a warning.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L42-L155`.
+**The service is disabled by default.** `Aria2RpcSettings::default()` has
+`enabled = false`, because with an empty `secret` the endpoint answers
+anonymously and loopback-only binding still lets any local process — and any page
+the default CORS policy admits — drive downloads and read destination paths.
+Enabling it is an explicit Settings action; an existing `settings.json` with
+`"enabled": true` keeps working. When the server does come up with
+`AuthConfig::Disabled`, `serve` logs a warning naming the address and pointing at
+the secret/per-client options. That check reads `AuthConfig::is_enabled` *before*
+the context is moved into the router, which is why the method is `pub(crate)`.
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L71-L150`,
+`repo://crates/limedl-core/src/aria2_rpc/context.rs#L39-L41`,
+`repo://crates/limedl-core/src/types/settings.rs#L380-L400`.
 
 ### Hot-reload port handoff
 
@@ -69,7 +83,9 @@ Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L1-L40`.
 
 `AuthConfig::from_settings` produces one of three states:
 
-- `Disabled` — `single` mode with an empty `secret`; every request passes.
+- `Disabled` — `single` mode with an empty `secret`; every request passes. It is
+  reachable in practice only through the legacy `"enabled": true` +
+  `"secret": null` combination, since a fresh install starts disabled.
 - `Shared { secret }` — the legacy single shared secret, compared with
   `subtle::ConstantTimeEq`.
 - `PerClient(PerClientAuth)` — each configured client has its own Argon2id

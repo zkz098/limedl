@@ -3,9 +3,6 @@ type: desktop
 title: Native Desktop UI (Slint)
 description: How the limedl Slint desktop client is assembled and driven — the main/ui_boot split, AppContext, the pure bridge mapping layer, handler plumbing, the EventBus subscriber, i18n rules, and platform integration for tray, autostart, single instance, power and window geometry.
 tags: [desktop, slint, ui, event-stream, i18n, platform]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T03:21:09.297Z
 sources:
   - id: openwiki-source-e5a81e0b5d28c08eec080c86
     resource: repo://crates/limedl-native/src/autostart.rs
@@ -13,6 +10,8 @@ sources:
     resource: repo://crates/limedl-native/src/bridge/mod.rs
   - id: openwiki-source-ec243741e58f29f41733a43b
     resource: repo://crates/limedl-native/src/context.rs
+  - id: openwiki-source-464561a96b1e4d21d0fee313
+    resource: repo://crates/limedl-native/src/crash.rs
   - id: openwiki-source-62650ee8fbcfd9713b6c1fa1
     resource: repo://crates/limedl-native/src/event_stream/bus.rs
   - id: openwiki-source-57b792082fe069747cfd4458
@@ -43,7 +42,10 @@ sources:
     resource: repo://crates/limedl-native/src/ui_sync.rs
   - id: openwiki-source-90185777dff572d79a3b452d
     resource: repo://crates/limedl-native/ui/theme.slint
-generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T05:35:23.596Z
 ---
 
 # Native Desktop UI (Slint)
@@ -54,15 +56,25 @@ there is no IPC, webview or serialization boundary between UI and engine.
 
 ## The main / ui_boot split
 
-`main()` owns everything that touches the operating system, and `ui_boot::build_ui`
-owns the pure UI assembly:
+`main()` is a thin wrapper: it awaits `run()` and, on error, hands the error to
+`crash::report_startup_failure` (message box + crash log) before exiting non-zero.
+Without that, a failure during startup made the window never appear with nothing
+written anywhere — the process has no console (`windows_subsystem = "windows"`).
 
-- `main()` parses the CLI contract `limedl-native [--hidden] [<url|magnet|path|limedl://…>]`,
-  claims the single-instance slot, resolves the data directory, calls
-  `bootstrap()`, initializes logging, syncs autostart, optionally starts the
-  Aria2 RPC server, decides the language, resolves the default download
+`run()` owns everything that touches the operating system, and
+`ui_boot::build_ui` owns the pure UI assembly:
+
+- `run()` parses the CLI contract `limedl-native [--hidden] [<url|magnet|path|limedl://…>]`,
+  resolves the data directory, claims the single-instance slot, installs the
+  panic hook, initializes logging with the **defaults**, calls `bootstrap()`, then
+  re-applies logging with the **configured** settings, syncs autostart, optionally
+  starts the Aria2 RPC server, decides the language, resolves the default download
   directory, then calls `build_ui`, installs the tray, restores window geometry,
-  registers platform hooks, starts the background listeners and the event loop.
+  registers platform hooks, starts the background listeners, watches
+  SIGTERM/SIGINT and finally runs the event loop.
+- Logging comes up before the engine on purpose: a bootstrap, settings or
+  migration failure is exactly the class of failure that most needs a log, and the
+  second `init_logging` call only re-applies level/enabled/path.
 - `build_ui(UiBootInputs)` receives everything that needs the OS or an async
   lookup as **already-resolved inputs** (settings, language, default directory,
   base directory, RPC shutdown handle, install kind). It is deliberately **not
@@ -71,9 +83,29 @@ owns the pure UI assembly:
   `handlers::register_all`. That is exactly the seam that lets the in-process UI
   tests drive the same window and callbacks headlessly.
 
-Evidence: `repo://crates/limedl-native/src/main.rs#L31-L103`,
+Evidence: `repo://crates/limedl-native/src/main.rs#L54-L130`,
 `repo://crates/limedl-native/src/ui_boot.rs#L8-L16`,
 `repo://crates/limedl-native/src/ui_boot.rs#L62-L224`.
+
+## Crash reporting
+
+`crash.rs` is the only place that can leave evidence of a panic, because the
+release profile builds with `panic = "abort"` (the hook still runs on the way to
+`abort()`):
+
+- `install_panic_hook(state_dir)` registers a hook that appends timestamp,
+  thread, `file:line`, payload and `Backtrace::force_capture()` to
+  `<state_dir>/logs/crash.log`, and echoes the same text to stderr.
+- The log rotates to `crash.log.1` past `CRASH_LOG_MAX_BYTES` (1 MiB), and the
+  hook is deliberately allocation-light: a panic hook that itself panics would
+  abort without a report.
+- `report_startup_failure` writes the same kind of report and then shows a
+  localized `rfd` message box (the language comes from the OS locale, since
+  settings may not have loaded).
+- Any `catch_unwind` in the tree is therefore a development/test-only safety net,
+  not release error recovery.
+
+Evidence: `repo://crates/limedl-native/src/crash.rs#L1-L120`.
 
 ## AppContext
 
@@ -195,13 +227,33 @@ Evidence: `repo://crates/limedl-native/src/i18n/mod.rs#L1-L16`,
 
 ### Single instance
 
-`InstanceClaim::claim()` uses a session-local named mutex on Windows (secondary
-launches find the window by title and forward the payload via `WM_COPYDATA`) and
-a loopback TCP listener on port 45997 elsewhere (secondary launches send `show`
-or `open:<payload>`). The primary handle must stay alive for the whole process —
-dropping it would release the claim.
+`InstanceClaim::claim(base_dir)` resolves to one of two strategies, and the
+primary handle must stay alive for the whole process — dropping it releases the
+claim:
 
-Evidence: `repo://crates/limedl-native/src/single_instance.rs#L1-L181`.
+- **Windows**: a session-local named mutex (`Local\limedl-native-single-instance`).
+  Ownership is read from `GetLastError() == ERROR_ALREADY_EXISTS` after
+  `CreateMutexW`; secondary launches focus the existing window with
+  `FindWindowW` + `ShowWindow(SW_RESTORE)` and forward the payload via
+  `WM_COPYDATA`.
+- **macOS / Linux**: an exclusive advisory lock on `<data-dir>/instance.lock`
+  (`File::try_lock`, released by the kernel on process death, so a crash cannot
+  leave a stale owner) plus a Unix domain socket that the primary publishes and
+  secondary launches connect to. The socket path falls back to a short hashed
+  name under the temp directory when the data directory is deeper than the
+  `sun_path` budget (100 bytes).
+
+`notify_primary` now **returns whether the request reached a primary**, and a
+short retry window absorbs the "double-clicked while the first launch is still
+starting" race. A `false` return makes `main` report the failure instead of
+exiting quietly. This replaced a fixed loopback TCP port (45997): any unrelated
+program that happened to own that port looked like a running limedl, the launch
+was classified secondary, the notification connect failed silently, and the user
+got neither a window nor an error.
+
+Evidence: `repo://crates/limedl-native/src/single_instance.rs#L1-L45`,
+`repo://crates/limedl-native/src/single_instance.rs#L88-L165`,
+`repo://crates/limedl-native/src/single_instance.rs#L256-L330`.
 
 ### Autostart
 
@@ -229,8 +281,11 @@ Evidence: `repo://crates/limedl-native/src/autostart.rs#L11-L42`,
 The tray menu (show, pause all, resume all, speed-limit check, game mode, open
 download dir, quit) is built with `muda` and updated on the UI thread by
 `update_tray_menu_and_tooltip`. On Linux the tray is a D-Bus StatusNotifierItem
-(ksni), so a missing host leaves the icon waiting rather than crashing; a failed
-D-Bus connection is fatal and produces a readable explanation.
+(ksni). **Building the icon is best-effort**: a missing StatusNotifier host
+(GNOME without the AppIndicator extension, a bare window manager) makes `build()`
+fail, and `main` logs `tray_init_failure_message` and keeps going instead of
+aborting the launch before the window is shown — the window is the primary UI,
+the tray is an extra.
 
 `PowerGuard` uses `SetThreadExecutionState` on Windows to keep the system awake
 while downloads run and is a no-op elsewhere.

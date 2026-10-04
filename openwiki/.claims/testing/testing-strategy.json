@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:d7bed83fcdcb86fca30daebe371cf535079267b8cd83cf31b91997fa8f3195cb",
+  "pageVersion": "sha256:e40898c8e64b9a741925cbfa29248286d88a16b49f38cfa1be06ff1a021ce085",
   "claims": [
     {
       "id": "claim_65bbce20cdb64f53960b988322db9037",
@@ -74,11 +74,11 @@
     },
     {
       "id": "claim_eda702afc8524d1bbdd3375a58c1e31f",
-      "statement": "dispatcher_tests covers the Dispatcher facade matrix and exposes make_manager/inject_download as pub(crate) so the Aria2 tests reuse them for resolve_gid and GID-cache eviction.",
+      "statement": "dispatcher_tests covers the Dispatcher facade matrix and exposes make_manager/inject_download as pub(crate) so the Aria2 tests reuse them for resolve_gid and GID-cache eviction and the durability tests can persist against a real DownloadManager.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/tests/dispatcher_tests.rs#L1-L12",
-          "version": "repo-lines-v1:sha256:c504619410efdc6038f8fe5b4801aadbaa3d45a7b8bc78d3fe8acbe01d71fae2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0MzIxYTM5OWQ3OTRkYTUwMzNjZDA3ZDc5YjA4ZTFlMjE4ZGJjOGU1YzhjODgxNmI3MThkODljYzA2OTE3NmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFjNjEyNWUwYWNkZjgzNWIzOTUyZjQ2OGEwMWEwN2I4MjU3MDc4N2FmM2ZhZGFkOGRmODY4MWY1NTQ3NGNjYmQifQ"
+          "resource": "repo://crates/limedl-core/src/tests/dispatcher_tests.rs#L1-L60",
+          "version": "repo-lines-v1:sha256:bd44a1d518afbd9416af1b594fa17011c25a4895cc7cd8e7e88ce69bac055f14:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlkNTNhMmFkNTkxMjM2M2IxMTZmYTZkYWY4OWM4NDQ5MDhhZDFiYTQyMmFhYjViNmRlNDc0NGYxNDYwNTA4NmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBjNmIyYzI5M2RmM2Q4MWUxOWQ4OTlkZmYzMjBmNWZhNjFlMTM4NGE0ZjFmNWY4ZjA0YTI0NmQ1NWMwNzBiZjcifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/tests/mod.rs#L9-L12",
@@ -153,10 +153,56 @@
           "version": "repo-lines-v1:sha256:6993ae900407433de393a860a4a129492640acaccaaf6dd65d5103f6b1ccd596:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxOTQ4NGVlZGYzNjRmYjhjMTJmMWViOThmYmY2YTliNGY2NTBmNDI3ODc0YThkNzM1OTAxMGFhZGU0MzFiYzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM1ZjZmNDY2ZTU5Y2ZjMzA3MDNjNDVmNzJhZjY1ZGU1NGFjMzYzZDM1NGNjMWEzMzMwMzUwYWNkNDUyNDM0YzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2NmJiMTg1M2ZlNzliYTAyZjdjZGM1MTIwNGNhMzljMThiN2ZiNzRhZjc3ODY5MmI5YTlmZTY4NWYwMzY2MjkifQ"
         }
       ]
+    },
+    {
+      "id": "claim_51bc511cdbba49da882fd9d75413e1e4",
+      "statement": "The durable-progress tests are layered: pure range-math tests in download/managed.rs, a full-upsert and an incremental-cycle persistence test in tests/persistence_tests.rs, and ensure_core_fully_durable acceptance/refusal tests in http_executor::tests.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/download/managed.rs#L232-L403",
+          "version": "repo-lines-v1:sha256:85347cdf8a57e8fd0d67ee5ce1cdcf94ddfd67c550440c11ee5a39f8c536c92d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwNDdmN2NlN2Q4ZTdjZDE4Y2RmMmEyMzdkMmEwYzQ4MGMyYTVkYmI1ZTU4ZmQyZTA2NzAwMDk1ZGUwNGIwYTJkIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/tests.rs#L238-L295",
+          "version": "repo-lines-v1:sha256:068295fb870b52df64ac7c49b4bb0caf473009a7ba7aefe46d9e394937948ff5:eyJzZWxlY3RlZExpbmVDb3VudCI6NTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlMDlmMzg3MmVhMjAzZmU1Mjk5NmRlMjgxMDNlYjdmYzYzYjQzZGE2MTY0YTVhMDAyZTgyN2NhYmYzZjkwNjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/tests/persistence_tests.rs#L505-L583",
+          "version": "repo-lines-v1:sha256:6ee0d031de6cc2ca580c3de47014a3774d2484dfa531561115ea6e2ab8f93fdb:eyJzZWxlY3RlZExpbmVDb3VudCI6NzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ1NWQ0YjI4MWZmNjdjMTVhZDE4ODMwYWU0MjNkNTFiYzgwMDkyOWU2NTYxM2FmMzViZTRiMGY4NGZkYzc1OTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9dc94e11bdc349dd8f8a9e2d2c69b34c",
+      "statement": "Migrations and database integrity are covered by a half-applied-migration recovery test, an idempotent-add-column test, a non-database quarantine test and a lock-contention classifier test.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/tests/connection.rs#L173-L230",
+          "version": "repo-lines-v1:sha256:a0eed9af213ad4ccf70aef96b312fe6cb51b102a08265f95bb077d9cb724122d:eyJzZWxlY3RlZExpbmVDb3VudCI6NTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI5Mjk5MjNkMTQ1Y2MwY2E1NDM5ZmQ3NzgxODE3NzQ0ZjJjODQ2ZmI0Njk3NDMyMjFhMTE1YmMxZjM1MjhjZjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEwMTdhZWY2MmNhMDdiMGM4OTczZGExYzMwMDViOTY1ZjhlODQyM2JiZWU5OThkZDIyNjkxNDE3NjExZjExYTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/database/tests/schema_migrations.rs#L128-L178",
+          "version": "repo-lines-v1:sha256:d9be7637b8bbd368f9db692a03ffb07d8c2a58597e1b2e9a9af2b0a1e0abbb63:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0N2Y2YTczMzRjNmE4YmUzOTQ0NzZjODAwMTMzM2UwNmE3MzhkODViY2M3ODczMDYxOTllNThhYmUzODVkMTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU3MThkZTZjOWY1N2I2NmE5MmU3ZDFkZGFmNzkwMjU5N2EyNWE4OTc4M2FhYzY0NDI2Y2IwMzQxNTYzYmVhZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImViNmJlODBmNzMxMGMwMWE1MTM1ZWEzZTU3NmRiYjg5ODJmYzhmNDNkMDZlYzU3MDMzMjQ3MGJhYWY4NGE3ZjcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_448e11f711ce4453919e9007d9f9791c",
+      "statement": "ChunkManifest::end is the last byte (inclusive), so byte_len() == end - start + 1 and complete means durable_bytes() >= byte_len(); fixtures that treated end as exclusive had to be corrected once completeness is derived from the durable count.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/tests/chunks.rs#L10-L45",
+          "version": "repo-lines-v1:sha256:19a0232db8d50d684c29f3407d22f6c5b56d19b1da8996298f447875c04f42c4:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMzNTc5MmFiNTA1Y2ZjNGNhODlmMDlmMGRmMTQxYmFlYWRiNzQ5ODkzNGEyZTA3Y2U5OTA0YzlkMjkzMGZhMDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI4NTYxOTgxNTY0OGY0ZjgyZTQ1ODNlZWNhOTZiNTNiZTg3MDEwMDA3YzdhZmU4NTUwZDg3MTdkNmY2OGUxZWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5OGQwYjQ0MzA4ZTIwMjk2MDZiNThiYjk3ZDdjN2MzZmMxMWYxNWI4MjNjNTM3MTJkYmVjMGJiMjhkZDUwM2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUxNjU4ZWEwNzc1N2YwMTk1ZjAwNTZjNTZjNDdjOGE4MDc4MDRlODA5ZGI0NTZkZDMzOTNjYmNhZjI0NjRjMjcifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/manifest.rs#L73-L124",
+          "version": "repo-lines-v1:sha256:e03bc14575e11fbd52bf90f00da81a8cf98c49ef75e49516bf88155f2b2df5e1:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YWUwMzUzZmZjZjI1YTIyNzE2OTdiY2E3NjM5ZGI1NmUyYmNjNzc5NjUzZjU1ZjljMjQ4MjIwMWIxM2Y2MTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZiMWRiYjM2NzQwNTZmYmRiZTczZDAyNzEzYzYzMDU4ZmE5NzEwMzIwMzAwNjI4ZTFhZTc0NGU2NTFhOTAzMmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjYmU3NTgwZGJiM2E3ZGI3ODViMWE1NTU5NDQyYWE5OGEzOWZmMTYzY2VlNjVjMzQ0MmQ3NzJiMmUwYWUzODIifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T03:21:09.297Z"
+    "at": "2026-10-04T05:35:23.596Z"
   }
 }

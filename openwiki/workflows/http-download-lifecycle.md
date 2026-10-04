@@ -1,12 +1,13 @@
 ---
 type: workflow
 title: HTTP Download Lifecycle
-description: End-to-end orchestration of an HTTP download — start validation and slot acquisition, remote probing, chunk planning, single-stream vs chunked execution with retries and mirror failover, 429 downgrade, progress throttling, and checksum-verified finalization.
-tags: [http, download, lifecycle, chunked, retry, checksum]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
+description: End-to-end orchestration of an HTTP download — start validation and slot acquisition, remote probing, chunk planning, single-stream vs chunked execution with retry/fetch budgets and mirror failover, 429 downgrade, the durable-vs-received progress split that persistence follows, and the finalization durability guard.
+tags: [http, download, lifecycle, chunked, retry, checksum, durability]
 sources:
+  - id: openwiki-source-864cb4d72f6b14f070ee0f6c
+    resource: repo://crates/limedl-core/src/database/chunk_repo.rs
+  - id: openwiki-source-05acffc41354e79e4b63b4e7
+    resource: repo://crates/limedl-core/src/download/managed.rs
   - id: openwiki-source-6e8cafe6d766137aab11d68d
     resource: repo://crates/limedl-core/src/download/shared.rs
   - id: openwiki-source-7e3442210263e22ce18a7bd5
@@ -29,7 +30,10 @@ sources:
     resource: repo://crates/limedl-core/src/persistence.rs
   - id: openwiki-source-098d28438aacd15b419786dc
     resource: repo://crates/limedl-core/src/task_lifecycle/mod.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T05:35:23.596Z
 ---
 
 # HTTP Download Lifecycle
@@ -99,7 +103,7 @@ progress, it clears progress and forces a single-stream restart.
 
 Evidence: `repo://crates/limedl-core/src/http_executor/run.rs#L122-L205`,
 `repo://crates/limedl-core/src/http_executor/run.rs#L262-L345`,
-`repo://crates/limedl-core/src/manifest.rs#L98-L175`.
+`repo://crates/limedl-core/src/manifest.rs#L137-L196`.
 
 ## Phase 3 — Execution
 
@@ -126,10 +130,18 @@ Evidence: `repo://crates/limedl-core/src/http_executor/run.rs#L198-L250`.
 Workers claim chunks by an interleaved stripe (`chunk.index % worker_count`) with
 an any-unclaimed fallback, and steal work by splitting the active chunk with the
 largest remaining range when it is at least 2 MiB. Releasing a claim only clears
-it if the claim still belongs to that worker.
+it if the claim still belongs to that worker. `mark_complete` only advances the
+*received* counters; the durable counter for those bytes catches up when the write
+buffer reports the flush that contains them (see
+[Durable vs received progress](#durable-vs-received-progress)).
 
-Evidence: `repo://crates/limedl-core/src/http_executor/chunked.rs#L7-L130`,
-`repo://crates/limedl-core/src/http_executor/worker.rs#L28-L135`.
+Each worker also carries a `RequestBudget` of
+`MAX_SEGMENT_FETCHES_PER_CHUNK = 24` segment requests, so a server that keeps
+ending the body early fails the download instead of driving the worker's
+re-fetch loop forever.
+
+Evidence: `repo://crates/limedl-core/src/http_executor/chunked.rs#L7-L135`,
+`repo://crates/limedl-core/src/http_executor/worker.rs#L28-L150`.
 
 ### 429 single-thread downgrade
 
@@ -143,8 +155,8 @@ never lost.
 `RestartSingle` (a range/validator failure) is different: it clears the buffer,
 prepares a fresh temp file, resets progress, and restarts as a single stream.
 
-Evidence: `repo://crates/limedl-core/src/http_executor/worker.rs#L254-L315`,
-`repo://crates/limedl-core/src/http_executor/chunked.rs#L428-L486`.
+Evidence: `repo://crates/limedl-core/src/http_executor/worker.rs#L272-L330`,
+`repo://crates/limedl-core/src/http_executor/chunked.rs#L429-L488`.
 
 ### Single stream
 
@@ -155,7 +167,15 @@ issue the request through `request_with_retry`, and stream the body into
 throttling persist/progress. It guards the received content length and flushes
 the rate limiter and buffer on every exit path.
 
-Evidence: `repo://crates/limedl-core/src/http_executor/single.rs#L9-L125`.
+The loop is bounded: `RequestBudget::new(MAX_SINGLE_STREAM_REQUESTS = 64)` is
+charged once per response. A server that always ends the body early would
+therefore spin here forever (the offset would never move, and each request gets a
+fresh `max_retries`), and the budget turns that into a reported failure instead.
+The chunked worker has the same mechanism per chunk
+(`MAX_SEGMENT_FETCHES_PER_CHUNK = 24`) — see
+[networking-and-rate-control.md](../systems/networking-and-rate-control.md).
+
+Evidence: `repo://crates/limedl-core/src/http_executor/single.rs#L17-L186`.
 
 ## Phase 4 — Scheduling and progress
 
@@ -169,8 +189,52 @@ Progress uses a shared `ProgressThrottle`: the manifest is persisted every
 500 ms. Terminal states emit immediately. `BatchLimiter` consumes the global rate
 limiter in 256 KiB / 8 chunk batches and flushes leftovers before exit.
 
-Evidence: `repo://crates/limedl-core/src/http_executor/mod.rs#L217-L280`,
+`Progress` events and the persisted row deliberately read *different* counters:
+the event carries the received progress (what the user sees), while the row stores
+the durable progress (what is on the file). See below.
+
+Evidence: `repo://crates/limedl-core/src/http_executor/mod.rs#L227-L340`,
 `repo://crates/limedl-core/src/download/shared.rs#L15-L20`.
+
+## Durable vs received progress
+
+Every chunk carries two counters, and keeping them apart is what makes a crash
+recoverable:
+
+- `ChunkManifest::downloaded` / `::completed` are the **received** counters,
+  advanced by `record_progress_on_managed` as bytes arrive. The scheduler, the
+  claim/unclaim logic, `all_chunks_completed`, the tail-sprint state and the UI
+  snapshot all follow these — they describe what the transfer has achieved.
+- `ChunkManifest::durable_downloaded` and `DownloadCore::durable_bytes` are the
+  **durable** counters, advanced by `record_durable_bytes` and nothing else. The
+  write buffer calls it with the `(offset, len)` ranges a flush put on the file,
+  and the direct-write paths call it right after `write_all_at` returns.
+
+What the database stores follows from that split: `chunk_to_params` writes
+`downloaded = chunk.durable_bytes()` and
+`completed = durable >= chunk.byte_len()`, and `chunk.durable_bytes()` clamps to
+the received count, so a stale counter can only under-report (which costs a
+re-download, never a hole). The three writers — `persist_manifest_snapshot`,
+`persist_manifest_snapshots_batch` and `DownloadManager::persist` — all substitute
+`core.durable_bytes` for the task-level counter.
+
+Why it matters: before this, the 300 ms cycle stored the *received* counters,
+which run ahead of the file by whatever the buffer still held. A hard kill then
+left the database claiming a chunk was complete while its bytes were only in
+memory, and the next resume skipped over the resulting hole.
+
+Two consequences worth remembering when touching this area:
+
+- `record_progress_on_managed` must not set `chunk.dirty`. The dirty flag is what
+  schedules a row write, and a row may only record durable bytes; the observer
+  sets it instead.
+- The durability boundary is `pwrite`, not `fsync`: a successful flush counts,
+  which covers a process crash/`SIGKILL`/OOM kill but not power loss (where the
+  page cache and the WAL commits are lost together anyway).
+
+Evidence: `repo://crates/limedl-core/src/download/managed.rs#L145-L225`,
+`repo://crates/limedl-core/src/manifest.rs#L73-L124`,
+`repo://crates/limedl-core/src/database/chunk_repo.rs#L27-L60`.
 
 ## Phase 5 — Finalization
 
@@ -183,12 +247,21 @@ Evidence: `repo://crates/limedl-core/src/http_executor/mod.rs#L217-L280`,
    to `{id}.part.corrupt`** so the evidence survives cleanup, marks the task
    `Failed`, persists and returns. The current finalizer does not attempt a
    targeted re-download of affected chunks.
-3. On success, creates the destination parent, calls `finalize_temp_file`
-   (atomic rename, cross-device copy fallback), sets `Completed`, marks every
-   chunk complete and releases claims, persists, and publishes
-   `aria2.onDownloadComplete`.
+3. On success, creates the destination parent, calls
+   `ensure_core_fully_durable(&core)` — every chunk must have reached the file,
+   otherwise the download fails with the missing byte count instead of publishing
+   a truncated file — then `finalize_temp_file` (atomic rename, cross-device copy
+   fallback), sets `Completed`, marks every chunk complete and releases claims,
+   persists, and publishes `aria2.onDownloadComplete`.
 
-Evidence: `repo://crates/limedl-core/src/http_executor/finalize.rs#L7-L161`.
+The durability guard takes the guard the caller already holds on purpose:
+`finalize_download` is inside the `managed.lock_core()` block that also toggles
+the state, and calling `lock_core()` again would deadlock (`parking_lot` mutexes
+are not reentrant). See
+[test-regression-notes.md](../../docs/test-regression-notes.md) for how that
+showed up.
+
+Evidence: `repo://crates/limedl-core/src/http_executor/finalize.rs#L7-L190`.
 
 ## Shared helpers that must not be duplicated
 
@@ -203,9 +276,10 @@ paths. Refactoring a path must reuse these rather than re-implement them:
 | `finish_buffer_flush` | flush after completion while toggling the UI `flushing` flag |
 | `check_disk_space_periodically` | 30 s space check; insufficient space → `Failed` + `Warning("disk full")` |
 | `BatchLimiter` | 256 KiB / 8 chunk rate-limiter batching |
+| `RequestBudget` | per-unit-of-work cap on separate requests |
 | `ProgressThrottle` | `PERSIST_INTERVAL` persistence + 500 ms progress events |
 
-Evidence: `repo://crates/limedl-core/src/http_executor/mod.rs#L71-L280`.
+Evidence: `repo://crates/limedl-core/src/http_executor/mod.rs#L71-L340`.
 
 ## Crash recovery
 
@@ -213,17 +287,13 @@ On restart, `load_downloads_from_db` reconstructs tasks and clears every chunk's
 `claimed_by` (a fresh manager owns no workers, so persisted claims are stale).
 Tasks left `Downloading` stay `Downloading` with connection/allocated counts
 zeroed so the scheduler re-allocates, and resume continues from the persisted
-chunk state. See
-<!-- openwiki: broken internal link [/openwiki/systems/persistence-and-recovery.md] link "/openwiki/systems/persistence-and-recovery.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[SQLite Persistence and Crash Recovery](/openwiki/systems/persistence-and-recovery.md).
+chunk state — which is exactly the durable state, because that is all the database
+ever held. See
+[SQLite Persistence, Durable Progress and Crash Recovery](../systems/persistence-and-recovery.md).
 
-Evidence: `repo://crates/limedl-core/src/persistence.rs#L30-L95`.
+Evidence: `repo://crates/limedl-core/src/persistence.rs#L30-L120`.
 
-<!-- openwiki: broken internal link [/openwiki/workflows/scheduler-and-concurrency.md] link "/openwiki/workflows/scheduler-and-concurrency.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Scheduler, AIMD and Concurrency Control](/openwiki/workflows/scheduler-and-concurrency.md),
-<!-- openwiki: broken internal link [/openwiki/systems/disk-io-and-storage.md] link "/openwiki/systems/disk-io-and-storage.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Disk I/O, Buffer Pool and Storage Detection](/openwiki/systems/disk-io-and-storage.md),
-<!-- openwiki: broken internal link [/openwiki/systems/networking-and-rate-control.md] link "/openwiki/systems/networking-and-rate-control.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Networking, HTTP Clients and Rate Control](/openwiki/systems/networking-and-rate-control.md),
-<!-- openwiki: broken internal link [/openwiki/systems/persistence-and-recovery.md] link "/openwiki/systems/persistence-and-recovery.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[SQLite Persistence and Crash Recovery](/openwiki/systems/persistence-and-recovery.md).
+Related pages: [Scheduler, AIMD and Concurrency Control](scheduler-and-concurrency.md),
+[SQLite Persistence, Durable Progress and Crash Recovery](../systems/persistence-and-recovery.md),
+[Networking, HTTP Clients and Rate Control](../systems/networking-and-rate-control.md),
+[Disk I/O, Buffer Pool and Storage Detection](../systems/disk-io-and-storage.md).

@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:f16f3e12eb56c702dd91e9c4bbccdb47d2c21be223e42a920f1e8d20af2453c9",
+  "pageVersion": "sha256:85cb1ad9a9bed38e0c732b8ccfdeaa00b8c1fc448198d6caa4459f1a0536b988",
   "claims": [
     {
       "id": "claim_9069efa9e70847f4afdb9194ea98ad55",
-      "statement": "Aria2RpcServer binds 127.0.0.1:{port} with POST and GET /jsonrpc (HTTP and WebSocket), applies CORS defaulting to localhost, and runs axum gracefully shut down by a watch receiver.",
+      "statement": "Aria2RpcServer::serve binds 127.0.0.1:{port} with POST and GET /jsonrpc (HTTP and WebSocket), applies CORS defaulting to localhost, runs axum gracefully shut down by a watch receiver, and logs a warning naming the address when it starts with AuthConfig::Disabled.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/server.rs#L42-L155",
-          "version": "repo-lines-v1:sha256:ed7c6f88a29bfa3e9593c82a0b80efb7fae2b16aa83cdcafa247be8eef854650:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmN2Q0NTlkZTU2MWY1YzMwZWU4ZmYxMTI1ZDQ4MTYyMDIzY2VhOGRkN2UxN2ZjZDdhOWYxOGE2MWQ5OGNiM2Q1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIzNzQzOTgyNzVmMWQ4Y2M0MTQxYmNkMDc5ZGVmMzNkNGM1NTIwNWZjMGRiZWE5YjczODU0MmZlYWMxZGE2YjkxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlOWIwMjIwMDc5MTg3ZGZiMjZhMWNlMThlY2MwYjEyMzEzNTMyZjdhNTE3OWY2OWJhYzhjYTM2OWIzZWNlZjgzIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI4NjFjYjE2YTk2ZmRmNWFlYjZiYjdkMzRiNDViNzllMTNjZWZkZjg0NzhjMjYyMjcxYjlkN2M5ZWNkYzc2MDY3In0"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/server.rs#L71-L150",
+          "version": "repo-lines-v1:sha256:eedc0e2a2a34acdcdaaf9d3aceb8c6f764ab1484c9deb788bd7bbb7090cbdbda:eyJzZWxlY3RlZExpbmVDb3VudCI6ODAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmNGMxMjIwMWYzOGRkOGM0ZmUxMzgxNGVhNjhlMjlmOWViNTljM2ZlZjNjNzliY2FlMzlmNjdkM2E3ZTI0ODUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM3NTRlYmJmZDhlZmVhNGQ0OWVjNWM3YTM4Yjg3MTYwNWNlNGYzMGM5NTY3NmQ2ZTU5MTBmYzQ4ZjUwMzQ1MTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4MDgxYjZjMzA1ZDc1NzcwNjg1ODM5NjMxMDIzNzIwOTYxYzVkYjg3YmVmMGZhNDc4NWIwZWFlYWEwNDUwMjIifQ"
         }
       ]
     },
@@ -199,10 +199,24 @@
           "version": "repo-lines-v1:sha256:1e4ba79a87e017c454898b10eabf6b2cc1fd6c4436db0bc5730594c2fd56081f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRlMzBkNjdmZGFjM2MxZDhjOGJjNzBjZjUzZjE5YjExYzc1ZTVlNTMwZGM2MDlmMjM0YTE3NWFmNmQxNTljOWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgxOGRkYzRhZTFkNzc0Y2RkYmExMGVkNGFkNmIyMDEzZWRmNDUzMjY4YjIwOTY4NzI0Y2ZmMzVkYTVmZDU4NDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2NjQ0MzcyMTNjNzMwM2M4MWI3MjI1M2Q5NDg2YWJjMjIxNTEyY2QxM2RmNTMzMTg1YTY1NzU4ZjE3N2ZjZGQifQ"
         }
       ]
+    },
+    {
+      "id": "claim_057412e4daaa4a81b145340f422d5dc2",
+      "statement": "Aria2RpcSettings::default() has enabled = false because an empty secret yields AuthConfig::Disabled (anonymous loopback RPC); enabling the service is an explicit user action and an existing settings.json with \"enabled\": true is honoured. AuthConfig::is_enabled is pub(crate) so serve can check it before the context moves into the router.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L15-L41",
+          "version": "repo-lines-v1:sha256:02a392ee7b5338665d2356c7c078c68b978f24a5982b5066eef13a76fdabbe55:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5MTljMTIyNTZmYTY2OTlmZDljMDY3YzcxN2U4MjBlNjVhZjk4ZWE1OTI0OGQ0N2VhYzZiMGZkYmRkN2U1MWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQxYjZjY2EzNmQ0ZDg5ZmRkMDY0ZGE0MjQ4ZjdmODljOGY1YTZjZDJmN2IxZWFjYzczMGQxZDYzMTQ5ZWZkMjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyMjA0MjM3ZTc1YjY4MDAzMjVlMDNiODZmMDdmMzRiYzIxMDJhNTBlNjk1Y2RkODY3OGY2ODg5YjU4NGQwMWUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/types/settings.rs#L380-L397",
+          "version": "repo-lines-v1:sha256:f56f48914c11d8f98c2a5652531cadb6e999a43ddbc9a017388bf8b677974358:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkNDczMDg3MTFmNjU5ZDhmOTkxMzJjNmMxYmE3YzI5NGU4MzRmNGIwMzViNGFmY2NlNjg5MzJmZGY1MzIyZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwZjU0ZGVjOWNiMGNjMDEwYWY3NzhmZTQ4NTBmYzU2Y2Y0ZjFiMTBhNGZiYzBhYTg2YmFhYzk2ZmM0YjU0NzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhhZDhlNWVlMjZkNDc1NTExOWQ1M2QxMjE1Y2M2M2Q3NzdjZGY3NzUwNDU3ZDg3Nzc1ZTEzYzc5ZDExNjZiNDIifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T01:52:48.489Z"
+    "at": "2026-10-04T05:35:23.596Z"
   }
 }

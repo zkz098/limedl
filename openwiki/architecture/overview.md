@@ -5,7 +5,7 @@ description: Repository layout and runtime topology of limedl — the core engin
 tags: [architecture, workspace, crates, routing, event-bus, conventions]
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
+    at: 2026-10-04T05:35:23.596Z
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
     resource: repo://.cargo/config.toml
@@ -17,10 +17,14 @@ sources:
     resource: repo://crates/limedl-core/src/aria2_rpc/transport.rs
   - id: openwiki-source-2262be0eb4e0dcf867247c95
     resource: repo://crates/limedl-core/src/backend_registry/mod.rs
+  - id: openwiki-source-05acffc41354e79e4b63b4e7
+    resource: repo://crates/limedl-core/src/download/managed.rs
   - id: openwiki-source-b90dbf5c7cbd9e3a7dc111aa
     resource: repo://crates/limedl-core/src/event_bus/mod.rs
   - id: openwiki-source-0b0075760500d97c47f037a4
     resource: repo://crates/limedl-core/src/lib.rs
+  - id: openwiki-source-9fa813eab6e27ac3f5fdbf1d
+    resource: repo://crates/limedl-core/src/manifest.rs
   - id: openwiki-source-91b6ee5086a47115791aca3c
     resource: repo://crates/limedl-core/src/protocol.rs
   - id: openwiki-source-5dec6002b80585dbbafe39ac
@@ -33,7 +37,7 @@ sources:
     resource: repo://crates/limedl-native/src/main.rs
   - id: openwiki-source-d94bdd15f85e5a65c6c7399a
     resource: repo://crates/limedl-native/src/renderer.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
 ---
 
 # Workspace and System Architecture
@@ -62,10 +66,30 @@ compiles the Slint renderer pair FemtoVG/OpenGL plus the software rasterizer. Th
 renderer is a compile-time choice; the software fallback exists because a machine
 whose GL stack fails to initialize (RDP session, VM, broken driver) would
 otherwise have no renderer able to open a window. The advertised `NAME` is the
-*preferred* renderer, not a guarantee that the GPU path was taken.
+*preferred* renderer, not a guarantee that the GPU path was taken. The crate also
+enables tokio's `signal` feature for the `cfg(unix)` SIGTERM/SIGINT watcher in
+`main.rs`.
 
-Evidence: `repo://crates/limedl-native/Cargo.toml#L14-L33`,
+Evidence: `repo://crates/limedl-native/Cargo.toml#L13-L31`,
+`repo://crates/limedl-native/Cargo.toml#L33-L36`,
 `repo://crates/limedl-native/src/renderer.rs#L1-L31`.
+
+The client owns the concerns that are meaningless inside the engine — crash
+reporting (`crash.rs`), the single-instance claim and its activation channel
+(`single_instance.rs`), the tray and the window platform glue. See
+[the native UI page](../desktop/native-ui-architecture.md).
+
+## Durable progress is a core invariant
+
+Download state has two progress counters per chunk: the *received* one
+(`ChunkManifest::downloaded`/`completed`), which the scheduler and the UI follow,
+and the *durable* one (`ChunkManifest::durable_downloaded`,
+`DownloadCore::durable_bytes`), which only the write buffer advances after a flush
+and which is the only thing the database stores. That split is what makes a crash
+recoverable instead of silently resuming past data that never reached the file;
+the mechanism is documented in
+[SQLite Persistence, Durable Progress and Crash Recovery](../systems/persistence-and-recovery.md)
+and [HTTP Download Lifecycle](../workflows/http-download-lifecycle.md).
 
 ## Task identity and protocol routing
 
@@ -160,9 +184,6 @@ Both arrows terminate at the same `Dispatcher`, which is why the two frontends s
 identical state and neither re-implements lifecycle or settings logic. The next
 pages cover the initialization sequence and the facade in depth.
 
-<!-- openwiki: broken internal link [/openwiki/architecture/bootstrap-and-services.md] link "/openwiki/architecture/bootstrap-and-services.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Bootstrap, SystemContext and Shared Services](/openwiki/architecture/bootstrap-and-services.md),
-<!-- openwiki: broken internal link [/openwiki/architecture/protocol-routing-and-dispatcher.md] link "/openwiki/architecture/protocol-routing-and-dispatcher.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Protocol Routing and the Dispatcher Facade](/openwiki/architecture/protocol-routing-and-dispatcher.md),
-<!-- openwiki: broken internal link [/openwiki/desktop/native-ui-architecture.md] link "/openwiki/desktop/native-ui-architecture.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Native Desktop UI (Slint)](/openwiki/desktop/native-ui-architecture.md).
+Related pages: [Bootstrap, SystemContext and Shared Services](bootstrap-and-services.md),
+[Protocol Routing and the Dispatcher Facade](protocol-routing-and-dispatcher.md),
+[Native Desktop UI (Slint)](../desktop/native-ui-architecture.md).

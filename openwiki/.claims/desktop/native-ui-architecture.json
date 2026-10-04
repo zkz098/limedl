@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:19915d6d5d848cb43f47281b86f9737f59c1ea0f18a7d43bd279147d35753db7",
+  "pageVersion": "sha256:d6ae5864a9501d72dd0fe984e8139f1d9947d9b7cfdeb7bc980a5fd125e5bbef",
   "claims": [
     {
       "id": "claim_a3116684fdf845e3bf61d5d54d1ccadf",
-      "statement": "main() owns OS-facing startup: it parses the CLI contract, claims the single-instance slot, resolves the base/state directories, calls bootstrap(), initializes logging, syncs autostart, optionally starts the Aria2 RPC server, then builds the UI.",
+      "statement": "main() is a thin wrapper that awaits run() and reports a fatal error through crash::report_startup_failure; run() owns OS-facing startup: CLI parsing, data directory, single-instance claim, panic hook, logging with defaults, bootstrap(), logging with the configured settings, autostart, optional Aria2 RPC, then UI construction.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L31-L103",
-          "version": "repo-lines-v1:sha256:a3051aabf43ed8e29514b91988a03938e483ef5c5edacf9bf53baf9e49608f14:eyJzZWxlY3RlZExpbmVDb3VudCI6NzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyMGVmMzY4YjIxOWVkYmY0YzVmOTVmMzExOGMyMTMyNzEyMjdjYTIxZGFjNzU1MTc1YTA1MzNjYzRiMGIyMWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNiZDFlMmI1NDkxMjAxZDRiYzUxODUwYmI4MDRlMTQ0OTJhZjA4YmI1MWM5MjA2MjgzYTc4MDliMDYwOGU1NDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5YzQxZTlhMGJlNjlhMjEyNjRlOGYwYmUxZDE2MDNjOTZmOGNlM2UzZDE2NDlkMjg5NTA3MGQzYzU2Njk2MjIifQ"
+          "resource": "repo://crates/limedl-native/src/main.rs#L54-L130",
+          "version": "repo-lines-v1:sha256:bafc23070c6582daa68211d97ba7b8f4add62658f66d5ab59c8a7f01c9e29018:eyJzZWxlY3RlZExpbmVDb3VudCI6NzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRkMWE3M2FkMWQ0NmRjYmFlYzAwZDA2ODMxMDc4N2UyODg4NmRjOWM2MTdjODAwMWM3NzNlZTgwNDJiMGIyOWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkMjViOGY1YjZmMDljNDQ2Y2M1MGQxYjI5Y2U2ZDgxMTlkOWFmM2E3MjUzYTNmZWJmYTZlZThkNTJjOTc0ZmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFhNzAwZmQxZTM2YjM2ZGM2ZDE0ODM0MjUwZjllZWI1OThlMTI3MTc4ZDY2ZDIwOTFiYjQ0YTc4OTdhOWJkMjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZiYWRlOTk4ODA2YzcwYTI2MTA5OGJhYzEyZWJkYWRhNGY3ZTQyN2UwYjRiNmExODBjMDc4OGRlM2E5M2MwYjMifQ"
         }
       ]
     },
@@ -127,18 +127,26 @@
           "version": "repo-lines-v1:sha256:da6cd5b9d17b9254919b35209d63cee0ce7b72c0e27d4370ef750866b7879b2c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIxMTI0MTVhNGQ4MmU4NzQxZWVlNzQwOTFiY2Y3NmZiZWY4OWViM2VhYWRmNTc1Y2VjZjNmMjRiMjMxMjNjNDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MDkwN2E5YTM4ZmUyYzQ2N2VkMTE2OTgxMTE3MGQ5OWE4ZjY5MTM3ZTQ5MDZkMzM4N2RiOGYxYWZlZTU0ZGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxM2FhNGY5MjM0YzQ5N2QyZGQ0YTk4NWY0MDQ3MzBkODkxYjk1MDUyYTQ5Yjk3MDUyN2RjZGJiNzllMzhhNDYifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/i18n/tests.rs#L245-L270",
+          "resource": "repo://crates/limedl-native/src/i18n/tests.rs#L258-L283",
           "version": "repo-lines-v1:sha256:e4e1bc9ef683b641cbed97fac24aa2dce2f5ee6a7bfc555151ee2ba9459658a8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI4NWRjNDk5MzE4MmNkMDEyMzZiYWM0OWIzN2NiYTQ4YmJkZTkwMTYxNzlkODJjY2NhNDBjNGQ3YWI2NTA3ZjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
     {
       "id": "claim_3eb73bc1cca843bf9bacbbf836355343",
-      "statement": "Single-instance claiming uses a session-local named mutex with WM_COPYDATA forwarding on Windows and a loopback TCP listener on port 45997 on other platforms, with the primary handle kept alive for the process lifetime.",
+      "statement": "Single-instance claiming uses a session-local named mutex with FindWindowW/WM_COPYDATA activation on Windows and an exclusive advisory lock on <data-dir>/instance.lock with a Unix domain socket activation channel elsewhere; notify_primary returns whether the request reached a primary and the socket path falls back to a hashed temp name past the sun_path budget.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/single_instance.rs#L1-L20",
-          "version": "repo-lines-v1:sha256:1a4ec1bb17c7701f84f7bbdf3cf4d1e66171b409091966a5a6079c0354cae026:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgwZjBjOThiODYwZDg4YjhhYzk2NzRlNDZjYmU4NjE0NWNjMWZhMjQ0MGRiZWI1ZjM1YjFkZTg1NzIzNGRkMmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhlNmE3ZTdlNjQ4ZGM3ODZhMTc0NWQ2NjU2ZWZkN2FkOWMwYWM5OGJhZTMxNGM1ODUyMGRkYzg1NDM1MjA4ODMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQyZjA4ZGU0YzI4YTNjMzZhY2NjZWViN2MyZTVhYTRhZDQ1MjYzZWIxZWVhNjIzMjNmNmEwY2E4M2ExNmJhYTIifQ"
+          "resource": "repo://crates/limedl-native/src/single_instance.rs#L1-L45",
+          "version": "repo-lines-v1:sha256:722e841f9d6c05a9a587160b0e321dab948eaf398af4830203dce32ba239755b:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgwZjBjOThiODYwZDg4YjhhYzk2NzRlNDZjYmU4NjE0NWNjMWZhMjQ0MGRiZWI1ZjM1YjFkZTg1NzIzNGRkMmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiZjgxMzZkZDNkODQ3MTc0N2UzYjUyYmNjMzZjOTFjNjU2ZTQzYzdhOWFhYzgxNTA4Y2E0NTA1YzRkZGNiMDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFkNGMyMWExZWUyZjA3ZGZkOGE3YmY3MzljOWE3ZTY5NTBlMGIzNWNlNGIxNzBjYjUzZGM1NzI2NmU0NGVlMTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/single_instance.rs#L256-L330",
+          "version": "repo-lines-v1:sha256:9519b6c9be95e73076f5839837db72f6504e8a4f1760af17c06a8df3ea8f3431:eyJzZWxlY3RlZExpbmVDb3VudCI6NzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzODMxMzIxZmY1MjI5MmVhNjQzYjIxMTBkZmFkZjVjMGJkMDdlNjYyZTA0YmFlZTc2YjE0ODAyZmRkMGY2ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhMmRjNDhiNzAyOWY5NTEzMWJkODEyMzY3YmY3NzQxYzAwMjhmYTQxZjRkYWM4NjUyMGQwZTk5YjQ5MzlkMWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY2MTk2YTliODlmMTNhMzAxODhmYWE4NDJjYWNhZGZiNTVlYTFiY2Q4OWVjNTRiYzE0MTc1YjBjY2MwNzA0NzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhODM5Mjk2ZDlkZWJiNDU4MzgzNTc5ZDE4Y2E4ZjFhNWRkOWM2Njc5MTY3YmQ2ZmI4ZGEzYmNkMGY0MTUxODEifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/single_instance.rs#L88-L165",
+          "version": "repo-lines-v1:sha256:3795c6964bfc3a30b633077e3d82505c448c9e8ccc76a309a2d3fab6f5ce7502:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwNzVkOTQ1Y2UyMTM5ZGFiZWZmOTUxYTJhOWRjM2Q5MDZmMTI0ZTI3YzQzMmEzMTVmMmFiYzgzMTkyZmJmOTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU4NzkyNzQzM2E5OGQ2ZjMwMjdiMTQzYWRmODYwZTM3MjNlNGUzYTE2YTE5OThlYWRjMDNhZmQzM2I0OGVkZmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQwNGMyNDE5MjMxNWMzMTlkMWZlNzU1ZWY2OWRkMGE4YjVlNTQ1ZGU3MTE3ZWFlNjk2ZjUxMGFlZTY4MTEyNjkifQ"
         }
       ]
     },
@@ -207,10 +215,58 @@
           "version": "repo-lines-v1:sha256:2f3d1253a6c9689f7a90bd2320ff8dae37c8d0fbe2062c366e558ea5289e44ed:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MzFkNGI1NmY1MmVhYTBkOGMwZjExYWFjNDk5NjQ3NmQzMDMwMmJlMjg1M2EwYjExZGE5ZTIyMmUxMTIwODUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg3MjNlZGUwMWNkYjg0OWU1OGFhYjViZjFlNmE2NzI4MTgzMDQ3NmZlYTI5NjUzYmE5MWVkZWRlYjNhMGEzOWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQwZGYwYzFlYTBiNWZlMTFlNDIxNjA0NTE2ZDU5NzEyYzljZDhiOWNiMzEyODQ4MTk2MDI3ZDIzZTU0YjhjN2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEzNzIyYmU2ZDU4MmJmMTllNmVjYjViMTJmMDE3MDk5MTMyYTU1N2I5N2RiZjVmY2Y1M2ZjNjI1ODMyNGM4OTcifQ"
         }
       ]
+    },
+    {
+      "id": "claim_707e3d279e884d9e880e9015b0a65b23",
+      "statement": "A fatal startup error is surfaced twice: written to the crash log and shown in a localized rfd message box whose language comes from the OS locale, because settings may not have loaded.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/crash.rs#L48-L68",
+          "version": "repo-lines-v1:sha256:abe6933280a7798d424bf08b077abf058b8e773abc52ea4f34b41a61cda864c0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzODQ4M2JiOGYxMmQzM2MyYzVmOWQ2ODlmY2NkNmFjY2I1YzYxNDIzYmExOGY2ZDQ0ZjdhNzRjNjM4ZGRiMzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4YTM5MzM3ZjYwOWI0Yjc1ZGMwYjkyZDI4MTIyYTI2YjM3NDU2Y2IxNWJhMjM4ZTg4NTZiODY5NDkyNTc1MjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjczZWRiNDYzMzhjYzdlYWNiY2IxMTk4YzlkM2ZlZTk4OWRjNGZlYjg3MGRmZmI5MzI3NGY2NGE3ZmU3ZDViOWEifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/main.rs#L54-L63",
+          "version": "repo-lines-v1:sha256:b1b67ba1bebef3a5709b65a82dca61cab38a9ea77dee430401a6416ba449cc0c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRkMWE3M2FkMWQ0NmRjYmFlYzAwZDA2ODMxMDc4N2UyODg4NmRjOWM2MTdjODAwMWM3NzNlZTgwNDJiMGIyOWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFhNzAwZmQxZTM2YjM2ZGM2ZDE0ODM0MjUwZjllZWI1OThlMTI3MTc4ZDY2ZDIwOTFiYjQ0YTc4OTdhOWJkMjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY5ZjhlYWI4OGU0OTRjZWU4M2NhMTI1ZjhkMzk0NjQ5Nzg3NDE5MDgyNGE2ZjQ4ZDUxNmI2MGQzM2I0NGY3NzQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_68aee9374fe542b59681458952e45fba",
+      "statement": "The panic hook writes timestamp, thread, file:line, payload and a captured backtrace to <state_dir>/logs/crash.log and echoes it to stderr, rotating to crash.log.1 past 1 MiB; it runs even under panic = \"abort\", which makes any catch_unwind a development-only safety net.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/crash.rs#L18-L47",
+          "version": "repo-lines-v1:sha256:6bd708d378c339a20ee309ea73b9448b7287e1fd483587c6e8fd148c872c5730:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEwNTQyZmZlODRmMDU5M2FmNjdkODg4NzI2MDEzZTFmODdmYTcxNmYzZmUxZDBhZDIxODBiNDI2ZTA0N2ZjMzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFiYWZjZGJjNGNiMGJjYzZmNGIzY2QyM2RiOGRjZGJhZDY5OWI5MDQ2Mzk5MzMzZGM1NzkzMjA2YjcxZWM5OTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjliYTE3OTBmYjU3YzU5NTVkZDYwMWY4NWY3ODMyOTNhNDZlNmMyNzNjMzZhNTlhMjAzOWQwZmNjNzg1N2U0YWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIzYmUyMzQ5NzFiMDI5ODFlZWU1MDVjYzcyZjhhOGFlYjA1NzI1NjljNGZkYmFhMDJjNmY0ZTViMGFiYmQ0OTYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/crash.rs#L91-L120",
+          "version": "repo-lines-v1:sha256:3c3180e11f5c6feb40871168a1d2c1cea8356f544b524ddcb034572c8d84b233:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjczMzNiMTAzMTMyNTNlZjY2MjI1MzU5MTYxYjA2ZGU2N2I2MDY3ZjUzOTlkMGQxNTE1MmJhMzIxMzY1MDA0NjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY5Mzg5OTkyY2YyNTMxMDE3NzJiNjg5OTdmNGMxMmNlYTU2YmUyYmViMzJmODcwYjk0ZGExOTZlZDMxOGExNmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZkZWU2ZGRhMzhkNjFmODFiMTVkNTBmM2U4ZDYzZmJmZjE1MjJiZDE5NzgyMDQwMTQ4ZDdjNDBiYjMwNmFkYjUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a5016574612348ae802c823082d06cda",
+      "statement": "Building the tray icon is best-effort: a missing StatusNotifier host logs tray_init_failure_message and startup continues, because the window is the primary UI and aborting there would take the window down with it.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/main.rs#L186-L201",
+          "version": "repo-lines-v1:sha256:a8d4538c6f5b093ff445e31646ec41c710feeb3c5ab40a97d9291a7069ecda54:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyNTM0MmMxZDU3YWJiMWVkYmZkOGU4MTZmZTFjMjUxM2M5ZmVlNjkwYTJlODY3ZDZkM2YxOTE0N2ZmNTczMWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzMzdmMjUyMDNiZjEzZDhlNDg3YjYwNjc2ZDQ4OGY2MmYyNmI0NWY5Njk4YjE1NjE3NTE2NDg1YzI4Zjc1M2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM4NzdkMGRkNmRhNmViNzQ2NThiZGYzYzA1OWVhNWQyNmNjZDMwMTI3YTAxZTYxZjhiMzc5NTUyZmY5ZmI2YmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRmZjJkYTQ2ZmM2ZGI4NzJmMmE3NGVmYTIyNTQ0YjIzMTNmMjY2MmVkOGRjNzJiYWUzM2EyNzFhYjFkYTk2NDQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3c90592540154187a97f39c33e20943c",
+      "statement": "On Unix a SIGTERM/SIGINT watcher asks the Slint event loop to quit, so logout, systemctl stop and Ctrl+C run the normal graceful shutdown (buffer flush, manifest persist, WAL checkpoint) instead of killing the process mid-write; Windows has no console to catch.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/main.rs#L287-L345",
+          "version": "repo-lines-v1:sha256:2d0780d0eef47f3c9d88c4cde47e1e635c1b26c81af6f604def8d5d34f2f58da:eyJzZWxlY3RlZExpbmVDb3VudCI6NTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIyMDExZTJjZjI2NjYyNzNkZTc0MjYzYzBkNTg1NmY5NDY1NmI0NGE3YjVkYWQ1OGE0NTQ1MzNmZWUwZGY5NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwZmFlNjZjNmFkNDQyMTc3ODY5MjE5Y2QyNzMyZDYwMzgzNzVhY2I4MTIwYTkxMTQ2ZTE3YTg4OWZmMjY4YmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNmNjRkNGI0YTIzYWE1NTM0ZjQ1YTc3YzI1YzNhNGEyYTcyNGVjYjViOTY5N2E3ZDgwMDY3MDA3Mjk5ZTIyM2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiYzk4ZDZiMGRjNDkyYzUwMTZkZjEwODA1YTNhNTRlYjljMTg0YTVhNjEzN2U3ZjRiZWNmYTBjMjIwNTUwZDAifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T03:21:09.297Z"
+    "at": "2026-10-04T05:35:23.596Z"
   }
 }

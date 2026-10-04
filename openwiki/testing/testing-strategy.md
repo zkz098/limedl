@@ -12,6 +12,18 @@ sources:
     resource: repo://crates/limedl-core/src/bt_backend/tests/alerts.rs
   - id: openwiki-source-8a802dd79d30f7920922a1e7
     resource: repo://crates/limedl-core/src/bt_backend/tests/mod.rs
+  - id: openwiki-source-167c6ec7cd42649ee514d116
+    resource: repo://crates/limedl-core/src/database/tests/chunks.rs
+  - id: openwiki-source-627a941d30d0b0f516cfa103
+    resource: repo://crates/limedl-core/src/database/tests/connection.rs
+  - id: openwiki-source-34256bebf0b881402462174e
+    resource: repo://crates/limedl-core/src/database/tests/schema_migrations.rs
+  - id: openwiki-source-05acffc41354e79e4b63b4e7
+    resource: repo://crates/limedl-core/src/download/managed.rs
+  - id: openwiki-source-b1f82d2f73c50a300ab96db2
+    resource: repo://crates/limedl-core/src/http_executor/tests.rs
+  - id: openwiki-source-9fa813eab6e27ac3f5fdbf1d
+    resource: repo://crates/limedl-core/src/manifest.rs
   - id: openwiki-source-e2995ec6bf7ff16128c760b6
     resource: repo://crates/limedl-core/src/test_harness/mod.rs
   - id: openwiki-source-37ca19c9c77c5d1241db1782
@@ -26,14 +38,16 @@ sources:
     resource: repo://crates/limedl-core/src/tests/dispatcher_tests.rs
   - id: openwiki-source-b6ac5cc91bdd258dd969abbc
     resource: repo://crates/limedl-core/src/tests/mod.rs
+  - id: openwiki-source-6b9d139f018792972b672af7
+    resource: repo://crates/limedl-core/src/tests/persistence_tests.rs
   - id: openwiki-source-3742feb3f92f40e410145856
     resource: repo://crates/limedl-core/src/tests/resume_corruption_tests.rs
   - id: openwiki-source-1a1d4b50d244dfdbcf190f3a
     resource: repo://crates/limedl-core/tests/logging_reload_repro.rs
-generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T03:21:09.297Z
+    at: 2026-10-04T05:35:23.596Z
 ---
 
 # Testing Strategy
@@ -91,6 +105,50 @@ a real engine nondeterminism — a bug report, not a flaky test — and the corr
 temp file should be preserved for diagnosis.
 
 Evidence: `repo://crates/limedl-core/src/tests/corruption_oracle_tests.rs#L1-L30`.
+
+## Crash consistency and durable progress
+
+The tests that guard the durable-vs-received split (see
+[SQLite Persistence, Durable Progress and Crash Recovery](../systems/persistence-and-recovery.md))
+are deliberately layered, because the failure they prevent — resuming past data
+that never reached the file — is invisible from the outside:
+
+- **Pure range math** (`download/managed.rs` tests): `record_progress_on_managed`
+moves only the received counters; `record_durable_bytes` advances the durable ones;
+a coalesced write is credited to *every* chunk it overlaps; `durable_bytes()` never
+exceeds the received count; and a manifest built like a loaded one starts
+`durable == received`.
+- **Persist rules** (`tests/persistence_tests.rs`):
+  `persisted_progress_is_the_durable_progress` runs `DownloadManager::persist` with
+  a chunk that is received-complete but only partly flushed and asserts the stored
+  row says 40 bytes and `completed = false`;
+  `incremental_persist_of_a_completed_but_unflushed_chunk_stays_incomplete` does the
+  same through the 300 ms cycle. Both go through a real `Database`.
+- **Finalize guard** (`http_executor::tests`): `ensure_core_fully_durable` accepts a
+  fully durable download and a chunk-less single-stream one, and refuses a download
+  with a shortfall with a message containing the missing byte count. It takes the
+  already-held core guard on purpose — calling `lock_core()` there deadlocks.
+- **Migrations and quarantine** (`database/tests`):
+  `partially_applied_migration_is_recovered_on_open` opens a database whose schema
+  is ahead of its `user_version`,
+  `add_column_if_missing_is_idempotent` pins the no-op, and the connection tests
+  cover the non-database quarantine and the lock-contention classifier.
+
+### Fixture invariant: `end` is inclusive
+
+`ChunkManifest::end` is the **last byte** of the chunk, so a chunk's size is
+`byte_len() == end - start + 1`, and "complete" means
+`durable_bytes() >= byte_len()`. Two database fixtures used `end` as an exclusive
+bound (`start: 0, end: 500` with `downloaded: 500, completed: true`, i.e. a 501-byte
+chunk); they passed only while `completed` was stored verbatim, and had to be made
+self-consistent once the row derives completeness from the durable count. New
+fixtures should state `end` as the last byte, never one past it.
+
+Evidence: `repo://crates/limedl-core/src/download/managed.rs#L232-L403`,
+`repo://crates/limedl-core/src/tests/persistence_tests.rs#L505-L583`,
+`repo://crates/limedl-core/src/http_executor/tests.rs#L238-L295`,
+`repo://crates/limedl-core/src/database/tests/schema_migrations.rs#L128-L178`,
+`repo://crates/limedl-core/src/database/tests/connection.rs#L173-L230`.
 
 ### Adversarial servers
 
@@ -150,6 +208,11 @@ Evidence: `repo://crates/limedl-core/src/tests/resume_corruption_tests.rs#L99-L1
 Evidence: `repo://crates/limedl-core/src/tests/mod.rs#L1-L27`.
 
 ### Dispatcher facade tests
+
+`dispatcher_tests.rs` covers the `Dispatcher` facade matrix and exposes
+`make_manager`/`inject_download` as `pub(crate)` so the Aria2 tests reuse them for
+`resolve_gid` and GID-cache eviction, and so the durability tests can persist
+against a real `DownloadManager`.
 
 `dispatcher_tests.rs` is the facade matrix: lifecycle `Updated` emission,
 `status`/`list`/`has_active_downloads` aggregation, degraded branches when a

@@ -1,26 +1,30 @@
 ---
 type: system
-title: SQLite Persistence and Crash Recovery
-description: How limedl persists download state in SQLite — the dual read/write connection design and PRAGMAs, versioned migrations, the manifest and chunk repositories, the bt_tasks cache, and the startup reconstruction that clears stale chunk claims.
-tags: [database, sqlite, persistence, migrations, crash-recovery]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
+title: SQLite Persistence, Durable Progress and Crash Recovery
+description: How limedl persists download state in SQLite — the dual read/write connection design and PRAGMAs, the integrity probe and quarantine, transactional and idempotent migrations, the durable-vs-received progress rule every writer follows, the manifest and chunk repositories, the bt_tasks cache, and the startup reconstruction.
+tags: [database, sqlite, persistence, migrations, crash-recovery, durability]
 sources:
   - id: openwiki-source-f0a925ac2758f1bac742ca91
     resource: repo://crates/limedl-core/src/database/bt_task_repo.rs
+  - id: openwiki-source-864cb4d72f6b14f070ee0f6c
+    resource: repo://crates/limedl-core/src/database/chunk_repo.rs
   - id: openwiki-source-f33808f0ac3d227e495f1cb3
     resource: repo://crates/limedl-core/src/database/connection.rs
   - id: openwiki-source-be0a0543dfc1990a49281fb2
     resource: repo://crates/limedl-core/src/database/manifest_repo.rs
   - id: openwiki-source-d256d453001d5dddbed5926e
     resource: repo://crates/limedl-core/src/database/schema.rs
+  - id: openwiki-source-05acffc41354e79e4b63b4e7
+    resource: repo://crates/limedl-core/src/download/managed.rs
   - id: openwiki-source-41f2f85d035ed1edf0c09b2e
     resource: repo://crates/limedl-core/src/persistence.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T05:35:23.596Z
 ---
 
-# SQLite Persistence and Crash Recovery
+# SQLite Persistence, Durable Progress and Crash Recovery
 
 Download tasks, chunk progress and BT task metadata live in a SQLite database at
 `<state_dir>/downloads.db`. `crates/limedl-core/src/database/` owns the
@@ -45,12 +49,35 @@ The reader opens the same file with `query_only = 1` and its own busy timeout, s
 a read path cannot accidentally write. Both connections get a prepared-statement
 cache of 64.
 
-Evidence: `repo://crates/limedl-core/src/database/connection.rs#L12-L15`,
-`repo://crates/limedl-core/src/database/connection.rs#L22-L114`.
+Evidence: `repo://crates/limedl-core/src/database/connection.rs#L35-L80`,
+`repo://crates/limedl-core/src/database/connection.rs#L143-L175`.
 
 All DB calls are synchronous and blocking; async callers wrap them in
 `spawn_blocking` (or `block_in_place` during startup), and the mutexes are held
 only for the duration of the statement.
+
+### Integrity probe and quarantine
+
+Before anything else touches the file, `open` runs `quarantine_if_corrupt`:
+
+- Files above `MAX_INTEGRITY_CHECK_BYTES` (128 MiB) skip the probe, which reads
+  every page, so startup stays bounded.
+- Otherwise a probe connection (with the writer's 5 s `busy_timeout`) runs
+  `PRAGMA quick_check`. `ok` continues normally; any other verdict quarantines.
+- `is_unusable_database` classifies by SQLite error code (`NotADatabase`,
+  `DatabaseCorrupt`), not by message: a file that is not a database fails its
+  first query rather than at open time, so the code path is reached through the
+  `quick_check` error.
+- `is_lock_contention` (`DatabaseBusy`/`DatabaseLocked` by code, and the same
+  words in the message for the open path) means "someone else is using it" and is
+  **never** treated as corruption — the probe is skipped with a warning.
+- `quarantine_database` renames the file to `<db>.corrupt-<unix_ms>` and moves the
+  `-wal` / `-shm` sidecars with it (a stale WAL next to a fresh database would
+  replay the old frames into it), so the app continues with an empty history and
+  the bytes are preserved for inspection.
+
+Evidence: `repo://crates/limedl-core/src/database/connection.rs#L15-L16`,
+`repo://crates/limedl-core/src/database/connection.rs#L227-L376`.
 
 ## Migrations
 
@@ -59,15 +86,28 @@ Schema versioning uses `PRAGMA user_version` plus a static `MIGRATIONS` list of
 and update `user_version`; after any migration `ANALYZE` refreshes the planner
 statistics.
 
+Two properties make a half-applied migration recoverable:
+
+- **Each migration commits as one transaction** — every DDL statement *and* the
+  `user_version` bump, via `transaction_with_behavior(Immediate)`. A failure
+  midway (disk full, I/O error, kill) rolls the whole body back, so replaying it
+  is safe. Before this, the body committed statement by statement while
+  `user_version` still named the old version, and the next start failed with
+  "duplicate column name" on every launch thereafter.
+- **Every `ADD COLUMN` goes through `add_column_if_missing`**, which is a no-op
+  when a `PRAGMA table_info` lookup finds the column. That covers databases
+  written by the pre-transaction code and makes an already-applied body harmless.
+
 There is a compatibility shim for databases written by the older code that added
 columns without setting `user_version`: before running migrations, the code
-detects the `chunk_size` / `mirror_urls` columns and bumps `user_version` to 2/3
-accordingly. `table_has_column` queries `PRAGMA table_info` and is whitelisted to
-the `downloads` table.
+detects the `chunk_size` / `mirror_urls` columns and raises the detected version
+to 2/3. The probe only ever moves the version **forward** — it must not rewind a
+`user_version` that is already correct. `table_has_column` queries
+`PRAGMA table_info` and is whitelisted to the `downloads` table.
 
-Evidence: `repo://crates/limedl-core/src/database/connection.rs#L52-L98`,
-`repo://crates/limedl-core/src/database/schema.rs#L1-L20`,
-`repo://crates/limedl-core/src/database/schema.rs#L71-L120`.
+Evidence: `repo://crates/limedl-core/src/database/connection.rs#L82-L141`,
+`repo://crates/limedl-core/src/database/schema.rs#L1-L50`,
+`repo://crates/limedl-core/src/database/schema.rs#L101-L226`.
 
 ### In-memory test mode
 
@@ -117,6 +157,53 @@ Evidence: `repo://crates/limedl-core/src/database/manifest_repo.rs#L31-L95`,
 Evidence: `repo://crates/limedl-core/src/database/manifest_repo.rs#L126-L200`,
 `repo://crates/limedl-core/src/database/manifest_repo.rs#L348-L420`.
 
+## What gets persisted is the durable progress
+
+A chunk carries two progress counters and the database stores only one of them:
+
+| Counter | Meaning |
+| --- | --- |
+| `ChunkManifest::downloaded` / `::completed` | bytes **received** into the write buffer; the scheduler, the claim logic and the UI follow these |
+| `ChunkManifest::durable_downloaded` (+ `DownloadCore::durable_bytes`) | bytes that provably reached the file |
+
+`record_progress_on_managed` only advances the received pair.
+`record_durable_bytes` is the only writer of the durable pair and runs when the
+write buffer reports a successful flush (or a direct write returns).
+`chunk_to_params` therefore writes
+`downloaded = chunk.durable_bytes()` and `completed = durable >= chunk.byte_len()`,
+and `chunk.durable_bytes()` **clamps to the received count**, so a stale or
+over-eager counter can only under-report — which costs a re-download, never the
+other direction.
+
+All three writers follow that rule:
+
+- `persist_manifest_snapshot` (the 300 ms cycle in the HTTP executor),
+- `persist_manifest_snapshots_batch` (the scheduler's rebalance cycle),
+- `DownloadManager::persist` (the full upsert on state transitions).
+
+The first two take their task-level value from
+`core.durable_bytes.min(core.manifest.downloaded_bytes)`; the third substitutes it
+into the cloned manifest it hands to `insert_download`. Without this, the 300 ms
+cycle stored the received counters, which run ahead of the file by whatever the
+buffer still held — a hard kill then left the database claiming a chunk was
+complete while its bytes were only in memory, and the next resume skipped over the
+resulting hole.
+
+The durability boundary is `pwrite`, not `fsync`: a successful flush counts, which
+covers a process crash, `SIGKILL` and the OOM killer, but not power loss (those
+bytes are in the page cache, and so are the WAL commits, so the two are lost
+together). See
+[disk-io-and-storage.md](disk-io-and-storage.md) for the flush-observer contract
+that feeds these counters, and
+[../../docs/troubleshooting.md](../../docs/troubleshooting.md) for the operational
+note.
+
+Evidence: `repo://crates/limedl-core/src/download/managed.rs#L20-L35`,
+`repo://crates/limedl-core/src/download/managed.rs#L176-L220`,
+`repo://crates/limedl-core/src/database/chunk_repo.rs#L27-L60`,
+`repo://crates/limedl-core/src/persistence.rs#L108-L125`,
+`repo://crates/limedl-core/src/persistence.rs#L140-L270`.
+
 ## Crash recovery on startup
 
 `DownloadManager::load_downloads_from_db` reconstructs in-memory
@@ -136,8 +223,13 @@ Evidence: `repo://crates/limedl-core/src/database/manifest_repo.rs#L126-L200`,
    make `claim_next_chunk` skip that chunk while the chunk map still reports work
    to do, stalling the resumed download. A clean shutdown releases claims before
    persisting, so this is the crash-recovery equivalent.
+6. The loaded counters are durable by construction: `row_to_chunk` sets
+   `durable_downloaded` from the stored `downloaded` value and `DownloadCore::new`
+   seeds `durable_bytes` from the manifest, so a resumed task starts with
+   received == durable and only diverges as new bytes are buffered.
 
-Evidence: `repo://crates/limedl-core/src/persistence.rs#L30-L95`.
+Evidence: `repo://crates/limedl-core/src/persistence.rs#L30-L120`,
+`repo://crates/limedl-core/src/database/chunk_repo.rs#L48-L60`.
 
 ## The bt_tasks cache
 

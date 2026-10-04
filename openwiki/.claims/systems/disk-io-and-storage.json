@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:d1c9a367ae19fe84ab7b49a21e83625d13a9c5830cee8e432f42100c801fb21f",
+  "pageVersion": "sha256:e8224b4e8da94cf3d18a942d9da849fa1966e0e6eab93ff3f3e66e10c1d97693",
   "claims": [
     {
       "id": "claim_dcd662ecbad04385b8c7433a003d129d",
@@ -41,8 +41,8 @@
       "statement": "The ping-pong flip stores the new background flush handle before atomically flipping active_is_a and inserting the chunk, serializes flips with a token released by a guard, re-checks the active half after taking the lock, and fails immediately when a previous background flush set the error flag.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L245-L360",
-          "version": "repo-lines-v1:sha256:4a232f9baa95781a42d41d15a599bd070ff19d39ace0b5e6210c56941e2375a2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE2LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmZTI2MzFhNTVlODJiYTlhYTZhYzZjODRmYTYxNmQ5N2Q0ODAzYzBiNGVlZDM0Y2RjMzUzZGFkNDdlZGViYzg5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJjNWNkZWY4MDg1YWU3NGFiNjM2ZDY0NTlmNWM2ZDVmYmZiMGRiMjY0ZjFiMGQ3NWJhYzUxOWM5YjNmNjcxN2FjIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJhYmY0YjVlNjY0YWM4MDY0NDFlMmFmNzhjNGU3ZmFmMjE5MjJjNDRmN2QzYTQ2MDBkODRiZjY4NmNhY2Q4MjEzIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJhZmEwMmQ5NTM2NTM3MDFjODg2NWRmOGFjZTRmY2RhZmM0YmY3MTEyYWRjZGFlOTlhYzdiMDFmYjkyMjc0NWU2In0"
+          "resource": "repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L269-L390",
+          "version": "repo-lines-v1:sha256:412e133533df0eead92aff3117bd3f2d2659920dd3a512bfffee5b36db420258:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmZTI2MzFhNTVlODJiYTlhYTZhYzZjODRmYTYxNmQ5N2Q0ODAzYzBiNGVlZDM0Y2RjMzUzZGFkNDdlZGViYzg5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJiZGExMzM0NzczOTRhMWFjMGRhMjdlNTQ2NDdiODg4ZTU1MjAyMjdmNGM4OGQxMTlhYTUxNTQ0MGFjYjczZTZlIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJhYmY0YjVlNjY0YWM4MDY0NDFlMmFmNzhjNGU3ZmFmMjE5MjJjNDRmN2QzYTQ2MDBkODRiZjY4NmNhY2Q4MjEzIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlOGRmNjNhMDdlZmIzYzBlN2UzZTBjZjM2MTUxNzliNDhhNWE0MjAzMjAwNDUyZjYwMDgzYWI0Y2U2OTU5YjcxIn0"
         }
       ]
     },
@@ -175,10 +175,52 @@
           "version": "repo-lines-v1:sha256:86b4394bf7cb6bba2aa6e699e57771ded29bbe4449153fc92d20ab36edd9a465:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxMjk3MWRlZmFmZWFlM2NmYTIyNTlmNDIzYTUzNjFjOWRkOGQyZGNkNGVlYTEwM2E1NzY1OTUyMzZjMzRlMWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEwOTA2NzdhMmU3OTU2OTI3NWUwNGY1MmNiNzg5ZGY0ODAzN2Y2OThiNjJlYzdlMjkxNGM0YTIxY2FmNzk0MmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRmNzdjY2Q3MjdmNDAyMDJmODFhOWMwMjcyZmZlMWRhMzEyZjU2YjRjNTVjMDU2NDU5MTA2MWJhMTY3MjgyNDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNjNmFmMWFkZGQ1NDY5NjYyYmI3YjFhYzY1NWY2YWY4NWViYWFiMTIxMTk3Njg1NWJkN2RkYThiMTcwNzEwY2UifQ"
         }
       ]
+    },
+    {
+      "id": "claim_25f20a0f3e5d46ffa9580f80f60bd036",
+      "statement": "DownloadBuffer carries a FlushObserver (Arc<dyn Fn(&[(u64, u64)]) + Send + Sync>) that receives the byte ranges a write actually put on the file; every successful flush path reports (IoWorker background flush, spawn_blocking fallback, flush_one_half, flush_one_half_local, write_oversized_direct) through the single notify_flushed call site and nothing reports on failure.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L39-L45",
+          "version": "repo-lines-v1:sha256:2626de4402fbf0e60e690c8164ed1d3e8b9255c137c31ac34c71d872c03cf78b:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzE2NWIxMzY5NzFiYzkxZTE3Mjg1NDBjZTQwN2Q3MWM3NWRmYzAyMTkzNjBjNTU1MDI0ZWJkOTdlYWRmM2RkYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiN2M5MmZmM2M1YmVhMjMwYzA3MmIzNTU0ZmFlZDUwM2RiNTBjYjk0NGI0NjBkZjUzODYzNTM0YjczN2M3M2UxNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzE0ZDg4OTU5MTU2YTMwMzU5NDI5MTc1YzI5OTJjY2M4NWU5OTBmZDM5OGYzMTM2M2YzYjFjNTBmYjMyYmI3OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYWFlZDQzYjg2ZDkwMmExZWQyZTMyNjIwYzFlNzViOWI5NDk3NThmZWVmNWZjODFhNDk1NGZiNmEzNGIwZDcwMCJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L761-L800",
+          "version": "repo-lines-v1:sha256:f4268c16781fe5c700bdc0ff8d756d5827aca9a67cb0b1897f1e6ddc97af6f23:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5YzI5MzAwYjYwNjBiMTJhOGI2MDQ2YWFjMDA1YjVkYmRmNjMwOTAyMDQyN2QyOWJkYTRmNTVkNDRlMTQxZDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMwYjU2MDg0YTlkODJiYjI5ZTdkMjdiYzVhYTE0YzFmZDY4YThkZjg5NjVmMTFiYWM3MWE3NTdjZGY3Mzc5ODIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZmYzcwMGZhM2MxYTMxZDE0ZTFkYjgyMGYyMDM1ZTNmOGIyMWZkNGU1ZDhlOTA4ZTc5MDdkNWZiZjJhZGU1ZmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJmOTI3YTE0NDFhOWU0MGE3OGQwMGRlNmM0YTQ5NzFiZWFjOTU4ZWFkZWFlMjBiOWE3ZjE3NDI1ZDNhMTZhNDAifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L835-L900",
+          "version": "repo-lines-v1:sha256:598499041fc3ec49f0ee8d33ec021f89709401f0477d2d041853fdc8cfb5ded0:eyJzZWxlY3RlZExpbmVDb3VudCI6NjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIzMzQ1M2NmYzZmNzZkOTgyZDRjZTFhZmZhNGJjNjFjYmRiMTIxZDg3NDNhNTk1Y2YyOTkyZDQ0NDU5ZjkyNGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI4MjJkOWU5NDE1NzI5YTY2ZDk0YWRiN2Y4ZTZiNTA5NDJjYTY4ZGNiYzIwNDJlMTllNmU2NjMyOWMzN2JjMzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjlmODk2MjA3NjA0NTdhNjk3ZWNjNjdkMzhiZWFmYjZjNGU3ZjljOTIwNmJmOTUyYjJhNDY5MWE0YWZmMjIwNDYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_06c2ec2376e94d528cad315ecbca42b9",
+      "statement": "The flush observer takes the task's core lock, so a flush must never be awaited while the caller holds that guard (parking_lot mutexes are not reentrant); finish_buffer_flush and the pause/cancel/downgrade paths release it before flushing.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/download/managed.rs#L196-L220",
+          "version": "repo-lines-v1:sha256:a1698bf5a523e321b2ffaccaa245d14536f1637c0235b0000e0f14a094be049c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjNWQyNjI4ZGFkZDBjMzMxNGUzMWMwMGI5ODZhYWUzNzA4YWU1YmY3YTZiNDdkZGRjYWQ0YTNhYWU5NmUzOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI3OTcxMTBlNzM4MWQ2ZmM3YTQ0MTU1MmRmNzA1Y2YwZmE4NGZmZDcxODQzNDQ5YTNjNDg2MDU1NGFlYTA3MjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjZGFlYzJkNTU0NjgwNDQ1MmNmNWY4ZWE0NjdmNjNhZDBkZDgyY2Y2MzQxZDFkYTE5YTEyNWQ3NDkyMzZhNDUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/mod.rs#L151-L175",
+          "version": "repo-lines-v1:sha256:7698d5a9a5ac21afb81ddc2b3c4b75964db95739a9402633969e907800fe70e5:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjNmY2ZjJiYTRiMWE1NDMwNWIwZjg0NGI3OThjZWZkMTkyM2YwMWQzMDcyYTM1Y2Q2MjFjZTEwMTdiYWE2N2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZjZDFkMzJjNWFlNmZhODVlY2JiZDZjMjlkNTg2MmQ5MDA4ZDlkMjZiY2E3YmU4MDEwNTExNzVmNGRmMDI4ZjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNhYmU1NzhiNDk1YjU2MjI2NjJjYTFlYmM2NjJjNmNmOTVkMzJkOTQ3ZGQ2NGE1ZWU5OTAzY2RhYWI4MDY3ODIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a0cad9a511df4abe865f57d8d83715a0",
+      "statement": "The catch_unwind around the spawn_blocking flush fallback is a development/test-only net: the release profile builds with panic = \"abort\", where it cannot catch and the process dies instead.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L855-L875",
+          "version": "repo-lines-v1:sha256:adaca27b3f11dc151935bf01d50c94dd0f8f821329ee0539fa4023591f49a649:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwZGFkNDJmZGIyODcwMzVlMzRmMWYwYzU5ZjQ4YWUyZDUzZWE1NTMxNjhhMTJhMDFhMWRlN2YyOTVjNzZhNTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NGVkNzA1ZDQ1MWVkMDEyZDZiMzgzNWNhZDM4OWE5Yzk5MWE1ZmY4ODU1ZDEyZjIyMTdmZDE4OGZkMDQwODMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBiNTBlYjgwZjIwOWJmMDVhMjc3NjhhNzhjYWQ5ZjIzNDRiYmE1NmMxZDE2MjEzYmIxM2RlMzlkNjg0NmJhNjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc5OTY2OTNiZjMxYTlmODRhZWFjODQ5YzljODBlMmZlOGRhYTIxN2Y0NzkyODQ2OTcwNTRmYmM4MTg1OTg2NTAifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T03:21:09.297Z"
+    "at": "2026-10-04T05:35:23.596Z"
   }
 }

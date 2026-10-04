@@ -10,12 +10,16 @@ sources:
     resource: repo://crates/limedl-core/src/buffer_pool/mod.rs
   - id: openwiki-source-042bbddb734c34bb6db90965
     resource: repo://crates/limedl-core/src/buffer_pool/worker.rs
+  - id: openwiki-source-05acffc41354e79e4b63b4e7
+    resource: repo://crates/limedl-core/src/download/managed.rs
   - id: openwiki-source-ba0579da85cf30927f31bfd3
     resource: repo://crates/limedl-core/src/file_ops/disk_detect.rs
   - id: openwiki-source-448f00bcf6e08ed002c79cdf
     resource: repo://crates/limedl-core/src/file_ops/media.rs
   - id: openwiki-source-3c484547210ce754a4755d21
     resource: repo://crates/limedl-core/src/file_ops/mod.rs
+  - id: openwiki-source-385628f66a6c216078934666
+    resource: repo://crates/limedl-core/src/http_executor/mod.rs
   - id: openwiki-source-164e9cc25784db5725389085
     resource: repo://crates/limedl-core/src/io_scheduler/mod.rs
   - id: openwiki-source-e63d7fe6266613d063307ac3
@@ -24,10 +28,10 @@ sources:
     resource: repo://crates/limedl-core/src/io_scheduler/topology.rs
   - id: openwiki-source-9407da3da7a807b7713a5e9d
     resource: repo://crates/limedl-core/src/services/disk_io.rs
-generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T03:21:09.297Z
+    at: 2026-10-04T05:35:23.596Z
 ---
 
 # Disk I/O, Buffer Pool and Storage Detection
@@ -85,7 +89,47 @@ released by a guard even on panic. If a background flush failed, an error flag i
 checked before every iteration and the call fails immediately rather than
 downloading data destined for a failed write.
 
-Evidence: `repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L245-L360`.
+Evidence: `repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L269-L390`.
+
+### The flush observer: the buffer is the durability oracle
+
+`DownloadBuffer` carries a `FlushObserver` —
+`Arc<dyn Fn(&[(u64, u64)]) + Send + Sync>` receiving the `(offset, len)` ranges a
+write just put on the file. The buffer is the **only** component that knows when
+buffered data left memory, so the download engine's durable-progress counters are
+advanced from here and nowhere else (see
+[SQLite Persistence, Durable Progress and Crash Recovery](persistence-and-recovery.md)).
+
+The rules the plumbing follows:
+
+- Every successful path reports: the `IoWorker` background flush, the
+  `spawn_blocking` fallback, `flush_one_half` (HDD), `flush_one_half_local`
+  (SSD/network) and `write_oversized_direct` (a chunk larger than a half).
+- **Nothing reports on failure.** A failed write must not advance durable
+  progress; the worker's direct-write fallback reports those bytes instead, once
+  `write_all_at` has returned.
+- `entry_ranges` snapshots the ranges before the entries are moved into the I/O
+  worker, and `notify_flushed` is the single call site, so a new flush path
+  cannot silently skip the report.
+- `sync_data` failing after a successful write still counts as durable (only the
+  power-loss guarantee is missing), so the observer is notified either way.
+
+The observer takes the task's core lock, and `parking_lot` mutexes are not
+reentrant: **an observer must never run while the caller holds that guard.** The
+callers that can flush (`finish_buffer_flush`, the pause/cancel/downgrade paths in
+`chunked.rs` and `single.rs`) therefore release the guard *before* awaiting the
+flush. The incidental benefit is that a long flush no longer blocks progress
+updates.
+
+The `catch_unwind` around the `spawn_blocking` fallback is a development and
+`test-utils` safety net only: the release profile builds with `panic = "abort"`,
+where it cannot catch anything and the process dies instead (leaving a report in
+the native client's `crash.log`).
+
+Evidence: `repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L39-L45`,
+`repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L452-L480`,
+`repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L761-L800`,
+`repo://crates/limedl-core/src/buffer_pool/download_buffer.rs#L835-L900`.
 
 All flush requests go to a dedicated `IoWorker` thread pool (an unbounded
 `mpsc` channel per worker), with `spawn_blocking` only as a fallback. HDD gets a

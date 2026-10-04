@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:0ca2be5fc466d116bcbc813d99a6bcec99190e47641ebc58b103f25ca9e5beda",
+  "pageVersion": "sha256:50934b1dac55aa52a75b9301e40360311dd4a405f014db2a12881933a6884af2",
   "claims": [
     {
       "id": "claim_50e14f0840f8483a9aa585a5b612f644",
@@ -28,11 +28,15 @@
     },
     {
       "id": "claim_32a4eb671148473b9d730976f1ea341a",
-      "statement": "limedl-native depends on limedl-core with the aria2-rpc feature and compiles the FemtoVG/OpenGL renderer plus Slint's software rasterizer as a runtime fallback when GL initialization fails.",
+      "statement": "limedl-native depends on limedl-core with the aria2-rpc feature, compiles the FemtoVG/OpenGL renderer plus Slint's software rasterizer as a runtime fallback when GL initialization fails, and enables tokio's signal feature for the cfg(unix) SIGTERM/SIGINT watcher.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/Cargo.toml#L14-L33",
-          "version": "repo-lines-v1:sha256:d0a94c7c0789164c47bbab67674997f802ff3d6b8fe08bc4e833959fa30a9c87:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyODdhNGNjNzMyNGE1ODE1ZDg5MmNlMzJmNDc5NjA2NTZlZTQ1MTYwZGNjMTVkMzVjMmUxNGI3ZmMzY2MzN2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY5MmYzZThlYjQ3YTY5YWZmZjNjM2MwZTYyZTU1ODk0NTU5ZTcwYzI4ODM5OTNlMTAxZDYyZWZmYmU2NDRlZDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM5M2U0NTk2MDVmNmQ3ZTEzOWFlN2NhZTA0Y2ZlMGMyOWQ3MDZlMGY4YzYyZjE2ZWEyOTI0NmQ4ZmZjNjVmZjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFjZTY5Yjk0MzViNTdjNmFjMjA5OTY2OTdhZjBjYjUyNWE3NWNlM2YzNzc3YWIyNDFhYzhlNjIzNmE3ODc4NmYifQ"
+          "resource": "repo://crates/limedl-native/Cargo.toml#L13-L31",
+          "version": "repo-lines-v1:sha256:201c2d5d5f186d98c4502d9012f0a34422381f400c18cd7f2bb3a952845a2f44:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyZGY2YzcxNGM5OTRkMDhkYzg1YWFmZmU2MWVjNjRlMDI1NWJlMmI4YmY2Y2NhYzc1NmYxNzkwYWM5OTQwYzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNhNTk4NGI2ZGRjYmJlYmM1ZWY2ZGViZTc4MTU3OWE0ODQwN2ZjNmM1NjNjNTc3ZjZjOThlYzdhNGQ2M2JhNWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM2NWFhNTZiMDk1NmUwNjhmZTU2MmJlNzdhMWNjZTg2ZDk1YWJmM2FjZTk4YjcyMmEzOTc4ZjdjZDBhNDI5ZDUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY3ZDY5MTAyZDU3NjQ0NjkyMGI1ZmUwMGNmYzc2NDNhMzA4MWI5MGI1OTNkMTIyZTZiODU1MDJiZWIwZWU4MWUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/Cargo.toml#L33-L36",
+          "version": "repo-lines-v1:sha256:5db07ef71a9bc7e152ced77959749bf671b4d1a7ced5e9596b8c5936479fcc68:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmY5NGVkMjhlMTAwODk4NWFkZmZkNmY1MGRjOTllOWNiNmNmOTcyYjk5OTc3MDAxODhkMWIyNmI5ZWUyZmZhNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiY2RmOWQ5M2E4YmMzOTI3YzEzOTkwOTY0NGY2MDQ1NWQyMjUxYWZjNWEzMWExMWJkNzIxNDU1ZGRkMjQzNzY0ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZDk0MWZjNjEyMWRjZDBmYTVkNDY5N2RhMGNhYTRjM2Y5NWQ4YjVkMGY2ZDc1NDEwMjI4YTMzMjdkNmZkNGMxZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWNlNjliOTQzNWI1N2M2YWMyMDk5NjY5N2FmMGNiNTI1YTc1Y2UzZjM3NzdhYjI0MWFjOGU2MjM2YTc4Nzg2ZiJ9"
         },
         {
           "resource": "repo://crates/limedl-native/src/renderer.rs#L1-L29",
@@ -93,7 +97,7 @@
           "version": "repo-lines-v1:sha256:cb32a07af25909f8e3f79d302f13d493613d624c307a19b049c60a6bba86710f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYyMmNlMjI1MDQzODc5ZmZkYzQ0Y2Q0NDJhMTJiOGFhODQ4NzU2OTY2MTk2OTM4MGRlY2JhZTc2NTBiMGU4NDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImExN2U3OGViNmYzYWI2NTJmYjYxOTI3ZDgyMWNlYjk3MzExYjM1NzY5YjRhMTRiODU4MGFjNjFiN2YwZTBlY2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNiOTY0ZGYxOGE3NDUwMjNlMjA2YWU1ZGNjMjk1NmI3ODc2YTNiZDU5YzI3ZmMwMWVlZDY0NDFkZmEwNTVkMzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ3Y2E3YjNiM2YwZTQwNGJhZWEzYTE3MjY1OGUwYTI4NDM5NzY2MDJhMTFkMjRkY2ZiZmZkOGY3YzIxNzIxN2EifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L176-L179",
+          "resource": "repo://crates/limedl-native/src/main.rs#L215-L218",
           "version": "repo-lines-v1:sha256:c94d8208c449d01351fc147a6a5a7a13fbf511d6a16acac9de89100767f9877c:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2VlNGU4OTNlMDljN2Q2OTM0YjljODQ1YTQ3ZjM0NjJmYTgyMzM0NWQ4OTA5NTBmNmQ0YjczYjdmNDcyNDNlMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjNlYTk4ODM0NmFkMjc2NzgyOTVkZWQxYThhNmRkZjI3MmVjMDE5ZTJlY2Q5MDliNThmNzI5YjhmNWY5YzA0OCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTc1NzcyOThhNWIyNzFkY2NlMDM3ZTMxMGI5MDFlYTc4ZWY2NGY5MzJhYjdkZTcyZDg4NmIxMzVmNTc0ZWExNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzBkM2IwY2RmNjAyNjg4ODlhYmFmMGVmMDQwODhhOWRhOWQ2OGIxY2ZmN2VkZjNmOTkwZjMzNjk1OGY2YjM2NSJ9"
         }
       ]
@@ -145,10 +149,28 @@
           "version": "repo-lines-v1:sha256:5977ebd5effe234e13ff63914167c619100264503edb55fcc49d2cefe05a82cf:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2MWI5OTBhZDhmNDI4NGMzNTRjZDhmOWI2YjFiMGQwMTU2NTAyYWJiMDhhYjI5YWI1MDgyNDk0ZDdhMDc2MGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJkYjM4ZDBjZWM4NzY5MGNlZmM3MDIxMzZjZjlmNTJhZTBjZjM4YTM2M2YzZDgyZmM3YjM4YmY1MDdmZWFkNWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjIzYWE4MzdlYjcwZDgzMWU3Njc2NTExYzMxNjM1MTk3OWFhN2Q0MzMyM2ExZWNjOTczNjA3YzFmZTdhOTQ1NjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzNDM3Y2FlZjBkMjM4OTYwOWQxMzA4ODdjYzVlY2MxNGRjODdiMmMyMmQ4ZTFjMDMzMjcwYTRhMGU4OTE0OTYifQ"
         }
       ]
+    },
+    {
+      "id": "claim_cf05d21f06dd4c03ac8f1584c47a4e5f",
+      "statement": "Progress is tracked twice per chunk: ChunkManifest::downloaded/completed are the received counters that the scheduler and the UI follow, while ChunkManifest::durable_downloaded and DownloadCore::durable_bytes are advanced only by record_durable_bytes after a write buffer flush and are the only values the database stores.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/download/managed.rs#L196-L220",
+          "version": "repo-lines-v1:sha256:a1698bf5a523e321b2ffaccaa245d14536f1637c0235b0000e0f14a094be049c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjNWQyNjI4ZGFkZDBjMzMxNGUzMWMwMGI5ODZhYWUzNzA4YWU1YmY3YTZiNDdkZGRjYWQ0YTNhYWU5NmUzOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI3OTcxMTBlNzM4MWQ2ZmM3YTQ0MTU1MmRmNzA1Y2YwZmE4NGZmZDcxODQzNDQ5YTNjNDg2MDU1NGFlYTA3MjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjZGFlYzJkNTU0NjgwNDQ1MmNmNWY4ZWE0NjdmNjNhZDBkZDgyY2Y2MzQxZDFkYTE5YTEyNWQ3NDkyMzZhNDUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/download/managed.rs#L20-L35",
+          "version": "repo-lines-v1:sha256:f855f3c48f5ead64d0009b9ea2e3894ccead0e72476f0867f5bb13ff0acd5098:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdjYTcwMGZiOTkzYmM1NzM5MDRhN2U0Mjk2MjNmMDMwYWNlYTYzMjFlMGMwNzQ4NzZhNzM2NmQ1OGVmOGI3ZWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ4NjAxYTZlNTAzNzIwY2YxMGNlZGRmZTBhNDQzYjVjZTM3MTE5OGU2MTc0MGM0YzIxYTQ1NDU4NGE3NmVlMzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5ZDliMjUwODNmZTYwMDE2MGFlMzdhZWU4MmFiYjQ0YjMyZTg2NWYyOTZiNjE1NTI3MGUwNDAwMTQyYTBkMjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU0ODUzOWNjZmZlNjQzNGQyMDY4NWFjMmI5M2FjZDVjZGQyNzMyYmVkOWY3YzU3OTk3MGRlNjEyMTUzZWUyOTcifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/manifest.rs#L73-L124",
+          "version": "repo-lines-v1:sha256:e03bc14575e11fbd52bf90f00da81a8cf98c49ef75e49516bf88155f2b2df5e1:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YWUwMzUzZmZjZjI1YTIyNzE2OTdiY2E3NjM5ZGI1NmUyYmNjNzc5NjUzZjU1ZjljMjQ4MjIwMWIxM2Y2MTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZiMWRiYjM2NzQwNTZmYmRiZTczZDAyNzEzYzYzMDU4ZmE5NzEwMzIwMzAwNjI4ZTFhZTc0NGU2NTFhOTAzMmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjYmU3NTgwZGJiM2E3ZGI3ODViMWE1NTU5NDQyYWE5OGEzOWZmMTYzY2VlNjVjMzQ0MmQ3NzJiMmUwYWUzODIifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T01:52:48.489Z"
+    "at": "2026-10-04T05:35:23.596Z"
   }
 }

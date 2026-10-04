@@ -3,9 +3,6 @@ type: system
 title: Settings and Configuration
 description: limedl's configuration single source of truth — the AppSettings shape, SettingsService serialization and atomic persistence, normalize_settings validation, the save fan-out to every backend, and special cases such as disk overrides and Aria2 auth mode.
 tags: [settings, configuration, persistence, validation, hot-reload]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-fd061a9c15d2a04bc703746d
     resource: repo://crates/limedl-core/src/context.rs
@@ -21,7 +18,10 @@ sources:
     resource: repo://crates/limedl-native/src/context.rs
   - id: openwiki-source-711bab97935422a9dd5fabf4
     resource: repo://crates/limedl-native/src/paths.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T05:35:23.596Z
 ---
 
 # Settings and Configuration
@@ -43,8 +43,8 @@ hand-edited file still loads and unknown keys are ignored.
 Structs use `#[serde(rename_all = "camelCase")]` and enums use `snake_case`, so
 the on-disk JSON is camelCase.
 
-Evidence: `repo://crates/limedl-core/src/types/settings.rs#L414-L454`,
-`repo://crates/limedl-core/src/settings/mod.rs#L379-L392`.
+Evidence: `repo://crates/limedl-core/src/types/settings.rs#L419-L460`,
+`repo://crates/limedl-core/src/settings/mod.rs#L380-L428`.
 
 ## Where settings.json lives
 
@@ -84,11 +84,33 @@ Evidence: `repo://crates/limedl-core/src/services/settings_service.rs#L10-L96`.
 
 ### Atomic persistence
 
-`persist_settings` creates the parent directory, writes `settings.json.tmp`, then
-renames it over `settings.json`. A crash can never leave a truncated settings
-file.
+`persist_settings` creates the parent directory, writes `settings.json.tmp`,
+**flushes and `sync_all`s it**, snapshots the outgoing file to
+`settings.json.bak` (best effort — a failure only logs), and renames the temp
+file over `settings.json`. The fsync before the rename matters: without it a power
+loss can make the rename durable while the data is not, leaving an empty
+`settings.json` behind — exactly the unreadable-file case the recovery path below
+exists for.
 
-Evidence: `repo://crates/limedl-core/src/settings/mod.rs#L394-L406`.
+Evidence: `repo://crates/limedl-core/src/settings/mod.rs#L452-L490`.
+
+### Unreadable settings do not block startup
+
+`load_settings` is infallible for a *content* problem. A missing file returns the
+defaults; an unreadable one (permissions, I/O) still returns `Err`, because that
+is an environment problem rather than a corrupt file. When the contents cannot be
+parsed or normalized it does not propagate the error:
+
+1. the file is moved aside to `settings.json.corrupt` (so the next save can create
+   a fresh one and the user can still inspect what was there);
+2. `settings.json.bak` is tried, and its value is used if it parses and
+   normalizes;
+3. otherwise `AppSettings::default()` applies.
+
+Either way the outcome is an `error!` log entry. Before this, one bad byte in
+`settings.json` made every start fail with an error the GUI had nowhere to show.
+
+Evidence: `repo://crates/limedl-core/src/settings/mod.rs#L380-L450`.
 
 ## normalize_settings
 
@@ -120,9 +142,16 @@ Evidence: `repo://crates/limedl-core/src/settings/mod.rs#L19-L125`,
 
 ## Aria2 RPC authentication settings
 
-`Aria2RpcSettings` has `enabled`, `port` (default 6800), an optional `secret`,
-`auth_mode`, `clients` and `cors_allowed_origins`. `Aria2AuthMode` is `single`
-(the default, preserving the historical shared secret) or `per_client`.
+`Aria2RpcSettings` has `enabled` (**default `false`**), `port` (default 6800), an
+optional `secret`, `auth_mode`, `clients` and `cors_allowed_origins`.
+`Aria2AuthMode` is `single` (the default, preserving the historical shared secret)
+or `per_client`.
+
+The `enabled` default flipped from `true` to `false`: with an empty `secret` the
+endpoint answers anonymously, so a fresh install must not expose it until the user
+opts in. A `settings.json` that already says `"enabled": true` is honoured, and if
+no secret is configured while the server is on, the server logs a warning and the
+settings UI carries a note next to the toggle.
 
 `Aria2Client` carries `id`, `name`, `token_hash` and `created_at_ms`. `token_hash`
 is an **Argon2id PHC string** — the plaintext token is generated once in the UI,

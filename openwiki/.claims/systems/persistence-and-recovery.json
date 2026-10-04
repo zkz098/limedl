@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:a2056d28b1280ba2ec36e8acb0661d439cd3cf21b349f8fcb77422c093c4b845",
+  "pageVersion": "sha256:0465e23952ea686267b54c7b4d92633df1a073be8f43bf906c3d58975db91d0c",
   "claims": [
     {
       "id": "claim_b8d13740b40542248b5504112e9e27c1",
       "statement": "Database holds two Arc<Mutex<Connection>> handles — a write connection and a separate read connection — so reads and writes do not serialize on one mutex.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/database/connection.rs#L12-L15",
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L17-L20",
           "version": "repo-lines-v1:sha256:f99bfdbd0cd801713e1937bdab5b28d382e68f1aafa3616d8175c0fad293fd0a:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjE0OGJiZjdiMDRmMDk2ZTI2NTQ2ZWY4MTM0MWEzODBiMGFlNTkxMWUzNmE0MGQ1NTM3YjQyYWI5NTJmZDY5YSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjMyOWVkYzQ2NTdiMjFkNDhlMjlmOGY1YTY1ZjcyOThmN2Q2MGY1ZTgxMGVlNjY2NTVmMzg5YzYxNWFiZWU0MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDE0NzY5MmJhNjljZWY1MDljODExMTVkZmJmYjIwYjljMWE3OTBiOGMwYmU3NjZiNTBhYTk0MmRiOTc1NTdhOSJ9"
         }
       ]
@@ -17,8 +17,8 @@
       "statement": "The write connection enables WAL, wal_autocheckpoint 4096, foreign_keys ON, busy_timeout 5000, synchronous NORMAL and a 32 MB page cache.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/database/connection.rs#L22-L51",
-          "version": "repo-lines-v1:sha256:52723b3c7b0d95b1c12197d8e6dab6d9bf0cdcca1f067e90982303d48c4eaa22:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxMjM3MWUwYjZlOGUyOWQzOGYxOWI3ZjRkY2UzZWRmMWIxNTE1NDJhOTkxY2UyYjEwNGIyODQ0ZTkwMzdiNGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5OTM2N2I0ZTJhOGQwNWU0ZTZkZDVjMmZlMTQwYWYwZjhmNmYyMjEzY2JjM2QxZTE0M2M1YTk5NWQxYjNjZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIyOGQxMmExNzM1NDdkOTBjZTJlMTI2YzlhZmIyZWRiNTNiZjZiNTVhMzA1ZmM1OTI0ZDM0ZTgzODQxZDA1M2UifQ"
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L35-L80",
+          "version": "repo-lines-v1:sha256:ced45c18d1d482da2ecc234e104da8fdb31d7c7d6c88e18ce03a4923de9455ac:eyJzZWxlY3RlZExpbmVDb3VudCI6NDYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjMmJkM2IyM2I0YzIwNzk1MzEyNzZiMDg3Zjg3NDE3ZjNiY2JkZjFkZTVhNzFmNDBmZGIwZDM4OGMyOGFjMGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZjZTM3Y2JiMGZkZGY0YzQxMDNiYjA3MTQ4NGIwODBiMWNmZTliYWVlM2NiNGY4N2MzNWQwZGI4NjgzYzlhODgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM1NjBhYTQ4MjYxNGQ1MTRjZTljMWVmZjRlZDE3NjAyMmUzMzE1MWJlZWIyNzdmYzlmZDYyMDVmYWVhNmQ0MjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE5M2EzNThlYTQ3ZTVhMjU3YTE0ZDQzZTViNTlkNWZkYTMwOTA0OTAyZjFlOTZmNjllZmI3ODhlNjRjYjJjYzAifQ"
         }
       ]
     },
@@ -27,22 +27,26 @@
       "statement": "The read connection opens the same file with query_only=1 and a busy timeout, and both connections get a 64-entry prepared-statement cache.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/database/connection.rs#L99-L114",
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L144-L159",
           "version": "repo-lines-v1:sha256:0297f472b62610888e05dd5b31b4898179ec2763c59270767c26709a81f5065a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3YjQwY2JmZjdhNGVmZjFlNDRlMWViYmU3MDA1Y2Q0Zjg2YjExZTdmNDE4ODE5MmY1OWQ3ZGIxZDM1ZWFlMDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5YjE5ODJlOGRkNzQ4MTE4MTQ2YjM5YTJkMDA2MmY0MDgxZTM0Nzc5Yjg2NzVjMjM0YzRmYjEyNGRjMzkzOTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJmNGZlZGM2NmFiNzhiOWU4NDNlYzQ2OTBlNzhmMzJiOWU3MTkzYTNhODYzZWE4MmIyOWNlMjMzNmJiYWUxNTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUzZjEyYjk5MTBjNDJjYTRhYzNhZWE2NjgzOTRjN2I2MmE2ZjZmMmViNDY3ZWQ0MGIzOTljMWNmNDM2MWY0NWUifQ"
         }
       ]
     },
     {
       "id": "claim_47371c1ac8ba4005bdb52aaa97832f61",
-      "statement": "Schema migrations use PRAGMA user_version plus a static MIGRATIONS list, run every migration above the current version in order, run ANALYZE afterwards, and include a compatibility shim that detects columns added without a version bump and advances user_version accordingly.",
+      "statement": "Schema migrations use PRAGMA user_version plus a static MIGRATIONS list; each migration body and its user_version bump commit in one transaction, every ADD COLUMN goes through the idempotent add_column_if_missing, ANALYZE runs afterwards, and the legacy compatibility probe only ever raises the detected version.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/database/connection.rs#L52-L98",
-          "version": "repo-lines-v1:sha256:e85afad2079b813bbed5afc5add6442f72942133c1bbae19d1d1ba0db509420a:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlOGI1OTgwN2E4ZjhlMWM4YjI0ZmNhMjQ2N2U5ZjBhMjZiOGY4Y2UxMWE4NDc0Mzc0N2YxNzk0OGNiMjIzNDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4OTkyYzYzODdjMzYzMDliYzdjNTU4ZmE2MWM4NTliMGRiNmI3MGYxNDU5MzkwNWMwOTJhNjI0Nzk3NDNjMzgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwMDY0OWViZTUyZjQxYjk2N2IxMDM4MjE2NzI5NzM1Yjc5NjVjNGI5M2Y5Y2YyYWMyYjZhZWE3YzE2MzJmMjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU2N2JkNDNjMWIyZTE5ZDgwNjI0Y2FhNDhiZWU1ZTFhZDM5MDU4MzRlNmNkMzlkOTM0YWJkNWJiNGIzNjBmODMifQ"
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L82-L141",
+          "version": "repo-lines-v1:sha256:31e98962f8bb67f433c117c47995dc4892cb7c066b92f9ae2367f4af06731946:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZWEwOWRlMzVhZTlmN2U0NDYwYTljYzBiNjY4ZTA3NjAyN2RjMmY4YzVlMzlkNmM4NzMxOTZlMWY2NDI3ZjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEyODk1N2NmY2E3MmYxYmRmMjUzM2MyNDgwY2U1Yjc5YTM5NjY2ZjgyZWMyMzlmYWVjMTYwOTczMWJhNThiYzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM3MTA3OWI5ODRjY2RmNTZmMjg1MmZiOWM5NThlMmIzNDYyMzdhNTQyZjVkNmIyNmE5MTM0Zjg3M2I0YThhMTgifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/database/schema.rs#L71-L120",
-          "version": "repo-lines-v1:sha256:b68b07e13fd911f24fa9d9a778861b013a43e59311c5de32f4aafad69dc34148:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0ZmVlY2FhMGU0MTliNTVjYjJjODA4ODM0YWYxNWRhMzQ4MjllZTdmMTE0YjFiYzczMTFhZmE1OGFmZDRlODQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZkMTA0MjYzYjExZjM5Y2Y4ZjJmZjA2NzQ4MmY4NzFkNWRjNTM0NTNkZjIzYzg3YmFhZTYxYzE4MWYzZTdjNmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMzY2Q2YTU0MTY3N2FmNTA2ZDhmOTk0YjAwNzYyZWMxZTdmYmFiZTgyYmQwMjdjODM3MDkyYWQyMDdhOTFiYTAifQ"
+          "resource": "repo://crates/limedl-core/src/database/schema.rs#L101-L226",
+          "version": "repo-lines-v1:sha256:9ee3013400be74ac8f9762521368c8b264bb96b61ae2d1c687882a1d03e7b957:eyJzZWxlY3RlZExpbmVDb3VudCI6MTI2LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI0NGZlZWNhYTBlNDE5YjU1Y2IyYzgwODgzNGFmMTVkYTM0ODI5ZWU3ZjExNGIxYmM3MzExYWZhNThhZmQ0ZTg0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJiMDJkMmMwZDZkYzVlNzRkOTJmYTE0YjkxZGJlYTI2NDA5MGJlYjM1ZmRiOTE4OGQ5YjM0MTE4MWRjZTlmNGNlIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJmZDEwNDI2M2IxMWYzOWNmOGYyZmYwNjc0ODJmODcxZDVkYzUzNDUzZGYyM2M4N2JhYWU2MWMxODFmM2U3YzZkIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/database/schema.rs#L33-L50",
+          "version": "repo-lines-v1:sha256:d1d7ac0427145f00a22e55e71db81e73644eacee88550a7f92e07cfe1e068644:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4MThjZTkzYzEyNzBmNzExNGZhZTE3YmJkZWMwNzUzNmZkZTllYjBhZWIxZmNkZDMyOGRlYWIxODY2OGI2OTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM1MDI0MGRjZmVjZTU2ZDA2MGU3MDJhZTU3NWY4NzNiYzJjYTMyYmZiZDU1ZWI1NmJiOWQ1NjA0MTZkNzg3MTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFhN2I3YWE4ZWIwNDgzMjY1OThiZGIzODNkOWE2NjQ1ZjRhNzJkNjg4NWZiZTI5MDI5Yjc3NmEzNzA3M2I5YjkifQ"
         }
       ]
     },
@@ -51,7 +55,7 @@
       "statement": "open_in_memory uses a single shared connection for both handles and deliberately does not enable WAL, which would cause database-is-locked errors for the shared connection.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/database/connection.rs#L118-L150",
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L163-L195",
           "version": "repo-lines-v1:sha256:ec454b7f8425b43a6d7de4f4903bc1df7c4d39bf4fc635ca3d7b2bb67ed79e55:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY0NDkzM2JlYmY3OGIxOGFkNjc4Mjk0MzM1NjdjYzk4MWNlYjdiM2FlOGIyZTRlNjA5NjRlOWYwNDQ4MjJmNTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUzZjEyYjk5MTBjNDJjYTRhYzNhZWE2NjgzOTRjN2I2MmE2ZjZmMmViNDY3ZWQ0MGIzOTljMWNmNDM2MWY0NWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRkZWI4NGJhY2RkN2U1ZWYxZjVkZWQ3NmZlNzA4MDhiYjVkOWVlYjM5NmI1NjE2MjliZjBiODJlMDE1MDBiMGQifQ"
         }
       ]
@@ -61,7 +65,7 @@
       "statement": "The initial schema has downloads (one row per task) and chunks keyed by (download_id, chunk_index) with a foreign key to downloads using ON DELETE CASCADE, so deleting a download removes its chunks.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/database/schema.rs#L21-L69",
+          "resource": "repo://crates/limedl-core/src/database/schema.rs#L51-L99",
           "version": "repo-lines-v1:sha256:e7b485f64cd334eac650129af10ebb95166ab6f6834ecf8abb30a535828a41a6:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY5NDcyMTVlYTIxM2UzZWRkMDk3ZTM5NjhhNTk2Y2RiNDBjZWJhZjI3ZGIzMDMxZWRmMTI5ZDFmNjQyMDY1OTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUwMDk1ZTBjNDY5MjRjYWQ5MTQyYWVmZTA5NWRhNDVkZWFmMTgwOGY1YjQ0ZDNhMWJmYTIzNTFjOTAzOTRiYzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0MmFjMTFkY2Y5YTQyMzc2NmY3ZTRjZWE1M2M1Y2I0NzkzYzJjN2U2MzAyNmExYTY4ZTBjNzljMjhkNGM4MjQifQ"
         }
       ]
@@ -125,14 +129,64 @@
       "statement": "Clean shutdown runs PRAGMA wal_checkpoint(TRUNCATE) to shrink the WAL file, and vacuum_if_needed runs an incremental vacuum only when the freelist page count exceeds a threshold.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/database/connection.rs#L153-L180",
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L198-L225",
           "version": "repo-lines-v1:sha256:407c3792373e0be56a08befb9adf57e216b9fbd96bc945dea2875f2e559da1cc:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxN2FhMTQ2MDVkNzhhNWU5NWMxM2RjNWI2MWEwMTA5YTlmYTgwM2E3YjIyZGJjMDU1YmQ0YWZjMzk1OWUwNjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY2OTgzZGNiOWVkODlkYmQ3ZmUzN2NkYmVlMjVlN2E5ZTRkMDcxNzdlMjkxNjMzNjkyNDBlZDViYzEzNjI3M2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b3d7fe0a8c6743ef8fb6e19ad5008845",
+      "statement": "Database::open probes the file with PRAGMA quick_check before touching it: files above 128 MiB skip the probe, an unusable database (classified by SQLite error code NotADatabase/DatabaseCorrupt) or a corrupt one is renamed to <db>.corrupt-<unix_ms> together with its -wal/-shm sidecars, and lock contention is never treated as corruption.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L15-L16",
+          "version": "repo-lines-v1:sha256:e78f66763c8d22ba9c5aa4239ec6a63cc33c492f118cdca239412e74c7d7a449:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZWNkNjg5YjExMmJhNDQ1ZmIwYWM0MWI3M2RmYjYzZGM0OGQ4OTcyZDIwNWU5NmY2MWI2NDY2NTViZGExZmMyOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2Q2OWUwODEyYzI4YzRjNzA4YzI1MGI5NzllM2Q4NGJkYjAwOTgwZTk1Y2EzMjgyNDI3OTA1M2RiODJmODRjOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzUyYTYwYjFhZjg1NmVhODUxMzU5ZjU3MjcwNDVkYzMzZjEwZDhiYzg5YmQ3ZWEyZDhlMTlmYjZkYmQyY2Y0NyJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L227-L376",
+          "version": "repo-lines-v1:sha256:3f7b4c717ee9bb1ad17c491358a7eb14de931f3baf6fd5f33228dd7668bf670d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJhYmUxNGViNTczZmRkMTA1YzBmODVhOWI1YmEwYmUyMWRkNWRmNDI4MTg1MzcyMGFjODE0ODcyMDVmYWE2MTRmIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_3b36b9f370a647a791c5b9be85dd280b",
+      "statement": "The database stores durable progress only: chunk_to_params writes downloaded = chunk.durable_bytes() (clamped to the received count) and completed = durable >= chunk.byte_len(), and all three writers — persist_manifest_snapshot, persist_manifest_snapshots_batch and DownloadManager::persist — substitute core.durable_bytes for the task-level counter.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/chunk_repo.rs#L27-L60",
+          "version": "repo-lines-v1:sha256:ff3b0c242b2f1e18eadf8fcb5892fd05b047a3d77c1eb223533ce87e6c4cab95:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzMzIwMzc2YmU0Y2M3ZDQ5NDdjMWFlN2NiYjgxMzUxMWZhZDc5YTljYjU1YjA5NGU1MTQ5ZDJhYjlhMGRjZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0NzVlOTRhOTA0YWM0OWIzMTU0ZDQ2NzJhNjZlODYyOWI4NmRhYzc0ZTNlMjkzN2JlNjkyN2FlM2RhMTFjNTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlMWU1NDM4ZjgyYmU2OWUxOTE4MjU2ZGY2ZjMwMTlmMzFjMTUxZjY2OTNlOGI0ZWM0ZTU2NmQwOWM2ZWFhODAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY2NTc5YWIxMzgxZmM2Yjk1MGZkMDBkYmVkNjM3MDMxNDVjZmFiYzQzNGM5NjdjNGMyY2EwMTA3ZWRhZmIxN2YifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/download/managed.rs#L176-L220",
+          "version": "repo-lines-v1:sha256:1987ec5ffe6e227e7cad1553ae7938f48c987dc8de0520734b6620d8bc42611c:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFjM2ZiODk1MzQ1MjI3OTI2MDY1ZDJkN2FiNGEwYzhiMmFlNDAzMWJmNjQ4OTRmZjA2NmViODdjMGEzZWNlMDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYwYjg1NzIxZmVmM2M4Y2YyODU4YmM0YTBkNzI3MWViMDhhYzA5ZjcwNTk3MzE4MTg1ZjEzY2RiOTViYjVjYmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjZGFlYzJkNTU0NjgwNDQ1MmNmNWY4ZWE0NjdmNjNhZDBkZDgyY2Y2MzQxZDFkYTE5YTEyNWQ3NDkyMzZhNDUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/persistence.rs#L108-L125",
+          "version": "repo-lines-v1:sha256:d59704afd31aa6e33091f21923964bd30965063ad35069756c7c24e4cf3e7c16:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNjMDhiZDkwZmY3NzY0ZWRjNjMzNmExYzk4NzU2ODc1MTY3ODE0MDM1NTdiYjMzMTU0MmMzYWFiYzFmYzEyYTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUwNzFjNmU5MjJkNjRlM2MyZDEyZDFiNDAwODRjMzFjYzRlNzgwN2ZiNDJlN2Y3MjI5Y2M4ODYwNWU3ZmM4YjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZlZDZlMGIxY2EzOWEzNDQ2Y2JjNDkyODk3MGI4MzdhOWVmY2Y1ZTg5MTY4ZjIyYjQ3NDAzZDJhYjQ3MDRiM2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/persistence.rs#L140-L270",
+          "version": "repo-lines-v1:sha256:ab6f8453a5452835af19d012532ec4dadd2fca9f78171419fe7b3b319620fbed:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJhYjU3N2Y1MTY5YzMwMjNiNzU4NmQ5YjY3OGI5NTQ1M2NhNzJhZjk5YzkxZmYyZWVlZmMxOWFiOTBkMTk1MTY5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJhMzg2Mzg5ZTkyMDYyOTAxNDVmMjM1YzFiOTdiY2UxZDE2MGU2YzM4MDVkNGNmZGMzMDIwYmZmNWE4NTI5OTExIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5NzI5YTNiYmYzNDQ2OGUyZmIyNjQ2MGJhNGNmOTNhNDJhNDZhZDBhNzIyODNiM2ZlN2JkZWYxZGEyYzVkNjc3IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIyOGZhMTI2ZGY5NDRkMzRkOTVhN2Q1OTNkNjljYmVlNTI2Zjc3MzUzODMwYzE0NjhmZGYyOTg0NTA3YzUyOTRiIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_ca6200baae8547f4a2245ac302ce1301",
+      "statement": "On load, row_to_chunk sets durable_downloaded from the stored downloaded value and DownloadCore::new seeds durable_bytes from the manifest, so a resumed task starts with received == durable.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/chunk_repo.rs#L48-L60",
+          "version": "repo-lines-v1:sha256:55eb386ca460da426d948ff0ca6a2deb6fccae7036580de1dd54405c31569546:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2YzNlNjk0ZjNiMWM5MTRmNDc0NGNiZGVkYTQ0ZjFhMmRkMTBjZTg4MDUwOWVkOWI2NGY0NmNlMmE3MWNhZDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0NzVlOTRhOTA0YWM0OWIzMTU0ZDQ2NzJhNjZlODYyOWI4NmRhYzc0ZTNlMjkzN2JlNjkyN2FlM2RhMTFjNTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk2YTgwOWQ2ZjliZWQyNjAyNzhlYjI2ZGVjOGRmZDVjOWUwMDVhMzAxNzI4MmU1YjNlMmZhYjZkOTBiMGZhYWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY2NTc5YWIxMzgxZmM2Yjk1MGZkMDBkYmVkNjM3MDMxNDVjZmFiYzQzNGM5NjdjNGMyY2EwMTA3ZWRhZmIxN2YifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/persistence.rs#L30-L120",
+          "version": "repo-lines-v1:sha256:aaf22b3020f4078f2659351aff6fba97660f2b65618b48c0ac343b7794d5348d:eyJzZWxlY3RlZExpbmVDb3VudCI6OTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0YTU2MTZhYWQxMTExNWEzNmVlZmNiZTJlZTRkNDRkM2NhMWYzNGIxNzc5N2IzOGQ2Y2IzOTBmMzIyNDNlMDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxODdkNDlkNDFjMmYwZjVhZmIwMzM5YjNlMDkyMjQwNDMxMzhlMGFhMzQ2M2I2NjViY2I3ODFmYTUwYWE3ZTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVlYmYwYjQ5NmRmMWI2MjAxNWFiYmI4ZTBjZTYwZWMxNzBiMGI1NjQ5NmUzNmRjNWZjNTRhZDA5MjEyN2EyMmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVhYjYyN2Q4NzgyNjVmZDU4ODUwNDkxZTI1ZGUxNTVmZTZiMjM5NDY3NDMwYzhmNGE4ZDJkZmM0ZDRmMzM1NzYifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T01:52:48.489Z"
+    "at": "2026-10-04T05:35:23.596Z"
   }
 }

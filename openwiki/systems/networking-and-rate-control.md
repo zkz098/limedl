@@ -3,9 +3,6 @@ type: system
 title: Networking, HTTP Clients and Rate Control
 description: limedl's shared outbound HTTP path — the HttpClientFactory every client must use, proxy and User-Agent semantics, the HTTP/3 situation, the global token-bucket rate limiter, retry/backoff policy, and URL rewriting for mirrors.
 tags: [networking, http, proxy, rate-limiter, retry, url-rewrite]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
     resource: repo://.cargo/config.toml
@@ -17,6 +14,10 @@ sources:
     resource: repo://crates/limedl-core/src/http_client_factory/tests.rs
   - id: openwiki-source-385628f66a6c216078934666
     resource: repo://crates/limedl-core/src/http_executor/mod.rs
+  - id: openwiki-source-056980230994a6266009d28f
+    resource: repo://crates/limedl-core/src/http_executor/single.rs
+  - id: openwiki-source-be8d7d8e3afa06fad7add3ab
+    resource: repo://crates/limedl-core/src/http_executor/worker.rs
   - id: openwiki-source-c1216bb52f086b1114796ff0
     resource: repo://crates/limedl-core/src/rate_limiter/mod.rs
   - id: openwiki-source-61df807712674b34c14141ea
@@ -27,7 +28,10 @@ sources:
     resource: repo://crates/limedl-core/src/types/settings.rs
   - id: openwiki-source-191c52d830a19ec45ce7e929
     resource: repo://crates/limedl-core/src/url_rewrite/mod.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T05:35:23.596Z
 ---
 
 # Networking, HTTP Clients and Rate Control
@@ -134,7 +138,7 @@ accumulates bytes and chunk counts and consumes once when either 256 KiB or 8
 chunks is reached, and `flush()` consumes any leftover bytes before the worker
 exits. The AIMD sampling window is independent of this batching.
 
-Evidence: `repo://crates/limedl-core/src/http_executor/mod.rs#L216-L252`.
+Evidence: `repo://crates/limedl-core/src/http_executor/mod.rs#L227-L256`.
 
 ## Retry and backoff
 
@@ -150,14 +154,44 @@ attempt loop under a cancellation token:
   Retryable responses increment the attempt, record an AIMD penalty and back off;
   terminal (`Invalid`) responses fail immediately. Only 429/5xx retry.
 - Backoff is `250 ms * 2^min(attempt, 4)`, capped at 4 s: 500 ms, 1 s, 2 s, 4 s,
-  4 s, …
+  4 s, … That is `backoff_delay`, and it stays deterministic because it is the
+  base the tests pin. `backoff_or_cancel` sleeps `jittered_backoff_delay`, which
+  adds uniform jitter in `[base, base * 1.25]` (`BACKOFF_JITTER_PERCENT = 25`):
+  every chunk of every task retries against the same host, so an unjittered
+  schedule puts them all back on the wire at the same instant — exactly in the
+  429/5xx case where the extra load hurts most. The delay is never shortened.
 - A `429 Too Many Requests` on a multi-threaded download aborts retries
   (`rate_limit_aborts`) so the chunked path can downgrade to single-thread instead
   of hammering the host.
 - `register_retry_penalty` sets the task to `Retrying`, records the error and
   marks an AIMD penalty for connection backpressure.
 
-Evidence: `repo://crates/limedl-core/src/retry.rs#L25-L180`.
+Evidence: `repo://crates/limedl-core/src/retry.rs#L31-L200`.
+
+### RequestBudget: why per-request retries are not enough
+
+`max_retries` bounds one *request*, so it cannot bound the work a caller does when
+a server keeps ending the body early: the caller simply re-requests from the new
+offset, and that request gets a fresh retry counter. A server that always closes
+the body immediately then turns the caller's loop into a livelock that neither
+fails nor finishes.
+
+`RequestBudget` (charged once per request through `RequestBudget::charge`, with
+the unit of work named in the error) closes that hole, and the two callers pick
+their own limit:
+
+| Caller | Limit | Meaning |
+| --- | --- | --- |
+| chunk worker (`worker.rs`) | `MAX_SEGMENT_FETCHES_PER_CHUNK = 24` | separate segment requests per chunk; legitimate multi-response serving needs a handful |
+| single-stream loop (`single.rs`) | `MAX_SINGLE_STREAM_REQUESTS = 64` | responses per download; a server that ends the body without moving the offset spins here |
+
+Exceeding the budget fails the download with an actionable
+"... without completing; the server keeps ending the response early" error instead
+of looping forever.
+
+Evidence: `repo://crates/limedl-core/src/http_executor/mod.rs#L258-L295`,
+`repo://crates/limedl-core/src/http_executor/worker.rs#L200-L235`,
+`repo://crates/limedl-core/src/http_executor/single.rs#L7-L35`.
 
 ## URL rewriting and mirror selection
 
