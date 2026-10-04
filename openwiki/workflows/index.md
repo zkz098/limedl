@@ -1,0 +1,6 @@
+# Files
+
+- [BitTorrent Backend](bit-torrent-backend.md) - The irontide-backed BitTorrent subsystem — lazy session startup and the restartable engine slot, task identity and snapshots, the alert bridge as the sole Aria2 event source, upload-policy and anti-leech loops, lightweight mode with the bt_tasks index, blocklist handling and shutdown ordering.
+- [CDN Acceleration](cdn-acceleration.md) - How limedl probes a CDN's anycast IPs and rewrites DNS for a faster download path — the CdnAccelerator state machine, the provider abstraction, the DNS-rewritten client, CdnService event monitoring, and how DownloadManager consumes it.
+- [HTTP Download Lifecycle](http-download-lifecycle.md) - End-to-end orchestration of an HTTP download — start validation and slot acquisition, remote probing, chunk planning, single-stream vs chunked execution with retries and mirror failover, 429 downgrade, progress throttling, and checksum-verified finalization.
+- [Scheduler, AIMD and Concurrency Control](scheduler-and-concurrency.md) - limedl's background scheduler loop and adaptive thread allocation — per-task thread-mode resolution, the AIMD throughput tuner, traditional vs automatic rebalancing, per-host connection caps, and the slot guards that bound HTTP and BT concurrency.

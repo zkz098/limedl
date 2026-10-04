@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:4d1c948ef2b5c2111adc8798bd45acd7a684bca0b8f22f377a047d715925f42a",
+  "claims": [
+    {
+      "id": "claim_a3116684fdf845e3bf61d5d54d1ccadf",
+      "statement": "main() owns OS-facing startup: it parses the CLI contract, claims the single-instance slot, resolves the base/state directories, calls bootstrap(), initializes logging, syncs autostart, optionally starts the Aria2 RPC server, then builds the UI.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/main.rs#L31-L103",
+          "version": "repo-lines-v1:sha256:a3051aabf43ed8e29514b91988a03938e483ef5c5edacf9bf53baf9e49608f14:eyJzZWxlY3RlZExpbmVDb3VudCI6NzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyMGVmMzY4YjIxOWVkYmY0YzVmOTVmMzExOGMyMTMyNzEyMjdjYTIxZGFjNzU1MTc1YTA1MzNjYzRiMGIyMWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNiZDFlMmI1NDkxMjAxZDRiYzUxODUwYmI4MDRlMTQ0OTJhZjA4YmI1MWM5MjA2MjgzYTc4MDliMDYwOGU1NDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5YzQxZTlhMGJlNjlhMjEyNjRlOGYwYmUxZDE2MDNjOTZmOGNlM2UzZDE2NDlkMjg5NTA3MGQzYzU2Njk2MjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_aefda1d73fc14e4a915c790f6f75a351",
+      "statement": "build_ui is deliberately synchronous and timer-free, taking pre-resolved UiBootInputs; it builds the real MainWindow, applies translation and appearance, constructs AppContext and registers all handlers, which is the seam that makes headless UI tests possible.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_boot.rs#L62-L224",
+          "version": "repo-lines-v1:sha256:78099d57f3ca47d8fa7389123f15986e6962cb9a0e423d7762917b4a080c82c9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlYWNhOTBhYTJiMTgyMzE4NDNkZjM0NGFjZDc1OGIxM2RlMmI4OWE3NjkwODkxZTI5YWFmOTMwZGEzMzBjMjhiIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_boot.rs#L8-L16",
+          "version": "repo-lines-v1:sha256:cafff0ffc3809540561d439ad0f47b257b76985f9b2951c9bb90c7df5c15b11b:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWJjM2QwZTUxN2ZhNjZjODNjOWI1MTE3YmNjNjY0ZGFmYTRiZTcwNWRmN2E2NTE2NmZkZjAzNzk1YzZlYzFiZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjc5Y2RkMzU5MWFiZmFjOTlmN2MzMzE0NmUyNzI0OWZiZWZhYmQ4N2Q5ZjE2MWFjNTVlNWExYjQ0ZWExMmEwOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjhjMzgxNDNlYTZmN2ZhMjkyNDI5NGI2MWI3MGE0NTZjOGJkNjU3NTQ2MzliOTFlMDI1MDgyN2IyZDAxZDM4ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGI4YjJlYTFhMGFhNWE2NDU2ZDgxM2JhNjFkM2VkMDJjN2U1YjE2YjIzZTEzZGIwYWY4NjZiZjYzZGQwOWFhZSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_8f7d45ea060544d783257c5784b5d34e",
+      "statement": "AppContext holds the window/weak handle, Dispatcher, EventBus, task store, toast queue, RPC shutdown sender, new-task torrent scratch state, inspector/Labs state and tray flag; settings() reads through the dispatcher and is explicitly not a cache.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/context.rs#L14-L51",
+          "version": "repo-lines-v1:sha256:61299e448646d6a03cbe5e4685df3b43bc552e0f31473a029dfafbfb56fb5a0a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFjNWZkYzM4ZmUyNGJjYzI0Y2U1MWJlOTU3MTZmOTBiMDhlZDdjNTYwYmRmNTNiNzgzNmM1ZTYyY2UwYmNkODYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUyNTQxZGFlM2Q4MzA0MGRjYWU2MzJhYmM3MGJhMDVjNTg0ZjMwNTg0ZjFmZWY1MzUxMzBhNGFmMGUxNjBlNTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7d63d59930384d7f87fda61134def4df",
+      "statement": "src/bridge is a pure mapping layer re-exporting models, forms (split by settings section), task_store, format, clipboard, labs, piece_map and setup_wizard modules with no window dependency.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/bridge/mod.rs#L1-L20",
+          "version": "repo-lines-v1:sha256:f9babe658f480c241c688a85c7b5e60d27ee01c4ed60c13f3a1a1ca11f091af5:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhMGI3MzRkY2UzYWQ3ZDZmMDczNzRlYTRjYmY0NjZjNGNkZWQzMDIwMGM0YjNjNmFkMjZjYWMyODEzODU2N2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVkOWM2YzMzM2M5MzQ4MzZkY2I3NjA2NGE0ZTk3NDkzZTk4NzI5N2UyYmVkODkzMWI1ZmNiMDdmYzk0NzgzZDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0237ef3b8e484c99bcac2073e8a30df4",
+      "statement": "List-style editors (schedule slots, disk-type overrides, Aria2 clients) keep their editing state in the UI model and are parsed by Rust only at Save; the Aria2 client editor persists only token_hash.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_sync.rs#L70-L121",
+          "version": "repo-lines-v1:sha256:0fce09d5d1a177e83ae0ec2f9e2c2fbece39704a5f24f50b3ad7a1870cabf383:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJhYzEzYzFlMTViM2I4ZDVkMmVlYTMzZjAwOWJhZDljNTZjNzM3YzQxNGQ0ZDVlZjY0MWVkYjA5YmU3MWNiMTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRmYWI3MTBkZGY3ODU5ZTU3NTc2NGE5MTNhMDAyYzc0NTg1ZmZhNzAwMTUxMGNiODgxMWRhODNkMmNmNzRiMzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMyYmVkMTI1ZmQ5NWQwMzY1ZWU0YWE1MTFiOTVjZDZiNGJjZDE3NmQ5YmYzOGQ5MzU1ZGI1OWRiMmIyZGMyNDcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_20618bbf67fd426596fe49f1ca12ea3f",
+      "statement": "handlers::register_all wires one register() per subsystem (task, new_task, inspector, settings, setup_wizard, labs, updater, window), and handlers/common.rs owns the binding boilerplate such as with_ui, read_ui, mutate_store, reload_tasks and TaskAction.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/handlers/common.rs#L1-L60",
+          "version": "repo-lines-v1:sha256:de4107b6564ae53b4fdc2cd1bc5c238960e364c4156d9d6b9806933a85d92377:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzMDNlMjQ0NmEyMjAwNDQwMzA0ZjIzYjgwOWIwNzdhNTQ2ZmVlMzc5OTg5ZGQ1NWMwNDg4ZDVkODhjMWQ3ZGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyZDExY2FmNDNlOTdlZjM2OWU2YmVlZDFhMjY4YmQwNTgzOGYyOWI5ZGQyNTRiZjY5YmE2NDg4NDE0NzIzNGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ2MTNlZjkyYTdiYmFlYjJjYzUzYTkxOTZmOTE1NDRiMzYyZDQ2YjY3YTExMWRiYzdkODU2Njg0NDAxOTRmYjYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/handlers/mod.rs#L1-L22",
+          "version": "repo-lines-v1:sha256:d724a1106a0203b229ea62266d5baad24a99088ba50d96eaf3691c09fbb29ff9:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlZDMxYmZmMzUyMGZmYmNlM2NhYTVjZTEwNzQ4YWU2MTBiYjNlYWE3NWU5YmY1YTljODU1ZWU3OThkMDYyZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f6898d475b6f449bb7d47531438df375",
+      "statement": "The desktop EventBus subscriber matches every DownloadEvent variant explicitly, ignores Aria2Notification, and recovers from RecvError::Lagged by replacing the whole store from Dispatcher::list() because partial replay is impossible.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/event_stream/bus.rs#L297-L343",
+          "version": "repo-lines-v1:sha256:d7a02fce5a26604a9e9a7ae3058a89af605aa39cbd1f234605eae496988333f0:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1MTliN2EzNDUxYTZkMTJiMzA0ZTczOGJjMTEzZTQ4MmFhZmY5YTA1Y2IzYzFjY2MxYzZmNDU1ZDlkZjRjZGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYzZWQ1ZWI2ZTJjMTdhMGYzMmZkOTEyZWNjYjcyYTI2N2I0ZmI3OTI4ZjNlM2VkYmEwNDFhNjhkODY5MDZiMDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_92f1026dfd944f659bc25312f613c179",
+      "statement": "on_updated detects removal by asking Dispatcher::status for the task and dropping the row and closing the inspector when the backend no longer knows the task.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/event_stream/bus.rs#L89-L120",
+          "version": "repo-lines-v1:sha256:cebad1f8a24ee433ea6902dd661cf5d5d6bcf682f3cc886885c94904ce4f1004:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhZTJjMDkyZTE1MzZhZTUyOTg4MDEzMTZmYWZmOGJjMWUzYWMzYjYzOWMwNGE5OGE0NmE3YmZjNzlkN2Y3MzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA4YjgyOTA3YzIwOGI1YTQ5NWJiNGY3YWI0NWQ2ODZmZmYyODIyN2Q5NzdhNTkyOTZlZWQ0YTlhODhhYmFiMmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdhMDEzYTE5OWYzNjEyNTRlNzMzNGMwY2VmNzA3ODEzZDk1YzhjZjQxNWYzNjM4YmMyZDlhNDc3ODM2ZTBkN2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4f7745d2bc264f4b8593772a063a5bd7",
+      "statement": "push_toast appends to a shared queue and spawns a task that removes it after the requested duration, and WarningDedup collapses the same id:message warning within a 5-second window because core emits one warning per peer/mirror/disk check.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/toast.rs#L36-L62",
+          "version": "repo-lines-v1:sha256:192779716b0ad2eaa9b24298701a68985e4a46dd8dfd84c4ce1f09b040c52214:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMyNTU1NDQxODY1Zjc0NDM3NDQyOWJhMGExZDVkMzliYmY4OWY2YmJlMWI1NDE4YTBiMjNlMmM1ZTI3MzM5NjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyZDExY2FmNDNlOTdlZjM2OWU2YmVlZDFhMjY4YmQwNTgzOGYyOWI5ZGQyNTRiZjY5YmE2NDg4NDE0NzIzNGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdhZDc5ZTZhNGI1MjAwYjA3NjVlYWRkMWZkZTk4M2VhY2RmMDUyMmIxZmZmMWQ0OThiNDlkY2I1OGI0MjNiMGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEzMWE5NjRlZmM3NGVmNDI2ZGQ1MWJiMDJhMTBiODdlYzcwMjA3NjM2M2YyZjEyYzYwNWZlNWExNzViNjQ5ZjAifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/toast.rs#L66-L111",
+          "version": "repo-lines-v1:sha256:265f748db7a0d12e38bb66c89977a00287cdff091835a6ebdf9e21e48e8f40f8:eyJzZWxlY3RlZExpbmVDb3VudCI6NDYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyZjViYmJlNzIzODI2ZmVhN2I1MGE3MjgyZWI1YTlkOWMyN2Q3M2NjMzAxYTZiZTgzMmI1MzY5NDFkOTdhZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3MzMzNzdiN2QxMzQ5OGI2YTlkMmU2ZGQyODEwMTJjNjFhNmIyMzc2MzAwMTJjMWExZTY0YTk0MDU1ODdjOWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEzMWE5NjRlZmM3NGVmNDI2ZGQ1MWJiMDJhMTBiODdlYzcwMjA3NjM2M2YyZjEyYzYwNWZlNWExNzViNjQ5ZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJmZjgwOWMzMWM5MWEzMjViZWUxNjk4MWZlYWU3MmQwZjRmZWM2NmExMjIxN2I5YzFkOGJlZjZlN2FkODFhZTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4bd66ed7e78c4f9083f2739685f646ee",
+      "statement": "settings_sync::SettingsSync centralizes post-save side effects shared by the settings dialog and setup wizard — autostart sync, Aria2 RPC hot reload, and push_ui for language/tray/appearance/default directory — and push_ui disarms reset_confirm on every close path.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/settings_sync.rs#L1-L29",
+          "version": "repo-lines-v1:sha256:57fe64fd93776dbb9f26cb05aa5988d70a5d950debb60bf60d526f5abd37284b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0NjhhNTQwNTRmZTI4NjJlMWM1ZDhkZTY3NjIwMTk2NTIzNWEwYjJkNmFhZmVkOTdlYTQyNjU1NTlmZWU4MjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlMzhlMDM4ODkzNmIyNDBhZWFkZGJhZGVkZmZhY2E0OTkyOTU1OTVmMTIwN2I3Y2Y0NjIyN2M1YjA5ZjRmMjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY5YmEwOTgwM2VkZWYzNjk2OWQ3ODE0MDc3MzFmMWU5ZGJmYjVhOGQ1ZDU4NjBiOGI0NDkyMjQ3MTdmYjc5NjcifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/settings_sync.rs#L137-L184",
+          "version": "repo-lines-v1:sha256:d5710b36e7cddfae2bb199095b5b58b49383106673726b85c66606303e39a162:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhZTIxMTU4YzI5ODEzMGEzYTQ0M2I0OTNhNGZmZDJhYzU3OTg3ZWVjNmE3YzU5YTQwNWIxOThkZmM1ODkwYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg1MTJkYTNkZGE3YjU5ZmJmMzc1NzZkNzY4NTE5OGJiNGE3N2YwNmRjYTg2ZjNiMzEyODBhZWZhNGEyNTVlODgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_523cf86814224d228dadbe57590e5ac6",
+      "statement": "Rust-side dynamic text must go through i18n::format_* helpers (split by domain) rather than hardcoded CJK, .slint text uses @tr, and a test fails when a @tr string is missing from any of the three PO catalogs.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/i18n/mod.rs#L1-L16",
+          "version": "repo-lines-v1:sha256:da6cd5b9d17b9254919b35209d63cee0ce7b72c0e27d4370ef750866b7879b2c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIxMTI0MTVhNGQ4MmU4NzQxZWVlNzQwOTFiY2Y3NmZiZWY4OWViM2VhYWRmNTc1Y2VjZjNmMjRiMjMxMjNjNDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MDkwN2E5YTM4ZmUyYzQ2N2VkMTE2OTgxMTE3MGQ5OWE4ZjY5MTM3ZTQ5MDZkMzM4N2RiOGYxYWZlZTU0ZGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxM2FhNGY5MjM0YzQ5N2QyZGQ0YTk4NWY0MDQ3MzBkODkxYjk1MDUyYTQ5Yjk3MDUyN2RjZGJiNzllMzhhNDYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/i18n/tests.rs#L245-L270",
+          "version": "repo-lines-v1:sha256:e4e1bc9ef683b641cbed97fac24aa2dce2f5ee6a7bfc555151ee2ba9459658a8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI4NWRjNDk5MzE4MmNkMDEyMzZiYWM0OWIzN2NiYTQ4YmJkZTkwMTYxNzlkODJjY2NhNDBjNGQ3YWI2NTA3ZjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3eb73bc1cca843bf9bacbbf836355343",
+      "statement": "Single-instance claiming uses a session-local named mutex with WM_COPYDATA forwarding on Windows and a loopback TCP listener on port 45997 on other platforms, with the primary handle kept alive for the process lifetime.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/single_instance.rs#L1-L20",
+          "version": "repo-lines-v1:sha256:1a4ec1bb17c7701f84f7bbdf3cf4d1e66171b409091966a5a6079c0354cae026:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgwZjBjOThiODYwZDg4YjhhYzk2NzRlNDZjYmU4NjE0NWNjMWZhMjQ0MGRiZWI1ZjM1YjFkZTg1NzIzNGRkMmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhlNmE3ZTdlNjQ4ZGM3ODZhMTc0NWQ2NjU2ZWZkN2FkOWMwYWM5OGJhZTMxNGM1ODUyMGRkYzg1NDM1MjA4ODMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQyZjA4ZGU0YzI4YTNjMzZhY2NjZWViN2MyZTVhYTRhZDQ1MjYzZWIxZWVhNjIzMjNmNmEwY2E4M2ExNmJhYTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6aadeedd0bb843ce91847f43f5c7d798",
+      "statement": "Every autostart registration appends --hidden; Windows uses HKCU Run (or the MSIX startupTask extension), Linux an XDG .desktop, and macOS a LaunchAgent, and a moved executable triggers re-registration.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/autostart.rs#L1-L42",
+          "version": "repo-lines-v1:sha256:b544a02787f84da2feaa1f6c78c425b9698687be50e47e5e33f82f9fa18c3de1:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE3ZTZiOGNjNTc3YmQzOTVmMTA0MTE1NzNmMWQ5M2FjMWUyYTA2OGY1NzU4MmIxODE4ZjBiOWM4YmU4N2UzYWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg1ZmU5ZDFiOTUzOWZmNDA5ZGEzMWEyMzBhNzBhYWJmZjFkOTI1MjQ5OWJlY2UzMzVlOTVkZWY2OTBmNjY0ODgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_71f807de3c114c16b5706c10d6eb08a8",
+      "statement": "The tray menu is built with muda and refreshed on the UI thread, while PowerGuard uses SetThreadExecutionState on Windows to keep the system awake during downloads and is a no-op on other platforms.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L1-L70",
+          "version": "repo-lines-v1:sha256:98321726f8705baa3b29781232d5b7c49ed1b2f92e0adca0c5083da43403fd7b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyNmZhYjM5ODI4MDdhYzgyNGU5MmM0ZWJlY2EyNDk2MTNhNTk5NGM0NDJhNjAwYjQ0MTUwNDRiODhhOTdiOTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1NWIyZGI4MWFiYmE1NmU5MjQ3YmI2MDhkZmI5OTg5NDI4YWRjZDgwYzc3MDRkYmU3NjVlODNmZTE1OTU1MDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhZjNjZjFhY2E0NmFkMmQ2ZGUzYjYzNTg2ZjBjOGI5MDRjMzExMWQ1YzY5NjI3MDY3NTgwZjRmYmEzYjIzMDIifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/tray.rs#L1-L50",
+          "version": "repo-lines-v1:sha256:3679b3ae1fbc966d8b82d420f5aad789e6183ae2dfe82e7bc611a8625c088278:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFiY2ZkMjhhMTIxN2RmNmM2NDg2ZTEzMjlkODE2NWY2OGIwZjBiZDkyMDVkNWIxYjY5YThmZGRkZjUwMTVmYTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU3NDE5Y2M5ZDBhYWExNGRjOTEyZGRkOGFkZTVhNzhmNGVhOGIwNmFhYTM3YTA0ZGE2MTVmMWU2MTdmMTc2MTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVjMTkzMTIyZmRkYWQ0ZTI5MDNkMzE4OTkwNTU1ZmIxMTFjMDk3YTRlMDk5OWRlYmQ2ZTgwNjg3NjFiNWI2ODUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_83d512494b1a4563b7ff6cf30a8c465d",
+      "statement": "Window geometry restoration uses GetWindowPlacement/SetWindowPos and monitor checks on Windows but Slint's size/position plus a MAX_PLAUSIBLE_COORD heuristic elsewhere, and schedule_window_placement_restore retries every 250 ms until the OS window exists.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/platform_win.rs#L553-L675",
+          "version": "repo-lines-v1:sha256:af101e3c34c3f404ed287441dc9567587cb21c6587eb1d47a0addb0e35fc0487:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjMDBkMjAzZjEyMGU1MjcwZTQ3ZDk3OThkZDVjZjI5MDhlZDllOWU5NDhkODc3ODZhYzdmZDdiODI4YmVhMTJiIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIyMzcxOWRlMDE3MzQ2OWU0NmFiMzY0MjgxNzgxOTBjMTI1OWNlOTNhM2EyNzUyYTgyZDViZGVmZTViMGYwMjIxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI4MDcyNmRmOTcyZTFlNzBiNmI3YjM4YzNlYTMwMWUyNzBiOWU5N2ZlNzU4ZjgzZGFhNmU2OTFmN2YyZTA0MmUwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2Y0YWUyZjEyNDQzZmZhYWUwNmUwNDRjN2U2M2RkYjQ5ZmU3MzA2MTk0NjFjYzFlMWZhNzUzOWVjNzg5MjI2In0"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_sync.rs#L250-L302",
+          "version": "repo-lines-v1:sha256:c2c3b1d6a1db4b712bb3f68fc296855ae9d800358b600df82b11c2c39c6f3543:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYyZTYyODE4ZGIwNjI5MGM5Y2NkYWY2OTQ0YjAxNzg4ZWM5ZmY2OTU1NDVhMDI3OTU5MTc5NTg1MTNmMGI1ZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRmYWI3MTBkZGY3ODU5ZTU3NTc2NGE5MTNhMDAyYzc0NTg1ZmZhNzAwMTUxMGNiODgxMWRhODNkMmNmNzRiMzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVjYTRhYThhNzQxMWNkY2Y4NTNjNjUyZmEzZDM4ODM5YWU1YjU0MjhlMDJmMjAyNjRkMzYyNzcyNWVhZjUyNmMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_87b9e344bc0c4d72a131f464b0d018b2",
+      "statement": "ui/theme.slint exposes a Theme global whose mode comes from appearance.color_mode and accent from appearance.theme_color, and apply_appearance translates settings into that global plus the OS window theme.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_sync.rs#L304-L319",
+          "version": "repo-lines-v1:sha256:caf4ff62467a890917ffcc5c3b09db45805b6812fb7ba266a0afb2af4c1f9685:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdjY2JmNDZjNWUyYTNhNDRiZThmM2IxMzg0Nzg0ZTMxMjUwZWZmZTU3ZDQ0ZDRmOGIxNzMxNTI0NmUyY2ZkNGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE1OTM3Njc5MWU2OTQ3NmY3YTA3MTg5NmRjMjViOTEzN2VmODQyM2UzZTk2MzQwY2NmYWMzMzIzZDQyY2E1MWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/ui/theme.slint#L1-L26",
+          "version": "repo-lines-v1:sha256:91701e314fd940b678a5564db6ebac450785457150c6c21b82cb6cf884d405db:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhODc0NTQ0NWExOTU1NTgwNzcxZWVkYjA1OWE0Y2VmZTNkZTI4MTg5YjM2MzY3MGJlNDgwNWNhZDMzODg4MWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRkM2EyZDk3NjA4OTc4NDdmOTExNTViNTljNDhmNjdmYjQ1N2E0MTc0MWIwODg4N2ZmYWM0ZTdjMGY4MGU4MzcifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

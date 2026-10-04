@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:b1047f6cc489d0082d019fe954902ef57f18aea06e067096ac5b136a86725266",
+  "claims": [
+    {
+      "id": "claim_ebf902f2ec634cfda5a0a6f0ae54d147",
+      "statement": "Building requires MSVC initialization on Windows, a one-time cargo xtask fetch-font, libfontconfig1-dev on Linux, and a cargo-nextest version pinned to what CI installs.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L5-L40",
+          "version": "repo-lines-v1:sha256:d74e3df4c771c1fde344c7cc843280a50e791a8918cd9bc4beaabd49315a5acc:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMjBiMDcxOGVkMDQwNmVmMzc2OWViMzRjN2E4NjNkNzNmMzlmOWE5N2JmYWRhZTE4NjRhMzdjY2RmMDgxZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzZTYxZDU4NGNkMWVlZWMxN2Y2YmZjMDI0Y2NkZDI1ZWYxMDdjMDNiOWQ2NmY5MzU2NzBhOTQ3MjQzOWIyYWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE1ZWNiNzg2ZmQ3ZTk1OTBkZmM2MWUzMDAxYmI1ZjU1YjE1YjRjYTMyYmFlNGMwNGMyNDZlYjNmMDlhMWFiMDUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fbaa3a45678c4b348988efa336a2a721",
+      "statement": ".cargo/config.toml is the single source of target flags: it sets target-cpu=x86-64-v3 for desktop targets, x86-64-v2 for NAS musl targets, and adds --cfg reqwest_unstable for every target, all of which a new target must carry.",
+      "evidence": [
+        {
+          "resource": "repo://.cargo/config.toml#L1-L45",
+          "version": "repo-lines-v1:sha256:547bff2791793fb7ca70071ea5088755a9b8b49746c23d0db0d23d77b2398ca8:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTg0MWEyNzUyMWVhODgyNjVmYzYxZmIyNzE4ZjM4NDVjMjM5YWYzZjY5MWM5OWYxYTZjYjNlZmUzMzFjYmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkOGI4ZGJkY2RlNWZlYmEyNGMxNzNhNDBjOGU2ZGZkYjQ2NTYyNDYwN2MxMDA2NWIxNTU1MDExMjhjMzM1MmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYyNjkwY2M4ZmNjNjYwMGIyNGM3OTQ2Mjg5NGVjMjY1NDdlMDA2MzgwMGE3MmI2ZDk5NjhkMTRiZjc2M2UzYjUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_973c7d5d1bd94d10a0b05449f47227c8",
+      "statement": "cargo xtask provides generate-key, sign, verify, guard, manifest, fetch-font and bump-version subcommands for the update channel, release manifest and font.",
+      "evidence": [
+        {
+          "resource": "repo://xtask/src/main.rs#L71-L140",
+          "version": "repo-lines-v1:sha256:e536982f8a530d1823841867f2c4cbe8197b98c108574bb28076cc9baad36667:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjYTgwZTJlYmI3ZTBlZTkwMDM2Njc4NThkNjk1YzhmZDY1MDJjMWM1NTExMGRjZGMwOTUwMTdjZjQ4OGY2NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlYjY3YjFlNDc0NTM5ZDNkNjU3YTI2Mjc0ZGY3YzNiNzhjODgxNTBlM2IxZjhkOTIwNDI5YzEzOWY0MDAyNTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA4NDBlZWE4NjZlOTI2NzEwZTU4ZmY4YTVmZGM1YzVlMWQzNmMyNjY1NDhjNjIxY2NhMDgxNWJkMGE3ZTMxNTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAzY2I4ODdmOWE4YWIxMTRhYzQ0OWVhYjcwOTNjZDA5NGYyNTZjNGU5MTg1ODlmZmJkNzgyYTQ1Y2NhNTIzYTgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d2dd15ff9c0447b4946c18991177db88",
+      "statement": "bump-version updates the workspace Cargo.toml version, Cargo.lock and the website, then commits 'chore: bump version to X' and pushes both commit and tag, with --dry-run and --no-push escape hatches.",
+      "evidence": [
+        {
+          "resource": "repo://xtask/src/bump_version.rs#L57-L135",
+          "version": "repo-lines-v1:sha256:8021ea09cd59f328d2752a701715fc8fc9fc5c486046aa90f8266c09292da37b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjNDEwOTgyZmUwODgzZmQ0MDE1OGE1OTlmZGRmYzQ5MWIwN2EwYWNlOTU5NzEzZTU4N2IwZThlZTc1NjZhZWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJkNTk3YjJhNmZlMmNkMzlkMDc1NzUzNmE4NWExYjNlNGQ3OTEyMzA1MmQ3YTkzZjNiMGUzNGFlOWMwZDM2MzQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVjYmNlY2EwMTM5OWU3NmMyMWY1ZTcwZWJhMDk0ZTcxNWVkNDY1ZjM3M2Q1NWIyMTMxNTg2ZTc2YjgwMWVkMTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM1ZjZmNDY2ZTU5Y2ZjMzA3MDNjNDVmNzJhZjY1ZGU1NGFjMzYzZDM1NGNjMWEzMzMwMzUwYWNkNDUyNDM0YzQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e9730a62c36f415bb5aecf886bc55c70",
+      "statement": "The MiSans VF font is pinned by size 20093424 and SHA-256 0ddef906, fetched with a transport ladder and chunked range fetch, and offers --verify, --from-path, --zip-url and LIMEDL_MISANS_TTF as escape hatches.",
+      "evidence": [
+        {
+          "resource": "repo://xtask/src/fetch_font.rs#L44-L57",
+          "version": "repo-lines-v1:sha256:d087e87bc324efd2343ca47c7517dd4ac8c7955c864d9fc3991750af9d60cc0a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhMGNjNzJkMDVlZThlZjEzMzUzOTBmMjNkMTlmOGFlODJmYmE4MGNkYmNiYTgwMzg2N2MyNjYwMjA2MTk0OTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjljMTExZTJlZTNjMWY3NjhlMDUyY2YzZWEwZjRkYTQyODRlYTk4YjdhMDIxZGJiYTg5ODM2MWQ5NjZlNmMyMjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFlZDhmM2Q1ZGM0MDJlYmZmYmYyNjU5OTY4NmJiN2FkOTMxZWZiMTZkNGVjMGY3NDFlMDk3ZDhjYjkxZDQ5MTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUyMTVlYzBlNTkyYTRkMzJiOWM1NjA1YzhlMGI3NzY5MzRiZGJjNmZjNGFlZTQ1ZmRhNGVhM2M0ZTg2NTg0Y2IifQ"
+        },
+        {
+          "resource": "repo://xtask/src/fetch_font.rs#L5-L26",
+          "version": "repo-lines-v1:sha256:6ff8a0db68a36bec4e2998097385901069f32c5215760669d9dfb51b0a276107:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRlMWNhMTEwYzAwY2VlM2JlNWM3NzkxNDczNmZlOTQzOGQ2YzBkOGQxYmU2YTM3MDMxNWMzZjA5M2FmMTQ5YTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc2ZTllOGQ3N2M4MGYwZTdjMWM4MTZiMjczZDNiYzI5OTdlNmU3ZmU5NmM4MTJkY2RlYjkwN2YyNmQ0Y2I2OWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFkZTdjZTIzMmZkNDMwYTc0MWEzZjNhZDQwMWE1OGI0N2FhMjMzODdkMWVjMzU2ZThhNDE0MjIyODU3MDBmMGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA3MmQ2MTY1MTBmYTIwMjQzYWI1N2NjOThmMzNjZmFlOTY2ZDg3YzM0ODhkYWVjNmQ2MjMwYTQyZDMxM2Y5NzEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_258f9098a1dc486b89303edc8eaeefe7",
+      "statement": "The font cannot be committed (MiSans license) so the CI font job fetches it once and publishes the misans-vf artifact, and every UI-compiling job restores that artifact and runs fetch-font --verify instead of hitting the CDN.",
+      "evidence": [
+        {
+          "resource": "repo://.github/actions/fetch-misans/action.yml#L1-L46",
+          "version": "repo-lines-v1:sha256:64e79ac86abc18b3c93781a2d9fcc808c488de11ee32c798d124d69eced66eb0:eyJzZWxlY3RlZExpbmVDb3VudCI6NDYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlYzhiZjE4MzFkMzRiZjdjZTNhMGNhOWI4ZWM1ZGQ1NGQxNWE3YmY1MDQ0NWVlOWQwNzY2ZThmYmJhMWViZjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0YWNhYmE5ZDcxZjg1Y2VjNDg2NjFkNjg3MGYyY2RhMzYyZDJjZDZkNDY3NDVkODQ2MzlhYWExYThlN2UwYzEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/ci.yml#L80-L108",
+          "version": "repo-lines-v1:sha256:7ec33dce6c7f75616d6e7ace109c68e49d676f9fbe0ff97bdfae97981079c464:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyMTViNzNkM2VmYzYyYjY5MWI3ZmEyYjUxZWQzNmU3YTk4MjI3NmVkZmE4YzcxZDFmYWZhZGQwNWUyNjkzYTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3ZTI3ZDMwMzcxNTg4NWM4NDlmZTZjZjIwNjAzMjk4M2QzNDA0NDVhNTAwNWU5MmQ5MmM4NDM4NDlhYjc4YjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3NGRiYTI1MmYyNWNhMDc3ZDZkOGM3YjA0OGVmNzA4ZDFhN2YzZWMxZjA2NzA3OGJjODlmMGFmOTExZDc5ZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU5NGU3NTUwNTM4NDlkNzkwN2Q3ODk5Y2ExYmU1OTFiZmY2YzAxNTYzYzI2ZjRiYzY0ZDNhN2NkZGY2Mjc3NTcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2cbffe8bbb1e483cb9d93a094115255f",
+      "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native) with CARGO_BUILD_WARNINGS=deny, not RUSTFLAGS, so .cargo/config.toml's flags stay authoritative.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L214-L258",
+          "version": "repo-lines-v1:sha256:8dfe8b76946fd7ce14733d38b88f5d64f92271980920bc0801098df7cb2a86c9:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwOGE2Y2Y2OWI1N2E0NjQ0MWJkOGEwMGEyODg5ZmJhMmI4ZjMyMDNhNmVhMjFiZmUzNjI4N2JlMWNhZWM2NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU4MGFjNzBlNmQwNDI4Mjc4NzE2MWQ5ZjNjYzNhYTJiMDFhODY4NjY0YTdiZDgwNTUyOTc4ODU3ZTYwYmQ5YzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4MzhmOTQ3YmFiYWVhNTZjNjM2YTAyNjA1ZTE5ZjgwYTY1OGQ2MTc0ZTk4NGY2ZTZhMzY3N2IzNzhlODEzYzAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9f2b7458956341219dffa2ee108a063e",
+      "statement": "Coverage is a hard gate: limedl-core runs cargo llvm-cov nextest with --fail-under-lines 85 using pinned cargo-llvm-cov@0.9.0, and limedl-native gets a second lcov with --ignore-filename-regex 'crates.limedl-core' and --no-cfg-coverage.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L403-L474",
+          "version": "repo-lines-v1:sha256:99df9dd29c1b58eed01cc6530c919fc67ff2200d919f06ad91079212f0d7f0d8:eyJzZWxlY3RlZExpbmVDb3VudCI6NzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJjYTg5ZWRhYmVmZDE2YmIzZGE3ZjNiMjg2YjY0OGZhMTQwOTQ3Zjc0NWE0ODc0NTc0MGVlN2Q5Y2MwOTZjZDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2MGQ3NWU0M2NiZjE5MGE1YjBhODYwNGViMjgyZmNiOTY3M2FlMmY0YWMzMzYyNTc1YzVlNDVmMGY1YTA3ZTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU0ZmEzYzUyMDU2NmFlZmRkZmZkY2VjZDgyYjNlZGJjYzY0YzcyY2NjNWYxYjk3ZWVhMTU0MDViYTZmM2IxZjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZjZDljNzdmNGYxNjQ1NDU5ZDFkNmNlZTgxOGZjNmJlNmQyMTdhYjAwNDQ1YjVhZjNiMzgxMmNkY2ExNTFlY2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fda6331603334468ad349c26321c103a",
+      "statement": "On a Windows host the gate never compiles cfg(not(windows)) code, so non-Windows-only unused imports, Windows-only build.rs dependencies, missing dependency features and missing -dev packages can only be caught by the first tagged release; the project mitigates this by preferring #[cfg] over runtime target checks.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L259-L309",
+          "version": "repo-lines-v1:sha256:86d5b3661f0fc15986c1d634f148f18fc2cf3070bebcf975a244bd1c1ba406a4:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMTUzYjFlNTAzZDMyMDhlOTc3NGMxZmYzNGRjNDIyYzg1ZjM4MDY5YjFkNTdmYjQ5ZGZmYzg1N2JiMTJjYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVmYmE0MmUxZmI4YjAyN2IwNjMwZDU1ZmM0MjY2ZGViMTc1NTgwMzdkNzM0OTUxYWJmMjU1NWM4NWJlZjYwOGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM0ODFkYjEzNjQ1YzcxMzI3OGMwZTIyZmQ1NTE4YWUzY2JkNGQ4Y2FjNWM5OWY5YjQ5NGQ4YTgyNTVkMmRkMDQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_354ade28d9f84834a0c80762a564fe87",
+      "statement": "CI runs font, check-windows (clippy), test-windows-core (core + xtask nextest), test-windows-native, check-macos (clippy + core + native nextest), check-rust (coverage, clippy, SonarCloud, native nextest) and supply-chain (cargo deny check -W rejected bans licenses sources plus cargo audit).",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L110-L289",
+          "version": "repo-lines-v1:sha256:3f7f263fa340bc5ecbef3c3d6e656d68cbeefb2a2f574248feecbc566c012aef:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzM2I3NmI1YjY3NDgyYWI5MWQxYjRkM2RhNTlkMTlhYTljN2MyZDAwNjM1OGE5OWY3ODM5NjhlZWRjYmM5MjEwIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIxODBjNzk4ZTgyYjA3NjNlOWNjY2YzYTExMGQ0Mjk4Y2U1NDg4MDU5OGRkNjdlZmE2ZDcyZjQyZDJjZDMwODU1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlZWU2Nzk2OTRkYWRlMzQzYzRlZDI5N2U0NjA1ZGZlYzJiOThjMmFiYjQyOWNhYzBmMzA0YmEzMTcwNjQ1YTAxIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJiMWM3Zjk4YmI1OWM0NjlhY2NkY2E5ZWU1NmVjOGU5NzczNWU3YmU4NjIwMTc0ODJkNTI2OTYzMDRiM2JhNzI2In0"
+        },
+        {
+          "resource": "repo://.github/workflows/ci.yml#L338-L545",
+          "version": "repo-lines-v1:sha256:8bb726786a43a3fac7b13b9bf1d904fa5db5d0121aa89415cf0406a1046af4b3:eyJzZWxlY3RlZExpbmVDb3VudCI6MjA4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMGE5Yjc3NzAzMWJjYzEzYjY1ZDU1OTE5YjY1Yjg3M2ZjMDAzODkwNmJlYmRiZmIzODgzMTZlNGRiNWVkYzhhIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MDc5OGUyODUwNzNiYmMwMzBlOGQ3N2U5MWY1NGY4Y2QxMGUxMDgyNjAxYTNjMmFhNWU0ZTcwYWY4ZTViNzg0IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwOGQ3YjczODQzMGRkODAzZDRjMmQ5NjI5MWZlODU5ZWRhMDE0OTY3MjA2MDEwZjU1OTZkNWQxOTA2YmQ2Njg4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_66af9ef0f2ac41259dca2974108c6d63",
+      "statement": "Every Rust CI job passes cache:false to setup-rust-toolchain and runs swatinem/rust-cache once, shares one ci-debug key per OS, has exactly one writer gated on refs/heads/main, and leaves rustflags empty so .cargo/config.toml stays authoritative.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L30-L80",
+          "version": "repo-lines-v1:sha256:b76d0eda6b1165bd2c3bcfaae41aafae37aa14e8a609963afd80e4569c3b41bc:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyMTViNzNkM2VmYzYyYjY5MWI3ZmEyYjUxZWQzNmU3YTk4MjI3NmVkZmE4YzcxZDFmYWZhZGQwNWUyNjkzYTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU2NGRmOGI1YWVhMjNkMzFmZWQ5ZTZlZGM3YTBjMzg3Y2I1MDZlYjkwYTBlY2E4MDI5OGVhMzNiMDE3MTkyNTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgyOTBhYTVjYzYxMTU1ZGRhNWRjYzJjOTNmMzg1ZGU3Nzk1ZWRjNGE2YzQwOWNhNTMzZGFhYzU5MjgwMTBiNGIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c9c800411f5f4eba8eb475683cf575c1",
+      "statement": "A v* tag triggers the release: font fetches once, changelog generates the body with git-cliff from Conventional Commits, three platform jobs build and upload artifacts, and native-manifest is the sole writer of latest-native.json, running with if: always() and merging only succeeded platforms before signing and guarding.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L1-L31",
+          "version": "repo-lines-v1:sha256:762af47b2460f69c97ad737faf83813b346a0b40bab56300a38849aeb384628f:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZWVmOTAzMGQwYzcwMjkwMTBjNDYzNTY4OWY1ODMyOGQxMDllNmE4NWVkMWE5MjQ1YjIwZjM5NTViN2RiMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNlMjU0ZWIzYThlODg2NmQ4ZDc0OWY2MjUzMDYzMGNhMTZkMDgwNzYyMTQ5NjdhYjcwNDhkMjMyNzNmZmMyZmQifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/release.yml#L502-L645",
+          "version": "repo-lines-v1:sha256:9d3b778d52b81a813230ecf914a9322188f1f83b5ab121504315c4b31258af84:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQ0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmZjhjYjg5NGM3N2M0MjVmY2NkNThlYWYyZWRmNTI3MGZhYjI5YzhkOTZhZGYxMTZhMDUyMjdiNGVlMTBjNzk5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJjNTM5Y2JiN2QwZDI1MGYyZTEzZjc3NTUzMGE5OWUyNDljN2VmZmIyNjViNDBmZDA1NzQ1ODU1N2MzNDRkNzc1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI0ZGYzYjI1OTI3OGEzMTZiYjFkN2YzMDk1NDY3N2Y0MmRiYmFiMWU2MDZiZmFjYWY5NGRlMWE1MThmNmI1MDhhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3ODFlODcyYjcwZWY2ZGQ5ZDM1OTk5MjgwNjEzOTBkZjg0NTc0NzI3MzNiZmYzNGQ3Mzg4ZDZkZmM5NzIwMDVkIn0"
+        },
+        {
+          "resource": "repo://.github/workflows/release.yml#L77-L121",
+          "version": "repo-lines-v1:sha256:bc4d1e63cd8f73999035c73a04b14060994c7cecaf93f7c8e0c60b0541160434:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlhMjY0ZTI0NmIyM2RhMjQ4ODRmZjBlYWM5MjJiZTFkOGJiMmY4YmNmZDI4ZGM2N2RlOGJiZTY1NzBlMTZlZTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0Mzk5NDc4OWM4MWE2ZGFlY2IyMWQzOWU2NGZmYTliODA2ZjczYWFiNjQzMTQ4MGFmZmY4MzE3MTExNTA5ZTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM4ZDQ1NTc5YjBkMzY5ZDVmZTg3MGZkMWJkNjYxNWRmNDZmYjZjN2Q0NmUzYzhkZGZlZjE4MWMzODYzMGUzOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0MTRmOGIwODc3YTViYjM4MTY0NjBjZGZjMjE1ZjRiOGU0NGNlNmE1Yzg5NzA2NTljY2JhNzEyZDgzZjZjY2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b9f380a84faf4adeb37ce4e735e18c9a",
+      "statement": "The manual Signing check workflow signs a throwaway file and runs cargo xtask guard to validate the stored signing secret against PUBKEY_B64 without publishing anything.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/sign-check.yml#L1-L47",
+          "version": "repo-lines-v1:sha256:40482b8727e78a70ef1b0353a80df69793ad4f3f41b3dda379d4b7b98ad57203:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhkODY0MWQyN2YwMWU5ZTQwMjk1ZjAxYzBiYjAxYmFjMWU5ZDYwOWEwN2ZjM2UyYTVlZGVkNzk0ZDMyODA4MDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdkOTVlMzNiNjI5NjU2NTQwZjlkYjg3NjNhYTZlZDIyMDNkMGI0OTc3NTViYTdhOTM3YjQ5YzQ5ZTBkMWVlMGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5301d3b622234c20957196c4397622ea",
+      "statement": "Lockfile changes after cargo update/add/remove must be committed, and irontide is pinned exactly to =1.7.0 because the BT backend depends on a wide engine API and upstream's git repository was removed, making crates.io the only source of truth.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L310-L336",
+          "version": "repo-lines-v1:sha256:b32a5920364f0545683c9b2a6955b8f0b9ea9759593fbeac26403f95d2d533cb:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyNTcwZDIzN2ZlMDJmMzcyNmVlYzkwMzI1NGEyYjNmNWE1ZTcwZmNlNDYwN2E1MGZjNTY4OWQ3M2Y4NDk3ZTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5Zjc4NzE0ODkzYWE3Nzk0MmNlYTFjNGEyZTAyMzFkYmI3ZmEyYTQxYTcwYzgxNDYwYTNjNjc1NjJkYTNhYWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhmYmE5NDlhZmYzNGY5NzU4NTAzZWZlYjhjMGU2OGQyOTgxYWViNWVlM2NjODZiNzUzNmMwZThhYmQ0ZGY2NTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://Cargo.toml#L70-L74",
+          "version": "repo-lines-v1:sha256:8358413bd2c4e67dc79bd275d785bd5868db516eac386f621badb76124b61982:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzgzMzlhNmY4NmZiZTMxMDZmNGZjMTFiNGYyNmRjY2I2MGRhZTUzZTZjMTFkMDQyMjA0ZDdiMzBiNGRlYzkzMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDc5NGJhNzljZTJhNTFlODAwYmZlNDM3OGYzZjM1ZDhmZjQxZmFkZWE4OTMzMWM0YjViYzQ0NGE0NDE5NWIzZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDE3NjMyZGNkY2QzMTUyNWE1MDUzYWRkY2JiMmI3MzZmZjFhZDc3Y2EzOTgwYWE1OTY1NWMwM2ZhNjdjOTA2YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2IwNGUwMjlhNTkyOGI1NDI2Yzk2ZmYwNGQ2NTJhN2VlZjcxY2U4OWNmZjI3MmJiZGFmYjk5OGY1NWRlZDM0ZSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

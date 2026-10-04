@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:c4c6c9062c3e9aa5c50212584f28f9c836f460ef9b11bd37e57c08fb31ec3148",
+  "claims": [
+    {
+      "id": "claim_85e73356ae5d402eac4df4fc97598b30",
+      "statement": "build_http_client and configure_client_builder apply redirect Policy::limited(10), TCP_NODELAY, 15s read timeout, 30s connect timeout, keepalive and pool settings, and map proxy mode to no_proxy, reqwest system detection, or Proxy::all(manual_url).",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_client_factory/mod.rs#L28-L66",
+          "version": "repo-lines-v1:sha256:31711f569fddc259ea77af42c65cb3741b2b13bbe02502fef7cfe5457c3d4004:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE2YzJkYjI1NzMxMGUxMzZkMDM1OTFkOTRhN2ZkMWQ3ZWJjODVhYjlmYTc5YWE2NzZjMjVjYzVmZmRmNjhiMTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM4Njc5OWVjYTUxMGEyY2M5MzgxNzU4NzE2OWViNTVmNjY0NDlkMzJkNTE4NDI3OWQ4MDM2NTZmNWY4NDZkZmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ2YjI4YTM1MWZjN2NhOTM4YzRkYzk0YmM4NjU5NTBkM2FjMGYyMzg1NDdkMGUxYmEyYmNiOGVlZTIxMjNhY2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5fa5c82827014a59a9ac78be8d46e98e",
+      "statement": "normalize_user_agent trims, substitutes the built-in default for an empty value, and rejects values longer than 512 bytes or containing invalid header characters.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_client_factory/mod.rs#L11-L25",
+          "version": "repo-lines-v1:sha256:172920468ee16754b0d86d4c0bfbf575d28012749a6fa8ef936d9efb6da72acc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2NWI0ODAxNzFhYjA4N2U1OTg2ZmIxODM5ZGZkMjVkZmEwMzJkOWJlZWU2ZGE0OGFkMjYyZmYyNTYyZTQ0YmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMzNjljZGFhMGM1NWVmODdiMjQzZDg2NzBlODQ4YmUxZWVjMmZhOTdiY2E5MGRiNTQxODgxMGQ0NDU0NGZiZDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJiMmVlMDhhN2RiMTE0YjdjOGZiZTU3ZGJlNzRkZjQ1NmYwNjY0YmIyZmM2OTQyZWNkYjJhYWUwNTNiMmZkZDkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_524ed719217646d4a9cac904e9ff1f7f",
+      "statement": "The built-in default User-Agent is a browser-shaped Chrome/154 string chosen so mirror edge checks do not classify the client as an outdated fake browser; changing it requires editing the function, the UI hint and the three PO catalogs, and existing settings.json files keep the old value.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/types/settings.rs#L102-L113",
+          "version": "repo-lines-v1:sha256:0ac6b6d495280d22a7d5f424064cdadf4c163fadad416af820dabe6b390f7c99:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjZDA5ODNmZDkyZWNlODI4N2MxNGQ4Y2UyMDFjNjU3YjdiMjI5YThiZDlkZDQyOTUxOTEzNGQ2NmZmOWVmNjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRjYjQyNjVkYTViOTFmNzNkZTBjZjZjNjY4MzUyYTM3M2E5NmIyOTcxMDA2M2M1ZmFhOWI1MmRjOTI3YWJjYmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YzQzMTE0NWUxYzQ4YzkzZTc2YzdhMzQyZTQ4YjIxMjk1ZjYxYWFlMGE4NDA2OTM3MTUwM2IyYzg5NjMwMmUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_66a38a9b23114769aa861df18c09b5ae",
+      "statement": "A regression test fails unless reqwest's system-proxy feature is enabled, because ProxyMode::System silently ignores the Windows registry and macOS system configuration without it.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_client_factory/tests.rs#L282-L326",
+          "version": "repo-lines-v1:sha256:db53a51a7f7e66c966032910e39d77f981e157771d36108398130217884f3a60:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY1N2FmMTE3NTlkZDM4ODA2ODNhNTM3YWY0ZTdhNmEwODA2MTYwNzA3NDNkOTQwNjk3NTlmMzA4YjM5MTcyYzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiNWI2MDZmZDEwZTAxNzUzNjQ3ODYzOGUyNjM3OWY4NDU1YTgwNTdkYWY4N2U3ODA0OTAxY2Q4M2UzM2RmM2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYxNDk1ZjYxZjkzNTk1ZmIyMDVhZmU0ZDc4MzliNjM4Mzc3ZjQ2MjIxMzUyMTk3MThhNDYwOWY5MThjOTFlMDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYzNTBjODUxMmI4NmVmZjQ2ZGJmZTZlODM2NDc1NDNjNzMwOGI2MjZmMTgxM2UxNjZjZTI1YTkxMzVhMWU3MDYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4155d9cb3065475c85822fdd8f1fc4f4",
+      "statement": "reqwest's http3 feature is enabled and every target carries --cfg reqwest_unstable, but no call site sets Version::HTTP_3, so h3 is per-request opt-in and currently unused by the client factory.",
+      "evidence": [
+        {
+          "resource": "repo://.cargo/config.toml#L1-L45",
+          "version": "repo-lines-v1:sha256:547bff2791793fb7ca70071ea5088755a9b8b49746c23d0db0d23d77b2398ca8:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTg0MWEyNzUyMWVhODgyNjVmYzYxZmIyNzE4ZjM4NDVjMjM5YWYzZjY5MWM5OWYxYTZjYjNlZmUzMzFjYmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkOGI4ZGJkY2RlNWZlYmEyNGMxNzNhNDBjOGU2ZGZkYjQ2NTYyNDYwN2MxMDA2NWIxNTU1MDExMjhjMzM1MmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYyNjkwY2M4ZmNjNjYwMGIyNGM3OTQ2Mjg5NGVjMjY1NDdlMDA2MzgwMGE3MmI2ZDk5NjhkMTRiZjc2M2UzYjUifQ"
+        },
+        {
+          "resource": "repo://Cargo.toml#L16-L28",
+          "version": "repo-lines-v1:sha256:fd26d92bca70a7e8df10f5c85ad2cd741267e71bb23587065fc5949af160c11c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1Mjc0NzU1NjllYmRhYmVmYWFhYmNhYTMxMDJlMzZhNWQ4NDNhYWQxZmJmYjhlNWQyOTlhMjY1ZTg0MGE5ZTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk1NjdmODAwZGI0NGRmOTEzYzczZWFmZjgzMWRiOTUyZDlmZDNhOTJlNGMxMzg2NzIwN2ZhYTZmZmI3YzhkOTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFlMmQyY2Q5NjJkOTgyZDMzZWZkZTMxNzdjNGVkYTRiYTIxOGE5YWRiMGYwY2M1MGQ3MDM0YzU0MDNkMmE0YWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUwZWIxODhlYTc0OTk1ZDU1M2VmOTM1M2JlYWU1Y2QzZjg4NGQ3NTBlZjk4MjhhOGU4MGMxZDMzMGY5Yzk5MWQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_983efe8fe04344ec985f01242d859d0c",
+      "statement": "RateLimiter is a token bucket with a lock-free unlimited fast path at rate 0, capacity max(2*rate,1), and set_rate refills at the old rate before switching so accumulated budget is preserved.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/rate_limiter/mod.rs#L12-L96",
+          "version": "repo-lines-v1:sha256:d06fb3812907dd566bfd75395476e55c78d4a0bb5c03f93177524685d7c7a774:eyJzZWxlY3RlZExpbmVDb3VudCI6ODUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ODllZmU0MzBiMmY0Y2FlY2I3MDAwYmIwOTAwMGQ4YjIzNjk4YTFlNDBjNjE2MjM0ZGZmYmJlY2RjZjUxNGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZiZTZmOGRkNjQ5MDIzMDk4ODQ5NzBmOTdlMzFjN2Q0OGE3NDJiOWM3MDNmN2ZkZjE5OGQ5MjIzMWI3YzRmZmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk0OThmYjhkYWNlODAzN2QyM2IyNTJiZWM5ZDVjMmIxMmVmN2M4NWMzY2NiMzM0NjcyZjQ2MGIzODJmY2E2NjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2Yzk2NzJmZGU2ZjBlMzlkZWVlZTI1OTVmMjc0NDBkYThjMDIyNTY5NzAxNzEyMDlkMDEzY2MyZmY3NTEzMDIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6c3b4e65792b46f6b3dae9c53b7f85d8",
+      "statement": "try_consume refills by elapsed time and on a deficit keeps the existing tokens and returns a sleep duration instead of zeroing them, avoiding an infinite oscillation when a request exceeds one refill window; the lock is never held across the sleep.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/rate_limiter/mod.rs#L128-L160",
+          "version": "repo-lines-v1:sha256:85c32278ef319d3d7ece762420de68bff05a01b718ea0cd670962546fafa5c4b:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ODllZmU0MzBiMmY0Y2FlY2I3MDAwYmIwOTAwMGQ4YjIzNjk4YTFlNDBjNjE2MjM0ZGZmYmJlY2RjZjUxNGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRmZGY0MDY0NGRjZjE4NDUwOGMyMjliZTRiODAyNGJlYzNiMzBlMmQ3M2M5NmQ3ZTgwYTljM2Y1Y2Q2YWY1OTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ2YjI4YTM1MWZjN2NhOTM4YzRkYzk0YmM4NjU5NTBkM2FjMGYyMzg1NDdkMGUxYmEyYmNiOGVlZTIxMjNhY2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d6f8bc241dd54c29a0edb55c7aca123d",
+      "statement": "BatchLimiter accumulates received bytes and chunk counts and consumes the global limiter once at 256 KiB or 8 chunks, and flush consumes any leftover accounted bytes before the worker exits.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/mod.rs#L216-L252",
+          "version": "repo-lines-v1:sha256:9c9caa1b596034d1710f891b319a4113bd902a443fe7e0cd68e8cc895ef8380b:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5OThkZTJlMzE3M2IzM2M5OGQxZWNjNGQ4OGU5MDAwNjcxMmNlNDFhYTMyNjZkYjk0MzU0YWY4Y2I0M2VlNzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhMTQ0NzdhMzUyOGE4NTRmNzc2NzUwNWFlYzJmZTM4MjMwODAyZGRhMTEwODBiYmE3YzIyODY4MWE0NGFiY2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwNzQ4ZDNhNTY5NjFkZTQ0MzUzMzRmYmZiZjk0NmYyOWM4MTA2OTA4NzA3ZjE4ZmUzNjUwOTU2YTQxYjdhYTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA4ZDNjYTc0Njk3NzQyOTFkZDVmOWQ0MmUxOTAzNGU1YmVkZWY0Nzc3ODA5MTQxNTg5NzIwM2ZjMzMzYzdiZWUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ff9efd2827154ffaadcc1f6d3e552f8d",
+      "statement": "request_with_retry runs attempts under a cancellation token, treats a WAF/mirror anti-abuse 403 as terminal after a bounded body sniff, and separates retryable from invalid responses.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/retry.rs#L25-L100",
+          "version": "repo-lines-v1:sha256:175b2d23e3d9231e7e65bde3e6c88ddd3d0a55b3e69ce999af5ee1c476f85a27:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxMWU4YjYyZTMzYmM0ODQxYzg2YTUyYmJmZDQyNGFlNDFlMGJiZWE4MjQyMmQxMGUwZDIwYjlmMzA1ZmI0MGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhNTliMTA5OTM5NGUyZTBlMjBhYTcyZmM2OWY5ZTZhMWM2MGVmZDcxYjlmN2E3ODNjYTE1ZWNlZjVhOThkY2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhkZDA0ZWRkMzI5YzhkZmQ3OWIxOTgyZDUyYTQxNDQ0ZjdmYzRiZGRmMDNkYjA0OTdkOTk0ZDFlMzEwMDMxOWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY5ODMwNThmMDExN2RjYjhmZTM5Yzg0MmEwYzQwYTc3ZDU0YjJjMzNhNjk3N2U4ZGIxNTcxZjJmYjFiNWFjNTYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_299bc84bb7424b41a79cae19c3a38ec1",
+      "statement": "Retryable failures increment the attempt, record an AIMD penalty and set the task to Retrying, a 429 on a multi-threaded download aborts retries so the chunked path can downgrade to single-thread, and backoff is 250 ms * 2^min(attempt,4) capped at 4 seconds.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/retry.rs#L100-L180",
+          "version": "repo-lines-v1:sha256:b37c6e95d04e23676a8e7c063bcc55eebb068426588c6492c089124a5280d122:eyJzZWxlY3RlZExpbmVDb3VudCI6ODEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhNTliMTA5OTM5NGUyZTBlMjBhYTcyZmM2OWY5ZTZhMWM2MGVmZDcxYjlmN2E3ODNjYTE1ZWNlZjVhOThkY2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFjMDhmNTFlNjQ3MmRjMjZlMTQxM2NkMzQyMTM1MThmZjBhMjVlYzg0YjgzNTkxOGYzZmU0NDA2ZmM0NWI1NTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b1aeca561402448d9560810313507c80",
+      "statement": "matches_rule supports Host (exact, *.suffix or wildcard), Prefix, Regex and Wildcard matches, and rewrite_url returns the original URL alone when rewriting is disabled or nothing matches.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/url_rewrite/mod.rs#L41-L90",
+          "version": "repo-lines-v1:sha256:550a8384e2b1fc33feb8fbeb817414c586e095307be46d23a36bae6215d9948d:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFiYmYxMTA4ZWVjODYzNGM2NTcwMjdhMTVlNzBmN2IyNDc3NDMwMTcwODllZWNlNTYzMzIyOTBkNGY2YzZlYWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyZmM5OGM0YTEyZDgxMmUzOTAwNzliMTIwZDkyNmIyNzZkZWRlYmVhY2QwNDkxOWIxNWZkNWFhNjVjZjViMDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM3NTRlYmJmZDhlZmVhNGQ0OWVjNWM3YTM4Yjg3MTYwNWNlNGYzMGM5NTY3NmQ2ZTU5MTBmYzQ4ZjUwMzQ1MTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRiNDE2NTNlZjJhY2I3YTkxOTQzMzNiOTIyMzZmN2VlNzNhN2ViOTMxZGMwNzM0ODU5NDMzNjBkM2NiNzc0MGYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a0bf34ddcfe1491fab10df944a30e4b8",
+      "statement": "Candidate URLs are generated from a rule's enabled targets in priority order and de-duplicated, the original URL is appended when fallback_to_original is set, and replacement is either PrefixProxy (base/url with optional percent-encoding) or Template (regex replace_all or {url}/{raw_url} substitution).",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/url_rewrite/mod.rs#L100-L188",
+          "version": "repo-lines-v1:sha256:34894e0bc900546e3356bf956247d3735040f6f8fbb145046e12d2d38322de16:eyJzZWxlY3RlZExpbmVDb3VudCI6ODksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJlNDM4NmU3NDIwYTRlMzkxZWUxNTE0OWQ3MDA5OTYwNTgyN2NmMWMyOTA2NDE4YWVhMzY0MDA0MjE5NDY0YzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVkOWM2YzMzM2M5MzQ4MzZkY2I3NjA2NGE0ZTk3NDkzZTk4NzI5N2UyYmVkODkzMWI1ZmNiMDdmYzk0NzgzZDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc1MDhlMDk2NGQwODAwZGUwNDdmMzllNTAwY2ZjZjEwN2VkYTUzOTY4OGFjMmQ5ZjllNzcyMzRhOTI3YzJkYmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_16b3c24b6db949de9f6fce13fd46e6af",
+      "statement": "ProxyMode is an enum of Disabled (default), System and Manual, and the client factory maps each to no_proxy, reqwest system detection or an explicit proxy.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/types/common.rs#L84-L90",
+          "version": "repo-lines-v1:sha256:82c70a4d48614955377de5f346295cd963a3336d6746cfbd099ad3ed60060ca7:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjMwNGQ3MjI2NGE1YmNhNzYyNDU0ZGQwMjE1MzFlMWYwODEyZTljM2IxYmZkMzVmZWNkOGVmYzJiZGE5NDQ2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZGE2ZDk3NmQ1MmVkODg3YWM3YmNlY2Y2ZDJjMDZjMzM3MWIxMWUwOGMyYWQzMmU1M2E0OWI0NjUzZGZjZDUxZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjUwMzI0OGE4YmZlMjVkMGE1OTk2MGY3OGYyNjUyN2ZiZGY0ODdiNzA3N2Y3ZTY0MjlkZWZlMDBkZWVhYWRhMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDE2NjY1MGRhYTkyNmJhYmIyYmFhM2NmMTgzZTQ5ODI1NzUwZTA1MzY1NTdiMzk1MTViMDE1YTU4NTJmMjAzYiJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

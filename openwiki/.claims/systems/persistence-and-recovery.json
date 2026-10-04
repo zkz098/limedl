@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:a2056d28b1280ba2ec36e8acb0661d439cd3cf21b349f8fcb77422c093c4b845",
+  "claims": [
+    {
+      "id": "claim_b8d13740b40542248b5504112e9e27c1",
+      "statement": "Database holds two Arc<Mutex<Connection>> handles — a write connection and a separate read connection — so reads and writes do not serialize on one mutex.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L12-L15",
+          "version": "repo-lines-v1:sha256:f99bfdbd0cd801713e1937bdab5b28d382e68f1aafa3616d8175c0fad293fd0a:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjE0OGJiZjdiMDRmMDk2ZTI2NTQ2ZWY4MTM0MWEzODBiMGFlNTkxMWUzNmE0MGQ1NTM3YjQyYWI5NTJmZDY5YSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjMyOWVkYzQ2NTdiMjFkNDhlMjlmOGY1YTY1ZjcyOThmN2Q2MGY1ZTgxMGVlNjY2NTVmMzg5YzYxNWFiZWU0MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDE0NzY5MmJhNjljZWY1MDljODExMTVkZmJmYjIwYjljMWE3OTBiOGMwYmU3NjZiNTBhYTk0MmRiOTc1NTdhOSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_0f0e4cc3b583402896404084e54e0ba6",
+      "statement": "The write connection enables WAL, wal_autocheckpoint 4096, foreign_keys ON, busy_timeout 5000, synchronous NORMAL and a 32 MB page cache.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L22-L51",
+          "version": "repo-lines-v1:sha256:52723b3c7b0d95b1c12197d8e6dab6d9bf0cdcca1f067e90982303d48c4eaa22:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxMjM3MWUwYjZlOGUyOWQzOGYxOWI3ZjRkY2UzZWRmMWIxNTE1NDJhOTkxY2UyYjEwNGIyODQ0ZTkwMzdiNGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5OTM2N2I0ZTJhOGQwNWU0ZTZkZDVjMmZlMTQwYWYwZjhmNmYyMjEzY2JjM2QxZTE0M2M1YTk5NWQxYjNjZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIyOGQxMmExNzM1NDdkOTBjZTJlMTI2YzlhZmIyZWRiNTNiZjZiNTVhMzA1ZmM1OTI0ZDM0ZTgzODQxZDA1M2UifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_22bd6206262043f0b2df39fdfaba9a71",
+      "statement": "The read connection opens the same file with query_only=1 and a busy timeout, and both connections get a 64-entry prepared-statement cache.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L99-L114",
+          "version": "repo-lines-v1:sha256:0297f472b62610888e05dd5b31b4898179ec2763c59270767c26709a81f5065a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3YjQwY2JmZjdhNGVmZjFlNDRlMWViYmU3MDA1Y2Q0Zjg2YjExZTdmNDE4ODE5MmY1OWQ3ZGIxZDM1ZWFlMDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5YjE5ODJlOGRkNzQ4MTE4MTQ2YjM5YTJkMDA2MmY0MDgxZTM0Nzc5Yjg2NzVjMjM0YzRmYjEyNGRjMzkzOTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJmNGZlZGM2NmFiNzhiOWU4NDNlYzQ2OTBlNzhmMzJiOWU3MTkzYTNhODYzZWE4MmIyOWNlMjMzNmJiYWUxNTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUzZjEyYjk5MTBjNDJjYTRhYzNhZWE2NjgzOTRjN2I2MmE2ZjZmMmViNDY3ZWQ0MGIzOTljMWNmNDM2MWY0NWUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_47371c1ac8ba4005bdb52aaa97832f61",
+      "statement": "Schema migrations use PRAGMA user_version plus a static MIGRATIONS list, run every migration above the current version in order, run ANALYZE afterwards, and include a compatibility shim that detects columns added without a version bump and advances user_version accordingly.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L52-L98",
+          "version": "repo-lines-v1:sha256:e85afad2079b813bbed5afc5add6442f72942133c1bbae19d1d1ba0db509420a:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlOGI1OTgwN2E4ZjhlMWM4YjI0ZmNhMjQ2N2U5ZjBhMjZiOGY4Y2UxMWE4NDc0Mzc0N2YxNzk0OGNiMjIzNDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4OTkyYzYzODdjMzYzMDliYzdjNTU4ZmE2MWM4NTliMGRiNmI3MGYxNDU5MzkwNWMwOTJhNjI0Nzk3NDNjMzgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwMDY0OWViZTUyZjQxYjk2N2IxMDM4MjE2NzI5NzM1Yjc5NjVjNGI5M2Y5Y2YyYWMyYjZhZWE3YzE2MzJmMjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU2N2JkNDNjMWIyZTE5ZDgwNjI0Y2FhNDhiZWU1ZTFhZDM5MDU4MzRlNmNkMzlkOTM0YWJkNWJiNGIzNjBmODMifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/database/schema.rs#L71-L120",
+          "version": "repo-lines-v1:sha256:b68b07e13fd911f24fa9d9a778861b013a43e59311c5de32f4aafad69dc34148:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0ZmVlY2FhMGU0MTliNTVjYjJjODA4ODM0YWYxNWRhMzQ4MjllZTdmMTE0YjFiYzczMTFhZmE1OGFmZDRlODQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZkMTA0MjYzYjExZjM5Y2Y4ZjJmZjA2NzQ4MmY4NzFkNWRjNTM0NTNkZjIzYzg3YmFhZTYxYzE4MWYzZTdjNmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMzY2Q2YTU0MTY3N2FmNTA2ZDhmOTk0YjAwNzYyZWMxZTdmYmFiZTgyYmQwMjdjODM3MDkyYWQyMDdhOTFiYTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4eba06b456b545d8a84b90648ca64bf5",
+      "statement": "open_in_memory uses a single shared connection for both handles and deliberately does not enable WAL, which would cause database-is-locked errors for the shared connection.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L118-L150",
+          "version": "repo-lines-v1:sha256:ec454b7f8425b43a6d7de4f4903bc1df7c4d39bf4fc635ca3d7b2bb67ed79e55:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY0NDkzM2JlYmY3OGIxOGFkNjc4Mjk0MzM1NjdjYzk4MWNlYjdiM2FlOGIyZTRlNjA5NjRlOWYwNDQ4MjJmNTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUzZjEyYjk5MTBjNDJjYTRhYzNhZWE2NjgzOTRjN2I2MmE2ZjZmMmViNDY3ZWQ0MGIzOTljMWNmNDM2MWY0NWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRkZWI4NGJhY2RkN2U1ZWYxZjVkZWQ3NmZlNzA4MDhiYjVkOWVlYjM5NmI1NjE2MjliZjBiODJlMDE1MDBiMGQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f00ef2087eb144a0b87270cfaae2b21f",
+      "statement": "The initial schema has downloads (one row per task) and chunks keyed by (download_id, chunk_index) with a foreign key to downloads using ON DELETE CASCADE, so deleting a download removes its chunks.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/schema.rs#L21-L69",
+          "version": "repo-lines-v1:sha256:e7b485f64cd334eac650129af10ebb95166ab6f6834ecf8abb30a535828a41a6:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY5NDcyMTVlYTIxM2UzZWRkMDk3ZTM5NjhhNTk2Y2RiNDBjZWJhZjI3ZGIzMDMxZWRmMTI5ZDFmNjQyMDY1OTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUwMDk1ZTBjNDY5MjRjYWQ5MTQyYWVmZTA5NWRhNDVkZWFmMTgwOGY1YjQ0ZDNhMWJmYTIzNTFjOTAzOTRiYzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0MmFjMTFkY2Y5YTQyMzc2NmY3ZTRjZWE1M2M1Y2I0NzkzYzJjN2U2MzAyNmExYTY4ZTBjNzljMjhkNGM4MjQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_81b0ed8092eb4668bda90f01fca39742",
+      "statement": "Enums are stored as snake_case text via explicit column mappings, and legacy sha1/xxh3_128 checksum rows map to ChecksumMode::None with a warning while unknown values error.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/manifest_repo.rs#L31-L95",
+          "version": "repo-lines-v1:sha256:1bad06fba5817fa79616122effd8c6735289602dc9a5218bba3e6a60ac1766ff:eyJzZWxlY3RlZExpbmVDb3VudCI6NjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlOGFkMjFiODZiNDc3YTgyYzc1NjkwY2E5ZjkzM2FiYTU3ZTBkMWMwYjAxYzI1NTM1MDg2Y2UwNTIwNDVhNWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc1ZTkwMmYyOWZlYjExZjkxOWZhOWFiOTVmNmFhMjI1MzJkZjMxMWViMThkYjAzNDFlZGY5ZWVjNDA3OTY4YzQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_de64800b87084e148d9f2773e50f654d",
+      "statement": "manifest rows are inserted and updated with prepare_cached and named_params so values pass by reference without cloning, insert_download writes the download row together with its chunks, and the list-valued mirror_urls is the JSON-encoded text column.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/manifest_repo.rs#L126-L135",
+          "version": "repo-lines-v1:sha256:4d654385279343098ca50f7a1b4275d35de526d69ea7cea34f103c49751c131b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1NTgyMzRlN2ZjNDFlZGJkNTEwYTdlNjYxNTI4YmRlNGYxZjlkMWQ0MDhlZDg4MGQwMDgzZTBhODk0ZDhmM2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2OTUwNjk1NDhlMzZjMzViODJjMDVkYjY3MDRhYjBhN2IyOTBhNmZjODAzNTMzYWJkMDZhMGU4ZmJlMjQ1NjIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjIzYjk1ZTBiYTc1NTZjNjU5YjBiMjNkYjAxNGZkZTgzNmZlZTg1OWFlYjZjZWMyZjdkZTA5NzQ5OWNiNzNiOGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBkZDE2Yzk4MmZjOTY2MDBhYjlhM2ZmMGQzNDMxMzQ3N2M0MDljYzBkNWM4ODM3MjFlMDAwNjZjOTM0MWVkNWQifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/database/manifest_repo.rs#L348-L420",
+          "version": "repo-lines-v1:sha256:40f3b88c7901b493a019e74236517442255b04cd0c8f14497136eb1001d5fdd4:eyJzZWxlY3RlZExpbmVDb3VudCI6NzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMwNTQxZmFkNTQ5NTZjNzA4NDE1OWRhZmFjZGQ1ODYxNGI1OTViNGIyODJhNjVjZWYyNjA4YmFlOTBjMDA4MDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYxN2RmMTAyMTdkY2Y5ZTYyZGNlMTZiZTJlNmMyZDMwYTdmOTA3MjFiMzQ1MmE3ZTFmZTA1NmJjZjUzNjhkOGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJkZDFhN2EyODNkZjU0OWFlOGM1OWIyM2UyYWI1MDEzNzY2ZDNhY2VhMTc5OThiOTMwYzczZDMzNzlkOTMxYzAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_aafaa6c95863435e8d60dad723b8ca94",
+      "statement": "load_downloads_from_db promotes Verifying-with-destination to Completed, keeps Downloading but zeroes its connection and allocated thread counts, demotes Retrying/Verifying/Queued to Paused, lazily loads chunks only for non-terminal tasks, and clears every chunk's claimed_by because persisted claims belong to a process that is gone.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/persistence.rs#L30-L95",
+          "version": "repo-lines-v1:sha256:b68e4de3f7bd3bc24ae68fba209fe9b4b1319204ed620142505a1a6f1f6a482a:eyJzZWxlY3RlZExpbmVDb3VudCI6NjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0YTU2MTZhYWQxMTExNWEzNmVlZmNiZTJlZTRkNDRkM2NhMWYzNGIxNzc5N2IzOGQ2Y2IzOTBmMzIyNDNlMDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRlNDYyYmQ4NWVhMzUyMjgyMmE5YWQzZWIyNDA5OWIwMzJhMWI2MjdiZWNmZDdjNTgzMWU5OTI3ZDRiYWM0MGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVlYmYwYjQ5NmRmMWI2MjAxNWFiYmI4ZTBjZTYwZWMxNzBiMGI1NjQ5NmUzNmRjNWZjNTRhZDA5MjEyN2EyMmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZiYjA1YmU4ZTE5N2FjZjVlNjkxZjNkOTg0NGRmZDQzYzY2ZDhjMTBlMzAzYTBkNTY1ZWFjOTFiZmE3NWI2N2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_096b277633f54ff78d0be7e7b18421f7",
+      "statement": "bt_tasks is a cache replaced in a single BEGIN IMMEDIATE transaction with a serialized DownloadSummary JSON payload; unreadable rows are skipped with a warning, single rows are deleted on cancel/remove/purge, and the table is not the source of truth.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/bt_task_repo.rs#L20-L108",
+          "version": "repo-lines-v1:sha256:b53f292cdcf96e95e56c3ac8a34e0f72bc24ae009abd5e3dcb416414b30fa57d:eyJzZWxlY3RlZExpbmVDb3VudCI6ODksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRlNmYyMjJjMDk1ZjZmN2VjZWVjMmMzOGZjMjdhOWVmNmQ1MWQ1Njg2MGVhYzc3ZDg4YzM3OTcyMDZiY2RmOGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAyYmNlODQ2NGUwODAxYWI3YjJlMjQ3ZTE3YTllYjgxOWYzZmI2OGJjYWExMWI0ODM3ZWViNDk5OTRmZDBiNTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f29b421e2dd84533a738938ccdf1d9ac",
+      "statement": "Terminal results evicted from memory stay queryable through get_download_header, list_download_headers and count_terminal_downloads until purgeDownloadResult or removeDownloadResult deletes the row, and delete_download cascades to chunks.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/manifest_repo.rs#L422-L465",
+          "version": "repo-lines-v1:sha256:eab24020efd501f3a02a96d7cbac6961c4470418a4ae793287939ffa2a8882bb:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhMzI1N2M5YzhlOGM0MDZlNGY4ZDgyNjA5N2RmZTkzZGI1OTdlMzg5MTI4MWVkYzJlNmZlMTkxMzM1ZGJhNzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1NWIyZGI4MWFiYmE1NmU5MjQ3YmI2MDhkZmI5OTg5NDI4YWRjZDgwYzc3MDRkYmU3NjVlODNmZTE1OTU1MDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYyN2I2YWJjMmRmMTE1OTI0NTQxNWQ2OTFhZjc1MTcyYjE3ZWU1Nzg1NjcwYWQ0ZTMzMjJmMGVmZTViMjdhODMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRkNDNiZDJkOGJjZDQwY2U2N2M5ZGU0YTM0NzQ4ZDA5NTAwYzhhNzJiYTE3YWExOTg0ZmY1YjRiODZlNTA3ZGEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1ac5086215a14ad2af37b6a030fdbe5a",
+      "statement": "Clean shutdown runs PRAGMA wal_checkpoint(TRUNCATE) to shrink the WAL file, and vacuum_if_needed runs an incremental vacuum only when the freelist page count exceeds a threshold.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/connection.rs#L153-L180",
+          "version": "repo-lines-v1:sha256:407c3792373e0be56a08befb9adf57e216b9fbd96bc945dea2875f2e559da1cc:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxN2FhMTQ2MDVkNzhhNWU5NWMxM2RjNWI2MWEwMTA5YTlmYTgwM2E3YjIyZGJjMDU1YmQ0YWZjMzk1OWUwNjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY2OTgzZGNiOWVkODlkYmQ3ZmUzN2NkYmVlMjVlN2E5ZTRkMDcxNzdlMjkxNjMzNjkyNDBlZDViYzEzNjI3M2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

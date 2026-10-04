@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:8e1644e8913619cbcd893898106b5d902c89f2b4deb15be1855e935af5678de7",
+  "claims": [
+    {
+      "id": "claim_aa4d1bacdbc04849ae65ee187b64385b",
+      "statement": "LazyBtBackend::new only records launch configuration (no network or disk), spawn_startup kicks off a background warm-up, and read-only list/query paths do not block on the engine while task operations await it.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/lazy.rs#L1-L50",
+          "version": "repo-lines-v1:sha256:eaf3a4bd3c645433fce8676c3edb651b30cfeb7bf031a161708d213110198783:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ0NGU3ODllYjIwNDFiZTYwNzI0YTU0YTk4MjViNDFjN2I5Mzc0MmQzNzBjY2JiNDM4MzdiZDk0MDRmYzk5OWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0NDRlOWQwOTc3YmJiYmMyOGYzNzU2ZjNmNmJlMDViNWIxYmM3NmVlZmQ4YzkwYzU1NWJjMzM4MTliNDEwMDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFlZTY5ZDcwMmNjMmE2YThhYjQxM2FhNmU4NWQwZDM3MTA3ZWFkMGI4M2E3YTJkZWI0NTBkOGFjY2JmNWVmYTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/lazy.rs#L153-L186",
+          "version": "repo-lines-v1:sha256:3f57014dc2192287d51bd2eece9197ab907a5fd5c896f4b89ee1cc891ca4dc55:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYyN2NlY2U5M2NhZWNkN2UxYTE5OWFiODc0MTI4ZWEwNTZiODdkMzZhOGY4N2YxYTYyMGM2ZWIwYmJkMDRiYjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4OTMxZDBmOTgzODU1ZjY2MjUyMDIwZjQ4MzY5Zjc1ZjA4Y2U3M2I0Nzc2ODIzZWRhMjk1YTAwMGFmZGEyMDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE2MjNiNGE2ZmVmZTg1ZTBmMzUwNTI2MTFjNDgzZjkxZTc3MDQwZDQxYTYwNDE1NGExOTFiYzExMWE5ODEyMjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI1OGJhYzgxODkwNGVhMmYxMmFiODk4MTQ5OWI3NzRlZDY2ODI3YWYwNGZlYWM2ZDhiN2QzMmViMWQzN2NhMzkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5e55d438860c450395b81ac90c2a020d",
+      "statement": "The engine is held in an RwLock<Option<Arc<IrontideBtBackend>>> (restartable, unlike a OnceCell), creation and teardown are serialized by a tokio Mutex lifecycle guard, and a failed start is cached in startup_error.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/lazy.rs#L111-L151",
+          "version": "repo-lines-v1:sha256:b666972042e25cb8f57ae340f9893818f90a059aded16d4b4fbdd3b45d4eadf8:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI3MGQ4NzQ3MWI1MDIyMDljM2Y1MTdmZTNlZWI1ZjhmYWIyZTA4NDliMTI0MGRmNDc1YjI1YTI1NTFjNmEyZTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyNTM1MWUwMzZmNmE4YjY5MGE0MjdkOGFlODA5ZmUwNDE3M2UyOTQxZWQyYTI3MjZlMTU5ZjQ4YmEyZjRkMTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRiMmYwNzhkYzk4YWRiZmE2YTQzYWNjY2I0YmZhOTdiMmM1MTdmOGJiMTI0NWZjNmI3ODA0MWNiYTg5YzI4MWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMwNTBiNTU5ODNhZTcxNTg0Mjc2OGQxMTkwOWE5ODM1YzEwMjg0MWQ3YzczZjc5YjM3NDc2OTczMWYwYTYwYzUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d8881f694d484ec583c7214b0c326c3a",
+      "statement": "engine() returns cached errors, records activity, deduplicates creation under the lifecycle guard, records failures, tears down a late engine if shutdown raced it, clears startup_error, and refreshes and publishes the index after a session comes up.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/lazy.rs#L303-L350",
+          "version": "repo-lines-v1:sha256:cf9f780cf694c47c6ec6d37a57de515874264d1c4ae2b038448f709010c2feb4:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJlYzQ5MTVlN2QxZGMxZjY2YzNiMmMwNDU3YTY1MDhiNGU4ZmFjYWEwYTE2OWNhOWVlMTU3MDE0YzBkMTkzOTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUyYjhhY2I1YjAwYmEwYTAxZTBlMDBjOThhOGViMDdkZTkyYmUxMjk5NDgyZDhiOTMwMWVjZTE5NmViYjQxOTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgwOWNiOTUwNDUyOWRkNDQ0YzM3Y2I1OTRmOGRjZjFhYTllOGY0MTdkMTdkZGI4NDUwYzM0ZmM0YzcwODIwYmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRmZDhiMjhjYmRiMTEzMTJlODJlNmMwNmY1NjU0NTY5NmEzNzdkZDlkYWFjMTY1YmM4MDg0MWU4MThhMTFiYzIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_df62da9820a74d4795a42bc080bae2b7",
+      "statement": "The index-sync loop runs every 5 seconds and self-heals eager mode, the idle supervisor runs every 10 seconds and unloads the engine only in lightweight mode when no torrent is active, and has_unfinished_tasks reads the index with a resume-file fallback.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/lazy.rs#L186-L300",
+          "version": "repo-lines-v1:sha256:7be602ffdb343748d741a6bf95b0d06b2516dc9a3762866466f9b14888646750:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI2ODkzMWQwZjk4Mzg1NWY2NjI1MjAyMGY0ODM2OWY3NWYwOGNlNzNiNDc3NjgyM2VkYTI5NWEwMDBhZmRhMjAyIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIyMDFiODM2NDgwMmM1MjJkYWE4Y2RhMjRlZDBkMGUxYWU3MjNhYWQ4Nzg3MmJlYzNmZjlmMTY0MGU2Y2E3YTBiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIzMThmNDRkYjFkNWUxYTU4OTA0NzgwMGNiMzBlYzE4OTRhODEyOTFlYjc2NDFjZTU0MmQzYjI3YmRkN2NhNDE3IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIyN2E2NzU4ZjI5NjEwZmM3OTczZGI2MGM0M2M2MzNmYjg1MzA0ODYzZGI5M2UzZWFiMmQ1MTdmYjZlOGQ4YjQ3In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_2c2717eb850f4f27ad8c8bc5180a6c51",
+      "statement": "In lightweight mode the engine is warmed only when unfinished work exists and list() serves rows from the bt_tasks cache, which is a cache (the resume files are truth) and is replaced in a single transaction.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/lazy.rs#L29-L50",
+          "version": "repo-lines-v1:sha256:d4267a5691b2062b8fdc5f201886511b0634c17ed20422152cafa45f5db38b0b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhODdhNzRlODg0NGIyNTU2NjY5Nzk5MDQ4ZDMxOTE0ZTVkZDljYjI4YWQ4NzNkOGY3NTdjNDE3MWU5YzM1NDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0NDRlOWQwOTc3YmJiYmMyOGYzNzU2ZjNmNmJlMDViNWIxYmM3NmVlZmQ4YzkwYzU1NWJjMzM4MTliNDEwMDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ5OGE4NDJlYzBkMTdmNWFmMzY2OTc3ZDQwYWMwOWM2NDFmYzUwMDJkMGFjZTRhMWIzMTNhNTVkNTA0NDViOWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFlZTY5ZDcwMmNjMmE2YThhYjQxM2FhNmU4NWQwZDM3MTA3ZWFkMGI4M2E3YTJkZWI0NTBkOGFjY2JmNWVmYTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/database/bt_task_repo.rs#L20-L45",
+          "version": "repo-lines-v1:sha256:7ba5ec820df6ffb0713d65965c2182e15857955d5717482f6c99c8f1f85980d7:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRlNmYyMjJjMDk1ZjZmN2VjZWVjMmMzOGZjMjdhOWVmNmQ1MWQ1Njg2MGVhYzc3ZDg4YzM3OTcyMDZiY2RmOGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MjJjNDJjZDE5YzZkMDNkODA4YzQ1MjcyMDU1MjgyNWI3ZWExYzViNDkxYjIxODUxMWNhYzc0MTVjZjlkOWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAyYmNlODQ2NGUwODAxYWI3YjJlMjQ3ZTE3YTllYjgxOWYzZmI2OGJjYWExMWI0ODM3ZWViNDk5OTRmZDBiNTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEwYjY3MjU5YWVkNGU2MzQ0MjAzMGJhNWY1ZDM0YmRkYzYzOGRmZGIxY2I0M2E4Yjc1MzQwYjFhYTk2YzVjZDUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f0cac2c5d1a744369180249b3c023c3a",
+      "statement": "BT task identity is the info-hash hex with a task_map to info hash, stats_to_snapshot uses downloaded rather than total_done for smooth progress, and get_torrent_files derives selected state from file_priorities rather than open/closed status.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/queries.rs#L131-L190",
+          "version": "repo-lines-v1:sha256:a00aa988be0e808d1a02d583cae5e915b7929a73aab6742a8c34835445f66890:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIzMTc4OThjYzRmNzUwODE0OTc3OTRlY2Q3ZGFlOGM2NzQ3ODMxYjE0YjY0NjJkYTkzZmM1NTViMzZmZDNjNzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2Mjk5NzdlN2U3NGUzZDAyYTU5ZjIxMDBhZDg4NjE0MThiNGUxMmQ4ZDdmNmEyNjFhYmRkZWUxMmE4YmY5MmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5OWJkZWZlZWFjYTYzNDBlMDI5MGRjODZlODg5Yzg5ZDVlMTg5YWE1YmE0NGI1ODViM2I3MDczNGY0YTYyZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYxZWYxMjY4ZWM1YmEwMjRmMzM2N2JmODFkMGQ4NmQ1YzJiMzNjNjBjMzFjNzRiZDQ2ZjI4ODIxYmNkZmE5NjgifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/snapshot.rs#L11-L70",
+          "version": "repo-lines-v1:sha256:80c3c4e952689ed060e0355c5b0c4168d9589ad8db67bb63a502b5b04a089e9e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3NTQ0YTBiOWZkMWQ1OTA1ZDkwM2MxYzM5NjZkMTQ5ODNlYzMzNmI0ZjJjMjNmODRiYjFmZDE1YjJhNDE3NzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkNGZkOThmZDhiODhjMzI5NTAyZjE0Y2M4MzVmNTRjNTA2ZDhlZTM0YWU3MjZjODQwYzI0NmVjY2QxYWM5ZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYyYjZlZTk5MTU4MjgwZjg4NGI4ODZkZjgxYmUxYTI4YjM3N2ExNDMxYzZjMzEzMGYzNjc4YjJmMWUxOGNjMzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJkYjlhZDEyNmNlYzVkMGRjMjZhZDk4NTI0NDk3M2FhNDdkODc4NmJlYzA4ODk0ODM2MjYyNzAyMWFhYTNkYTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2803a3951c414c148f8f79e9ac787698",
+      "statement": "handle_alert maps TorrentAdded/Paused/Resumed to aria2 notifications, TorrentFinished to complete notifications plus Progress and Updated, and TorrentError to onDownloadError plus Updated, while MetadataReceived and tracker alerts only log.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/alerts.rs#L100-L200",
+          "version": "repo-lines-v1:sha256:c7c9100da38a50bb9efe73a0ecb579eca778052a4eef512b35b3f851cb035a8b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5MTFlOGI2MmUzM2JjNDg0MWM4NmE1MmJiZmQ0MjRhZTQxZTBiYmVhODI0MjJkMTBlMGQyMGI5ZjMwNWZiNDBjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIzZmU5N2QzNTUxNTRjYzcwZTA1YjBiMjVlNWY0YWRmZGUzNmZlMmQ4MTNjMDc4ODIwYTYxYWYzMjRiYTAzYzI5IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIyNTgwOWU5NjYyZjUxNGFmYTk1NTM4Yjc1ZDNhZGFkODIxNDk2MGYzODRiYTNiM2I1Zjg4ODVjMDkzYTFkZTY0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJjYWFjMjVkYjhiMTczMzgwMDA0ZWQzYTM4NjRkYjZlOWVmNzU0ZmQ1NTQ4NDRlODcyMDk0NWU3NjZiNmNmNGYyIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_574a8412f12347108ba98edfe0fbb43b",
+      "statement": "The alert bridge loop selects between session alerts and a 2-second progress tick emitting Progress for every torrent, and the bridge is the sole source of BT aria2 notifications while Dispatcher emits lifecycle Updated events.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/alerts.rs#L270-L322",
+          "version": "repo-lines-v1:sha256:acf8851596fbf81c24085be990eda6446191e64d0a8a85b7b14999cb06d08767:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2ODc4ZTY3NTU5OTAxNDRkZWNlYjI2ZDc0NTc3YzJhYTdmMjgwMGEyNDhiMWViZjQ5MTEyNWI5YjlkMDU0NDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhkYWQ3ZDFjZDhiNTE5NWY1NTE3ZjMxZGJiNzY2YTdlNjgyZjEzODI0NmE3M2I3YWY4Y2ZmZDUyOWFhN2ZkOWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1604997fb4d24a719097ac131816f95e",
+      "statement": "The upload-policy loop runs every 5 seconds, pauses a torrent's upload when a byte or ratio limit is reached with pause_upload_when_limit_reached, and restores upload only when the condition no longer holds, avoiding per-tick oscillation.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/uploads.rs#L38-L98",
+          "version": "repo-lines-v1:sha256:160f37746b5fd3702639d962db516b8fc8ac7bc8f25d28629a66c1ffe0dc80b9:eyJzZWxlY3RlZExpbmVDb3VudCI6NjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2YmEyYjU5OTY3MzJlNzEzOTBkM2UwY2M1YjliZmRmZTU4YWUzZDZkMzgzY2VhYTMyNzRiMzc1OTY1NWRlYmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFjNzM5ODA4YzBkOWY5NDdjOTViZmM3ZDRmYmU3YTI5ODhhNjVjYzA1NjI2MWY2Mzg4NTVkOTdkZGNhYzkwMTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_126bda4daa354e38bc69bc1e916f981b",
+      "statement": "peer_is_leecher skips upload-only, choked, within-grace and completed peers, flags peers that choke us while receiving nothing, and flags give-back ratios below the threshold; the loop bans with expiry or caps upload slots and cleanup_disabled undoes only its own actions.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/anti_leech.rs#L68-L165",
+          "version": "repo-lines-v1:sha256:3f2f3db6f702f8a7be5a14eca23d7138556d6ec29bddecd93dae9ed6e30b134a:eyJzZWxlY3RlZExpbmVDb3VudCI6OTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJlMjdiMGI0ZTE2ODlkMDBiOGRhNTFmNjdjNjlmZjdmNjFmMzNhOWQwNWRlZTJiZTg2ZjQ4YjU4Y2M1MDljZDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3ZDc4MzkwYzM4NzJmZTA0ZjUzYTk0YWQyNDQyNDRiNWQ1ODcwYTJjMzg1MzdmYzU1ZTBjMDJjYjg4NzU1NmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJkYzM2Mzc2M2Q4NzU4YjI0MGIzYTUwOTM4NzJmMzA5ZTQxMTQ2YjZhMDY5M2IwMTkzYjZkYzMzNWFlZDRlOGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVkM2ZiYTFhNTYzNzI2YmI0NzBmZjQzMTE0MDFkYjQxZGYyNTZhZmFhM2UwMDU1NjVjMGFiZTAwY2E2ZjJlY2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8f38f836d5f84da09c5a3349fa54d212",
+      "statement": "apply_settings stores the snapshot, rebuilds the torrent HTTP client (keeping the old one on failure), and schedules engine tuning plus blocklist reload; blocklist files parse as .dat via parse_dat or otherwise parse_p2p, caching the applied enabled:path but not parse failures.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/session.rs#L201-L300",
+          "version": "repo-lines-v1:sha256:b7752724b2ea5efe0fe7d6ec57de5572a5dd0a6d4abc6c982c836f1877a87e4b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzMzU2MjRlZGU2ZDhlNTYzMDJiOWQwNjM4ZGQzMGJhYzBlODE3NDcwZTI2YzY4MmYzYzc3NDlkNzkwYzY2NmE1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJlNmIwNDQ5MTQ2OTcyMmU4MzYzYTk0ZTQwNDQ1MzhlMDEzYTJhMjE3ZTM2YjFlNTY4YmE2MGFjYjdiNGM4ZjJlIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIzNjljYzA1ODBkOTFhYjU4YjhiZDNhMjg2MDNjYWRmZWVkZjcwOWRkZDZiYTVmMmY2ZmNiZWI1ZTNmYjIyMDgzIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_6681830f084543a5be74a45e504a878e",
+      "statement": "build_engine_settings maps BtSettings onto irontide settings including rate limits, seed/choking algorithms, upload slots and peers per torrent, smart-ban failures/parole, eviction ban duration and data-contribution timeout.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/session.rs#L326-L340",
+          "version": "repo-lines-v1:sha256:19dde7325fc8245db3e82d195ccd4cfdbf579e4d18ffdec688daa1254ec9c0e5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmNDcwYjY2NDQxMGMyZDVjM2FmZjMxM2ZiYmNkZjQ5YjQ5OGZjYTUzMzM3ZGE0MjlhOTVmOTUzYjE5ZmRlMDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRmYTg3MjVmMzE5YjA3MmMzY2U0YjVkZWQ1Y2Q4NDI0NGRkZjM4MGVlNTY3MjlmM2UyMmMyOTBmOTQ0MzM0MzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiYzk4ZDZiMGRjNDkyYzUwMTZkZjEwODA1YTNhNTRlYjljMTg0YTVhNjEzN2U3ZjRiZWNmYTBjMjIwNTUwZDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_84bef582782a4a699ce8646c73f911bd",
+      "statement": "LazyBtBackend::shutdown sets the shutting-down flag, aborts the index mirror while leaving the idle supervisor, waits for the warm-up, takes the lifecycle guard, writes the final index and shuts the engine down.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/lazy.rs#L442-L472",
+          "version": "repo-lines-v1:sha256:981ebcd5ba0b9c77e8295765fe6ce23dc6b8c6ed98c50131b789d8bc167cb6a2:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiYzIyNDcwYzk4MGFkMTI5NmMxMDU4YmI1NDc0ZGM2Yzg5OGJmMDFlNWE0MDE3NDU1ZjUxNWQ2MWQ5MWVlY2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM5NGRjMTkwZTE0YWY4YTA4YTMzNTIxMWI1NTY1NmU3YjQ5MzdjNzNhNjUzNTFmZWI0YWRhMmUyYzE3OTU5ZjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNjMzEzNGQ4NzhjMmI5YTY4M2U4YmVlNTUwNTU3MTI0MWY3NThhYWZjNGFiNjZhZDA5MzlmMjEzZTI0Zjk0NWIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_16cd7b9514b94642b6072fdc15ec8865",
+      "statement": "IrontideBtBackend::shutdown saves session state, aborts the upload-policy, anti-leech and alert loops, saves resume data for every active torrent, waits a proportional 500ms-per-torrent grace period clamped to 1-5 seconds, then shuts the session down.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/session.rs#L154-L200",
+          "version": "repo-lines-v1:sha256:ce16faf3a25a2c6acc5792005e3f1d827869a644917526d96f91a9cd501d535e:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiYzIyNDcwYzk4MGFkMTI5NmMxMDU4YmI1NDc0ZGM2Yzg5OGJmMDFlNWE0MDE3NDU1ZjUxNWQ2MWQ5MWVlY2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyYjVlMWRmMDliZWJhMDMzMDRlZGI1NzMxYjI4MjI1MDUwYzJhMjcxMjI4NDRjZDlkMzJhYmU2NDc1MjFjNWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY3NDk1NTk0YmVkNTU4MjgxMGRhYTNhODNlNDRjNWE4YTU0MTQ0ZmJlYzhlZGZiMWQzMzYyNWYwZDliMDlmOWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEyNjhmZDFhYzljYzQzODcwNDdjYzY0NjNmYWE2Njc0MjliYzNjZjI0YjNjMTEzOWZjNmI2YTIxZWY2NmIxYmIifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

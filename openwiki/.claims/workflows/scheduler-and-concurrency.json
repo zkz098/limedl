@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:6bf7caacfe4dce6d118f51e0f6d1b055749ca1d6498afe200e4808ffd8ffc588",
+  "claims": [
+    {
+      "id": "claim_535768c797ab40d6ba62c8e2c73de651",
+      "statement": "start_scheduler_loop selects on a 2-second SCHEDULER_TICK, the rebalance_notify wakeup, or the shutdown token, and each iteration applies the speed-limit schedule, updates adaptive targets and rebalances allocations, escalating after three consecutive rebalance failures.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L34-L85",
+          "version": "repo-lines-v1:sha256:e423f14b3196011811d83a8b50a44d97d8cf98620fa91b9ea8189216471b988b:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiNWJmOTRiNDM4MTc5MzJlYzAwNzZhYzI2ZmNjNjNjMDdmNmYzYWI5MzhhMDViOGQ1NTM3MmZmMjkxOWJjMWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZkMjE4Y2I4NDJkZTBkNTRkZGNjMDdmN2JkZmJiNzk5ZjdiNDYyMzIyMWMwYmExYjBmZDFjOTc4ZWU5NWFjOWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZmZjliZmEwNmRhNDEwZWYyYTE1NzY2NzI4NzkwMzc3NThhZWU0MmY0NTA2ZmI3ZTU2ODlhZTAwODcxMDY5MjEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d6c98ead5236472f905145cf0ed9be2b",
+      "statement": "resolve_thread_settings gives non-range downloads one fixed thread, Traditional mode a requested count clamped to 1..=32, Automatic+Adaptive the profile's initial desired threads, and Automatic+Fixed the requested count clamped to max_threads_per_task.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/download/shared.rs#L20-L68",
+          "version": "repo-lines-v1:sha256:c722316491831ce85100b83c59cf9261db84ba3592363ac7261407044e58f315:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMyNDI0NzI0MzhmMjYzYWJiOGIzNWYwZTNhNjA3ZmNhMzg2NDE3MDg3ODgyYjc5OWM1NTk3ODZmNzNhNjU5NzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlNjczYWJkNDU3YTk3ZWVhMTdhNjAwNjJlYjBmYWVhNmJkZjA5NDg2OGNjNmI4ZjhjMGViZGEyZjYxZWQ0MmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFmNWVmOTA3M2UxMWY5MWY1OTc1N2Y5NDlmZWZiNWMyMjQ5NzY0YTZiM2NjMzY0NDlmNzVlZDEyMjMzNDVjNWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUwODdhMzBhOTlhNTNjZWI1NDQzM2ZkZWI4NDY5NGEyZWU4NTIzZTZiMTMzYmZmOTBhZmViZjIzYWVmZTZlNTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6a172b5b62194e6fb9976728f264a989",
+      "statement": "supports_parallelism requires range support and a total size of at least twice the chunk size.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/download/shared.rs#L20-L25",
+          "version": "repo-lines-v1:sha256:472202f3d139ca83266b05a8e1872a63202a259852d04ddeb8899488baba100e:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzI0MjQ3MjQzOGYyNjNhYmI4YjM1ZjBlM2E2MDdmY2EzODY0MTcwODc4ODJiNzk5YzU1OTc4NmY3M2E2NTk3NiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZGY5ODIxZmNjMTgyZDQ5MzgzODQzY2Y1OTY1MGY3MGFmZGY4YjcyZGUyM2JlZjI4ZjNmZWEzMDJjNjU1YmNhNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYWY1ZWY5MDczZTExZjkxZjU5NzU3Zjk0OWZlZmI1YzIyNDk3NjRhNmIzY2MzNjQ0OWY3NWVkMTIyMzM0NWM1ZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTUyMDliMGJiNmMyZWE3NDQ5MDM4YTI3NTMxM2ZhM2E4YjllNmY0MjM3YmUyMGFmMGY3YmUwZjE5NzE5OTcyZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_197aaa52d8a1483cb13c64a582521e08",
+      "statement": "AimdState tracks throughput samples, cooldown, consecutive good/bad samples, penalty and oscillation state, and the profile helpers give Conservative 0.5 initial threads with a 0.7 decrease and 4s cooldown, Balanced 0.75 with 0.5 and 3s, and Aggressive 1.0 with 0.5 and 2s.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aimd/mod.rs#L6-L90",
+          "version": "repo-lines-v1:sha256:485d1293638b127e3621f6dcb243eb46b5540f42b14773380662278bd377721c:eyJzZWxlY3RlZExpbmVDb3VudCI6ODUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIxNzg0NzQyM2RlMmIyOTQ4OTBhMWM5NmIxYzU3MjA4NjQxNTRlZDczODhjZjE3OTg5ZmE5OTUwZWYzMzkxOTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzZDAyMTE2MTBmMTEwZjUwMzIyYjQyNjc0YzVhZDAzMmIxMzBjNDRiYWJiMTg5YjUxOTlmNjUxMjk5NWIyMTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY2MzEyN2RkZGU1M2ZkNjQxZDlhNDhjOWI4OWE5MzgwNTcyMGQ2YTMzNDM0MjczNzJkYmVkMjNlMTIzZWZjNGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVkOWM2YzMzM2M5MzQ4MzZkY2I3NjA2NGE0ZTk3NDkzZTk4NzI5N2UyYmVkODkzMWI1ZmNiMDdmYzk0NzgzZDUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9381ea4d22e845c69512e9a76720d115",
+      "statement": "update_adaptive_targets only runs in Automatic mode and is deliberately not gated on proxy mode; overclock mode pins adaptive downloading tasks at the cap, otherwise each task goes through update_one_adaptive.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L87-L120",
+          "version": "repo-lines-v1:sha256:03008f9ea929563602bb074a518a67d1bd6f359ec87cdf87d5a5248a37643fc3:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyNzdjNDAxOTZiODM4ODJhMTMzOGQyNTExYzUxYWQ1NzExZjU4YWJjZGQzY2UyZWI2ODcwMDA0YTRjMGJlMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5Y2Y0MDFhNDMxYTJkODYwZmJmZmEzMjI2MDBhNGU2MTQ5M2I4ODI5YWQ0MDZmZTZmYWRiYjM5ODJiNzQ5ZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4NjM3MWIxMDY2MjQwMDVhZTAzMDQyZjllM2ZiYTI2NGQwZmE5MjNkNGNjYjdjODM1NzA0MjUzZTRjMjFmZjkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1a04d777c9ad4d5bb8bcfa902f4bc19d",
+      "statement": "update_one_adaptive takes the core lock before the aimd lock, acts only on adaptive downloading range tasks, returns early during cooldown or hysteresis, and calls sync_snapshot_with_manifest after every desired_thread_count change.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L317-L410",
+          "version": "repo-lines-v1:sha256:5c833f85e973ba7a59be3f4cd53ad9955736a4a4cbed1dc94be37ffa2769a745:eyJzZWxlY3RlZExpbmVDb3VudCI6OTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVlMmE3ZmVlY2U1Njc0ODY5NzU5MjI1YzEzZWE1ZjY5Mzk4NjdkODYxYmYzYTAxNDQxZWRjNWQ3YzhhZjIzZTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBkZTI2ODk1M2M1YWM2NzkzMTRjM2M4NGY5NmY1Y2UxYmM3NzI1MmJmNTBhNDY2MWEzYzVmNGNmOGZmMDEyMjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdkOWIwZjcxZDE3ODUyNDQ3MzA2ZjlmZTNkNDZmN2Y1YTlmMWNhMDhiZDlhNDc3YTQwMTZmYjU5N2UxZTRjODEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI3MjBlOGRhMmUwN2VhZTg4ZTIzY2ZiNzM1ZTRkYmViOTA4N2EwYmJkYjc4ZDU5NTU1NGYxZGVlZjAwMTYxNDIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d29f91ecbde24053b92fa44ec41b30fd",
+      "statement": "maybe_increase requires the allocation to have caught up with the target, improved throughput and enough consecutive good samples, then adds +2 for Conservative, current/4 for Balanced or current/3 for Aggressive, capped at max_threads_per_task.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L432-L486",
+          "version": "repo-lines-v1:sha256:15ea2da4bed4be0c0c74daef091239a0231f0a23447fa7887b2888bc437e2be1:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwNGUwYTkwMWRiNDFjYTc5ZjBmODIwODNiOTJmZTU3NDhlNmFhMzZlYjE1ZWI1ZmNhMzU0NWJmOWUwZTQwMTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzZmEzMTU0MTNjMDJmMDliODA5NDFjZjQ2Njk3YTUzNjRmZmZiMGM3ZTUxMjQzZDU5OWNkZTA5YjI4OTFhYjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUzY2ViOTc1NDcwZDExMGZjODNhMTJkM2Q2ZjJhMGFhZWJkMWVkYmUyMTI5MDgxNDI0NzQ0YWQ5OGJkNDM2M2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ5MzM4YmNkY2VhOTExZDNmZjMzZjYzNDc4ZDFjOWMzYjliMTJmNmFhZDM2MGUxNmQyM2Q3MTllMDgwY2UzNjMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a371d4548ad54a3a8f5754a83e85c755",
+      "statement": "rebalance_allocations collects the managed downloads under the read lock, drops it, dispatches to the Traditional or Automatic branch, and persists the rebalanced manifests in a batch.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L122-L141",
+          "version": "repo-lines-v1:sha256:a4e1a13a721174e8ea1403cbe11d11e7bd46d0804a4ef703b006b88cf9cd5c86:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZlMWRiZTUyNjg4ZjBlYzRkYWQ2Nzc1YWY4ODBiY2NiNDExN2YwNjdkNTZjYzczMTI4YmFmZjAxYjA2ODY4NDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBlMjU0YWNkMzUwN2E5OGNmZmYxYjI3MThmMmM3MDlkODc2YmY0OGQwMzM4ODZkNjczOWM2NDY3NjExMjI3NGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4NDJjYjQ2ZTZlMjVhZGZjMGMyOTk4MzJjNzY0YzY2ODVhMGVkNTE2YThmMmUzYWExM2U0NzljYjljYmYwM2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a1b28e19de9d4d849fc6174643e94656",
+      "statement": "rebalance_traditional sorts by priority descending then creation time ascending and runs at most max_parallel_tasks tasks, capping each allocation per host and queuing the rest.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L572-L610",
+          "version": "repo-lines-v1:sha256:6f1223ea50dc24e34ccb32f2ae3c8d07a3fce7106966e5ee9634a1062e5f09e6:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImExNjU3ZmRmY2Y2NjI5MmEzNDU5OTA1ZmU5YWY4MjdlZTM0YjZkZGQ3OWUwMDAwZmY4ZjJkNjdjNDlhZjc0ODYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZjZDY3Zjk0ZjQ4OTUyNzJkMzY3YzkwNjIzMzRjNGNkY2QxYTMxZjlhNDZhNDI1YzJkY2M2YTkyNjk3MjA5NDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgyYTM4MmE2NDcwYjFhNDI4OWM3MjU0NzgyZjZiNGM5ZWQzNDM3NzM3ZjE1Mzc4ODhkM2I1OGJlZmRlOTE0MDYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8ab6bd55fdb34924a50d035c4fd97fe3",
+      "statement": "rebalance_automatic sorts candidates by priority descending then remaining bytes descending, first gives every candidate its minimum share, then distributes the remaining budget one thread at a time round-robin respecting per-task and per-host caps.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L614-L745",
+          "version": "repo-lines-v1:sha256:fe13271ac22ea206884f99434429ee2e2638697f53c984d7c8ade54d6c491f20:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIxODc0YjQwYzBkZTRhMTI3ZmZlMDgzNzFlMTkwMGFiYTFiZGFmMGMyMGE3N2Q1OTQ0YjRlODAyOTg2MzdiNWUwIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJlMjJmYWE1MzViZDJlYTNkNTJlNzQxZWQ0NTQ0MzViN2ZlNDllODM1ODZlOTQzZDk4ZDgyYmJmYjI0ZDFmNWM1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI4MmEzODJhNjQ3MGIxYTQyODljNzI1NDc4MmY2YjRjOWVkMzQzNzczN2YxNTM3ODg4ZDNiNThiZWZkZTkxNDA2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI1MjRmZmQyY2JmZTEwYTQ0NDJmOTdiZDRjNTk1NTAxYTUxOGM1ZDljNzlkNjM5MTMzNGUxNGEzY2ExY2FjYjdiIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_799808f700c4473db8142b2642750308",
+      "statement": "HostCapTracker caps total connections per hostname at MAX_CONNECTIONS_PER_HOST = 6 and is shared by both rebalance branches.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L39-L40",
+          "version": "repo-lines-v1:sha256:346e4755bb6b726220bb0351d4e8b398e3eef8ddf85d5c70584cbed6b750a4b9:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjU4OWIwZTY3ZTAxYmU2NzEwYzViMjI4NzE3ZDk1ZDczMjYyYTYyY2I1ZDYxNWJlNTI5NzU2ODQ1YTY2ZmJjYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTc4OWVmZTQzMGIyZjRjYWVjYjcwMDBiYjA5MDAwZDhiMjM2OThhMWU0MGM2MTYyMzRkZmZiYmVjZGNmNTE0ZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTEzOWI4NWI1NTNhNzlhOWMwMjRjNzAzNTk4ZGJjN2QwYzA3YTc0Y2UwY2VhNzUyMTFkNjY3ZGI1YTA4OTljMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGFmMWFlOTliNTJjZjYzZGIzMjQ0NTQxMTA0ZDQ2ZGY3MzZkNjFlNzAwZWM0OTFjNjM2ZTAxOTM4ZTA4YmYwNCJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L541-L566",
+          "version": "repo-lines-v1:sha256:68c66e1a19f5164d67dcf3f8e5b7a53c31b2da9a7661a263ac9b77eade37c011:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc5NGM2NDlmNDJjMzdjNTUyZmY5Y2FiYWE3OWI1MjczYzkxMDY4YWI2YTRiZjU2OGYyNTA5NTdiNDgwZTZlODIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5OTMzZjI3MjUzNTE3YTcxYjJkYmQxYjVhODdhODZiODY0OTE0MDM4NWE1ZDE1MzFjNTQ2ZGMxZDY1MmEwNGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhMmIyYmFhMWIyYWI5MThkNTMzZjU4MWQwZTA0MmQ3MDdkM2E5MmVlOGNkNDliODk3Y2JkNzJjMTM4Y2EzZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZiZmQxMDdiMmRmMjllNDQ5MmIzZDQ0NDc2YWJhZTZkNmQwYjJlNmY2NmYzM2EzOTI4MjM2YTA5NWE2NTJjZDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_cc68212becac473e819c05206287f9da",
+      "statement": "ConcurrencyManager bounds concurrent downloads with CAS loops over atomic counters and returns a DownloadSlotGuard that decrements the counter on Drop; the same manager is shared by HTTP and BT.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/services/concurrency.rs#L47-L94",
+          "version": "repo-lines-v1:sha256:4981097436b53e70d59cc984e0db345a2398970c219492985d0e63d4fdc302dc:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ2NGViYWJhNzUwMGI4MWM2ZjkxMTNmYzg1NWIxZDM3OTlkYzhiZDRjNTdmMzY2ZDYwZjgyN2M0NDI4NzU4NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE0ZDNkYzAzODk5M2Y2NjVjYmY4NjIzM2Y3MTQ2YmEyMjMyM2Q1MGE3NzE4YjEzN2JlZjkwMWNkNGFlNmE3ZDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/slot_guard.rs#L8-L24",
+          "version": "repo-lines-v1:sha256:72b0ef72f1f79745e1c5f22b4210d6c519c8669cd48c98fa506fe57d7e9a4425:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVmMjM4MDY0MDY1NDYyMWJmZjM1OGE5ODE1YzUzMzkzMDdkZTBmN2ZlYTQ2MmY1ZjFhOWFiY2RmODFmMWM2YmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY4MDRlMWE2ZjEwOWM1NDI4NjJiZTBjODRkZjk0YzVhNWJjMmM5MDIzZWUxOGUyZjE2MTQ0YmMwY2U5MzgwM2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_10d7801e50234671a1fbde4008b8801c",
+      "statement": "SpeedTracker keeps a 2-second window as 10 buckets of 200ms, restarts on the first sample or a gap of at least the window, and current_speed returns None when no bytes landed in the window so a stalled transfer decays to no speed.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/speed_tracker.rs#L13-L130",
+          "version": "repo-lines-v1:sha256:6c10a1dc4ce69c00bcc9fe92ed213fe87bf6057fd3f5efa270d2ec6278daf1c5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzZDE4MGNkOTcwNjRjMWFiYTUwMWY2MGQ3NDU2ODcwMTk1OWVhNTQxOTQ2MmNjOWU0YmY1ZGU3NTYwMmFjN2QxIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI2MWM1OGZlZDc5NTg2NWUwMzNmODllNDM0MzU0NjUzMGYxMzcyMGYzNmE2OTQ3ZTMyNDliZTk4Mzg1OTAyOWNmIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJhODgwNWQ3MmI1NjU0MGYyZDkyMjM3NjhmNjJmNWE2MWY3YTIyNzA3NDcwNGIyN2M1MTc5MjcyZjZlNDczYjMwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJiZDdiNjIxNjhhZTYyM2Q0NjU0ZGZhOTUxNzQ1NDMyZGJhMTdmOWVmZDk5MGRlYzQ1MmI0OWQ5MWNhMGRlYWI4In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_9c09082c23614eee88222362e3c5d3ba",
+      "statement": "build_snapshot prefers the SpeedTracker's current speed over the lifetime average and resets the tracker on pause/cancel/restart, deriving ETA from the same speed and clearing speed/ETA for terminal states.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/task_lifecycle/mod.rs#L478-L500",
+          "version": "repo-lines-v1:sha256:5b863ff01acb5eed4ee343369a5a44699dd62ba3d3f4f734e52725012a55ab41:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzMmFlMmI3ZTYxYmYzZjFiNDdiMGU0Y2E1ODAxMzQwN2EwZWU4YjUxNTE0MjM4ZmQ2Y2NmZTg2OWI2NjhlMmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTM3MzFlNWFiM2M1ZGIzMmM2MWI2N2ZlMjQxZjcwZTEwZDM1N2I4ZDk1ODI1Mzc4NDcwNWVlNjFhZGM5ZmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg2NzNlOWM2Y2FmMTVlYzUxNjVmN2YzNjNhNWUxYWU3YTk4MTkyZWZkNzYwNDczNjVmYzhjYmYzNWQ2NmM2ZWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY5ZGE1OTFkYjcxNzA3MDI5NjM3NDhhZTU0NDQzOGYyZTcxNjE3Y2RmNDE0NDNiMjFjNDJmMzYxNGZjOWRlODkifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

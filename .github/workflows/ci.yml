@@ -8,14 +8,12 @@ on:
       - "**.md"
       - "LICENSE"
       - "docs/**"
-      - ".opencode/**"
   pull_request:
     branches: [main]
     paths-ignore:
       - "**.md"
       - "LICENSE"
       - "docs/**"
-      - ".opencode/**"
   # Validate workflow changes on a branch without pushing a commit.
   workflow_dispatch:
 
@@ -86,7 +84,7 @@ concurrency:
 # - Tests run under `cargo nextest` (pinned through taiki-e/install-action):
 #   nextest executes each test in its own process, which parallelizes execution
 #   and removes the cross-test global-state interference a single libtest
-#   process per binary used to expose (see testing-guide.md). The coverage runs
+#   process per binary used to expose (see openwiki/testing/testing-strategy.md). The coverage runs
 #   use `cargo llvm-cov nextest` for the same reason, with `--no-fail-fast` so
 #   one failing test cannot shorten the coverage union. `cargo nextest run`
 #   does not run doctests — the workspace has none today; if a doctest is ever

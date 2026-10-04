@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:35b82e873a89cc4c30b5f13c7d7804bb04bc8bd4782a5508f0a0c98b38b64fa0",
+  "claims": [
+    {
+      "id": "claim_fa16f0d8eef64f5b81e8ac9e6883ecbb",
+      "statement": "bootstrap(state_dir) is the single canonical initialization sequence for all frontends and returns a CoreSystems bundle of Arc-wrapped subsystems plus a settings snapshot.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L119-L123",
+          "version": "repo-lines-v1:sha256:b873cb806914b1b21a225faa897eb14b21b3e597df21fc1dfcafd583bbfe4acd:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDRiYmQ3YWFkYjI1ODU4MzkyNTYxNmYwNThmZTcwNjdlMmY2YWU4OWMwYmVhYzEwYjNlNmJjZGU4YzliNmI4YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGU3OTE1ZGEyYjI4ZjIyYTk3ZDgwMDM3MDViOGUyNzdkODI5MGMzODMyYWE3MDBlYmU1YTBmMjAzM2IzN2Q1OSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTRhZjc0MWNkMDA2ZmIzNzU5MWQ0ZWZlYzc3NmU5ODM2M2MyOWE3N2YxOGZmNGUxMWRlNzY3ZGQ1ZWMzOGZlZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmM3NzRhZDFiYWVhZTNiY2JhNDAwM2YzODhiN2QyNTNmZDk1MDMyYjY0ZjEyYTc2YmJkY2UzMWQxMTlhZmQ3ZiJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L38-L48",
+          "version": "repo-lines-v1:sha256:e598e915333569689b76160554c12de85e2ecb1c79b699e6ed978e99c75ab405:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlMGViMmIwNWIyOGE1ZGFhOGU1MGNlMDQxMTE5ZWFiOGQyMDI0YjRjNGMxNGMwY2IxMWE0ZmUzZTBkM2Q5MjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0ZDQzOTg2MTRhNmE1OGIzNmQ3YmYxZjM2ZTQxZjYwZGE0MTRlNGYyM2IyMDlkNTJlMDdjNzhmMjhiOGE2ZDYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY5NmMzOGEwNzg2MzZhYjA3ZmUwOTJkYzNjNTdiODRkM2Y4OTAwZTAzNWFjMjhlMmI4MjBmYTQzNmNjMGJhMjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4NGU2NDcwZTdjZWJkOWJmMWM2OGEyMzIyMjVjZTEyZjMzZWNiZDRiYjJjOTdmMmMyY2Q3NDQ3OTA5ZjAyNjQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4d796343b2b4420e8767392f5c349cc8",
+      "statement": "SystemContext::new creates a default RateLimiter and an EventBus with capacity 8192, then delegates to with_components, which derives the settings path as state_dir's parent joined with settings.json.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/context.rs#L32-L56",
+          "version": "repo-lines-v1:sha256:cc16854d648ccc6e2fcac03e96a9394f3dff5e6aed625d54fcf5011263b39740:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFiMDMxNGY2YTRhYmQ2NTVlNzliNGYwYmMxMTY5ZTUxZDgwYWMxM2JmYTQ3MzU4NjZjMTE0NGMwMmFiOTcwNGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjOTU5MTc4ZGFkMDYxMWVhODA4MzgyYjY4ZjFhMzYyZjc3Y2M0YzQxZGQ5NzBjMTIzOGNhOTVhMDJkM2EzM2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4ODE4ODhjN2E2MjRiYjRmNzFhYWFlZDE5Y2Q4MmY0MmE0MmUwODcxZWUxNTA4ODJhOTQwNjRjM2I1OTI3OGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVhOTI5MDUyM2M2Yzg4YzRkOTExMDRkNzUzZWE3ZTFkODBhMGVmMDU0MGY5MDhjNjhkZTMxMGYyMWM0NzFhMTgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f69b34a4ba464c7e92842d79f7d55f6d",
+      "statement": "SystemContext::with_components constructs the Database, a BufferPool sized from io_baseline, a DiskDeviceManager seeded with persisted disk_type_overrides, an IoWorker pool of min(available_parallelism, 4), ConcurrencyManager::new(5, 3), DiskIoService and a shutdown CancellationToken.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/context.rs#L60-L89",
+          "version": "repo-lines-v1:sha256:32adc90e39c7ba42fa15c53ed03c91ea75fa2b39595bba2fe79ef938e3d381a1:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxNzc2ODZhNjlkY2IxMWU4OWNhYjJmNjI1MWIwZmJjYTkzMzk5ZGQ2YTUxMWM2NTY1ZGM2OWFkYmRhZDM5NzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhOTI5MDUyM2M2Yzg4YzRkOTExMDRkNzUzZWE3ZTFkODBhMGVmMDU0MGY5MDhjNjhkZTMxMGYyMWM0NzFhMTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg1YjY2YjcwOWUyMGFiMTRhOTMxOWI4YmQ4MzhiMjcwNGVhNTU1MWMyY2FiNzhkNTBjMDBmOGE1ZjkyZjc0MWIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7cb70753b6d94825a15103926d5e8433",
+      "statement": "bootstrap starts the DownloadManager scheduler loop and registers the HTTP and BT backends with register_arc so the registry shares the same Arc instances as CoreSystems rather than cloning backend state.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/backend_registry/mod.rs#L42-L60",
+          "version": "repo-lines-v1:sha256:bb63fe912b90e7562555a8a4208eeea8922d73824982bb9a9e0b687cc3a72225:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyNzdjNDAxOTZiODM4ODJhMTMzOGQyNTExYzUxYWQ1NzExZjU4YWJjZGQzY2UyZWI2ODcwMDA0YTRjMGJlMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmOTY3YWI5NTkyYjQzY2Y4MTBjOTgwMmY2ZmEyZTlmNDYwZjdlN2U3NGM1MjIyMTM2M2U0NTk0MmIzYmVjMDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRlOWY2NDE4NDJkMWJjNmQzYTMyZGI2ZmFkMWRiNWMyODgwMjczYTNkZDFkOGRkNzBlOWUwZTIzNTQxMTRjMmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA1YWU4MjU4OWYyZDBjOTk3MmU5YTExNDIzYjBhODA4ZmVmZTUyMzRhNjU5ZjMxOTFhNGY5MGFkYjZhMWRhODUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L44-L53",
+          "version": "repo-lines-v1:sha256:e74e82af29d586f9a3e12872e9bfe642146db7b04e19182387cb6d614d5aa999:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2YzA2NmE3ZGZiMzYzMjdjNGQ2M2JhYjNkMTBhOTg3ZjJiZDVjNjM4OTM2M2Y5YTEzMTY0YjYzYzhkMTc1N2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyNWQyYmI3OTEyMTg5MzFiNDU4NjQyOGVlZmRjZGVmYzVjYzNkZmYzN2ZkNTEzMmM2MzBhMjBkMWJkZDNhN2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRlZmU2NzI4ZTFhMDRmNTRlNjFhMzliZmY0NGYyOTE4OGFkOTU3NTlkODQyMDQ5ZTIzNTRjM2EzZDRiNDBmZWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjZTk1YzNjNDVkY2E1Yjc4OTdhMDRhNmQ5YTkxNDQwYjlhOTFiNDlhZmUxMjYxYWY1MDNlOTYxMzE1NGQ1ZTgifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L81-L87",
+          "version": "repo-lines-v1:sha256:bed5eb4cdc380fe7f05326c952f5cb04898e542c269fe03049a9da6572716092:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTNlMzI1YzE2NzM0NDY4OGM5MDNjYmE4NTc1YTk0YjE3NGM2ZTlkMTZkNTdmMDQ0MjNkZmUxYjc3NGI3Y2I2NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDJjMjQ0NDA0MDZjZWUwOWQ3NGViMDYwZjMwZjAzMWIxM2I2OGM3M2UzMmExMjY4NTUxMDNmZDI4MzVjMGM5MiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmE1ZmRiNmIyMTcwMTdjYTU2ZmE5N2YzODhlNmEzZjY1YTdkNjBjZjQ1Y2NiNWVlNGQ2NTQ1NDUwNjBkZmYyYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTAxNTBlYmVhZjE3Yzk2OGRhNDY2M2FlNjRlNDBiNWY3OGI2YmUwMDY5MzgwNmVlOTk1OTRjZDZiNzNlYWViNSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_52455979ba9d4424851da0f55406c7af",
+      "statement": "BT startup is lazy: LazyBtBackend::new only records configuration and bootstrap spawns the index-sync and idle-supervisor loops, starting the expensive irontide session with spawn_startup only when lightweight mode is off or the persisted index holds unfinished work.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L55-L78",
+          "version": "repo-lines-v1:sha256:2d9ce776f0f925b5766085f025627a0cc6f8a7a5461ef27f679d82d3d0938753:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwMmE5NmJiOGY4M2IzNDE1MDBjNGRmYWUzODlmOGZiZjg0MThkMzk4ZDQyZDA4YmVlMGE1N2YxYjFkYzBmNTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwZWY2ZjljNTIyY2U0OGI2YzgzODlmN2NmMTk2MTc1ZGY3NDZjOTFkYmUwYTI1ODUzNWMzNTFkZGY5MGUwYzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVkMzIzNzdiZGFhMjcxMWI0MjliNTJhYzMyZTM3ZWNkZDU4ZTJiOGE5ZjRiMmExOGIzNDZjZjVlM2Y4OWViMGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJlOGU4MGEwMjdmYmYyY2QzMzJmODE5MjJhNzIzMTgyMzI2OTkzODc5YjRjOGY5OGQ4Y2JmYjBiZTM5YWVkMmQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_cd6d2a87e1c2435fa2f056ece42b95b0",
+      "statement": "bootstrap builds the Dispatcher's HTTP client through configure_client_builder so Dispatcher-side requests honour settings.proxy and User-Agent, overriding only redirect limit, timeout and a limedl/<version> UA.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L94-L117",
+          "version": "repo-lines-v1:sha256:c2f1c649e0fa0cd15d87a5b4dcc713ffd9c0789c2161bab7893d557c3d60803d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyOTJhOTkyMmRkN2UyNTE2Y2ZhYzA0OGZkMzUyMmI2NDc5MDBlZGQ5YWIzYWQyNjQyZDJkNjMyZDM1NDc2MWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyODExNWU5ZTM3Yjg1MDRlMmZhOTJiMTM4YTRlNzkxOGYxYzhiYTgxNjM0NWIwMjM3MzFhZjNkZDgxZGFmMDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYxZmQ0N2NjMDg0NTNhNjkxYmMwYzVlMzk1Y2M1ZWE1NGQ2NTAxNjdiYmU5ZWEyYTdhMDg4OGU4NjQxZWI3ZjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhlNDQ0MDI1YmMxYzM1YjJiNzBlN2IyMDRhZDdiZjcyMWJhZGZkZWYzMGJlNDU2OTVmYWQ1NmRjNDUzOTFlN2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_77d3d769c2fa4eb3ac6c00864c3bf25c",
+      "statement": "Aria2RpcServer is not created by bootstrap; the desktop client creates and spawns it after bootstrap only when settings.aria2_rpc.enabled is set, keeping a watch shutdown sender for hot-reload.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L38-L42",
+          "version": "repo-lines-v1:sha256:8d78fd6d4bd26f055a6343eb1ebeb29164ace5a508064686bfe9082c8817f50a:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmUwZWIyYjA1YjI4YTVkYWE4ZTUwY2UwNDExMTllYWI4ZDIwMjRiNGM0YzE0YzBjYjExYTRmZTNlMGQzZDkyMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWZkODY4OTI4MjE2ZDhmM2U1ZDEzNTZjZDUwZjE2MWUzZDRhMTQ1Mzk0NDIxNzBiZjcyM2U2MjY5ZTI1YThmNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjk2YzM4YTA3ODYzNmFiMDdmZTA5MmRjM2M1N2I4NGQzZjg5MDBlMDM1YWMyOGUyYjgyMGZhNDM2Y2MwYmEyNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYThlMTU2YjYwODllYTFhNDRkMDE5YTZkOGRlNGEyNzdmYzk0NWJkM2JmZjU2MjRlYTQzM2IyZmNmNjRhZjUxNSJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/main.rs#L86-L103",
+          "version": "repo-lines-v1:sha256:f64ffa0a75f404b233b08ec0755216f12ecd81f7da860a76b31cdfd693301c4d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM2NzFjZGYwM2I1N2E2ODdjZGY1NmRiYmNkOWIzMjAxMTlmYTZiNzIzMWI0NDI5YzNkMzU3NmI4NGMwOTFlMzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyMGVmMzY4YjIxOWVkYmY0YzVmOTVmMzExOGMyMTMyNzEyMjdjYTIxZGFjNzU1MTc1YTA1MzNjYzRiMGIyMWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEwODU3N2MwOGM3ZTJlODcyOGQ5NjAxMThiM2UyOTYwNmI2ZjVmNzA1NGVkMmQzZjZmZWEzMTYxZWViMDcwN2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5YzQxZTlhMGJlNjlhMjEyNjRlOGYwYmUxZDE2MDNjOTZmOGNlM2UzZDE2NDlkMjg5NTA3MGQzYzU2Njk2MjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0dbcb1515f7945c2b61093821e786f4c",
+      "statement": "SettingsService serializes all updates through a tokio Mutex update_lock; update_with mutates the current persisted base, and a closure returning an error leaves the persisted settings untouched.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/services/settings_service.rs#L132-L145",
+          "version": "repo-lines-v1:sha256:edf6c17d9c50cfbf88ea8f90098fb922f8f1dfe2a6b742a29e40b3b47af42a02:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhZDg2MmZkOTI1OGJlM2M0MTM2NGViYzZhZGNkNzQ0MTBlY2Q0NTk1NGYyMjlmZWViZDlkMDhlYmIyODQ2YjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxMmM2Y2YzOWY0MTQ5N2Y2MTA2Yzc1M2Y4NGNlNDk4NjVmNGY5OWUzZWE5NDZmNWIzZWRhYjg4YTU4ZWUwNTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE3YTU4MDA3MGY1NTVjNGE5NWI4M2E2ZTA0NTk1NzVkODg1NGQ1YzEzODQ1MGJkNDMwZjE5NmM2NzcwNTcyYTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQwODZhMzM2YWUzNTU5NzU2ODRiOTdlMjc2YTllZTU5NmExZjI2MDQ4ZmFmNTEyOTYzOGZlYzA1MjIyMGIyYzEifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/services/settings_service.rs#L50-L73",
+          "version": "repo-lines-v1:sha256:f2a49a7a28a234b3f19cddbfc2ceec3e2f161387036593734c443349fd0f3c33:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc2NDlkZTgwMTQzNDA5OGIyMTVjYjgyYTJiZDU1MDhiYWE5MjRkMzJkNTNkMWNlMDkzOWMyMWI5YTE2NjAxNTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE0MDhhM2EyNDhlM2FjZDAxZDA2MGYzYTAzMjg5MTc4ODYxYThlOGRjODg3ODQ1MTg0MDczMTU1NjExMDA0OWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUwZWViY2Y1ZWIxZGQxOTM0NDQxMDJmZGI3ZjY5NjY0ZWE0MjA5NGM2ZjdmMDAxNzM2YTA0YmQ0YTUyNDg3MzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_95b3617dcc2542b0b46da088c5bea9df",
+      "statement": "ConcurrencyManager acquires HTTP/BT slots with a compare-and-swap loop and returns a DownloadSlotGuard whose Drop decrements the shared counter, and limit changes wake the scheduler via Notify.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/services/concurrency.rs#L47-L94",
+          "version": "repo-lines-v1:sha256:4981097436b53e70d59cc984e0db345a2398970c219492985d0e63d4fdc302dc:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ2NGViYWJhNzUwMGI4MWM2ZjkxMTNmYzg1NWIxZDM3OTlkYzhiZDRjNTdmMzY2ZDYwZjgyN2M0NDI4NzU4NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE0ZDNkYzAzODk5M2Y2NjVjYmY4NjIzM2Y3MTQ2YmEyMjMyM2Q1MGE3NzE4YjEzN2JlZjkwMWNkNGFlNmE3ZDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/slot_guard.rs#L8-L24",
+          "version": "repo-lines-v1:sha256:72b0ef72f1f79745e1c5f22b4210d6c519c8669cd48c98fa506fe57d7e9a4425:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVmMjM4MDY0MDY1NDYyMWJmZjM1OGE5ODE1YzUzMzkzMDdkZTBmN2ZlYTQ2MmY1ZjFhOWFiY2RmODFmMWM2YmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY4MDRlMWE2ZjEwOWM1NDI4NjJiZTBjODRkZjk0YzVhNWJjMmM5MDIzZWUxOGUyZjE2MTQ0YmMwY2U5MzgwM2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_dab717109efc4b1b8d8cb1ef4734b923",
+      "statement": "DiskIoService::resolve_disk_type checks disk_type_overrides first, then on Unix a per-device cache keyed by st_dev, then OS detection; apply_overrides forwards overrides to the DiskDeviceManager so device write queues are rebuilt.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/services/disk_io.rs#L62-L103",
+          "version": "repo-lines-v1:sha256:6db64ed5c8c9eb012c9cdeaa2e76859a901549908ee3bab77cff7d906d60210f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk3NDBhMmE2Mjk1ZDE0MWRmYzljNDFiZjIxYmI3ZmI5NWRjM2RkZWVkODU4ZmE0NDM1NTM5ZjUyNDcxYzE0NDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4ODg5MTBiMWM3ZDE5NmVkNzQ3ZTJkMWM3M2UyMGI4Y2RhZDc2MjFhYjQ2ZDVhM2Y0MzlkYjY0MWQ2YTkxN2QifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7fc3aca5162e41e9b727747f0660fd2e",
+      "statement": "Dispatcher::save_settings_with broadcasts saved settings to every backend, clears CDN acceleration when disabled, recomputes ConcurrencyManager HTTP/BT limits from the active scheduler mode and notifies the scheduler, and pushes buffer-pool limits to DiskIoService.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L293-L348",
+          "version": "repo-lines-v1:sha256:ed8e22bd88bc98983080493d87ee4cf3f799625f01cae6c537d16dab1ba4a722:eyJzZWxlY3RlZExpbmVDb3VudCI6NTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjNDkwODBlYjEzNzZkZjcyYWFhMTkzYWEzYTk2NDliYzU1ODUxYmFjNDg4Y2IwMWM4NjI3NDEzZTU2ZDk3NWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwZmM4ZGEwZDk0MTg1OGI4M2M4NjViMDlhMjk4YjliNzM0Zjc0YzhmOTNjNTg3YWQ2NGYwNTU0MGMyYWE0MDAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg0NzMzMDUxM2YxM2IxNGJjMTIxNmZiZDliMDc0Y2VlMDdhOTRmNDc0NzQyNTMyY2JiNDE2MjA3OGM3N2E2NGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFlYmZkNjUxM2ZmOTQ4YjdmZGZjNjU5MWZjNDIxODkzMzg4ZDZiM2E5ODFiOWMyOWU2Zjc2NTQxMTNjMzhkZTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fb33d72b22654e45b0e1bac302059fe0",
+      "statement": "BackendRegistry::update_all_settings applies settings to every backend but returns only the first error, and list_all merges backend lists and sorts them newest-first.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/backend_registry/mod.rs#L87-L119",
+          "version": "repo-lines-v1:sha256:6be2939700e395ee8fd3b5ea5ef8d1c30e92bc2af80047263d0e0ce46c13ad66:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzZmQ3Yzk5MTQ2YzljYTVjM2NlOWYxMWJiZGM3Nzg3ZDA3NzM0ZTdkZjNmZWI1NDQyMDdiYzE0YjI1NmEwZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNiZTljNmQ2ZTdkMWNmMTAyYzQ0ZWE0YjU3MmZkNDI4OGMzNDhiODEyNzIyNjQ4ZjczZGQ1YjcyZTQyODhmMDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjljMTk4NTQ1NmFhZTIxMzRlZDc0ZTUwNDBkMTFkMWJjMWRkYjIyMmIyZTVlNzA2M2ZhODdjNTljZGFkYTM3NTEifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

@@ -4,7 +4,7 @@ name: Release
 # edition is no longer built or uploaded. Tauri installs therefore stop receiving
 # updates (`latest.json` is not published anymore) and their updater will report
 # a failure once a newer release exists; see the migration notes in
-# .opencode/guides/subsystem-self-update.md.
+# docs/update-signing-key.md.
 #
 # Desktop channels: Windows (NSIS installer + portable zip + MSIX), macOS
 # (ad-hoc-signed, un-notarized `.app` in a tar.gz) and Linux (binary in a tar.gz).

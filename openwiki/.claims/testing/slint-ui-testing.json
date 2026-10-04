@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:9b4b71f781f54becce3473954f319eacf41b99bcf58b48cf59123de1efa38dc0",
+  "claims": [
+    {
+      "id": "claim_8ae54ce2240f44308d879c9a2c645566",
+      "statement": "The L1 tests build the real MainWindow through ui_boot::build_ui and drive it with Slint's testing backend, covering callback wiring and destructive-action blast radius that bridge unit tests cannot.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L1-L30",
+          "version": "repo-lines-v1:sha256:300d02e09ed58947c2c5c26e2128f459fe7141e5506547e2a9db4a5a7c92dcf8:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0NGY5NmM0MjBjODMzNDhhYzBlNDgwZTQ1NWRhODI0MjM0NDMzODM3ZjVjMDliOWFmZDVjMjIzOWNlN2VlMTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNjM5MDhlNzllNWMxMTRkMWMzOGVkMjM2YjQ0OWU4NGVmMGNlYmJkYzkyZjEyMTdkNzBiMmQ1NGJjMWRkYWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMyZTA3Njk3ODdhYmU1YWI3MzVjYWQ3MjM3YmY5YjNmN2U3ZmFmZTcyOGE1YTVhMGVlOGM4M2VmYTkwYWE0YTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_aab0e7608a15406bbe853d3057ed9907",
+      "statement": "The testing platform is installed per thread (init_no_event_loop, no proxy), while init_integration_test_with_mock_time installs a process-global event-loop proxy guarded by EVENT_LOOP_PLATFORM_TAKEN, so only one pump-based test can exist per process.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L88-L122",
+          "version": "repo-lines-v1:sha256:8fbb113e8e4073b28650dadb79b27a1313bb1f1d60f08187dabba7572496c245:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0OTc0MTc5ZTQ2ZTk4NjU1YzBkMjczYTM3OTI3Y2FhNjA4OTcxMjYwMzhhYjA1ZTY5MjA4NTNiN2NlZjhmZjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhOTdjYmUyNzYyMjg0MmI3YmRkYjBkZDVhNGRmMGY2MDgyOTdjYmQxNjg3YTg1OWQ5MjkwZjMzMTE0NmUxYzQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMxZTQ0YzdkOTQzNGYzNDhkMzhlN2FhMjgyZDEwOGIyYzM5MTRjZDg2ZDQ3ODA4OTRjMmJmYWRhNTk4NDBmYWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEwMThiOTk3MWJlNjQwMjI3Y2MyYzM3OTMwYmMzMWMzMDliNjcyMzRiNzAzM2RlZTZlZTBlNjQwZWY5NmEzODcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1f78f9d3ac6e4846b76f722ecb1d43ce",
+      "statement": "with_ui/with_settings/with_language are synchronous (a current-thread runtime is entered but never driven, so timers do not fire), and with_language applies the bundled translation via slint::select_bundled_translation, which is process-global and must be restored after a mid-test flip.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L125-L180",
+          "version": "repo-lines-v1:sha256:033855efe03d2f2e1656c0bd26be99652af633235705c29289d0551166eaca6e:eyJzZWxlY3RlZExpbmVDb3VudCI6NTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ1NGY5ZmZkMGU0YmZiOWVhODUzYjI3YmIzZTk1NmMyOTc5Y2M0YzZlNTFhNTk4NmJiYjQ0ZGE3OWE4NmI2MTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlhOTg0NjMwZjlkNzNjZWIxMTc5ZTM1NjJlMTU5MjVkZWE4YTBjZTQwMDBkMjFhNjU3N2IyMDhhZmVjMjU1OGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5Y2RjNDQ0NGZiZDNjZTkyYTcxZmRjNmQ5N2JkYWI5ZWI1OWQ5MjA5ODU1NjI1YzUxNzBlZDkyMzhkYWRjNzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUzZTUwN2E0MDAxODdkOWQ1M2E4NGQ1Y2Y0NzJjMmY0ZDQ2ZWRmNjZlOGY2N2MyNTA3ZGZkZWUyZGE3ZDYyNjgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_af634b5da08e4073840933304e8c305c",
+      "statement": "with_ui_async drives the runtime and Slint queue; all pump-based scenarios live in the single event_loop_contracts test, grouped by surface and each building its own window with new_window.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/async_contracts/mod.rs#L1-L50",
+          "version": "repo-lines-v1:sha256:ada6b6949a10a4302b3c099d37bb6775292c76054a2f29ace616fa077a1d8650:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlMGNiZTNiNmIzOTZhZTRhNDJmMzFlNGIyYThiNzhhM2E3Y2EzNGE5ZjBhYzc1ZmFkYmY3YWJkMjUwZjNjN2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4MGM2MjY4Mjg4NmRlY2M3NjE4ZGI5NDQxNzEwMDI2MjdmMjI0NmIzYmU4MGUxOGViMjQwZmRhYWNjMGYwOWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIyN2M1MTdjNzI3MGYyZDQ1NDBjZWJiMTk5MmM0NzQ1MTRkNDUwZDU1MjAwNTdmZDU3YTNkMjUxMzYwMTQ2YWMifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L181-L206",
+          "version": "repo-lines-v1:sha256:d34c050b650e0ccc0e9c407d42042e2c4e994c12140661b56ad2d6b30ae33752:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU3MWYxMTdkMDEzNjI0OTE4YzQ1NjRhODE0MzdiZmFiOGQ2MDZlOGFlODYyMDAyOWNlODM3MDIxNTRiYjY5N2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhMTE0MWIyMzA4YTk4NDk5ZTUwNTNkNTZlNjZlYzNlZWVjZjEwOGQxMWEyYThiMDlhYWI1ZjhkOTMyM2JhMzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFhM2JlNGMzZTVhZGQ0OWEyNWJhZmE5MzcyYzdhOWE5OWE4NTEyYjU1MmRkNjkwY2QyY2NiZDRmMmJkZTAxNGUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c22a541a226c4a8f9e9027edd0b8797b",
+      "statement": "TestUi exposes element queries and simulated input (find/find_all/has/click/click_nth/right_click_nth/shift_click_nth/type_text/press_keys/search/seed/visible_rows), and shift_click_nth works by holding the Shift key because pointer events carry no modifiers of their own.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L294-L430",
+          "version": "repo-lines-v1:sha256:b0f1d9060d24d25fba8529e3bd6310fb62a23f79f0fe2728e101804e14214117:eyJzZWxlY3RlZExpbmVDb3VudCI6MTM3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJhZjhiODdkOTYyZWQzNGQ2NGNkNGEwMDRiZjQyODk5NzUwZTliOWM5MDUxNjI3MmE2MjE2MGRhYzMzZTNlOGQ1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI2MTc4N2IyOGY5YzJhMTM3M2YwZjcwZTUwNzkxYTEzNmE4OTM2OTM3OWYzMjBhOGYyNTZmOGE2YmEyNTgxNDA2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5NDlhODIwMzczZGUzZTU1ZTg1NGZkM2FkYWUxYjQ2N2U5ODZhZjQ0ZTQ1MGFjMmQwZTZmNTUzZThhNDM0MzAzIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI5ODhlZjY5N2JlM2RkNTA2MDMxYjhhZTgwMjUzYmFmMzgwOTc5N2ZmYjQxMWFhODg5MTJjZmY1MTJlNTk5NmFiIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_5e83f08ef47d4fc3ad136e13b81907e6",
+      "statement": "window_logical_size reads the root element rather than Window::size()/scale_factor(), because the testing backend stores the given size as physical while reporting the host scale factor, and set_window_size takes logical pixels.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L426-L445",
+          "version": "repo-lines-v1:sha256:591916d5a614d96c5658226de5378bfcb8740caed0597c3c668fbdb4acaa5065:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmNTAwZjE5YmRlYzEwMTNhZGNjYTU2YmYwOTRlZDQ4ZmE1ZDQyNmNmYjlmNjkwODExYjVlMDkyYTYwMjNiNWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4YWViMmY4YmIxMTFlM2UzZDlmN2E5ZmI4NjNhOTI5ZDYyYjFjN2EyNzlhZGY5OTE4NmE2YmViM2Y4NWQzMjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExZTM0ZTY0ZmNmMWZlOGVmYzYxZDg1MmIwYjhjNDAzY2M5YWY5YzU4YzdlNWE2ZWJiNzk1MmQyYjA5YjQ5NWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNiZDI1YzA4ZDk2MmEzNWM0YjVhYjM2NzVkZTk0MjMxNThkYmU3NGRiMGViODNiZWUwMTUzMmVmYWJiYTgyM2QifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_715a28d35c2646a49f1666652e516c84",
+      "statement": "Geometry assertions assert_inside_window, assert_min_size and assert_no_overlap operate in logical window coordinates, and assert_inside_window dumps id_tree() on failure; the testing window defaults to 800x600.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L493-L585",
+          "version": "repo-lines-v1:sha256:1c738a6588ff5bf166d6873e5c3749a16c7e70979417c38ccef0dcf54f12406e:eyJzZWxlY3RlZExpbmVDb3VudCI6OTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhZTkyYTQ1ZWVkNmMyODhlN2I2YzkyNWIyMzQ3MjNlMTgxMzI3OTE4ZTNmMWRkNWI3NTg3YWFhZmU5YTQyYmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmOTI3ZTkwOWJkMTZkNmJjNWE5MGMxZDk3NzRkNzVkY2VjYWE4ZTI4YWY2MTNjMzg0YjYyYTllNTNmNGM0NWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgwNzU3MDRiMWNjNmM2MWVlZjJlZjkxNTFlNDhmMWY4ODgyYzMyYzFiZmIzNmJmN2FmOWJmYmFiMDQ1NmIwZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEzMDE3YjM1ZDQ4ZWZkNjk2YzdmMWY4YmJiMmQ2NDY1ODhmM2JmMTk2ZGEyMGEwNDE3YWYwOTc4MTI3MjcyZDcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a1feafcb2f934e518df7ce30cdfe4002",
+      "statement": "Element queries skip invisible subtrees so has() doubles as an on-screen check, and a control below the fold of a scrolling tab must be scrolled into view with WindowEvent::PointerScrolled before it can be queried.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/async_contracts/dialogs.rs#L425-L445",
+          "version": "repo-lines-v1:sha256:f119c2605f18947012d8898782f4f8abd94b5f0573d3e7293610eac7b81690bc:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ1ZTJkYWNkMTQxY2QxMzBkY2ZkNTc5MzlhYTU5MzBlOWQzNDAwMmE5YmFiMWFlZDg3NTlmY2FkYjVjYzk1NjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyNDcwOWY1MmU0OWU3M2I2ZWJmNzE3MTQ3NTkxMDdiMjQ5N2ZlZTBkNDIzM2U5ODA2YWI2MWEyNDU2MjRiODgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhMDE4ODA3MjJlNzcwNmQ3Zjc2ZmVkODdkNWM3YzVhYWFmMjEwYTY0NmNlNjcwZTkzODljYTk4ZjcxOTA3MmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhiMjNhMzEzNGYzZDQ3YmE1M2MxODg4MzcyZjZhZmZkOTdhZWU3OGY3ODMwMDRkYjIwMzhiOThhOGI1N2QyZmMifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L20-L28",
+          "version": "repo-lines-v1:sha256:8b2c156cdd800b9c303e9bd93b8d3c0659ebe45c21e9e0f278b1872c39f99c69:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTQyODRiNDRmYTI2MzAwNzQ4MjNkNzlkZWFjNDVlNWMwZDM2OWM5NmIyNzgyODBlYTBhN2RlZjgwNmY3NzE4YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWIyZWMzODdiZmQwNTIxM2YyYzZiY2Y4MDc0N2E5ZDY3NjFjNTA0NWJhNzI1MTJhMGMyZDAxNGNlNTcwYTU5NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTM1NWIzYjRhZGExYTU5ZWNjNzA2ZmI3MjJkYzA0ZmNkMTM4YTU2MjdkMTE2OGRiYzFlOTE0ODNlZDAzNzY0OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGIxZWUyNGU3YTBjYzQxNjRkNDEzMGZkNjE0OGI4YjQ1MTU5NWM4MDUwNjZhOTE5MjRmMDQ2Y2JhZjkzZTg5NyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_5a210798d400428cb19b925a632f23fa",
+      "statement": "RecordingBackend records every engine call the UI makes; mutating calls return NotFound to reach the failure path without publishing events, start returns a synthetic Ok id to reach the success path, and starts()/settings_pushes() assert the exact submit payloads and settings saves.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/recording.rs#L1-L130",
+          "version": "repo-lines-v1:sha256:cc144cedbffd98e9b17cedad62da34f983607a1de8a56a420c4f049efc618bcb:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzN2I3ODdhOTkwNTNiMDMwMzA5ZDdlODFlY2NjNjVjZjIxMDhmMWFjZTYyYWRkYTIzMTQ4NzMyNjQ2NzRjM2UwIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI5ODE4ZWE2N2E0MzE2MDY1M2NkY2FiYzEwMDJmODIyNjJmMTBmODU5OWI5MDBiYjNjNzZiZjNmNzU5YTQ1NzNiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJmYjkyYWU4ZjMwZTRiYjYxMjIzNDdkMmQ3ZWViZjMyMWFiNjYzMmZjYWM2NGI4ZGJlZTE3YjFkMjY5MTM0NDJmIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_b8ac0de3902240c68598e572c6955d53",
+      "statement": "Tests read what the user sees through accessibility properties such as ElementHandle::accessible_label() and accessible_enabled() on shared button components and Text.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/updater.rs#L25-L80",
+          "version": "repo-lines-v1:sha256:a734a86e0aba62b371901157ded00eaa35c30a763ecf10ef7b33a9cfa04fba80:eyJzZWxlY3RlZExpbmVDb3VudCI6NTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlYzRmYmUzNmM3NjljOGJhNjdmOGZiZDBlMTY2MTk5YTUyYWZkM2I2N2VlMjM0MmRmZTg4Yzk3YjJhYTg0MjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1MDIwMTFkN2U2NWQzMzQxY2U4ZjI4YTc0YmI1MDVkNzRhYWI4YzUwYzJlYmZhODM1YTcxNjQ2NDE0OWFlNzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE0ODU0MDNjZDBjODJmMDYwN2UyMTRjNjBmMGMyMjExNGMzOGRjMjc2OWY0MzE1YTRhMzBmM2YzM2M5MTQ4NGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZkY2UyOTI2NTIwNGNhYWE5YzE0YTU1ZDY2NjNkZjYyYmUxOGM1ZWRhNjAwMTQ0ODg1ODdmM2I4ZWNjMDYwNTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a4dfd79659774293b9ae48cd3fb037b3",
+      "statement": "pump_once advances the mocked clock by 20 ms, yields the tokio runtime, then drains Slint's queue; pump_until repeats up to 50 rounds and fails with the recorded engine calls rather than hanging when a contract never settles.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L630-L680",
+          "version": "repo-lines-v1:sha256:df4f1208ca7bfebb9736ec1e2ea28106db0942c0eaf14e71dae5f85207a484cf:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4MzYyYjkyMGNhZGM2Mjk3NDk3OTdiZjM0ZDY2YmIyZmM2YmEwYzVmNzgyOTc0YWY1YWFmZDJmNTYwZTU2NWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwMjc1Y2M1Mjc2MmFiOWJlNDQ2ZjcwOGFkZTRiYjgwMTA4NTQ3ZGQ3ZTc1MzgyMzFkZDBmZDlkNDU4MWFlNzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhODQ2ZTY3MTdhNGM3YjFkNzkxZDU5ZGVkMWRiZGI1NTlhMTliNDZlOGExMTZlMTU0NWZjNTljNWFiY2EzYjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2NWVhZGRhMDFiMzIyNmVkNDRhYWQ5YWY0ODBjYzI5N2M1OGZiYzhiMzkxMGFjNTQ4ODc1NDEyNzFlMzFhMWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_692c980792f34597b56e6bf6d744f955",
+      "statement": "Element introspection needs compiler-embedded debug metadata: build.rs enables it automatically for the debug profile and leaves an explicit SLINT_EMIT_DEBUG_INFO=1 alone so release binaries can be driven by the MCP server.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/build.rs#L56-L74",
+          "version": "repo-lines-v1:sha256:6218426fecbe977b9b233526406f7dce26b9c89526c46c53904ebeec279316ca:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUzNmMyMDgwY2VjZmJkMjBhYzIxYTc1ZGI5ZjQwODdkOWY1ZTU5ODg0YTE3MjNlNWZiODJmZTg3MmYwY2FlNmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBlMmMxMDFmZTIyNzc4NGVlZGUxYzU3NTZjM2JlMjQzYmYyYzZjZDI0ZWNlMDA2OGNmYTY5MDg3ZWEzZWVjNTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY1YThhZmZjNjEyYWY1NDM2ZTg3MWVjZDRlYTk4MDY4MzRhNjI0N2Y5ODExZWNlMTUwMTZhYzNlNzI5YjA5NGUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ee1fcaab411d45bd8a3b33f973de4470",
+      "statement": "There are no in-process screenshots because the testing crate's internal feature cannot compile from crates.io, and the task table is horizontally clipped rather than scrollable, so table assertions run at the declared minimum window size.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/layout.rs#L40-L50",
+          "version": "repo-lines-v1:sha256:e808628d5864d2a9321c757546c61d7e5d09a6fb65df79517f4231bde800ea38:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyMDMxZDZhNmNmZDM2NmVjYzhkMjZmZDI4ZjA5M2JhMzkwY2JmODRhNGYxYTgxZWUyODI1NTFmMjEzOWJmMGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJmMjU4ZjBjMWYyZGNkYTIxMzZhMTFiZDk4YWEzZTgwZjgzNDQ1Yzc3ZTE4OWQ5YjkzNTNjNjgwNjc5MTJmOGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZjMDc1ZDQzYzg5OGE4Mzk1ZTkxNDEyMTc1ZjZlZGVjMzk3MzUxMzYwZGFiNDA3MjRiZTJhMzY1ZGJlOTcwYzkifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L30-L48",
+          "version": "repo-lines-v1:sha256:9d175cf57fa26570a222ce1ee9dcd25209fb5fa378640bf2781d7d3764abbcbf:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNjM5MDhlNzllNWMxMTRkMWMzOGVkMjM2YjQ0OWU4NGVmMGNlYmJkYzkyZjEyMTdkNzBiMmQ1NGJjMWRkYWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3Mzg3MDZiYmE0OWZlYmExMzcwOTdiNWU1ZjdmZGM2MzA1NTNmOTlhNzIxMzJmODkzMzkxNzAzOGMzYjhmZjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlmNmVhMDI3MTQ0NjdjYzJlYWQxNDg2MzJmZWY4NmIyNTdjMTBjNTBiNzMzZDBkYjIxZDYzYWMzZjUxZTVkNTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0ZDVjODJlNzQ3YmFiZmM1OTBkYjZlZTQ4MzJkOTQ0Y2FkMDc1YWMyMTMwM2JmMjZiZmYwMjY3MWZkYTY0NjQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4c13b3d25a234e46b85ab3d2787633ae",
+      "statement": "The L2 MCP server requires SLINT_EMIT_DEBUG_INFO and SLINT_MCP_PORT, the slint/mcp feature on the command line only, no other running instance, no --hidden flag, and an isolated LIMEDL_DATA_DIR; it binds 127.0.0.1 without authentication.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L155-L185",
+          "version": "repo-lines-v1:sha256:21edbe060b11ffdedc4e6b7c331ab2599aa41df9feeb43fab66b03b283921532:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhYWNlODQ2ZDgxYWU0OTAyMDIxYWYzYzY5YmVjNTU2Zjc5YTUyYzMwMWU3OTU5ZWY0ZTUyZTA1NmYxMmViOTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MmQ1MWIxYzRhMDI3ODQ3YzY4OThkNTIzOTM5YjJmZTZjODczZGU4NGE0YmJkOTg5NTQ5ZjZiNmZiNzI4MWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRhMjE2NGQ5ZDM3OTNlODBlYzA0ZWFiZDA2NDQwNWVjMzc2Yjg1NDYxZTA1ZTExOWY4NWFjOTUxOTFhYTRjNGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI5MzcxYjgzNjk1ZDZhYTVhMDA5NzAzZTM3NjgxN2FlYmEwYmRiMjdiMDZmZDQwNjFlYmQzYjUyOWE3ZTI3NmYifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

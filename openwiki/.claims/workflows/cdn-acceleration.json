@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:6524c44c84d575b4609c3db683bb5b541c2c6d7235c662c5ffde83f2595ae7a2",
+  "claims": [
+    {
+      "id": "claim_967cbb5abbc949fa8545581e04550913",
+      "statement": "CdnAccelerator holds the AccelState behind an RwLock, an optional accelerated reqwest client, an AtomicU8 phase indicator with AtomicU64 progress counters, the provider, IP cache, candidates, default node and a cancellation token.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/cdn/accelerator.rs#L20-L90",
+          "version": "repo-lines-v1:sha256:1e3d5e96a6a934b3dd89a9d76058a7454d8beb392ed8541a6e541409bf05c549:eyJzZWxlY3RlZExpbmVDb3VudCI6NzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNlNzYwOWJiYzFkN2Y1NjliZTc1YWNhYTAwZWI0ZDBjYzMwMzRlZGIwZTRkNTgwMTkyMjUyOTc5ZTU3OGNjYzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZlY2FkZWQ0MTljZTliMjUzYzQxODJkODRmMmRmZGEzZGY3ODJhMDE0ZmQyMjZkM2MwOTgyZDUyMzQzZjM3YjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwYzFlOTBhZjkzOGZkMTkzMDA5YWEzZmMzN2Y5Zjg5ZjM4ODQ5ZjhkZjg5NzdiOWEwNzkzOGIzNzE0NWNhZDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgxZjQ2YjNjM2ZhODY5ZjcxZDcwYmEyMDQzMTcxYzkzZjZhYzE4MThmMWM3NjBmOGVmYWYwOWZkZTZkZDA1YTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d3d69363a67e47a49c94c1029002fa32",
+      "statement": "start_test is idempotent while Testing, builds the provider from settings, clears prior results, creates a cancellation token and spawns a task that runs FetchingRanges then Screening/MeasuringThroughput with progress stored directly in atomics.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/cdn/accelerator.rs#L110-L200",
+          "version": "repo-lines-v1:sha256:28f2067c5b3b52303893d3a6065d81813790ace77ef512066ba065818625d134:eyJzZWxlY3RlZExpbmVDb3VudCI6OTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2YTdlY2UyMmJiMWE0YTJiOTEzYzM5Mzg5MWUwZjA3N2Y4MGFkOGRjMzA0YjAyNjI4MDU0YmM0MGE1MTlmNDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBhNmU4ODM0ZWExMzFkYzA0MzM2ZjY3NGE2Y2IyNTJlMjgxN2Q1NDIyOTJjZmFlNDc3NmVkNzI2MGViY2M4ZjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZkMWRjZDgzMDNmZTFkMjlmY2Q5Y2ZmY2U0YjAyZDFjODM0YzIwY2UyN2ZjNjY3NDc1NDQyMzI2OTI0YTM2MGYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_249cff9c76a24e9bb76c3598310d3b91",
+      "statement": "The speed test joins run_speed_test and measure_default_node, selects the best candidate by throughput with a latency fallback, aborts when the default node resolves to a private IP (TUN/VPN interference), and keeps default routing with an Error state when the best candidate is not faster than the default.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/cdn/accelerator.rs#L200-L310",
+          "version": "repo-lines-v1:sha256:a2f76de9845f548ef449913c737f1663d300b9e60619a86c4aad9b98e5f63b80:eyJzZWxlY3RlZExpbmVDb3VudCI6MTExLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIyNDJiODE5MjVkZjA5OWM5MDIzN2Q5MzQxNDk1YzQ1MmZjYTZkOGE0MDY5ZGY3YzZhNzRmNDU4MjE3MzUyNTYxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI1OWMzODZlMGI4ZWQzYTY0YzhlY2ZhNDU4NzEwMzJkZWRmY2UzZDFlMTg4ZWNlODI1Y2VlZjI5NDRkZDQ1MTFiIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIzNWQ2Nzc3NjY2MWI4YWFkYTAzNzE3YWEwOGU2YWRhNzgzMTk2Y2Y3NTJhMDQ2YjFhZDM1ZDA1N2U2ZGNkNTJlIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_448681dc68b3446496b320129282dc9d",
+      "statement": "apply_ip builds and stores the accelerated client for the provider test host and moves to Ready; init_from_settings restores the provider and re-applies a persisted active_ip when acceleration is enabled; clear() resets all state including the client.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/cdn/accelerator.rs#L340-L410",
+          "version": "repo-lines-v1:sha256:b3fefe59c216879a8aa2c488ec1932deea4bc8588b3d7a26d4d04d6bb3feffe9:eyJzZWxlY3RlZExpbmVDb3VudCI6NzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjZDk4NTBhNWY1ZDczZWZiYzg4MGEyNmMzMjA5MzBkZTlhNjJkYTQxZWYxYTliOWZjMDBjMTAwODc1MDA5ZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFjNmM1MGEzZTkyOWVkNmY0OTk5NzBkNDk4NDk3YTE2MGVlZjUzNmRkY2FjNDY0NjY2MjhiNWI3YzRmZThjYmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYxNGViMDY5M2NjOWVhNzU5MDViYTM4MzA1ZTgzMDExMzA0M2JhMWY5YTEwNWQxMzU0MzQwMTY0ODViNzlkNTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0930486842e34c5183b5272f7ba68881",
+      "statement": "CdnProvider is an extensible trait (kind, name, default test URL, fallback CIDRs, fetch_ip_ranges, matches_ip) with Cloudflare, Fastly and Custom provider kinds, so acceleration is no longer hardcoded to Cloudflare.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/cdn/provider.rs#L27-L120",
+          "version": "repo-lines-v1:sha256:1c8da050ad449aad6567539aca7a3a60d5015a67a656b9280005f7d53a32d2a1:eyJzZWxlY3RlZExpbmVDb3VudCI6OTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmNTVmZTA1MzQ1MGQ5MmYwYThiYzE2YzJkMGEzYjUwODc4MTdiOTg4MjRmZDAwM2NhYWQ3OTZlMWI1ZTViOTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc5NDE0NjEzZTUwN2RlNzliNjYwMTM4ZDUxYTA4YmI3MTQ2MmY1YTdmMjIzMTcyNWE5ZjQ2MDFmNWEyMzY5M2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkyZDJmMzBmYmUzNjZjNGM2MWM4YzQwMGI4NWRjM2E3NDExZGVlYTU4YTczYWU5OWM4ODdjYTdmZjM2Zjc0OTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_532c321bee51417b83f585ff1d5ae7ba",
+      "statement": "create_provider_from_settings maps the configured provider name to a provider and parses custom CIDRs and a custom test URL for the Custom kind.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/cdn/accelerator.rs#L464-L515",
+          "version": "repo-lines-v1:sha256:243ba67d2d0c0c8937d9cdb7e242ba8d5d8c444b9ca37a98ec21471735f4f9a1:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUzN2M4ZjYwZmNlMThkZjI1ZmZkZTRjYjU1MGE1YWYyMzYwYjgxMTI4NmZkNjg1NmM4YWM1Zjk2ODNlNmFiNWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0MzA1NjRmYjY1ZWU0MzA2OWUyZmVkYzViOTA0MDU2MjhmZWMxNmM4MDUwOGJjNWQzNTkwZjIzMWFkODAzMGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYyNjUxNjI1N2Q2YjQyMzEwMGUzMmY1NzkwZTg2ZjgxMzIwOTk0MDc1YzUwMTZkMzc0YjcyYzMyZTFlMDllNmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY5ZWJhMmIzZDhlMmMzMTU1NGQ5NDViZTc4ZGI3ZTBmMjhiNTkwNGIzYzE2Njc3Yzg3YTExZWY0ZGE4Yjc4ZDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9c5b4f31bae649b484eb97f8ae4fbeba",
+      "statement": "build_accelerated_client uses configure_client_builder so proxy/UA/timeouts still apply and adds resolve_to_addrs(domain, [SocketAddr::new(ip, 0)]) so the original hostname remains the TLS SNI while connecting to the chosen IP.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/cdn/resolver.rs#L45-L70",
+          "version": "repo-lines-v1:sha256:283e91ffd16a347c0bcb48262c9f7aa955fd84734624eba37e5dce4b0d108062:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3MDRlN2M3NzU5YjIzZDVlYmVjOTk3ODYwYmM1YmQ0YjdhNDgxZmJhMWQwNWZmMzIxZGI5MDYwMzhhOWQ2MmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxMWU4YjYyZTMzYmM0ODQxYzg2YTUyYmJmZDQyNGFlNDFlMGJiZWE4MjQyMmQxMGUwZDIwYjlmMzA1ZmI0MGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA3NDM1OWQzMjRkMTQ1OGZjZjY2ODcyY2Y4ZWU1ZWYzNjkyODU5ZTQ0MWRmYmRlOGJkYWMzNDIyNTAxNGVmYjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU3NDBlZDEzNmFmOTI2NjQ2ZjRiZWUzMDdhNmM5ZTI4MzRmODlhYWQxMjU4YTQzNDQzOTViYjA1ODc3NTBhMTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d873f605b5a94cd1abeb176aef4ca750",
+      "statement": "CdnService wraps the accelerator (shareable via from_accelerator), and monitor_test polls every 500ms, publishing CdnProgress with the phase string while Testing and CdnComplete on Ready/Error, returning a CdnTestOutcome for the caller to persist.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/cdn/service.rs#L146-L210",
+          "version": "repo-lines-v1:sha256:fc8b735c23c1c7ab716b56cf2913af08666bd053b366cf2fc013c4146da495af:eyJzZWxlY3RlZExpbmVDb3VudCI6NjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwMzVmZjcyY2I1ODQ5MjYwNjQxMzFiYTYwNjY5MDliMTJhZTE0YWYzM2I4MjBmYWE1YTJkZTJhMTE5MjliYTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZjQ3ZTRhZjNkYjNkOTQyMWMxMjVmNzc2NGE3NDgzZTJiZTM1YzM0MzFjY2ZmYzY3ZGNhMjY5ZDk2OGFlODIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE3OGY1NzJmOTY3ZGIxNjc0M2I1ZmFiNTZlZjZjYmUxOWNmZTZiN2JhYjNlODg5NmUxMDIyNDU3N2Q3Nzg3NzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI0YTM2NWE5MGVjMTFlOTA0MzI3NTJjZjkzNzZlYzVlZDM2YjgwYmE1ZThlNjg1NGZjZjk4OTcwZDMwNDQ0NjkifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/cdn/service.rs#L18-L45",
+          "version": "repo-lines-v1:sha256:6fc592960ac893625a5677ea59e5e0796831a7b11347b057105ff7e585286786:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjZmZhMjdmZTFlMDkxMzlmYzgxYzZlZGEwMzllYWVmYzFkNzdmY2VhYzExYjFhNjFlZTFkOTExYTI4ODVmZmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNjNDU3ZDZjYjQxYzFlZDBhMGI4YzVlNDhhNzI1OTI0NjExMWUwYmUwNWNiMGMwNmMxMTQ3MzEyMmFhY2IzN2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM2ODM5YmExZTdlYTlhZWFkMTc0OGIzNWQ3YTViZmFiZDdmYTAxZmIxMjA3NGE3MjhkMmIzZjY3NjcyMGIyZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIwYmRkNmQ2NTI1ZGRkOWU0ZWY2YWY3OTc5Y2RjZmQwMzFlOTNhZTc2OTgyZWYzNDllMjM0M2E0NTYzODUyZGEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_27c8a2581ae940da8e67a94cc1e69097",
+      "statement": "DownloadManager::resolve_client returns the standard client when CDN is disabled or the domain is not a CDN host, resolves the active IP from the accelerator with a persisted-settings fallback, caches accelerated clients per (host, ip) up to a size limit, and falls back to the standard client on build failure.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/manager.rs#L255-L330",
+          "version": "repo-lines-v1:sha256:7826ab08d0a00288e58d7b7cb67656df1a520e18cddb385cd782cb5e41c64afa:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkYzZlZWZiNjlkYjlmMzdkOWNjNjI5YmQxOWI4YzI4MDNkODI0YjRkMzYzYzIwZDRjZGNmYTU4ODc1MzQ3NDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI0YWYwM2JjOGI5ZDk1ZDAxOGYzY2EzMTNjMjMwNTA0ZTdlNWJjMWFhZDg5ZmI4MmI4MDk2MTU4Mzk4MzZmMGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE5NWYxMzRhODk2NjU3NTcwODIzNGVlMzcyM2EyYzg0MDUyMmVjMGUzNGEzNzEwZjM3MjhjMGI0NWIyN2FlMjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImExNDI2ZmY5ZGQyYjM5ODRiNWJlZjdmMzc3M2EwNDgzMjY0ODE3OTE1Yzk4NjZiNDMzZjI5M2ZkMWE3YzU4MmUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_25846b84834f4ba1b73440adacf34b62",
+      "statement": "bootstrap creates the CdnService, injects its accelerator into the DownloadManager with set_cdn_accelerator, and restores state from settings with init_from_settings.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L90-L92",
+          "version": "repo-lines-v1:sha256:dd3ef6b9d893fbb15b7b7fd19d3cf6b49d277b2bfe3126e78d45073a1340c7dd:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGQ0OWNiMjk1YjIyYzJmNDJlYmE3YTM2ZWZlMjdiNjM1NGY1MTE0NTVlNDVjYzVkOTRmOTYyYTIzZjhjM2FjZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzhmZDhhY2MyYWNiZDI4MzgxMmRjYmMxMmZkNjEwOTJjYzNiNTJiN2QwM2U4NzMyNjQzOTJjYzEzOTFkMzg1NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGQxNTk0MDQzNWU5MzNlNjhlZjYyMWM3NjQzYzA2MGE3MDgyMzMxZTU0MDljMDU3MTYwZWZlNGE5ZjVhODA3ZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWQ5N2FjNWIwZTY5MzE4NDY4OTllMmIxMDEyMGUzYjBmMjFiMjZmZTQyOGUyNTE1MDExN2I2M2RhZmJiYjA5MyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_ee58724d4c1e454fa86e405dbd75c16a",
+      "statement": "The desktop Labs handler starts a test, spawns monitor_test, applies a chosen candidate via apply_ip, and persists active_ip/active_speed_mbps through save_settings_with.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/handlers/labs/cdn.rs#L111-L180",
+          "version": "repo-lines-v1:sha256:2c41ad5411f5754e964f7864dc85c6eb904a6a36f55386d5b3ef28a17d42e1a4:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEwM2UyYzNhNDA5NzcyOTg0NzM4MTIwMmE1MDQxY2FhZDYzOGMwNjZiZTMwMDhiMTlhZTFiNzE2MTkzZWFkOGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5MTY2MmU2MjhjOTJlMzBmZjE0MjIyZTlhN2U0MjQ4MDNiZTA2MzdmZjllNTkwYmE2MjNmZjcwOTdmODk4NDAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQzZjYyMDFmZDZlZDI4NWRiZTZjZTMzMTRhNWU2ZDBlMWE3ODFkMGI1NzEwMTVhZjJmMTM1Nzc5MGVmYTQxNTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNkNDlmNTkxYzNjNjU5YTE3MjRlYWRlMGE0NDlkYmVjZTVlYWNjNmEzNzdmNmE1MGUwYjE5ZTQ1YmYyMmRiYTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/handlers/labs/cdn.rs#L340-L360",
+          "version": "repo-lines-v1:sha256:fea93dceb17597262bea9607028cf01382f23c6ae8850e4a39a1d850a8dfbfa7:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc2ODM0NDIzNmVhMzg1MzQyOTgwMzQxMDZiZjk2Njc3ZTEwMjRhOWYzYzc5OTIyYjAxNWIyNzJlNTI0YTk0ZjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBkZTdiZjRmNzMzMWU0ZGQxMWI5Nzc2Njg3ZDFjMWQzODY3YWFjNGUyZmJhY2U0YzE5M2MyN2NhNTc1NzlhZTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4Mzg5NzFmYjU0M2FiYWU0YzY0ZDU2YjIyODBkZDgxZmIyYzViNjk4NTQ0YzkwZTYyNGRmYjk0MDdmZGIzMGUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1807dede55d64ce8b84da11f4e2a1aba",
+      "statement": "Dispatcher::save_settings_with clears the CDN service when cdn_acceleration.enabled is false, dropping the accelerated client and all stored state.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L308-L313",
+          "version": "repo-lines-v1:sha256:7785430542f6e9cd973cfc5c4223b15128d17eaab8c3c261fb168783553b0b7d:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjVhZjNmZThjODU1MWE5ZjFiMzMyYmEwZDM2NjA3MzczMTgxYjcwMDQzZWY0OTdhNmNhODcwNTMzMDYyZGY2YyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTFlZDNlNTdkMGMwMjUzN2YwMDQ1YzYzMzc0MGI3ZjU3YmU3M2UxY2NjOGViN2ZiNzEwYzkwNTRiMmFiOWZjYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYWEyOGExZWI4NmJjNmJmY2Q5ZDNjODdiMzdjMGM2NWRmM2Q1NjExZjlmMDIzNWFlMTI1MWM4ODA0YzM1NDIxYiJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

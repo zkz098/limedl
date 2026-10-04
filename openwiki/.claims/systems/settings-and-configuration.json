@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:877f5b2bfe041a98f5ad9d876361636a1c1bc45af60dce3ab448d910c07fb652",
+  "claims": [
+    {
+      "id": "claim_ef85384a1c6b443ea075af4fe3460741",
+      "statement": "AppSettings is a flat struct of serde-default sub-settings (appearance, proxy, scheduler, download, bt, logging, aria2_rpc, cdn_acceleration, url_rewrite, io_baseline and more), so a partial or hand-edited settings.json still loads and unknown keys are ignored.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L379-L392",
+          "version": "repo-lines-v1:sha256:ef45218ba0696e36cfdae72353835e212aaf631c60fd7854f0c1b01c338bd2d8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgxYWZkZTVlNTQ2MWJlOTdhYWMyZWE3NGVlNjdmYjNlNzYyODBmYTQ2NWU2YzZlMDA1OWZhNmM3M2Q4ZWMwM2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE0Mzc5NjcyN2JlMzEyNmZmMWUwYzZiYzkxZGIxMzNmYzc2NzMzMzEwZGE1OWEyOWY5OTY2Njk3NTkyMTVhNTQifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/types/settings.rs#L414-L454",
+          "version": "repo-lines-v1:sha256:10fadd44ead6b74b8f65c2e998530213241fc8d3cef26166da086d794ab5cee9:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5YjI4NjIzMDYwMThkZGNhZmVhNjgxYjk2MzcyZTI3OTIzYjllYjExMzA2MmE0NGE0NjU2OWE3ZTU3OGZiMDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFiMGYyMmRjMjBjMDhjODZiNmMwZjhlMTRhNDZiMTdjOTcyY2M5NzkyZmJlZWVlNDFhNjk2MmI2ZTAzZjI0MzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3e742b2affcf444b8513b09b699818fc",
+      "statement": "The data directory is %LOCALAPPDATA%\\limedl on Windows, ~/Library/Application Support/limedl on macOS, $XDG_DATA_HOME/limedl or ~/.local/share/limedl on Linux, and LIMEDL_DATA_DIR overrides all of them.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/paths.rs#L1-L35",
+          "version": "repo-lines-v1:sha256:6a27df0df905b5cce57859863f829f7e75e765399ddb6b5929dda6c21dd94bd4:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwZmQ5MThhMGJkZGUxZWVlY2YwZTVlZDNkYjY3NzAyNGM2NzQ5MDJiOTRhODlmNjZjM2VlODAyMDQ5MDdmNGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5Y2E4OTFiZmY3YWMxZjdjZWFhZTQwZWYwNTEwNjZiZTllZmU0N2I0ZTQyODFlODZjMzE5YmUyYzU1ZWJjZTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk2MGU5ZTZjNTNhMWEzY2Y5NmJiZTZlMTdkNWM2NDJhY2U5YzlkNDc0YTdmMjkyMzJkMjYzNGRjMGU1M2E5ZDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_54cacfa4dcde402d89db85797f68be0d",
+      "statement": "The settings path is derived as the parent of state_dir joined with settings.json, so settings live one level above the downloads state directory.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/context.rs#L47-L56",
+          "version": "repo-lines-v1:sha256:6431727574e0cc6541b593cf617e2b8e106a9fea3ec8439cfe8b1380bbc51c02:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhNWU5OGY0MWRlMTJjNTcxYzBkN2Y1OGYwNzNjYjM4MTgzYWMyMGM1MDI4NTNhNzA4ZTVmZTA2ZWY3N2I1ZmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjOTU5MTc4ZGFkMDYxMWVhODA4MzgyYjY4ZjFhMzYyZjc3Y2M0YzQxZGQ5NzBjMTIzOGNhOTVhMDJkM2EzM2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYwOGVkN2IyZmQ1NGFmOGE2YTVlODUwNjk1MmQ2ZTY4ZjMzNjI4NDdjYmZlNjlhMzVjOTFhZjI3ZDI1YzNiNmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVhOTI5MDUyM2M2Yzg4YzRkOTExMDRkNzUzZWE3ZTFkODBhMGVmMDU0MGY5MDhjNjhkZTMxMGYyMWM0NzFhMTgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d3f596c632e4413ca5885ce0d45c34f6",
+      "statement": "SettingsService holds the settings behind an RwLock plus a tokio Mutex update_lock; update_with serializes read-modify-write by cloning the current persisted base, normalizing, atomically persisting and replacing memory, and a closure error aborts without persisting.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/services/settings_service.rs#L10-L96",
+          "version": "repo-lines-v1:sha256:bc1d6482bdfcc4aca6f6fe4a08a9856800dbfaed6d9146056c76ccc70526a59b:eyJzZWxlY3RlZExpbmVDb3VudCI6ODcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5NThlNDU3NWI3MTE2MjFlNDNmYzJiZWYyZTMyYmQ3YjJiMDcyMTFiNjFmZTAzYjE5MGZiNmRjNWUzMzE0ZjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlMGFmM2ZkNGE0YzNhMWQ0N2M3ZjQ3MGVkMGQ4NmQ5MGQ5ZGUyMTBhNWViMTQ1NWZiZDk0NDgyYTQ3NjViNzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM3Yjg3MjhiOWRhNDY1MGFlNTlmYWVjYzFkMTdiNTA3YzZkMmI5MzJjMTAwYjQ4MGEyYjAwNTcyYmY2YTE3ZjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkwMDNiOThiZGFkMTA5Y2MzMWM5ZGEwYWY2NGI3YjE0YmM3ZDczMDI3NDJhNTkzZmU0OTFjOTYxMjg2MDI2YjgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_dcb3dfa326484c5d862445041d93c03a",
+      "statement": "persist_settings writes settings.json.tmp and renames it over settings.json, so a crash cannot leave a truncated settings file.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L394-L406",
+          "version": "repo-lines-v1:sha256:cf871d5f988adaa61eb386d0bd4b743e8e219dfe67079599ffd109df85723cb6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzNDZiMTQyMTcxNzBlYmM1ODZiODQ0MTE3NjhiN2FhODFjOGE2MzFhNWQ5MjJhMzQ0ZTJiZTExMjY0NGNkYmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg5MmZlMDkyYjc3OTM2NWY3YzYxZTRjYzA5OTNlOTBiMWU2ZWFjZWE1M2M3M2ZlZjFmZjFhNjA2ZjU2Yzk5NmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNkZjg1YmFiNDczMTMzMzIyYzY2YjAyNjNkYTkyMDRlMjM0NmJhZDMxOGUyMTRhOTkzNGM5NzYwMjA2NjM0MzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3488f06938e842ef9c59589ec95acb8d",
+      "statement": "normalize_settings validates and clamps every external input: proxy URLs, scheduler parallelism (1..=32 traditional, 1..=64 automatic, per-task <= global), retries 0..=20, absolute download directory, IO baseline ranges, logging retention, BT trackers, aria2 RPC and URL rewrite.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L19-L125",
+          "version": "repo-lines-v1:sha256:a5224326cd445cfd5a2937473887462bfce817d01e906a5fbdfe143f4bd641a6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIxZDFlNGY3YWViNjExZDE0NDZjNTk0YzdkMmUxMTIxOGVjZDg0ODAxZTM3MjMwZDhlOTFkMzM5MDI4ZmE0MTg0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI1OGEwNmQyMjE5MmM4OTI0ZjYwN2NiMmUwYmE1OTA4ODI1NjZlZTIwZDEwMDY3MDBiNzczYjdjODAyN2Q5MjdjIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJkYTI0M2U0NDFkMDgxYTRiNWJkMGUwMzE2YTM3ZmM0NzVmMTZkYTdiYjk5MmUyOTI0NjAyMmQzMGIzMDI3ZTk1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI1NDlhZWI3NDIxZTY5ZjU5OWUwZjA4ZjUyNDBkNWE0ZjkxMDIzYjY5ZmQ0Yjg1N2FjYjM0MjMwODJkZDAyYzQ0In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_d112220c33bc4e5b84e637f8c7827bf1",
+      "statement": "normalize_aria2_rpc_settings drops clients whose token_hash is empty (they could never verify) and trims names and hashes.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L127-L136",
+          "version": "repo-lines-v1:sha256:a818b949fa6d234f9e528207139ca81286e1fad6cd31651c13faef2d461195d1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1ZmQ3ZmM2NzYyMzQ2NWYxMGU1NzkzNjhiZWY5ZDgxNTJiYjliZmNlN2JlNmQ4NmI5MWQzYzlmYTBiMDcwYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE1NzJiMzczN2VhNmJmYWRiOWU0NTQ0Y2JjNDAxODEwNzM3NDVkNWQyMzUyNDRkNDc5MjQzZjM5NWI5NTI5NGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxYWExYzIyOWFmYTFiMzVhOGVmZGUxZDkyNTM2ZDFkZjE4NWU5MDdiMGUwMGU0ZTE1N2Y2ZDYxOTg1NWU2NGUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c6fc91549d4644a2a40b1c244bf6d125",
+      "statement": "normalize_url_rewrite_settings drops rules with an empty pattern and targets with an empty template, and reassigns rule and target order to the filtered positions.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L330-L378",
+          "version": "repo-lines-v1:sha256:e6ce8860f6747512c13b81f4771cfa6af2bfd9e6023354c3e105fc5f17156bce:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhZTczOTk0Zjg4NjhiMzM2YmViYWEwNmZkMTNkN2Y4NjViMWNlYjFhMjdiZDY5NDIwZDA2ZmQxZDcyMzc4NjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRiMjY4NTc5ZTYxODI3Yzk4NGQwMDY1YTkzNWQ2MDZhMDRjNDkxNjRlODhmOGQxZGI3ZGJkOWFkYTg0OWM5NWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlMTkxZDI1YmVkNjZlODI3NjZiMDcyMTBkN2ExMzVjMTlkOGRkM2YyMmQyMWU1NWNkZjdlNmIxY2U4YTc3MDMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0b328415e76643afbfd9f3a5ebc7de34",
+      "statement": "Aria2RpcSettings carries enabled, port (default 6800), an optional secret, auth_mode, clients and cors_allowed_origins; Aria2AuthMode defaults to single and Aria2Client stores an Argon2id token_hash, never the plaintext token.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/types/settings.rs#L330-L392",
+          "version": "repo-lines-v1:sha256:c8238836f189b3d51140e4bd0888507386b3fbf308853e7bd5c17ad411e831e1:eyJzZWxlY3RlZExpbmVDb3VudCI6NjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM4MDVmZTAzY2FjNTZhYjkyNmUzMTcxMjU0ZjBmZDViYTA3MDgxOTNlODMwZDY0NDc1ZjZkNmM4NTNlZDYwYzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM4NmQxM2RmODA0ZjE4ZjRiYzlkYThhMjFlY2UzNjc4NzU0YjY5MmZhYzQwNzNmOTI2ZDY2YjJmMzcwYjU1ZTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5MDZiNmMyYTk3NWFjODEzYzBjZDNkYzIwMjgwZWUzMzA1Mzk4NTQ3ZTFkZTQwYWE2Mjg4YjlkYzU4Y2JjZTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ4OGFmOWEyYzdiOTk5YWFhNWNmMWRlMDhiYzdhZGIwNzk1OGVjN2YwMWQ0YmI1NmRkZjAwOTE4ZDg1ZjdkNDUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9169e1c252554439953ee0c7363f52e9",
+      "statement": "Dispatcher::save_settings_with persists through SettingsService, broadcasts to all backends, clears CDN when disabled, recomputes ConcurrencyManager HTTP/BT limits and notifies the scheduler, and pushes buffer-pool limits to DiskIoService.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L281-L348",
+          "version": "repo-lines-v1:sha256:0dad7c92e5ef32ead7beae21f416078a2a65b5b7da35e9cc4913cf3661c2957c:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmMjEzMDAyMzliMGY3NjBlZWFjZTU3Yzk5ZTk5MTg3MzIwMzNlMzkwYTRiNmUyMTc4ODNlYmI5ZTZiOGJiZGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwZmM4ZGEwZDk0MTg1OGI4M2M4NjViMDlhMjk4YjliNzM0Zjc0YzhmOTNjNTg3YWQ2NGYwNTU0MGMyYWE0MDAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg5Yjk4Y2E1MTMwOGYzZWY4Nzc3ZDZmNTA5NmZlNzcyYzY3NGI3YzhjYmFmN2NkYWQ5YzY1YWQ5NjFiNGM1YjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFlYmZkNjUxM2ZmOTQ4YjdmZGZjNjU5MWZjNDIxODkzMzg4ZDZiM2E5ODFiOWMyOWU2Zjc2NTQxMTNjMzhkZTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_731788b61fce404aa4279915aaa5f303",
+      "statement": "AppContext::settings() is a read convenience that goes through the dispatcher rather than caching a copy, and writers must use save_settings_with to avoid clobbering concurrent updates.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/context.rs#L37-L51",
+          "version": "repo-lines-v1:sha256:dd5187652b4fc40a4504349a6329dc137e5475629a5454d681709fc2d66fa114:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU3MDU3NDE2OGY5MzNmZTM0YWRlZjBlZWM2MTk4ZjA2ZTRjMDIxNjI0Y2MzNzQzYWM5MjRiYjNiYjdlYmQ5ZTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:c8d105dabfcd3abd9d5ab1e4e6f41f52adb432d6f97e837b3ede8bfcb0110539",
+  "claims": [
+    {
+      "id": "claim_7adfe6bc70df455da96fef56ab373539",
+      "statement": "DownloadManager::start requires an http/https URL, acquires an HTTP concurrency slot via try_acquire_http (whose guard releases on drop), resolves the User-Agent, rejects non-absolute or parent-escaping destination directories, creates the destination and sanitizes the file name.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/manager.rs#L386-L455",
+          "version": "repo-lines-v1:sha256:3d4cb9946af5f88b8c02e7a2348ddce9c7fd9d35867e86f08480b0b42ad14cb7:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA4YjZkNjJlNjljNTE1ZmMzZWE0OWI0YmQ3ZDI0NDE4MDU0MTMxMWZiMGNiYzQ2MzA1N2Y1NDEwM2Q2MzIzMGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY0NmM3MmFlYmYzNWQ1ZmQ3ODQ3OTY3OWI2ZGJmNjA0ZWM0ZWFhZDZiMDBlYTUxMjQzMzVmMjdiMzQzNmNlZTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1NjdhMDJmYzc5NmE5Mjk5Y2ZiMzgwNGQ4M2JiOTFjMDg0MmZlZmZkZDhiMjM1ODZhNzE1OTExOWE2MDc0MTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiZGY4NTA0Y2YxN2U0YTgwYzk3ZmM2YTc5ZDcyMDkyYmNjOWNlOTQ2ZDM5ZWJlMjUxMjFhMTFkZTM0NjYxNTMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_153bd3ec9f36448c9bbdfadb57812283",
+      "statement": "spawn_download persists the manifest and spawns a task holding the slot guard that iterates mirror URLs, uses one retry per URL with mirrors and fails over only on network errors, records CDN client state, and calls run_download.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/task_lifecycle/mod.rs#L85-L190",
+          "version": "repo-lines-v1:sha256:dc2f959301d558090b3a6e83868ce583c03c5c1155f4cb0024a38df0d4d8025f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA2LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5ZTRlOTQ1MWI2YTQ3ZDJiNmNmYzI1YWYzZGMzYTk4YWI3OGRkZTM0Y2ViNmI2NzlhOTk3NDIwMDY4NTEwMTNkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJkY2E1N2RkMWE1ZTg0NDUwOWY0NTM3OWU3Mjg5NWFmODIzNmQzZGNlZDY2M2E3M2ExM2QxOTlhYzMwZmNhNmQ2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlYWRhNTY4ZGI1YzVmYzEwMTRhZWJlMzlmZjM1ZjUwNmUzYmI2N2ZlMGY5ZWI1OTNjMzZiZDczNmM4ZjA5MzdhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJmZjhjMzQyMTgwMTRkYTY1NTllNGIzMjM5MWZhMzY2ZDYxOTJhYzAyMzMwYmEzYzQ1M2ViNDdkYmVmMzVlYzI3In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_4f5b375237a24fe5b3a4c9f6c0b20b0a",
+      "statement": "probe issues HEAD with a GET Range:0-0 fallback, returns RemoteMetadata, treats a WAF/mirror anti-abuse 403 as terminal after a bounded body sniff, and only for non-anti-abuse 403s infers and tests candidate Referers, storing a successful one in extra_headers.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/run.rs#L8-L118",
+          "version": "repo-lines-v1:sha256:5ec2e54d41ea485429092b442b1b44084b1d3fe058872c68ae23fb75a05c2382:eyJzZWxlY3RlZExpbmVDb3VudCI6MTExLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJiMjMzMGEzNjQ2MWZlZDRiZGQyOGQ3MTkwMjdkNmUyOWEwYjY2MGI3MzRkODIxZWFjZWM5N2Y5ZjhhM2QyODFjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJmOWIxOTgyZThkZDc0ODExODE0NmIzOWEyZDAwNjJmNDA4MWUzNDc3OWI4Njc1YzIzNGM0ZmIxMjRkYzM5MzkwIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5MmU1NmMwNzU0ZmQxODAyNDVhNWI0ZDZjZWYyYWIxM2Y2MmMwZWFiYmRjZGE0NTNkOWNlNDQ1ZjM0NmViMTYwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJkYzkzNGY1MTRjYmEwOTNkOWE2ZjJmNjc0MDE3NWIzZTE4NjY5MzFkZTU5ODhlODQ1NWQ4ZTJiZDA4OGRmMmViIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_ae0e29659f974f9a9165fff233d4d195",
+      "statement": "run_download checks remaining disk space, resolves chunk size and range support, resolves thread settings, writes probe results into the manifest, optionally auto-detects SHA-256, refreshes AIMD, notifies the scheduler, and prepares or resets progress before dispatching to chunked or single execution.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/run.rs#L122-L205",
+          "version": "repo-lines-v1:sha256:6d57720a411cc56823797447cdcf33ef832930d1d6d1984a3930e39afc14b35d:eyJzZWxlY3RlZExpbmVDb3VudCI6ODQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNiNGRmY2MwMmRkYjg2NDYyNDg4NTRjNzZiY2QwMzRhYmFlNzRiZTMzNmQ3OTE5ZjFhMjUyYTQzMGE0Y2EzZjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwYWVjYWY4MzIxODZhNDU1YWM0MzdkZGVmODk4OGNiNGI3ODEyN2E5MjRiYjBlMzJjYWIzZDQ3OWI1NTBhOTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRjOTM0ZjUxNGNiYTA5M2Q5YTZmMmY2NzQwMTc1YjNlMTg2NjkzMWRlNTk4OGU4NDU1ZDhlMmJkMDg4ZGYyZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg1M2JhYTkxMWY0ZDg0ODk2ZWQzMTE2MWE3ZmJkODY0MzVmNGZhOTcxYjRiMzg5YzcxZjJlYTQ0YTRkNGYyZGIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d4fb778804b24fabbab6b3fedc52779d",
+      "statement": "apply_probe_to_manifest resets the chunk plan when validators, total bytes or range support changed or a parallel plan had no chunks, and when ranges are no longer supported but partial chunk progress exists it clears progress and forces a single-stream restart.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/run.rs#L262-L345",
+          "version": "repo-lines-v1:sha256:b5886f0f5c4a1d70234dd5ec6e6454c6a072da62d9fb2c86aaa48c00aa65b690:eyJzZWxlY3RlZExpbmVDb3VudCI6ODQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzM2M3NzBhNTk3MjE2ZDhiZmQwNzBkZDRiYmQ3YWIwNjU4MTQ2N2M4YjgyMGY0NjkwMDUyMmM4OTBiMTdiZDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDY1MTZiMTkxNDYxMTNhYTAxZWZmYWRhMWRmZjNkMTM3YjdjM2I1MTZhODQ5YzUwNTkyMDk5MGVkNDIwYjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBmYzU4OWE1NDQ1YjI4MTg2YzdkOTkyMDY2MzY4ZjBhYWIwY2EzOWVlNWM4MzUwZjg4NmI3OWM0NzQ1OGJjNzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg0YWIxN2UwZGE3OTgzNTc5ZGNlNDUwOTg3NGY3YzUyNGY2ODY5YzA3YTBjMWE0ZTA0Yzc1MDExMGJlNDg4MmUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_db1300608b5541bfb098778399ba1f1d",
+      "statement": "download_chunked loops with cancellation shutdown and flush, periodic 30s disk checks, completion detection, target worker count bounded by half the chunk count, optional Tail Sprint, and per-worker supervision.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/chunked.rs#L7-L130",
+          "version": "repo-lines-v1:sha256:fc0e14e39f2c55a9951a3421fc6d74908f25322068348f9e291b6fb3abeb9a8e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTI0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5NzE3YTYzZmY4ZWI0MTg4ZGY3ZDc4YTM4MzZmNTU2ZDY1NjNiMGRlN2IyOTBmMjY2ZWI2YmQzMzBkNTA5MjA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJjZjQ0OWZiMjNjNTIyZGFlZTRmMzA2MTU2NDgyOTQ3ZmMxYTEyMjg2YmNlNmU3OTU1YTMyZDhjNGQzMWM4MTA4IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI1ZmE4YmZkZGFhNzU5Y2ZjNWZhZjc5NDZjN2ExOGRhZThlMWIxNTBmOTU4YzZjNTQ1YWY4OTg2NzJkYzFlMWJiIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3ZDIzOTc3ODQyN2EwMjgwYmQwNTI1NzQzY2Q4MzBmODk1ZTZhMjAxMTkzZDNlNDYyZGJiNTJjNzVhZmUyN2E0In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_af31f0664ec548cb9591011813b2270e",
+      "statement": "Chunk workers claim by interleaved stripe with an any-unclaimed fallback, steal work by splitting the active chunk with the largest remaining range of at least 2 MiB, and release a claim only when it still belongs to that worker.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/worker.rs#L28-L135",
+          "version": "repo-lines-v1:sha256:71a79fb74fc3a65bad2136038ff31f005bd5b90a14a6de61a515ac234381fdba:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI3NTdmMzJhY2ZjMGFiMmNjZmY1ZDVhZGIxZDEyZDhiYWYwMDBiY2RkODNjYmE0ODdhMWEwMmY3ZjUzODgyNmJlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJhYzNmYjg5NTM0NTIyNzkyNjA2NWQyZDdhYjRhMGM4YjJhZTQwMzFiZjY0ODk0ZmYwNjZlYjg3YzBhM2VjZTA1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJiYTIwN2ZlYzA5M2ZjOGMxNzU3NDgyMzkxZDdmOGEwYzUyYTk4ZTNhY2MwMmZjYzJjMjY1M2MwNjM1MDVjOGYyIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI1NDQ5NTc4OTNiYzJhNzJiNmMxYjMxMzhkOTMwMmEzN2Y1ZDkzNjFmMDIxZTU0Mjg0MjhmMGVjZGM5MTU3MGQwIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_8161b5a2adf540a6b13b6350c98a8725",
+      "statement": "A 429 with more than one allocated thread maps to DowngradeSingleThread; the supervisor shuts workers down, flushes, fixes the task to one thread with the 429 note, persists, notifies the scheduler, waits 1500 ms and continues single-threaded without losing progress.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/chunked.rs#L428-L466",
+          "version": "repo-lines-v1:sha256:6d07d2f2853e9f68ad3f51127459d4f61955fe20d6680ab16414a308446cef88:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjZThkOWEzZTViYmE1YWRhMDE5YjhiYjEyYjYxMjVkOWIwNDc3NjA3ZjUzYWNjMDAxNDZhZGFmZTk2Yzg5NmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImViOTZhYWEwZDVhM2E2MGE5ZmUyMzk0YTI3MGMyYTU4NjczM2NiMTJkYWM3NmQ0NTFkYzMwZDIxZjQ4MzI3MzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyN2EzMDRhNjUwMzViZDNiNGIyZjk1ZmJlMTE0OTk2ZWEwZDUwOTRmMjExM2ZhZmYxN2UxNjkzZWViNmI4OWIifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/worker.rs#L254-L315",
+          "version": "repo-lines-v1:sha256:26e481c8699e635faafd565b411c7e5e7c1adf7d03f72e9c20d7a68647bc9023:eyJzZWxlY3RlZExpbmVDb3VudCI6NjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzNTYxZmI1YzcwZDBlMDcxYWMxOGQwZTk0NjI2NjIwNmRiMGM1ZTYwNWJkYzcyMzA4ODc1NmJiM2Y4YTU1MWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk0ZGRjMGM1NjZkM2QwYjFlYmViOTYwYTc1NGQ5MjhkMDU2NTcyMGNkODE5ODI4ZGVhZDAyMGZlYmE0OGJlZTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjlkMTQ0MmQxMTYyOWYyMTFlYTNkY2EyYzI2ZWY4NmY0ZDEzN2ZhZWRkODZlMmE1OWUyMTc5ZmE1NjhjYzQ3MWIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_de55905efeaa41bf8ce464be15336432",
+      "statement": "RestartSingle clears the buffer, prepares a fresh temp file, resets progress and restarts the download as a single stream, discarding previously written data deliberately.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/chunked.rs#L467-L486",
+          "version": "repo-lines-v1:sha256:40212dbe0f78f1ac27dc481ff52c1d50962e8544408fa6917e147cc6ccc5ad71:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjZTIwNzAxMmU2MjYyMWY2OGFmOTZlZDM0OTZkYWNmYzJhMjNhNTZmNTE1NzU2NzQ2OTdlMjhlYjY5N2UwMDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjllMzg0MTM0MGYwYzI3MTg0MzZjNGY2OTUwOWY3ZjE0YjExN2Q1NGMyNDk2NGQ1NTQzMzIzNDFiZmY4M2Q5OGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM3OTRkMDJhODEyMTk0NGQxNzZkMjY1ZTliYjljYzU5ZjZhYjg5MGJjYWRmOGFlZmRlYmRiYmI0ZjJlYTg0NDQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7dd833753d9d4afaaaae45f6d03f3539",
+      "statement": "download_single resumes from contiguous_prefix_end with an If-Range validator, retries requests, streams the body through the write buffer while batching rate-limiter consumption and throttling persist/progress, guards content length, and flushes the limiter and buffer on every exit path.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L9-L125",
+          "version": "repo-lines-v1:sha256:8a859e1c6ed50889ff93c2f8939a652e7a8b4f40be9e40ad2e7c1820ae56e79f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMDg0MmQ3ZGZkOTQxNzYzY2Y3OTg3N2QzZmE3NjYxNTM0ZGJmMzZkZDkxNDBlMDU0N2JmYjE1ZWYyZTA0MjM1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJjNTAzNmEzYTRhMzFkMGMyYWVmZDhkNTI2NjVlZTdlYjEyMTU1YzJlNTcxMzc0OTMxMzE0ZDk0MzhkMjNiMjg5IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIwYjI1MjgzYWE0Y2EwZWU4ZjQxNDVkYTM5ZGE1NmY0MDJlMjBlYzc0M2NiNzg0NGI1NDg3MjllMTgyODFlOTE1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_31acf37e3a1e41d6912c43f18ef7842e",
+      "statement": "BatchLimiter consumes the rate limiter in 256 KiB or 8-chunk batches and flushes leftovers, while ProgressThrottle persists every 300ms and emits progress at most every 500ms.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/download/shared.rs#L15-L20",
+          "version": "repo-lines-v1:sha256:cc9d700042c8c86064c3ac9150b39b20f5fdc1c8c7641d34c98866a0085a4f79:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzI0MjQ3MjQzOGYyNjNhYmI4YjM1ZjBlM2E2MDdmY2EzODY0MTcwODc4ODJiNzk5YzU1OTc4NmY3M2E2NTk3NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDI2NDAxZWZiNzQzMWU2M2ViNjc5ODFhZjkzY2VmODg1ODYwMmY1ZDEwMGU3NTkyYzYzNDMxNTU2NDZjZWI0MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYmM4OTU1ZTllZGM2NTc1ODdlNzhkNGUwMTNlODY3ZjVmNzZjMjA3MDBlOWRkMTc4ODE2NmE5OTFmMzAyNjRjMyJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/mod.rs#L217-L280",
+          "version": "repo-lines-v1:sha256:803ed603d103a2ebd37d0989e4077f0f56d22d4a5d53ac30c76995e6e7b73e6a:eyJzZWxlY3RlZExpbmVDb3VudCI6NjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0MmZiM2U3ODk3ZjQ2NDkyMTU1NDExOGE3ZmIzZTQxN2QwOGMxYjFhMjUyOGFmOTQxZjVlNmVmYWU2ZWQxMGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3ZTZiYzdkNzM5NTVlNmMyZWIzNTkyNWJlZDUyMTE1YzU1ZDViMTZlYTFlNmVlZmExNDM1ODk1MzkxZDVkNTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdjOTRiNThhODE1MmVjYzYyN2FlNjM5MGQ2MzQ4MTYwNmJlYzE2YmQ0ZWI4ZjcxYzNiN2Y5Yzc5ZWUzZGYyOTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIzNmViOTk5Mjc4M2EyYjYwNTEwYWQ1ODUyYmEyYWExYzM4YWVmZTc5YmU0OTAzMGNkMGQzY2UwNGQyY2FjOWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6082be08c58240bdb413eee1c9b74f99",
+      "statement": "finalize_download sets Verifying and persists, computes and compares the checksum case-insensitively, and on mismatch renames the temp file to a .part.corrupt path and marks the task Failed rather than re-downloading chunks; on success it finalizes the temp file atomically, marks chunks complete and releases claims, persists, and publishes aria2.onDownloadComplete.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/finalize.rs#L7-L161",
+          "version": "repo-lines-v1:sha256:2c99ecc0fe86f090301e584e17f526e57dcac49dffcd06951fc3ae11493f1dd9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTU1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmM2NmN2Q1ZjBkNmY3MzE1YjExODNlMDkxOTkyMjE0ZjFiNmRhNWYxMTM1Nzg3ZTc0YmMyNDI1MmQxMGE3NDkwIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI3NTQ0MWZhMjVmNTRmZmFiMzgxODIwMzA0N2U5OTY4MzIyMDljZWQ3NGU4NWJmNmU3NzIzMTdhODVlYWRmMzliIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_679f7e5532f045f297d7b26921d7bc08",
+      "statement": "The shared http_executor helpers are build_write_buffer (HDD pool vs SSD local ping-pong with half size clamped 64 KiB-8 MiB), flush_write_buffer (log-only failures), wait_or_stop, finish_buffer_flush (UI flushing flag) and check_disk_space_periodically (30s, disk-full Warning).",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_executor/mod.rs#L71-L216",
+          "version": "repo-lines-v1:sha256:46ce298bba53766f329b09012ad8161044e6e44aee0a6059b8cd81493499a8f5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQ2LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjNzAxODAzOTc3ZGM2ZTY0YmQwZDI4ZTg4ZTQ2NmI5OTIwMTEyOTBmNGMwMDA0N2U1NTdlOGVhMjVhNWJjNmVkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI1OTk4ZGUyZTMxNzNiMzNjOThkMWVjYzRkODhlOTAwMDY3MTJjZTQxYWEzMjY2ZGI5NDM1NGFmOGNiNDNlZTc3IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlNTk0MTBmYjY2NDk0YTg2NDY2NGQwMjZiY2Q1ZjE3ZTQ4MzZlNjdjZDkxMWNiZmE0ODlhM2Y3ODYzMmRmYzVhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJjZWU5OTNkNzE1ODJlNzVhZGI3MmViNzYxNGYwZTQ2MmM5YzY4YjBlNzA2MjJjNTViZDhkOTVmY2UwZmJjOWM2In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_73219c6618694de799488b2f0d7b5e56",
+      "statement": "plan_chunks returns no chunks when ranges are unsupported or total size is unknown, and otherwise slices [0, total) into chunk_size ranges; resolve_chunk_size maps the configured strategy to a size.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/manifest.rs#L98-L175",
+          "version": "repo-lines-v1:sha256:e90894060080792a6b9cf9ee5df62c6f9dac136a2884c0b72c5fdb98a38994b9:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxZWVhNTQxYjIwMzdlMmQ1OWFlNjdjZDRiZjg1MWY4MDU1Y2ExODA4ZWQ1MmIzYmQ2M2U0YmQ5ZTk5MjVjYjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxODM2MGZjNDgxZDc5MjI3ZmMwYzU4MjNjYTMzMTRjYzQ1YzBmOGQ5MDM4ZGNiMmFmNmNlMGQ3YmFkM2E1ZTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI3MzJmMzBhODZiNjU3M2I1NWM5ZDQ5NWNjNzM3NTY5MmQ3YjY1NDhkZTk0ZTRlMmMwYTQ0M2JmOGRlNDc4NmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVmYThlNTNlZWVmYzNjYzc1NzAxZDEwN2QyZTU4M2M0ZjY0OGJjY2MzZWQwNzNhYTJmZDExMjdhN2RjYjRjYzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_653d5ab323214aca9f10b9190fe8875a",
+      "statement": "Crash recovery keeps Downloading tasks Downloading with zeroed connection/allocated counts, demotes other non-terminal states to Paused, and clears every chunk claim so resume does not skip claimed chunks.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/persistence.rs#L30-L95",
+          "version": "repo-lines-v1:sha256:b68e4de3f7bd3bc24ae68fba209fe9b4b1319204ed620142505a1a6f1f6a482a:eyJzZWxlY3RlZExpbmVDb3VudCI6NjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0YTU2MTZhYWQxMTExNWEzNmVlZmNiZTJlZTRkNDRkM2NhMWYzNGIxNzc5N2IzOGQ2Y2IzOTBmMzIyNDNlMDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRlNDYyYmQ4NWVhMzUyMjgyMmE5YWQzZWIyNDA5OWIwMzJhMWI2MjdiZWNmZDdjNTgzMWU5OTI3ZDRiYWM0MGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVlYmYwYjQ5NmRmMWI2MjAxNWFiYmI4ZTBjZTYwZWMxNzBiMGI1NjQ5NmUzNmRjNWZjNTRhZDA5MjEyN2EyMmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZiYjA1YmU4ZTE5N2FjZjVlNjkxZjNkOTg0NGRmZDQzYzY2ZDhjMTBlMzAzYTBkNTY1ZWFjOTFiZmE3NWI2N2MifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

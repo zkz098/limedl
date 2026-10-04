@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:1aafac5fd6bd3b2a43560a597ba7b99b0c92e835a73cef3e8a9df009f17c12fc",
+  "claims": [
+    {
+      "id": "claim_6719a8b6ce264d6fa5e8103236b5336c",
+      "statement": "limedl is a three-member Cargo workspace: crates/limedl-core (engine library limedl_core), crates/limedl-native (Slint desktop binary) and xtask (repository tooling).",
+      "evidence": [
+        {
+          "resource": "repo://Cargo.toml#L1-L11",
+          "version": "repo-lines-v1:sha256:b3e793a7b17ef7a45a4416dca355491534dc30d5896a43a7c0311f8b464eb701:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/lib.rs#L1-L34",
+          "version": "repo-lines-v1:sha256:2c6aa498c3212340d2172cd5c6b8426c98ccda7c95390db93de4449553adf0ad:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMGMyN2UwYjE4NWFkN2Q0YWZjYThlZDkxODM2Y2VmMWM1NTQ3NDRjOGY3MjY2YTcwMTdkZGQzMDg5NjNkZDkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3ZDQ0ZjJmYjBlZjdmYjc5Y2M4ZjdjMDQ0MzhkMzRiYzI2MmE5OTc3NGFiYjQyN2NkMzEwYmNlYjU2YzcxMDciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjczMzUyMzJkNTEyNjNiY2Y3YjExMmQ3MzdhODI0NTFkNGVhN2I1MWFkOWQ5OTNhYWI5ZGY5ZDAzYzg0NzdjODcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2138d8217658476c8ce4038757742dde",
+      "statement": "The documented build requires a one-time cargo xtask fetch-font before cargo run -p limedl-native, because the MiSans VF font is embedded at compile time and is not committed.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L70-L96",
+          "version": "repo-lines-v1:sha256:54a95fa8b9f1359117e28d1fa040f3ee07ae4e719641cda314e259e016908352:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwY2RjNDBhNWU0ZjU5YzZhNDgwYWY4OWYzYzNjYWZmODYzZWVlM2E4MTc3YWNkMTBiMzVjMTc2YmRhNjUyNjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRjY2I3ZjIzNmJlZmViMTljNDE3M2YyMWVlZjEwY2Y3NWZjMGQ4Y2YzOTlkODc2YzNkYzdlMWU1OGNlMmY3MmEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_51f9cb5c4f5d4da18af9f10af435eee6",
+      "statement": "On Windows the MSVC environment must be initialized before any Rust command, and Linux additionally needs libfontconfig1-dev; the app stores data in the OS local data directory and honours LIMEDL_DATA_DIR.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L5-L40",
+          "version": "repo-lines-v1:sha256:d74e3df4c771c1fde344c7cc843280a50e791a8918cd9bc4beaabd49315a5acc:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMjBiMDcxOGVkMDQwNmVmMzc2OWViMzRjN2E4NjNkNzNmMzlmOWE5N2JmYWRhZTE4NjRhMzdjY2RmMDgxZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzZTYxZDU4NGNkMWVlZWMxN2Y2YmZjMDI0Y2NkZDI1ZWYxMDdjMDNiOWQ2NmY5MzU2NzBhOTQ3MjQzOWIyYWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE1ZWNiNzg2ZmQ3ZTk1OTBkZmM2MWUzMDAxYmI1ZjU1YjE1YjRjYTMyYmFlNGMwNGMyNDZlYjNmMDlhMWFiMDUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ca07130e51474161ab507466672b13b5",
+      "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native) under CARGO_BUILD_WARNINGS=deny, and it cannot compile non-Windows code from a Windows host.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L214-L309",
+          "version": "repo-lines-v1:sha256:b8daa1e8cf3753ba8261e5bbac20f26d2e1a72c61e82ed3ccd5d18dba0ec0c7c:eyJzZWxlY3RlZExpbmVDb3VudCI6OTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwOGE2Y2Y2OWI1N2E0NjQ0MWJkOGEwMGEyODg5ZmJhMmI4ZjMyMDNhNmVhMjFiZmUzNjI4N2JlMWNhZWM2NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU4MGFjNzBlNmQwNDI4Mjc4NzE2MWQ5ZjNjYzNhYTJiMDFhODY4NjY0YTdiZDgwNTUyOTc4ODU3ZTYwYmQ5YzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM0ODFkYjEzNjQ1YzcxMzI3OGMwZTIyZmQ1NTE4YWUzY2JkNGQ4Y2FjNWM5OWY5YjQ5NGQ4YTgyNTVkMmRkMDQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_00ed8a7f52f0408781e13d3d989d4ad5",
+      "statement": "Backends must be registered with register_arc so the registry and CoreSystems share the same Arc; register would wrap a value and silently snapshot mutable state.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/backend_registry/mod.rs#L42-L60",
+          "version": "repo-lines-v1:sha256:bb63fe912b90e7562555a8a4208eeea8922d73824982bb9a9e0b687cc3a72225:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyNzdjNDAxOTZiODM4ODJhMTMzOGQyNTExYzUxYWQ1NzExZjU4YWJjZGQzY2UyZWI2ODcwMDA0YTRjMGJlMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmOTY3YWI5NTkyYjQzY2Y4MTBjOTgwMmY2ZmEyZTlmNDYwZjdlN2U3NGM1MjIyMTM2M2U0NTk0MmIzYmVjMDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRlOWY2NDE4NDJkMWJjNmQzYTMyZGI2ZmFkMWRiNWMyODgwMjczYTNkZDFkOGRkNzBlOWUwZTIzNTQxMTRjMmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA1YWU4MjU4OWYyZDBjOTk3MmU5YTExNDIzYjBhODA4ZmVmZTUyMzRhNjU5ZjMxOTFhNGY5MGFkYjZhMWRhODUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_91ce1e6b4c62445183f34d564c87832f",
+      "statement": "EventBus::publish only sends on the broadcast channel; each adapter subscribes independently and must handle RecvError::Lagged.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/event_bus/mod.rs#L48-L84",
+          "version": "repo-lines-v1:sha256:d5f25385e16817ef42f2813cdb78e9207d633cca956a33b7fff0a834aff579fc:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNiOTQ0MzJhM2QwYjY4ZWRmMjg2ODJmMThmNzViZmVkZDE3ODMzZTRmN2FhYmQ1OTE2OGMyNTY1NDQwZWEzZjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzZDAyMTE2MTBmMTEwZjUwMzIyYjQyNjc0YzVhZDAzMmIxMzBjNDRiYWJiMTg5YjUxOTlmNjUxMjk5NWIyMTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhlMzlhNTZiMTAzYzhjMjVmNTQ3M2JiZmUwYWM1MzhjY2I1MGQ0N2FlNjFjZTZmZTEyNzhhZjZhN2ViMDM1NjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVkOWM2YzMzM2M5MzQ4MzZkY2I3NjA2NGE0ZTk3NDkzZTk4NzI5N2UyYmVkODkzMWI1ZmNiMDdmYzk0NzgzZDUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7f985ab9df8c451e9c99356c6a4b3351",
+      "statement": "Settings writes go through Dispatcher::save_settings_with, which persists through the SettingsService and fans out to backends, CDN, concurrency and buffer pool; no shadow settings copy exists.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L293-L348",
+          "version": "repo-lines-v1:sha256:ed8e22bd88bc98983080493d87ee4cf3f799625f01cae6c537d16dab1ba4a722:eyJzZWxlY3RlZExpbmVDb3VudCI6NTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjNDkwODBlYjEzNzZkZjcyYWFhMTkzYWEzYTk2NDliYzU1ODUxYmFjNDg4Y2IwMWM4NjI3NDEzZTU2ZDk3NWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwZmM4ZGEwZDk0MTg1OGI4M2M4NjViMDlhMjk4YjliNzM0Zjc0YzhmOTNjNTg3YWQ2NGYwNTU0MGMyYWE0MDAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg0NzMzMDUxM2YxM2IxNGJjMTIxNmZiZDliMDc0Y2VlMDdhOTRmNDc0NzQyNTMyY2JiNDE2MjA3OGM3N2E2NGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFlYmZkNjUxM2ZmOTQ4YjdmZGZjNjU5MWZjNDIxODkzMzg4ZDZiM2E5ODFiOWMyOWU2Zjc2NTQxMTNjMzhkZTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f137b650533b43a8936395da9cd45357",
+      "statement": "The scheduler takes the core lock before the aimd lock in update_one_adaptive and syncs the snapshot after every desired_thread_count change.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L317-L360",
+          "version": "repo-lines-v1:sha256:6e99ce5dd8361947425cdc5a9a5edcd8f00ce934a00106d60fea28f2f522ba04:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVlMmE3ZmVlY2U1Njc0ODY5NzU5MjI1YzEzZWE1ZjY5Mzk4NjdkODYxYmYzYTAxNDQxZWRjNWQ3YzhhZjIzZTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0NGY1ZDdlYmJmOGM0NmQyYWY1NDdkMzlkOWEzZGU5M2E4MzQzY2E0YzhkM2Y5NThmMjc1ZDMzM2RhNTg3MmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdkOWIwZjcxZDE3ODUyNDQ3MzA2ZjlmZTNkNDZmN2Y1YTlmMWNhMDhiZDlhNDc3YTQwMTZmYjU5N2UxZTRjODEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxZDA3ZTkwZGFmYjU2YTJkYjVkZTZmOTRkM2FjMjE0OTgzMzI0ZjNmODkwYzY5NGFhMjMxZDVkNjAxMTU3M2UifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7b3d7399b19a4531b3b892b6f01bdda8",
+      "statement": "The BT alert bridge is the sole source of BT Aria2 notifications, while HTTP lifecycle notifications are broadcast by the RPC handler.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/alerts.rs#L100-L200",
+          "version": "repo-lines-v1:sha256:c7c9100da38a50bb9efe73a0ecb579eca778052a4eef512b35b3f851cb035a8b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5MTFlOGI2MmUzM2JjNDg0MWM4NmE1MmJiZmQ0MjRhZTQxZTBiYmVhODI0MjJkMTBlMGQyMGI5ZjMwNWZiNDBjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIzZmU5N2QzNTUxNTRjYzcwZTA1YjBiMjVlNWY0YWRmZGUzNmZlMmQ4MTNjMDc4ODIwYTYxYWYzMjRiYTAzYzI5IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIyNTgwOWU5NjYyZjUxNGFmYTk1NTM4Yjc1ZDNhZGFkODIxNDk2MGYzODRiYTNiM2I1Zjg4ODVjMDkzYTFkZTY0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJjYWFjMjVkYjhiMTczMzgwMDA0ZWQzYTM4NjRkYjZlOWVmNzU0ZmQ1NTQ4NDRlODcyMDk0NWU3NjZiNmNmNGYyIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_d1b4c44e14e745ef807575199c97fa60",
+      "statement": "Single-file size limits are only decided in reservation_error; the code must not guess a filesystem from file size or an unrelated I/O error.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/file_ops/mod.rs#L586-L618",
+          "version": "repo-lines-v1:sha256:5f9c80151ff58fe7a07c472c6e8a198901ef0ffc18fb888370a7ba6788c6f8bc:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhYTI0ODQ5ZmRhMjFlYTgyMDM0ODUxZWNlNDU4ZjQ0OGRhOTZiZjg0ZjA5ZWQ4YTY1NGEwNTZlY2FmMDlmODAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2YzVjOTdlYjQ2ZTAyYjAwNDc2NmVlYjljYjJmY2YyNDJmYjZjMjliMjE4YzkyMTRlN2Y3YjQ0NGI1MDFjNzEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM3ZTBlYTQ0MjA1MGFjOTRiMTdkMmUxZjUwYjBiYTZmM2Y2ZTEzZTFkOGFiYjNiYmE5YjQxOTBmY2Y5MDE0NmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFhNGM0YjZmOWNhYTJiOGQwYTM2ZDc4M2MyYTNmMjY2YjlmMjA4Y2ZlOGMzNDZjYjEzM2FiNzg1MWJhOWYxMjQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_475b6e2d51c94a0d9640b1775926ef8b",
+      "statement": "Every outbound HTTP client must be built through http_client_factory or proxy and User-Agent settings are silently bypassed.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/http_client_factory/mod.rs#L28-L66",
+          "version": "repo-lines-v1:sha256:31711f569fddc259ea77af42c65cb3741b2b13bbe02502fef7cfe5457c3d4004:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE2YzJkYjI1NzMxMGUxMzZkMDM1OTFkOTRhN2ZkMWQ3ZWJjODVhYjlmYTc5YWE2NzZjMjVjYzVmZmRmNjhiMTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM4Njc5OWVjYTUxMGEyY2M5MzgxNzU4NzE2OWViNTVmNjY0NDlkMzJkNTE4NDI3OWQ4MDM2NTZmNWY4NDZkZmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ2YjI4YTM1MWZjN2NhOTM4YzRkYzk0YmM4NjU5NTBkM2FjMGYyMzg1NDdkMGUxYmEyYmNiOGVlZTIxMjNhY2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_befa9f16218e4e4f9876622eb2907896",
+      "statement": ".slint element ids are test contracts: UI tests query by id and adding a clickable control usually means adding a snake_case id.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L1-L30",
+          "version": "repo-lines-v1:sha256:300d02e09ed58947c2c5c26e2128f459fe7141e5506547e2a9db4a5a7c92dcf8:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0NGY5NmM0MjBjODMzNDhhYzBlNDgwZTQ1NWRhODI0MjM0NDMzODM3ZjVjMDliOWFmZDVjMjIzOWNlN2VlMTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNjM5MDhlNzllNWMxMTRkMWMzOGVkMjM2YjQ0OWU4NGVmMGNlYmJkYzkyZjEyMTdkNzBiMmQ1NGJjMWRkYWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMyZTA3Njk3ODdhYmU1YWI3MzVjYWQ3MjM3YmY5YjNmN2U3ZmFmZTcyOGE1YTVhMGVlOGM4M2VmYTkwYWE0YTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_258989af56ed46828c1c1daf5168e349",
+      "statement": "The MiSans VF font is pinned by size and SHA-256 and is fetched with cargo xtask fetch-font rather than committed, because of its license.",
+      "evidence": [
+        {
+          "resource": "repo://xtask/src/fetch_font.rs#L44-L57",
+          "version": "repo-lines-v1:sha256:d087e87bc324efd2343ca47c7517dd4ac8c7955c864d9fc3991750af9d60cc0a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhMGNjNzJkMDVlZThlZjEzMzUzOTBmMjNkMTlmOGFlODJmYmE4MGNkYmNiYTgwMzg2N2MyNjYwMjA2MTk0OTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjljMTExZTJlZTNjMWY3NjhlMDUyY2YzZWEwZjRkYTQyODRlYTk4YjdhMDIxZGJiYTg5ODM2MWQ5NjZlNmMyMjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFlZDhmM2Q1ZGM0MDJlYmZmYmYyNjU5OTY4NmJiN2FkOTMxZWZiMTZkNGVjMGY3NDFlMDk3ZDhjYjkxZDQ5MTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUyMTVlYzBlNTkyYTRkMzJiOWM1NjA1YzhlMGI3NzY5MzRiZGJjNmZjNGFlZTQ1ZmRhNGVhM2M0ZTg2NTg0Y2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_774672168d7b4388a9c933dfe7d17559",
+      "statement": "irontide is pinned to exactly =1.7.0 because upstream's git repository was removed and the BT backend depends on a wide engine API, so upgrading is a migration.",
+      "evidence": [
+        {
+          "resource": "repo://Cargo.toml#L70-L74",
+          "version": "repo-lines-v1:sha256:8358413bd2c4e67dc79bd275d785bd5868db516eac386f621badb76124b61982:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzgzMzlhNmY4NmZiZTMxMDZmNGZjMTFiNGYyNmRjY2I2MGRhZTUzZTZjMTFkMDQyMjA0ZDdiMzBiNGRlYzkzMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDc5NGJhNzljZTJhNTFlODAwYmZlNDM3OGYzZjM1ZDhmZjQxZmFkZWE4OTMzMWM0YjViYzQ0NGE0NDE5NWIzZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDE3NjMyZGNkY2QzMTUyNWE1MDUzYWRkY2JiMmI3MzZmZjFhZDc3Y2EzOTgwYWE1OTY1NWMwM2ZhNjdjOTA2YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2IwNGUwMjlhNTkyOGI1NDI2Yzk2ZmYwNGQ2NTJhN2VlZjcxY2U4OWNmZjI3MmJiZGFmYjk5OGY1NWRlZDM0ZSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_4e85c5dc8963422f9287b7756d024d3d",
+      "statement": "Structs use camelCase serde renaming and enums snake_case; .slint user-visible strings use @tr while Rust-side dynamic text uses i18n::format_* rather than hardcoded CJK.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/types/common.rs#L7-L15",
+          "version": "repo-lines-v1:sha256:cfde3507cd72bfeab8b3d27a769f15c7d24be1c946776f23a0ed3a9c9b55c6be:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzJjYzdmNWU4ZDg5ZTczMDU3NGE4YzIxYjM0MmIxNDBjNjNhZjI4MDljZDZlMDZhODVhOTllNjkyOTU3NTgxYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTExZThiNjJlMzNiYzQ4NDFjODZhNTJiYmZkNDI0YWU0MWUwYmJlYTgyNDIyZDEwZTBkMjBiOWYzMDVmYjQwYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMmVhZDAwYjZmNjZkYTQyNmIzMjIyZDMyOTNkNzNiZGZjZTY4ZjZlZTc5YWVlNDBmZjk2YWNlYTU1YTJlZWFiNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzllOTE2ZjUyYWEzOWZiN2E4YmRjYzlkODNmNDkxMjYyMjE0NzRlYzc2ZTIzMjI4YmY1M2UwMDE1ZDQyNjIxOCJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/i18n/mod.rs#L1-L16",
+          "version": "repo-lines-v1:sha256:da6cd5b9d17b9254919b35209d63cee0ce7b72c0e27d4370ef750866b7879b2c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIxMTI0MTVhNGQ4MmU4NzQxZWVlNzQwOTFiY2Y3NmZiZWY4OWViM2VhYWRmNTc1Y2VjZjNmMjRiMjMxMjNjNDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MDkwN2E5YTM4ZmUyYzQ2N2VkMTE2OTgxMTE3MGQ5OWE4ZjY5MTM3ZTQ5MDZkMzM4N2RiOGYxYWZlZTU0ZGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxM2FhNGY5MjM0YzQ5N2QyZGQ0YTk4NWY0MDQ3MzBkODkxYjk1MDUyYTQ5Yjk3MDUyN2RjZGJiNzllMzhhNDYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3bcc45bbf523422a9f2683e951757e1c",
+      "statement": "Release notes are generated by git-cliff from Conventional Commits between the previous tag and the released tag, so commit subjects must stay Conventional.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L77-L121",
+          "version": "repo-lines-v1:sha256:bc4d1e63cd8f73999035c73a04b14060994c7cecaf93f7c8e0c60b0541160434:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlhMjY0ZTI0NmIyM2RhMjQ4ODRmZjBlYWM5MjJiZTFkOGJiMmY4YmNmZDI4ZGM2N2RlOGJiZTY1NzBlMTZlZTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0Mzk5NDc4OWM4MWE2ZGFlY2IyMWQzOWU2NGZmYTliODA2ZjczYWFiNjQzMTQ4MGFmZmY4MzE3MTExNTA5ZTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM4ZDQ1NTc5YjBkMzY5ZDVmZTg3MGZkMWJkNjYxNWRmNDZmYjZjN2Q0NmUzYzhkZGZlZjE4MWMzODYzMGUzOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0MTRmOGIwODc3YTViYjM4MTY0NjBjZGZjMjE1ZjRiOGU0NGNlNmE1Yzg5NzA2NTljY2JhNzEyZDgzZjZjY2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d6237f17500e49e99f31e6ca752e388b",
+      "statement": "Dependency changes must have their Cargo.lock updates committed, or CI cache misses and stale dependency resolution follow.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L310-L336",
+          "version": "repo-lines-v1:sha256:b32a5920364f0545683c9b2a6955b8f0b9ea9759593fbeac26403f95d2d533cb:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyNTcwZDIzN2ZlMDJmMzcyNmVlYzkwMzI1NGEyYjNmNWE1ZTcwZmNlNDYwN2E1MGZjNTY4OWQ3M2Y4NDk3ZTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5Zjc4NzE0ODkzYWE3Nzk0MmNlYTFjNGEyZTAyMzFkYmI3ZmEyYTQxYTcwYzgxNDYwYTNjNjc1NjJkYTNhYWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhmYmE5NDlhZmYzNGY5NzU4NTAzZWZlYjhjMGU2OGQyOTgxYWViNWVlM2NjODZiNzUzNmMwZThhYmQ0ZGY2NTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

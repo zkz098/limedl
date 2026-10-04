@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:f16f3e12eb56c702dd91e9c4bbccdb47d2c21be223e42a920f1e8d20af2453c9",
+  "claims": [
+    {
+      "id": "claim_9069efa9e70847f4afdb9194ea98ad55",
+      "statement": "Aria2RpcServer binds 127.0.0.1:{port} with POST and GET /jsonrpc (HTTP and WebSocket), applies CORS defaulting to localhost, and runs axum gracefully shut down by a watch receiver.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/server.rs#L42-L155",
+          "version": "repo-lines-v1:sha256:ed7c6f88a29bfa3e9593c82a0b80efb7fae2b16aa83cdcafa247be8eef854650:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmN2Q0NTlkZTU2MWY1YzMwZWU4ZmYxMTI1ZDQ4MTYyMDIzY2VhOGRkN2UxN2ZjZDdhOWYxOGE2MWQ5OGNiM2Q1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIzNzQzOTgyNzVmMWQ4Y2M0MTQxYmNkMDc5ZGVmMzNkNGM1NTIwNWZjMGRiZWE5YjczODU0MmZlYWMxZGE2YjkxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlOWIwMjIwMDc5MTg3ZGZiMjZhMWNlMThlY2MwYjEyMzEzNTMyZjdhNTE3OWY2OWJhYzhjYTM2OWIzZWNlZjgzIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI4NjFjYjE2YTk2ZmRmNWFlYjZiYjdkMzRiNDViNzllMTNjZWZkZjg0NzhjMjYyMjcxYjlkN2M5ZWNkYzc2MDY3In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_6578095504c143809e04665a346c3f9b",
+      "statement": "bind_with_retry retries AddrInUse for a 5-second window at 25 ms intervals to survive the settings hot-reload handoff, while any other bind error is returned immediately.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/server.rs#L1-L40",
+          "version": "repo-lines-v1:sha256:95e04de495e49fe62818ba143bf60cbbfc2ab74a8b2147ff3c78f16954128c70:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEwNjlhZDA2ODkzZDcxNjNlM2NmMDYwZjI0YWFmZTdiZGFkOGYyZTI3YWZmOGM3NTQzNGI4ZDI2NjQ4MTBjMWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJjNjg0ZGExMGRjZWI3Y2FkMmZiZTgxYzA4M2Q4NGY2NjAyYWVkZTgxYzc1ZDI5ZmMyNWUxMmVkYTIwZDhhMTcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1c93651066a1487d8dac2f5527418fcc",
+      "statement": "AuthConfig has three states — Disabled, Shared{secret} and PerClient — and per-client mode with an empty client list fails closed rather than degrading to anonymous access.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L8-L34",
+          "version": "repo-lines-v1:sha256:5cad8f86e7ab738447bd3c04cce9661949ffd69cce211487ffed0390d9b027ea:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyYjcyOWQxODZiZjU5MDgxNGVjZGI1MTNmOWZmODE2ZmE2YWI3ZWY2YTZjMGJlYjkyMzViZmFjZmI0OWJhNjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI5MDJiYWQ4MDViZmVjN2E5NjVjNjRkNTNlOTMzOTllYTkzYTBjOTUyYWU1NGNhZjg3Mjc4ZmI5MjFjODBhNzQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc4MDc4M2Y0MzQ5NmRjOTlkYjdmZjQ5MjhlMjIzNzk0MjExNDFmOWYyNjRmNjhkODIxMTQ5ZDQyODRiOTcyN2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIwZDI0NzkyNTM2ZjQ4YzM4ZTgwM2EwOWUyMmZhNzY4YmVkOGU5NWVhOGQxZGM3YTdhZDRjZjNhYTI0ODc5OTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8051fbd4de38473bb300686746ddc0b4",
+      "statement": "check_token accepts only a token:-prefixed first parameter, uses constant-time comparison for the shared secret and Argon2 verification for per-client tokens, and runs on every routed method.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L70-L110",
+          "version": "repo-lines-v1:sha256:5c018054e5a878667d0a85197027bdebdf94b2432c4e8d894938ff3a3f7aa8e0:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNjNmU1YmMyZGU3YmE3ZTkzODQyMzY2MDhkNjVhODlhOWI5ZGRhODg1YzVlZWQwMDViMjIyZmI2NTAyNTVlMjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQyNDkyNGQ3YWM1OTEyNmM0YWM5NzE1NTljZjhmYWQ2Njg0YjMzN2MyMDBiMWYwNjZmODVjZWRkNmNmZDExNGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ3NWRhNmUzMWMyZDdhZjM1ODExZjBlMDI4NjdjODdiZWZiZmY5MDk1YWQ1NDc5ODgzNmNkNTZhN2JjYmRjY2QifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_211a843c5580491cab3ab3113ad5b941",
+      "statement": "dispatch_method checks the token before stripping it and then routes; the ordering and location are deliberate because per-handler checks were previously inverted and some bulk methods skipped authentication entirely.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/dispatch.rs#L9-L40",
+          "version": "repo-lines-v1:sha256:57b5eca5de0339706e593f2f19b9ace86b916ce624c7e22e6992a9d5578328bb:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0ZmE4MWQwZTM3ZDhmM2EwODc0ZDU4NzNiYTk5MzBhOGVhMGE4MGUzOGViMTM2NGFkNGRhZjIyNDgyMjQ5ZWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdmNzQ0YWZmMjYyNDkxMzhlMzNlZjA5YTk5ZTNjZDY4MjZkMTg3YzQ3MjYxMTJjMWNlNWU1MWQ1Y2Q5ZDhkNmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExYmFlOTAxNDcyYmQ4YTNiMzJiYWIyNTUyMGFhZmFkNjcwZjc2MzI4MjZjYjJlMWRmYzU1MTk1N2MzNzI1ZDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU2MzBmMTgzMDFlNDY3ODZlNzgzN2Y5NjA1ZTQxZGYzOTE2N2RkZmU1YzliNmQ5MmY5M2Y3ZDI2MDkwYWEyZTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fbfd168afa20453eaeb9d017f63019fa",
+      "statement": "Tokens are 32 random bytes URL-safe base64, persisted only as an Argon2id PHC hash; verification is constant-time, malformed hashes are a non-match, and successful verifications are cached in memory by BLAKE3 digest and never persisted.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/token.rs#L1-L20",
+          "version": "repo-lines-v1:sha256:5873e22caaa495b13bdf27632ad0187b172966aaa855d27e25f6c3049dc2eafa:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmZTg1YmFkNGIwZjNjMDgwYmFlZGNiMzFlNTFmZjE1ZjIzMzNjMmYzOTkxZjY1MmZkMTMxODJmZWEzODNhMWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYwMDY0NWVjYmRjOWYyOWQyNzU3YWVjZTU0NGJiMGI0NjhmZWFjNzc0NzYwYWQyY2FkOTI5MzI5ODUwYTQ4N2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBiZTQ5MzIzMmMwYTYzMGM3YTEyNzQyYjdmNGIzZWM4N2NmNzUzMzMwMDQwYzY5ZTFhNGM2YjUyNWJmZDEzOTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/token.rs#L54-L110",
+          "version": "repo-lines-v1:sha256:f310ebd057a0733fd6482c6108d870a56bcf40c35bbcd029cf57e607559f1829:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdmNTViMTI1NWJjODM4YzE5YTBlZWFhZTA4MDUyM2FhN2MwNWQ0NzVlMTVhMWI2ZjNiM2RhYjE3YjQ3ZDQ1MTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ4MzUzMjMwN2Q0Mzc2ZDgxYzNiNTNjOTA1NDEzNmUyYThmZDMwYmNmM2Q0MDBhMzU3ZWVmMTU2YzE4M2VmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE2ZDZhZDUyOGIxMDNjZDRlNWJmZmNlN2NhMGI1NzdkZDZiNTU1Y2ZmOWM5ZmYxMjYzOWRkNzYzMzAwYzZiZWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg4ZTQxNmMzOGJmZWE2YTIyMjNkMTQyMTRjMzMyN2NlNjBhZDlmY2RlMjkxYzViYTRkZjYzOWZhYzliZDQ2NDMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8a716a4294a5428f981f05b3ebacf0c9",
+      "statement": "A GID is xxh3_64 of the internal task id formatted as 16 hex digits, and resolve_gid checks the cache then scans every backend's list() and populates the cache on a hit.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L74-L105",
+          "version": "repo-lines-v1:sha256:82770f91d8236f705c7ba8e0a579934e8a45b226b604f39fc9ba89dd5f1963f8:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRlYjNlNDQ0NDJmNWYwOWZhOTZjZWU0NmNlMmQxZGU3M2I1MzE2ZjQwMzRjY2U5ZDc5M2NkNzg5NmFiMGU1Y2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjYzI1NGQ3ODhkOTVkYmQwMThhYTZhNWRlNzg2YWNhYTdmOTRkNmVkMWQyNmNlZmVkMmEyNWI2ZDI0ZjhjNGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMwMGMwMDkwMTQ5OTA5NmFjOTgzODJjZDk1YTdkN2E1MjQ2YWZmY2U5OWYxMTY3NTk1NzI4ODQwZmUwNmZiNTcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b3332bd33d4549dfbddfe48674aa0b33",
+      "statement": "remove, removeDownloadResult and purgeDownloadResult evict their GID cache entries, preventing unbounded cache growth in long sessions.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/download.rs#L275-L325",
+          "version": "repo-lines-v1:sha256:14d3f30ef61e230004d4eefedad30268cef4595e03b0aac975f2ce2407d28a7f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc4YzhjYjBmMGVhYTBkZmU0YmRiNDVlNDJlM2MzYzFlNzdiMTliM2I1Y2Y5MzdkZTIwNzk1NmRkYzdmMDA2MDkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0ZWI3MzBlMjViZGViYjhkYmFkYzhlMGNmMGU3YjUyN2UxODIxOWYzMDM5ZWNjOTY5NGM1OWNmNjFjMzRjZjIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY4Mjc1YjMwZmEyNGNkMmVmODZmN2ZjZWRjZjI0MjVmM2Y0OTU3NTVhM2U2YmZjNTM0YjYwZjFmODM4NDhjYmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk5OWJkZWZlZWFjYTYzNDBlMDI5MGRjODZlODg5Yzg5ZDVlMTg5YWE1YmE0NGI1ODViM2I3MDczNGY0YTYyZDgifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/download.rs#L370-L405",
+          "version": "repo-lines-v1:sha256:af6e429977e99f2980c4f225efad30a9abda32a4ab59210bbe1818f29582e538:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNhODE3YjE0ZDQyMzk0OGJhYjVkYTBmMTM1ZDA2OTJhMGE0YzcwMmY4YjlhNzFmNWNjMWFmNmU2Njk0YTc3OTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY4Mjc1YjMwZmEyNGNkMmVmODZmN2ZjZWRjZjI0MjVmM2Y0OTU3NTVhM2U2YmZjNTM0YjYwZjFmODM4NDhjYmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcwNDQyODE1YzBiMzA1MmUxMzRhN2UzM2I1ZTAzZjJhNjFmMjM0ZWZhODBmY2UzNTE1MTViY2UxYzgzN2VlNjkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9a22c43055dd4efe8f730d017d377078",
+      "statement": "dispatch_authorized maps the implemented aria2 methods, and system.listMethods advertises exactly that set; addMetalink, changePosition, changeUri, getServers and forceShutdown are intentionally not advertised.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/dispatch.rs#L42-L65",
+          "version": "repo-lines-v1:sha256:f3bf3aba6e5131b23e726603785f8c208dc505d585e8abbdd47b118057e377ed:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY5YzlkMDU5NDU3ZjIxODg0NzUyOWJiMzM1Y2NjZjVkZDFhYzc2YmI0MTk1ZTcxNDI4OWFiZmViYmFkYmY5Y2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjZGQzYWMzZjJiMTNjZWIyYTAwNWRlYTQwNTRiYTg5NWFkMTkxMWRiYmI3OWE1ZGE5N2EyODMxNGNhNTM0ZTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRlNjFiN2Q3MmYzNjY1YTI5ZjljZjNlNjVmZDU3YjgwMGU4ZGViN2I2MjliN2UzMWNlNzZlOTI1NmFmNDY2MWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNmYmNjYjkyZTI2MzkxZTkyZmNlMGYzMmM5MzEyMDcxY2JiYWFlYTg3MTA2YzEwNmI4YTE2NmU2YTBjYzAwODIifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/query.rs#L378-L413",
+          "version": "repo-lines-v1:sha256:8109334bf4a8939dd39c2cbce45adff7230d88dde744b08ae0f410876dec26dc:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFiZTcyMWY1M2RjYzNmMDU3YTMzNjNlOTQ4MTAyOWJkZjZjNGIyYzFiODRlYjc2Y2QzNTY3MDY1MGE5NmQ1NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhYWU4YTBjYTc2Zjk4ZjdiN2RjNzk4NDk1MWQ2M2U1N2RiM2M2NDU1NzljYTUxYmFkNmE1MzlkNjE0ZWRiYmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU5NmY4Y2IwODNmYTgwMGE0ZGNkMjk2OTcyMmQ3YjkyNjg2YWRkOWViZTM2NTU0OTJmYTY3MmIxYTdjZWQyNDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJiMTRjYTJiNDIwNWI0OGRkMGNkZTIxNDNjOTA3NzIzNGQ1YjJkM2UzZDRhNjdlZDdkYTc2OThjMWUxMjAyOTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_925c6734b11f4e78922550e7ac573eaf",
+      "statement": "system.multicall dispatches nested calls through dispatch_authorized and wraps each result in a single-element array ([value] or [{\"code\",\"message\"}]) because AriaNg/Motrix read element 0.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/system.rs#L51-L88",
+          "version": "repo-lines-v1:sha256:e138fd43f8b25c7f91120bc8a58bd2ebd9e61967ad09ef915c0c537b5623ffe0:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxY2Q4OGUwNmRlYmUzYzk0ODhhYjA5MjIxM2JhZjFhMDY1NmUxZWNjNWJmYzQ3MmRmNGFjNGFlNzhlMjNlOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzZTlkYWU1NDA4YzZhYWZjM2IzMGFjNzUwMGFjY2QzOTIxYTVhZmM4MjMyZWI3OWI2ZDY0MWNjOTBlODRmOTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c43e0cd772c24db2a927abe02ac746d9",
+      "statement": "classify_aria2_uri routes only magnet: URIs to BT; an http(s) .torrent URL stays HTTP because aria2 downloads it as a plain file and uses addTorrent for the parsed form.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/download.rs#L9-L19",
+          "version": "repo-lines-v1:sha256:ce2ac6ac05314907fc2b0e26e327fe08841b277edf2959cfc16a5482293480f0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNjNmE2ZjQyNDY0YjhhOTE5YTEyOTk1MjlmYjYyMTBmYWNlYjE4ZjAxODRjMTM4ODJlMjJjM2EzY2M5OThjNGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZmM5NzllZGQyYjg2OWNhNmI2OGI3Y2YzMGRlM2YzYWM0ZjQ1ZDI3YjRkNTg5ZGIxNzYzYzJjNGQ4ZjJlYmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFiMTVjZTkzYmQ2MjIxYWNlNjVmODI3ZGRlZDcyM2YyZDU1ODUxZTY4YzRjZTMyOWEyNGVkZjg1NGZmOWRkMjUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_897adfe066e74603b3bcd6d9c448d0bc",
+      "statement": "addUri treats the uris array as an ordered candidate list (element 0 primary, rest as HTTP mirrors), translates header/referer/http-user/checksum/user-agent/split/max-tries/out/dir/pause options, and deduplicates a non-terminal HTTP task by returning its existing GID.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/download.rs#L21-L124",
+          "version": "repo-lines-v1:sha256:6850cd3e52fdee9d09fb9d4fdfc00cf95a12c29cfddaae991497bb8eaff64ff1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMTVhZjQ5MWMzYjFmYzJiNzU3MmIyMjhlYTljZDdlZjNjYzA0NTJjYjA1MjIyYTNmZWQwZGMwMGRjYjEyMTRlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI5MGU4MGU3Zjg3M2M0N2IwZGZkNWZlMzBmN2FkN2RhNjhhYzA5NGQ4YjMzYmZlZjExNmU4ZDVkYjZkYmM5MTlkIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_1695c5c1b8bc48f4b61248ed062f21e7",
+      "statement": "changeOption supports only pause, select-file (1-based BT indices) and max-download-limit/max-upload-limit (BT), errors with the key name for any other option, and preserves the untouched direction when setting one BT limit.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L300-L385",
+          "version": "repo-lines-v1:sha256:638c7afa025b6460959c806eab8316fe452ec6204448ac97b5e52f31e97c5a66:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1NTNiZDc1MmUxMjZiY2FiMTEzODY3YTQxNDM2M2VjMjUxMzhiZWY2MmM2MTVlYWQyMTExYWQ2MjFkZjNiMDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFhYzg0ODE5ZjQxMDRiMDBhNGI3MzAwMWUyZDc3ODQ2Yjk1ZDE4NTZkNmRkOTIzNTc0NjYyNzc0ZGEwMWU3ZmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5MmEzNjIxN2U1OWYwMGE1MThjOWIwMWJlZjNjNDBiNmM2OGY2ZGM3MDhjY2VjZjBhOTdlNjEwYzMwNmE2ODciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUyYTdiNWM3NGVhYTZhNjZhNDFiNDNiYzk5Y2FkNzlkZDJjNjI5ODRjYmE5OWYyYmFkMzljNGE2NjIxZjRkZmYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L84-L115",
+          "version": "repo-lines-v1:sha256:b1fe3974f714c0d1f9eda2e7851881cfd814f2cbbd08e5864a47dba250ba52e0:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhZjczZDNlNmVhYTc0NzMyNzA1NGZlMzMxYTA2MjQ5YzJkMjZjNDhkOWJiMThlNWZkNmU2OTNjZTVkNDYyMDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI5YTNhYWQ0MmI1MjE4OWI2MTRjNzQ2NTA5YzczMmM5YzVmMzNhYWJhYjdkMTUxYTM4ZTYwMWEyM2U0NGRiYTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNlMjY3ZTJlNTI3YTk5NjY4ZDJlYzkyYmI5YjYxZDBjNjhkYzZlN2ZhMDUxOTMzMmRmYTA1YmMzZWNkNTNhNzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2f1ead9288c74c2ab78784ef9ea7a493",
+      "statement": "summary_for_raw_id falls back to the database download header for tasks evicted from memory, keeping terminal results queryable until purgeDownloadResult or removeDownloadResult.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/query.rs#L39-L57",
+          "version": "repo-lines-v1:sha256:f7f327de615086c5f8ba26b2b91c77c93ba7fa2aea12cf2df54f6e60948451a0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEwYzE5ZGFiMjM0MTcyZTA4YTE4OGE1NjA4ZjlhZWM3MDAyYWE1ZjA5MzZiYzM5YTA4ZGQxYjlmNzlmYTdiMzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk1OWU2YTkyYzQ4MmMwNDdlOTZiNmIwOWNiMDlmZTcwZjBkNTYwZTZmNzdjMzM1NWI4ZjEzMjU2NzE0OTI0M2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNmMTNmMWE5OTY3NDliZjE0MmZiOGIxMjA1MDE3NmZlZGE1OWNmMjEwZTY3NTY1MzVjNTgzZjFlM2U4YjRmYTcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2dabea0978cb41089d7dffc0e5bf01fe",
+      "statement": "The keys filter is supported with aria2's positional indices — 1 for tellStatus, 0 for tellActive, 2 for tellWaiting and tellStopped — and tellStopped also reads list_download_headers and count_terminal_downloads.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/query.rs#L13-L17",
+          "version": "repo-lines-v1:sha256:7a7c33a505e2f0a79b16092573fdde14cedf7430bb1a1d8a78adc5762107cb07:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmQ0NjJkOGYxY2FjZWYzYjA3NDdhODYzZTg2OTczOWUzNmE2MmUzYmRhNmJhZGRmNzg0MjIwMzgwOGE4MWI5OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDk0OWYyNGRkZDc3NjU4NjJkNzIwODlkNzU5ZjI4YzkxY2E0ODVlNjQ4YWQzYzA2ODQ5NzUxZGIzNGU0OTE1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNWJlMGYyMzI1ZWVmYmM1OGU3N2M5N2VjOTkyNTk0MzMxNmVkMDc2YmI3ZmY5MTIyYWUwNWFiMmU0OTEyZjc2NCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjA2M2M0ZDFhZjhjZDg5YmIwYmRkNzY1N2ZmY2JmNjgwNmE2MTBkNzlkNmM4ZDRjMzA3YzI0MWRmMzkwMDUyMiJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/query.rs#L131-L210",
+          "version": "repo-lines-v1:sha256:5f2e0a94de4dffb42dfc12ac0c3cb19455f83cad020fe8327abe70c7ffb44ede:eyJzZWxlY3RlZExpbmVDb3VudCI6ODAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc1ZDM0N2UzZThhNzMyMTRlZGM5YWUwNzBmNjJkNDQwM2NkZGViMDhjMzQwM2U1ZjYxOTYyZGNlODk1MDVkNDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NGFlMTlhNzdhOWY0NWMyYTU4YzJmNzNjYzc1ZDg3ZWY4YjA2OThlNTIyMjUwNTFjYTYxZTFkZGE4MGYxY2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjViZGU2Njk3OGJhNzMzYjNmNmUzODViZDJiZTZlNTNhZDc5ZGRjYjI4NDg1MTMyYmI5MzZlNTBjYWYwZDQwNGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMxZWY4MDk1M2VjY2U1OTc1N2I5N2E3MWMxYzRiZGJkMjZiMjM0MWFmMmExNGI0OGZiZGMzMTkyMjJjZGIyOGMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_95f48430e28d49839de06aca1081fcdd",
+      "statement": "HTTP lifecycle notifications are broadcast by the RPC handler only when the task kind is Http, while all BT aria2 notifications come exclusively from the BT alert bridge, preventing duplicate notifications.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/download.rs#L110-L122",
+          "version": "repo-lines-v1:sha256:652aea5496771d9fb5818739c7da031c0693292eb2a4e9704331bd6807828fcf:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE1ZjRiYTU1ZjkzOTUyY2M3ZmU4YjJkMDY2Mzk5MTliMDdjN2UyZTlhNzNkMTNlZDA3ZWFiNjQ2OWExYjI5MGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcyNzIzNDM5Yzg4NzIyY2MwMTZlMWM2MDc2MjY2ZWJhZWFlY2UwYzg0MTAyZDBmMjE3ZjI3YjE2ZDI4ZDM2YTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/download.rs#L205-L272",
+          "version": "repo-lines-v1:sha256:e97b22127b8c2c0fa68d14cf48a5e51d357b5e55098c0fcc8d34c47e373a45dc:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3YmNlZTJkMmUyYTAwNDI4YzkzOGEwNWI0M2M1MWI1NDcxOTVjMjdiNDUzZmM0YjMwM2E3NzZmYjJjNjhhMzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxNWU3MWExMDU1ZTRlOTU2NDM1NGY1NmYxMjlkOTFhNzIwNGM5Yzk0ZGM5ZmQyNGRjN2FkOTVhMGE0ZWE5YjIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY4ZWNhZGY0NzE4YTAwY2I1OTZiM2YyM2ZiYWY4YWI2MjE0NzNkNjcxMDRhYzBlM2NiZjQ2MjIzZDRhY2Y0OWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE3MjRkNmFkOTY2MTUzM2Y2OTI1NjQxYmQ2YWI0ZGU5MjdlNWZmN2FkNzE4NTliMDYzOTg4MWRjZDliMmZjZTgifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/alerts.rs#L103-L145",
+          "version": "repo-lines-v1:sha256:63107431b8c9858d488dc4defcfb07788f51f30df6da657af5b62aba33c94b97:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNlNWNlMjdkODIxOGMyM2RmNDUwZjcyNzIzY2RjNDRlOTA4ZDI1NmVkNGRhMjFkNmRlYmZjNzBkZGMxZmRjN2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNmZTk3ZDM1NTE1NGNjNzBlMDViMGIyNWU1ZjRhZGZkZTM2ZmUyZDgxM2MwNzg4MjBhNjFhZjMyNGJhMDNjMjkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQxN2Q3NjM1MTgzNzc3ZmY0YzM0YTQ0MWEyMjI5NzcxOWViOTY2ZmQ0ODg2NDRhNDE5Y2IyMzc4YmM5Nzg1NzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4ZjRmMThmY2I3ZGRmNTA1ODZkMDNiODk1YmFhNjQzNjAwMWRlMDFmNjNkYjEyNGIxNzFmOThkNjVkYWIyY2UifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_cb80689869374fc0b5a29ee2205bc2da",
+      "statement": "RpcContext::http() and RpcContext::bt() are the only sanctioned protocol-specific get_typed downcasts in the aria2 layer, and the RPC surface is inherently protocol-specific so those accesses are centralized there.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L46-L68",
+          "version": "repo-lines-v1:sha256:1e4ba79a87e017c454898b10eabf6b2cc1fd6c4436db0bc5730594c2fd56081f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRlMzBkNjdmZGFjM2MxZDhjOGJjNzBjZjUzZjE5YjExYzc1ZTVlNTMwZGM2MDlmMjM0YTE3NWFmNmQxNTljOWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgxOGRkYzRhZTFkNzc0Y2RkYmExMGVkNGFkNmIyMDEzZWRmNDUzMjY4YjIwOTY4NzI0Y2ZmMzVkYTVmZDU4NDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2NjQ0MzcyMTNjNzMwM2M4MWI3MjI1M2Q5NDg2YWJjMjIxNTEyY2QxM2RmNTMzMTg1YTY1NzU4ZjE3N2ZjZGQifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

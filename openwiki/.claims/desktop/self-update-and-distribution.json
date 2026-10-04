@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:4681ba92c51664698e44de176df9710311d752f2ecf73597fe763327aa7c6072",
+  "claims": [
+    {
+      "id": "claim_b8bf90043cdf4155b5827e79a2b03cd5",
+      "statement": "detect_install_kind checks Windows package identity first (Store), then the HKCU Uninstall key (Installer), otherwise Portable, and reports Portable on all non-Windows platforms.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L171-L209",
+          "version": "repo-lines-v1:sha256:c687867244ebb2fdb3337f80114b32984f3e16525b14c2c8bec6f9f1f42b9db3:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJjNmRlYzNkZDdhMWFmMDg5ZDhmZWVlOTEzNTNjNDhjNWQzMDQ4N2ViZDVlMTBjNWE3OTI3MjZlMzEzZjg2ZDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFmY2I4NDM3ZDY4Y2U2ZDBlNzU1YzEwZmU5YjI4NTQwZjA1Y2U4NjQxNmQ5ZTgwNGRmMjczYjA0ODcxZmNkZTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhiN2NjM2Q3NTg5YzRlZDA5ZDhlOTYyNDhhMjY0MWExZGY0Njc0YzA4MzcwODA1NTVkMDUyNDQ0OTZmODM2YTgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3c21d4c27bc84ed99e2f7c4928ff21a3",
+      "statement": "The updater fetches latest-native.json and its .sig from the permanently named releases/latest URL, caps artifacts at MAX_UPDATE_BYTES (512 MiB), and trusts exactly one embedded minisign key, PUBKEY_B64.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L44-L70",
+          "version": "repo-lines-v1:sha256:15b3204b2a187cedf38ad53291b93a16514580454a1de6cc8b5f4de277eb8e5d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYxMjFkY2QxODhiNWZlY2RhYzdiNjU5MmRjMzBhY2E3YTU5MWI0MGJjZTI5N2FmZmQ3YWU3NTg4OGJjNmY1MGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBiMWI1NjYxODRjY2I4YjA3YzFiOWQwZTQwYzRkNjJkOWI4NmYxYWY5NmE2NmMwYzg1ODdhZDVhYmY1ZDMzYzgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0b7408943352409e96b5184711f1a17b",
+      "statement": "Manifest platform keys are {os}-{arch} with macOS mapped to darwin, and append -portable for portable and Store install kinds while the bare key denotes the Windows installer.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L212-L232",
+          "version": "repo-lines-v1:sha256:a1b659a91b8b06d53b23e5e318e78475c796aa705dd6531646f1a87ee0d371ae:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1MDQ1MWFlM2UyNTQ4ZmM3ZTMzZDYxMWIyODYwYTBhOWZhMmU4OGFmZmNlODUyZDAyNjYzYWYxOTEzNDM0YjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBlNDE4YWY2ZGQ5ZTg3ODdmODlmODkxNWYyZTgxNjNlZjAxMTA3YzgwNzAzN2E1MTdlZDMwNzA2MWExNzFjYmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFkNDI0OWU5YzVlMjczY2IyMzIxZDM4YTFmMWQ2NjAyZGNmYWM0NzNhODhjZGM3OTQ4MjRjYzk1MjI0NmQ1MGYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4e9191fed9d247fa986bcad78e73fc4b",
+      "statement": "fetch_manifest verifies the manifest signature before parsing, and a missing .sig aborts the check rather than trusting unsigned JSON.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L300-L320",
+          "version": "repo-lines-v1:sha256:56569cc8aff59de721d805a2b8871a9cb34b93a63c327a35db3c82f896907b69:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ODllZmU0MzBiMmY0Y2FlY2I3MDAwYmIwOTAwMGQ4YjIzNjk4YTFlNDBjNjE2MjM0ZGZmYmJlY2RjZjUxNGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkyMjVkYThjZmQ1M2JmOGNkMjIzOGFlMDZkYTg4YzI4YWYzNzlkYzg0YTQ1NGY5Y2FiYzU5OGRlYmZkZDY2MjkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM0NzhmODA1YzcyNGNiZTBlOWFlNjI0MmUwYzQ4MWMzZjVlMjQ4NzEzNGIxZDVmMmFlYTI4NGVjZmQzYzJiZDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgxMzU2ZjRhZDM3MDQ2Nzg4ZDVmMGViMmMyNzA5M2UxMmU5OTI0ZmYwYTJkOTI0ZmUxYmY3YjEwYTNkMWQ0ZTMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4413203af0394665a996f52f5584cb83",
+      "statement": "check_for_update refuses Store installs, returns None when the version is not newer, reports no update when the release has no assets for the platform, and errors when only the current channel is missing from an otherwise served platform.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L237-L298",
+          "version": "repo-lines-v1:sha256:ca6c664bbb54ac8f8f8bb85432e06b766269c1d0fd77b313fef410f74171c3c5:eyJzZWxlY3RlZExpbmVDb3VudCI6NjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ODllZmU0MzBiMmY0Y2FlY2I3MDAwYmIwOTAwMGQ4YjIzNjk4YTFlNDBjNjE2MjM0ZGZmYmJlY2RjZjUxNGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzOTFkNjg4N2VjZTY5Nzc4ODRiODMwZWZhY2ViZmVkMTdiYzYzNmVjZGIyZThjNzcxM2ZlYTBmNzZiMTViMzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMyYTg2Yjg5NGE1NGIxY2E1OTFhZDg2NmIwMzE1ZDQ1NzllMTRmNGZjMmZhZjRmMDA0OWY3OTYyMWIxMzg3YTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJiNTcxMmMyMGUzYTIyNzM2ZmI4YThkMThhOWMwZmUwZTQ0N2RiN2M3NTZmNWYzYjQwYzUxMmNjYzRkMDQ4NDcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6782d0a3e5aa4d0bba8d248fd3988f9a",
+      "statement": "validate_asset_url requires each artifact URL to be a GitHub release download of zkz098/limedl under v{version} with a short plain file name, as defence in depth on top of the signature.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L120-L147",
+          "version": "repo-lines-v1:sha256:1b2396afd9a7537d4fe8f52d458787cfe7479ac6ca3ba2c71f2a7f204d02756e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiMTA2ZjEwOWRhMDIzYzAyYmI5MWY4ODQ2OTAwY2E4MjFlOTJhZjIyMjYwZjk5YzgwZTVkZTJhNWUzYzE0YTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhYTQ4ZTI4NmMwMzMzNjI0NTk0M2Y5MDhhODU5MjNmMjM3NzZmZGZlMDk1N2Y5NDZkMmFkZmIwNGI1MzljNGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJiYTFhZWFjNDFhNjJhZmI0NDA1OTMyOTM4OTA1NjVlNzJhNWRjZjFmMjQ5ZGQ3MGE3ZWMwNzM3OGE3YjMyNjkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5de77284c6b143cda468acf1c257d276",
+      "statement": "The updater builds its HTTP client through limedl-core's configure_client_builder so settings.proxy applies, overriding only the User-Agent to limedl-native/<version>.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L340-L358",
+          "version": "repo-lines-v1:sha256:d473151fb9f00d44035ff6b4fca2b7d5cac49a8033c640eace516cd24ecf116e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkOTI3ZmZmZGZiZmVkMjUxYTAzN2NjNTk2Mzk2ZjJlYTc5NDliNTBlOGM0NTA4N2RiOWM5ZDU5MzE5MTY0OTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY1ODUwNDM1OTAzNTU2YWI5M2YzNGE5NDMzNDlkM2U5N2I5NTg5Mzk3YWI0NWI1ZDU1MGQzMTdlMjVhZjE2MTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIxYzM2NDA0YTAwYzQ0ZmVkNDkzNWE4YjQxZTEyOGVmZGFhZGFhYzVjMGFmOTMxNTk1YTNkNzYwMTcxYjQzMGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxNmVlYmFjOTU4NGU3OGY1YjU3MzY5NmFkZjM2OTM5NzI1NDI0N2Q0YjVkMzQ3YjVlMjI0MDAxYjBlYzg4MDIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4dd57bb98dd64a6bbdbce80b11a97595",
+      "statement": "install_verified routes by install kind: Store errors, Installer spawns setup.exe /P /R and returns InstallerLaunched, and Portable extracts then self-replaces in place, refusing on Linux when running inside an AppImage and re-signing the macOS .app ad-hoc.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L447-L515",
+          "version": "repo-lines-v1:sha256:98d7048191761a89ad8fd16af990a461f04c03dccb699b0970dae6e2a0652cbf:eyJzZWxlY3RlZExpbmVDb3VudCI6NjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg1NmRiZjY0MzQ1ZDg1ZTgzNDQ0ZDYyMDJkMzc4NjliMjM0YjYzYjllMWEzMTllNzUzZTgwZTAwMzRkNGIxZjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNjMDQxYjZlMDg0M2U2OGJmMTlkM2JkOWFlNTU0OGJiMDliOTA3ZjUzYjZjNmM3MjAyNGI5MTE1ZjY4NDc2YjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE1YjJkMzIzYzcxMmJkYjYzMzI0NWIyMjllM2ZmMDA1ZTQ5M2I4NDczZTMxODYwMTk1MjY5ZDIxMDYwMmZiNmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAyNzIyZjQ2OGM3M2QzN2Y5OGZhOTM0MzQ1NDFjNGY4NmQ2ZWNlM2E0NmZjNWExZTRkNjljNjk1ZGU4ZTU0OTgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b2c1b6ed840441fbb4240a83cda85d46",
+      "statement": "extract_executable matches the executable member by file name (so nested macOS .app and Linux directory members work) and sets owner-only 0o700 permissions on Unix.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L517-L610",
+          "version": "repo-lines-v1:sha256:ed1d531360920ea4942f33055df7571578fd409f05807f1f479246cffd96b094:eyJzZWxlY3RlZExpbmVDb3VudCI6OTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhlMjU2NDg0MDFiMWEzMDVmYjdlMzczZjBkM2JmNzQzZGVkOWRlN2RhODY4MmMxMjA2YTcyNmQwNzVhZmY0MDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1MjJjODgzNTdlZThmOTM3NjY2NDMxNmEwYTNiYWMxMzY0OTJkNzRhZjk1ZWVkYjc2YTg1MmMxNTAyNTA3MDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg2NTBiM2QxMjc5MWZkODg4ZDg1YmM1MGY1MzE3ZWYxZmY4MDk2NDA4ODk4ZDVhMGM1NWUyYzcxN2FjZTZlNjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU5YjAyMjAwNzkxODdkZmIyNmExY2UxOGVjYzBiMTIzMTM1MzJmN2E1MTc5ZjY5YmFjOGNhMzY5YjNlY2VmODMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_028b9be8b16e4ea0822d761eb29987a0",
+      "statement": "A silent background update check runs 45 seconds after startup and is throttled to once per 24 hours via the update-check.stamp file, with Store installs skipping the check.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/handlers/updater.rs#L296-L344",
+          "version": "repo-lines-v1:sha256:eb30d9501698d674a7e9c92b1cb84ed558eddb85d7449f084b57a62f1479ad25:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI4YWQ5ZjI3YWE1NzZmMGIwNjNjYjU5NWM1NDNhZWRhMmZiOTAxZThkYmE5MGIyOTk4MGI3ODljYzU5M2FiMTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRlMmM1ZTYxMjRhZDFiZWU3YTA1YzMwMDE1NmE2YWMyNDVjMzBmMmJlNDA4NjVkY2U4Y2E3NGJlYmNhMTgwMTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYxNTliMzYxNTkxNWQ5Yjc4NmNmZmU2Yzc0NWMwMTNmMzE5OWE4OWFjODZiN2MwZTc5OGQ2ODJiNzlmNGI3M2YifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L643-L663",
+          "version": "repo-lines-v1:sha256:21c10d43292542da9719d50698947cf058ad92e5f6f8d648dbbb1ad8034a2e6b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxZTcxZDg3OGRiZWNhMTE2NDZlNzliOGRhMGU5ZTA4NTY2ZDUyZTlmNTE3MWM1MTljZDMyODhiMzI2ZDEyNDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ1MTljOTNhNDIwYmI5NjdkNTZlMGU5NWQyZGY5MTMxY2YxNThjYWNiNTE0NmYzZGE5OTYzMDZiNzZjNWFiNjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFmMmNiMDY5MzgxY2EyMTAyN2VkY2ZmNWRhZGVlMmNkYzNjZWJmNmQ1OGRiMjI2ODk1M2U4MDI5N2IzMTEzMzIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ff17615591414c4fa83e705fcf2edb79",
+      "statement": "The Microsoft Store channel uses StoreContext::GetDefault to query and trigger package updates, which must run on the UI thread, and stubs error on non-Windows.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L758-L792",
+          "version": "repo-lines-v1:sha256:152ed4532c75929302ee818c9fedb97957bec5664b88d71ec86569f7555f6198:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2NzBhODE3ZGYxNDNkNDBmYzkzODA1YTA3ZTVjNjEwYmJmZGVmMGFmNDczYWFiNjAxOTQ5ODRlNGNmN2YyYWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRmMzhiZGIwYzA4ZTE5YTM1MDllMDFhZThlOTg0MDhjZmJkODkyNjNhOGVlMWRlNTMxZTFmNGU1N2Q1ODRlNTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU0MDc3ZjdhNGU4OGM4MjZhN2NhMDQ0NmM3NGJmY2U2MGJlNThhYWIyMzVlMWRlYmEzOGFiZTg3ZmU2YmQ2ZmYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_809cfdfb6b7a44c8b31afef8bb46c5b4",
+      "statement": "cargo xtask guard derives the public key from the CI signing secret, fails unless it equals the client's embedded PUBKEY_B64, then verifies every produced signature.",
+      "evidence": [
+        {
+          "resource": "repo://xtask/src/main.rs#L1-L22",
+          "version": "repo-lines-v1:sha256:2b07135c9a2c63a35af26be2d6974d42810371a47c2d1404712831ceb048e0f9:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZmZDkyZmM3OTllN2ZmMzhiYzMzYWZlZDk2MGQxODZkYjllMDJlZjg1MDQ3NGYyM2NiZGE5YTY4ZjEwNDZmNzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjNTUxZTljMzBmMjgwYTk0MDNjYjlkZmRjOTlhNTViMzIwNjQ0ODhiODQxYjc2MzZkYTg0YjY4MTU2YzIxYzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFiNGQ0NGIzYjE4ZGRmYTBmZDYxOTYzNDU2YjhhMTIxOTc4Zjc1YzBjMWIwYmM1ZjRkY2E5ZTA1NjQ3ZjdkZTAifQ"
+        },
+        {
+          "resource": "repo://xtask/src/main.rs#L401-L441",
+          "version": "repo-lines-v1:sha256:ab486dd5045edc8ba74ba299ee90faeb160752c5be1e0a187681970aa05edc49:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4Mjc4ZjBmMzU1ZWM1MjE5MWQ2MGVmMDM3NDZhOWU5OTE1ZDAxMjA5MjY2MDIzMTc1MmI0YzVhMDliNDk4MGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgyZjYxMjI2MWQ4NjY0ZjY4NDE0ZjBiZDZiODZhZWQzNWRkZGMxNmMxZmM3ZGQ2MjNlOWUzMmQwYjVmNDRlZTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBjOWM4MDQ0MDM3OTE0NjFkZThmOTkyMTBmNzZkMDhhYmY1ZjRhYWEyNjNiNzEwMTk0M2EzNDU4MjdjZWRlZTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBiMTIyZGY3ZWE3OGIwNGJhMzFmNWVkYjNjNWUwNjkwMTdlMDI2YTQ0MjI5MTc2MmI4MDYyZDVmMTFhMTU0YzQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2e701d755e124f69938e8a63b3c597ce",
+      "statement": "The native-manifest job is the sole writer of latest-native.json, runs with if: always(), builds the asset map only from successfully built platform legs, signs artifacts and the manifest, and then runs cargo xtask guard.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L502-L620",
+          "version": "repo-lines-v1:sha256:31a271efe22889fb2efcc49c36182fc00a8151242bb58bf5fed55b8e69d25b14:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE5LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmZjhjYjg5NGM3N2M0MjVmY2NkNThlYWYyZWRmNTI3MGZhYjI5YzhkOTZhZGYxMTZhMDUyMjdiNGVlMTBjNzk5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJjZTYyZjAyOWQwYjUyY2JlNTYzZTBlMTM3OTg4OWQ3MTI3YzBkNGI5N2NjYzgzMThjMGRkZTMzMTQ5ODZhNjhhIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI0ZGYzYjI1OTI3OGEzMTZiYjFkN2YzMDk1NDY3N2Y0MmRiYmFiMWU2MDZiZmFjYWY5NGRlMWE1MThmNmI1MDhhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlYjdkNjZiNTdmN2E0NTkxZWM0MGIzNmMyODNlMzU3NmMwOTgwMzZiMGUzOTkwNTFhNzQ5OGQ2ZDA3NjYzZTYzIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_d35fb3f3af81491284a0f20600c9ef96",
+      "statement": "The changelog job generates the release body with git-cliff from Conventional Commits between the previous tag and the released tag and exposes it as the body output.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L77-L121",
+          "version": "repo-lines-v1:sha256:bc4d1e63cd8f73999035c73a04b14060994c7cecaf93f7c8e0c60b0541160434:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlhMjY0ZTI0NmIyM2RhMjQ4ODRmZjBlYWM5MjJiZTFkOGJiMmY4YmNmZDI4ZGM2N2RlOGJiZTY1NzBlMTZlZTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0Mzk5NDc4OWM4MWE2ZGFlY2IyMWQzOWU2NGZmYTliODA2ZjczYWFiNjQzMTQ4MGFmZmY4MzE3MTExNTA5ZTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM4ZDQ1NTc5YjBkMzY5ZDVmZTg3MGZkMWJkNjYxNWRmNDZmYjZjN2Q0NmUzYzhkZGZlZjE4MWMzODYzMGUzOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0MTRmOGIwODc3YTViYjM4MTY0NjBjZGZjMjE1ZjRiOGU0NGNlNmE1Yzg5NzA2NTljY2JhNzEyZDgzZjZjY2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1ecbbea4adb64aca870805d1f1162dd8",
+      "statement": "cargo xtask manifest is platform-agnostic, taking an --assets-json map of key to {kind, path}, validating kinds and signatures, and preserving asset-map order in the emitted JSON.",
+      "evidence": [
+        {
+          "resource": "repo://xtask/src/manifest.rs#L132-L175",
+          "version": "repo-lines-v1:sha256:c17551b52bf09e591fc5bd0b8952fc5a732205151816c6b3cd5e6ff9f297474a:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2MjFiNzVmODQ5ZTZmY2NkM2FhMzIwMDE3ZDRkMTQzYWNlMGJjOTYzOTc3MjQwODM5YjkzODRmOGQxNDY2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUxMjBjYWFmMWFiNGQ2ZjI5NjU3NGIxY2UwMzFlMDlhOGU4M2E4ZTkxOGY4MzdmMjdmYTdlMDk1OTM4ODRmNmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk5OWQ2OGZhZjY3ODZmMTM1MzUwMTVlY2QzNjlmMjVhNjQyYTFmYTc5OTBlODQyN2Y0YzI2NWRkZjdkZmQ1ZTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_627134ff82f0434480b94eccb141d717",
+      "statement": "MSIX autostart uses the windows.startupTask extension with TaskId limedl-native-startup because registry Run is virtualized in MSIX, and the task takes no arguments so --hidden cannot be passed.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/autostart.rs#L1-L10",
+          "version": "repo-lines-v1:sha256:50a3d71b71a0b90e6fd5f978647f554ec722ecd5e80f712893247db57736d4e3:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE3ZTZiOGNjNTc3YmQzOTVmMTA0MTE1NzNmMWQ5M2FjMWUyYTA2OGY1NzU4MmIxODE4ZjBiOWM4YmU4N2UzYWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMxNjU4YzhhYzIyYWRjNmRkNWI4OGU1Y2MxNjZkZWYxYTRhN2IxMTAyMDE2MTcwZjBhZTA2MjZlODQxMzQ0ZjAifQ"
+        },
+        {
+          "resource": "repo://packaging/msix/AppxManifest.xml#L54-L66",
+          "version": "repo-lines-v1:sha256:781b1a5ae7334e8301bfa50e472392283fbecd35df58e4a8c69603a2ee4ac26a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxNTk5NzlkNDQwYjYzZGU4YTk0MWVmMjY0MzJmZGRhNzU2YTYxZDg3MjFkZGUwNTQzZDJiYjQ3ZWFjYmQyOGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ3YmRmNTg0NDFkMTU5ODBhOGM3YjNiOTYzMmFkM2VjMjNhZmY4MjRhNWMxNTMzMmE5NjU4M2YyNWYxN2Y1MDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIyMzU5MTUwZDQyNGIyNDRlZTczODJjZjViZWI0NWRmOWQxNjcyYmMwNGEwYzExMTNhYzM4YmVmMzY4YmIyNDUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdlYjUxNWQ0MzQ1ZGY0ZTg1Nzk3NjA4NTRkMzk1MTZhMDUzYmJiYmZlYjQ4N2Q0YzkwMDU4YjIzYTg0MzMwMmUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

@@ -1,7 +1,5 @@
 # AGENTS.md — limedl
 
-> Compact instruction file for OpenCode sessions. What an agent would miss from source alone.
-
 ## Environment
 
 **Windows**: initialize MSVC before any Rust command:
@@ -12,56 +10,16 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 
 ## Toolchain
 
-| Purpose         | Command                                                                                                                                                                |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Test (Rust)     | `cargo nextest run --manifest-path crates/limedl-<crate>/Cargo.toml` per crate (see the gate below)                                                                    |
-| Version bump    | `cargo xtask bump-version patch`                                                                                                                                       |
-| Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C`                                                                                                          |
-| Fetch UI font   | `cargo xtask fetch-font [--verify]` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                      |
-| Drive the UI    | `set "SLINT_EMIT_DEBUG_INFO=1" && set "SLINT_MCP_PORT=8080" && cargo run -p limedl-native --features slint/mcp` (MCP server — see “UI testing” below)              |
-| Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `.opencode/guides/subsystem-self-update.md`) |
-
-The font is fetched **once** per CI run by the `font` job and handed to every job that
-compiles the UI crate as the `misans-vf` artifact — a cold cache used to mean four runners
-hitting Xiaomi's CDN at once, and a CDN hiccup then read like four unrelated failures. The
-cache key plus the pinned size/sha256 live in exactly two places: `.github/actions/fetch-misans/action.yml`
-(the cache key and the only caller) and `xtask/src/fetch_font.rs` (the constants plus the
-transport ladder, the chunked range fetch and the escape hatches (`--verify`, `--from-path`,
-`LIMEDL_MISANS_TTF`, `--zip-url`) for when the CDN is down or blocked).
-
-## Releases
-
-Pushing a `v*` tag triggers `.github/workflows/release.yml`. A `changelog` job generates
-the GitHub release body **automatically** from Conventional Commits between the previous
-tag and the released tag using **git-cliff** (`cliff.toml`), then injects it into the release
-via `softprops/action-gh-release`. Commit types `test:`/`ci:`/`chore:`/`build:`/`style:` are omitted
-from the notes; `feat:`/`fix:`/`perf:`/`refactor:`/`docs:` are grouped into sections. Keep commit
-subjects Conventional (with meaningful `scope:`) so release notes stay readable.
-
-Two categories of jobs upload artifacts:
-
-| Job                                   | Artifacts                                                                                                                                                                                                                                                 |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `build-native` (Windows)              | **Desktop**: `limedl-native-v{V}-windows-x86_64-{setup.exe,portable.zip,msix}`                                                                                                                                                                             |
-| `build-native-macos` (Apple silicon)  | **Desktop**: `limedl-native-v{V}-darwin-aarch64-portable.tar.gz` (ad-hoc-signed, un-notarized `limedl.app`)                                                                                                                                                 |
-| `build-native-linux` (x86_64, glibc)  | **Desktop**: `limedl-native-v{V}-linux-x86_64-{portable.tar.gz,deb,AppImage}`                                                                                                                                                                              |
-| `native-manifest`                     | minisign signatures for every desktop artifact + `latest-native.json` (self-update manifest) + the signed MSIX. Sole writer of the manifest — see below                                                                                                     |
-
-The desktop manifest is built by `native-manifest`, **not** by the platform jobs: it is a
-single file whose `platforms` map must carry every platform, so if each job generated it
-the last one to finish would drop the other platform's entries (and desynchronize the file
-from its `.sig`). The job runs with `if: always()` and only advertises platforms whose legs
-succeeded — a missing key is reported by the client as "no update" rather than an error.
-
-Desktop releases are the Slint client (`limedl-native`) only: Windows, macOS (Apple silicon)
-and Linux x86_64 desktop users get the Slint client.
-macOS builds are ad-hoc signed and **not notarized** (no Apple Developer account in CI),
-so a browser-downloaded copy needs right-click → Open once. The Linux build targets
-`x86_64-unknown-linux-gnu`, so it needs glibc >= 2.39 (Ubuntu 24.04 / its derivatives).
+| Purpose         | Command                                                                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Test (Rust)     | `cargo nextest run --manifest-path crates/limedl-<crate>/Cargo.toml` per crate (see the gate below)                                                                |
+| Version bump    | `cargo xtask bump-version patch`                                                                                                                                   |
+| Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C`                                                                                                      |
+| Fetch UI font   | `cargo xtask fetch-font [--verify]` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                  |
+| Drive the UI    | `set "SLINT_EMIT_DEBUG_INFO=1" && set "SLINT_MCP_PORT=8080" && cargo run -p limedl-native --features slint/mcp` (see `docs/manual-smoke-testing.md`)              |
+| Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `docs/update-signing-key.md`)             |
 
 ## Architecture
-
-### Workspace
 
 ```
 limedl/
@@ -72,248 +30,118 @@ limedl/
 
 All Rust crates use edition 2024.
 
-### Multi-platform
+- **Events**: `EventBus` is a `tokio::sync::broadcast` channel; each adapter (Slint desktop, Aria2 RPC) subscribes independently.
+- **Routing**: `BackendRegistry` routes by `TaskId` prefix (`http:` → `DownloadManager`, `bt:` → `IrontideBtBackend`); `Dispatcher` is the frontend-facing facade.
+- **UI tests**: two layers in `crates/limedl-native` — in-process `src/ui_tests/` (part of the normal gate; `.slint` ids are the contract) and the MCP server (see `docs/manual-smoke-testing.md`).
 
-| Target                | Frontend            | Backend                 | Build                                                                                                          |
-| --------------------- | ------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Native Desktop (Win)  | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (needs `cargo xtask fetch-font` once)                                            |
-| Native Desktop (mac)  | Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native`; release bundle via `bash scripts/package-macos.sh` (macOS host required)         |
-| Native Desktop (Linux)| Slint (Rust)        | `crates/limedl-native/` | `cargo run -p limedl-native` (needs `libfontconfig1-dev`; tray is D-Bus SNI, no GTK); release tarball via `bash scripts/package-linux.sh` |
+## Releases
 
-### Event system
-
-`EventBus` = `tokio::sync::broadcast::channel<DownloadEvent>`. Each adapter subscribes independently:
-
-- Desktop (Slint): `crates/limedl-native/src/main.rs` subscriber → UI state updates
-- Aria2 RPC: direct `event_bus.subscribe()`
-
-### Protocol routing
-
-`DownloadBackend` trait (unified API) → `BackendRegistry` routes by TaskId prefix:
-
-- `http:` → `DownloadManager`
-- `bt:` → `IrontideBtBackend`
-
-`Dispatcher` routes operations to `BackendRegistry`.
-
-### UI testing (Slint)
-
-Two layers, both in `crates/limedl-native`. Pick the cheaper one that can fail the way
-you want to catch.
-
-**L1 — in-process UI tests** (`src/ui_tests/`, part of the normal gate). They build the
-real `MainWindow` through `src/ui_boot.rs::build_ui` and drive it with Slint's testing
-backend: element queries by `.slint` id, simulated clicks and key presses, no window, no
-`SLINT_BACKEND`. Two entry points, and picking the wrong one panics:
-
-- `with_ui` / `with_settings` (default): one mock platform per *thread* with mock time,
-  so many tests share a process. Assertions must be **synchronous** — timers never fire
-  and `invoke_from_event_loop` is dropped.
-- `with_ui_async` + `TestUi::pump_until` / `pump`: for contracts that finish on a spawned
-  task (batch actions, the engine calls behind the destructive buttons, a rejected save, the
-  `DownloadEvent` subscriber). Slint's event-loop proxy is process-global, so **every**
-  pump-based scenario has to live inside the single `async_contracts::event_loop_contracts`
-  test, each with its own `new_window()`. Add a `pub(super) async fn` to the matching
-  `src/ui_tests/async_contracts/<group>.rs` (`bus`, `selection`, `hotkeys`, `rows`,
-  `new_task`, `toolbar`, `dialogs`) and call it from that test — never a new `#[test]`.
-
-Rules that are load-bearing — each one cost a debugging session:
-
-- Element lookup needs Slint debug info. `build.rs` turns it on when `PROFILE=debug`, so
-  nothing to export; a lookup that finds nothing prints a warning listing the ids that do
-  exist, which is where the missing `id:` shows up.
-- Adding a test usually means adding an `id:` to the `.slint` element you want to click
-  (`MainWindow::ta_set`, `SettingsDialog::close_btn`, `TaskTable::ta_row` for rows in a
-  `for` loop, addressed with `click_nth`). Renaming one of those ids is a breaking change
-  for the test that clicks it — that coupling is deliberate.
-- Assert the **blast radius**, not just the property: `TestUi::core` is a recording
-  `DownloadBackend`, so `assert_eq!(ui.core.purges(), vec![…])` is what separates “dropped
-  the row” from “deleted the file”. Seed tasks with `http_task(n, …)` (valid uuids, and
-  `created_at_ms` chosen so row `n` is task `n` under the default newest-first sort).
-- Helpers worth knowing: `assert_inside_window` (dumps the id tree on failure),
-  `assert_min_size`, `assert_no_overlap`, `assert_toast`, `window_logical_size` (read from
-  the root element — see the method's doc for why `Window::size()/scale_factor()` is wrong),
-  `shift_click_nth` (pointer events take their modifiers from the held modifier keys, so
-  this is the real range gesture).
-- **Clipped means absent**: an element whose geometry falls outside its clip rect is not
-  visible, and queries skip it — so a control below the fold of a scrolling tab (the About
-  tab's danger zone) has to be scrolled into view first (`WindowEvent::PointerScrolled` +
-  `pump`, the Flickable animates). The testing window is 800x600 by default.
-- Text and enabled state are readable through the accessibility properties: `Text` already
-  announces its `text`, and the shared `PrimaryButton`/`SecondaryButton`/`DangerButton`
-  declare `accessible-role` + label/enabled, so `accessible_label()` /
-  `accessible_enabled()` assert what the user actually sees.
-- Key presses come from the fixture, not from the crate: the published
-  `i-slint-backend-testing` cannot compile its `internal` feature (its font path only
-  exists in the Slint workspace), which also means no in-process screenshots — pixels stay
-  on the L2/MCP path. Shortcut tests must **not** click first, because clicking a text
-  field moves focus away from the root `FocusScope` the shortcuts live in.
-- `i-slint-backend-testing` is version-pinned to `slint` in the root `Cargo.toml` and does
-  not follow semver: bump the two together, or the testing backend installs a platform for
-  a different `i-slint-core` than the generated components use.
-
-**L2 — MCP server** (no test code; for agents and manual inspection of a running app):
-
-```cmd
-set SLINT_EMIT_DEBUG_INFO=1
-set SLINT_MCP_PORT=8080
-cargo run -p limedl-native --features slint/mcp
-```
-
-Get the tool list and drive it with `curl` against `http://127.0.0.1:8080/mcp` (MCP
-Streamable HTTP, JSON-RPC): element tree, `take_screenshot`, click, drag, type, key events.
-
-- Pass `--features slint/mcp` on the command line only. Never add it to a `[features]`
-  table: it pulls in `prost`/`protox` and would land in release builds.
-- **Quit a running limedl first.** The app claims a single-instance slot at startup; a
-  second process notifies the primary and exits immediately (status 0, no error), so the
-  port never opens and it looks like the server is broken. Check with
-  `Get-Process limedl-native`.
-- **Never pass `--hidden` for this.** The server starts from the "first window shown"
-  hook, and `--hidden` deliberately never shows the window (with `setup_completed`
-  true), so no MCP server comes up. Same for the MSIX logon path.
-- Isolate the session with `set LIMEDL_DATA_DIR=%TEMP%\limedl-mcp` unless you specifically
-  want to poke at the real settings/database.
-- `SLINT_EMIT_DEBUG_INFO=1` must be set when the app is **built** (the compiler embeds the
-  element metadata). Without it every id lookup silently returns nothing. Debug builds get
-  it from `build.rs`, so this line only matters for `--release` runs.
-- No display (CI, container, sandbox): add `SLINT_BACKEND=headless`. That value only exists
-  when the `mcp` feature is compiled in, and Slint documents it as unstable — automation
-  only, never product code.
-- The MCP server binds `127.0.0.1`, has no authentication and validates the `Origin`
-  header, so it is a local development tool: do not expose the port.
-- `slint/mcp` is part of the open-source `slint` crate. The Python `slint_testing` client
-  (the "GUI Test Framework" at `testing.slint.dev`) is the **commercial** product and needs
-  a licence — do not assume it is available.
+A `v*` tag triggers `.github/workflows/release.yml`. The release body is generated
+by **git-cliff** from Conventional Commits, so keep commit subjects Conventional
+with a meaningful `scope:`. `native-manifest` is the sole writer of
+`latest-native.json` (the signed self-update manifest).
 
 ## Conventions
 
 - Rust structs: `#[serde(rename_all = "camelCase")]`. Enums: `#[serde(rename_all = "snake_case")]`.
-- Native UI (Slint): use `Theme.c<hex>` tokens from `ui/theme.slint` (never hardcoded hex), `@tr(...)` for all user-visible strings in `.slint`, and `i18n::format_*` helpers for Rust-side text. See `.opencode/guides/subsystem-native-ui.md`.
+- Native UI (Slint): use `Theme.c<hex>` tokens from `ui/theme.slint` (never hardcoded hex), `@tr(...)` for all user-visible strings in `.slint`, and `i18n::format_*` helpers for Rust-side text.
 - Build: `.cargo/config.toml` sets `target-cpu=x86-64-v3` and adds `--cfg reqwest_unstable` (required by reqwest's unstable `http3` feature) to every `[target.*]` rustflags — remember it when adding a new target.
 
-## Guides
+## Documentation
 
-Read the relevant guide **before** modifying any subsystem. Update it **after**.
+Architecture and mechanism documentation lives in the generated OpenWiki
+(`openwiki/`); start at `openwiki/quickstart.md`. Operational runbooks live in
+`docs/` (index: `docs/README.md`).
 
-| Core guides                                 | Rust subsystem guides                                                        |
-| ------------------------------------------- | ---------------------------------------------------------------------------- |
-| `.opencode/guides/architecture-overview.md` | `subsystem-download-manager.md` (HTTP + checksum + rate limiter + data flow) |
-| `.opencode/guides/troubleshooting.md`       | `subsystem-bt-backend.md`                                                    |
-| `.opencode/guides/testing-guide.md`         | `subsystem-cdn-accelerator.md`                                               |
-|                                             | `subsystem-aria2-rpc.md`                                                     |
-|                                             | `subsystem-database.md`                                                      |
-|                                             | `subsystem-buffer-pool.md` (includes file_ops)                               |
-|                                             | `subsystem-settings.md`                                                      |
-|                                             | `subsystem-event-bus.md`                                                     |
-|                                             | `subsystem-protocol-registry.md`                                             |
-|                                             | `subsystem-http-client-factory.md`                                           |
-|                                             | `subsystem-self-update.md` (native updater)                                  |
-|                                             | `subsystem-native-ui.md` (Slint desktop client)                              |
+**After finishing a task, update this repository's OpenWiki for changes since its
+last successful run** — start an OpenWiki `update` run (the `openwiki_begin`
+update flow; CLI: `openwiki code --update`). OpenWiki is **not** refreshed by CI
+in this repository, so the agent must run the update itself; the wiki would
+otherwise drift from the code just changed.
+
+- OpenWiki pages are **generated** — do not hand-edit them; update source code
+  and re-run the update so they are regenerated.
+- `docs/` runbooks are hand-maintained — update them **after** changing the
+  behavior they describe.
+
+| Topic | Where |
+| --- | --- |
+| Engine architecture, protocol routing, event bus | `openwiki/architecture/` |
+| HTTP / BT / CDN workflows, scheduler & AIMD | `openwiki/workflows/` |
+| Persistence, settings, disk I/O, networking | `openwiki/systems/` |
+| Aria2 RPC, native UI, self-update | `openwiki/integrations/`, `openwiki/desktop/` |
+| Testing (engine + Slint UI) | `openwiki/testing/` |
+| Build / CI / release operations | `docs/ci-operations.md` |
+| Self-update key rotation | `docs/update-signing-key.md` |
+| Known issues & accepted warnings | `docs/troubleshooting.md` |
+| Linux desktop build & packaging | `docs/desktop-build-and-packaging.md` |
+| Manual smoke testing / MCP | `docs/manual-smoke-testing.md` |
+| Checksum algorithms, async file I/O | `docs/engine-dev-notes.md` |
+| Regressions the test suite caught | `docs/test-regression-notes.md` |
 
 ## Pre-commit verification gate (MANDATORY)
 
 Never commit while any check is red. CI runs every check on the whole workspace
 and fails if **any** test fails, warning is emitted, or error is raised —
-regardless of whether your own diff caused it.
+regardless of whether your own diff caused it. Fix all failures, warnings and
+errors before committing, even pre-existing ones.
 
-Therefore: **fix all failures, warnings, and errors before committing, even if
-they pre-date your change or were not introduced by you.** Leaving a broken test
-or warning "for later" blocks the entire pipeline and hides real regressions.
-
-Run the full gate locally (Windows: init MSVC first). The Rust commands mirror
-`.github/workflows/ci.yml` **one for one** — same crate list, same features, same
-nextest version — so a green local run means a green CI run:
+Run the full gate locally (Windows: init MSVC first). The commands mirror
+`.github/workflows/ci.yml` one for one, so a green local run means a green CI run:
 
 ```powershell
-# Rust — warnings fatal the way CI makes them fatal: cargo's own `build.warnings`
-# (`CARGO_BUILD_WARNINGS`) plus clippy's `-- -D warnings`. Deliberately NOT
-# `RUSTFLAGS="-D warnings"`: that env var overrides `.cargo/config.toml`'s
-# per-target rustflags (target-cpu, rust-lld, /FORCE:MULTIPLE), which CI keeps
-# authoritative with `rustflags: ""`.
 cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
 $env:CARGO_BUILD_WARNINGS="deny"
 $env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 cargo clippy --workspace --all-targets -- -D warnings
 
-# Tests run under nextest, not `cargo test`: each test gets its own process, so
-# the suite runs in parallel and cross-test global-state interference (shared
-# temp dirs, env vars, LazyLock) surfaces locally instead of in CI. Pin the same
-# version CI installs. One-time:
-#   cargo install cargo-nextest --locked --version 0.9.144
-# Per crate, NOT `--workspace`: only limedl-core's tests are meaningful without
-# the `test-utils,aria2-rpc` features, a workspace-wide run would lose them, and
-# it would build the UI crate just to check its flags. xtask is in the gate
-# because it holds the release-guard tests (`cargo xtask guard` runs in
-# `release.yml`, and its default `--update-rs` path broke a release once).
 cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
 cargo nextest run --manifest-path xtask/Cargo.toml
-
 cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 ```
 
-`cargo nextest run` does not execute doctests. The workspace has none today; if
-one is ever added, add a `cargo test --doc` step to the gate and to CI's
-`check-rust` job together.
+See `docs/ci-operations.md` for the cache/RUSTFLAGS contract, the coverage gate
+and the macOS linker exemption.
 
 ### The gate does not compile non-Windows code on a Windows host
 
-This is the gate's biggest blind spot and it has already shipped two broken
-tagged releases. On Windows, `cfg(not(windows))` items are never compiled, so
-`cargo clippy --workspace --all-targets` cannot see:
+On Windows, `cfg(not(windows))` items are never compiled, so
+`cargo clippy --workspace --all-targets` cannot see an unused import/type/static
+that only macOS and Linux reach, a `build.rs` dependency or feature only required
+off Windows (`rfd`'s `xdg-portal` needs `tokio` or `async-std`), or a `-l<lib>`
+whose `-dev` package is missing. This has already shipped two broken tagged
+releases.
 
-- an unused import / type alias / static / const that only macOS and Linux
-  reach (`-D warnings` turns each into a red CI job);
-- a `build.rs` that compiles a dependency the crate only declares for Windows
-  (`winres`), or a dependency feature that is required but not enabled
-  (`rfd`'s `xdg-portal` needs `tokio` or `async-std`, checked by `rfd`'s own
-  build script);
-- a `-l<lib>` that the runner has no `-dev` package for.
-
-Cross-checking locally is not possible without a cross toolchain (`ring`/`cc`
-and the GTK `-sys` crates need a Linux compiler), so:
-
-1. **Prefer `#[cfg]` over runtime checks in `build.rs` and `platform_*.rs`.**
-   `if std::env::var("CARGO_CFG_TARGET_OS") == Ok("windows")` looks equivalent
-   to `#[cfg(windows)]` but is evaluated at run time — the dead code is still
-   compiled on every host. When a runtime decision really is needed, the gate
-   can be exercised on Windows with
-   `$env:CARGO_CFG_TARGET_OS = "macos"; cargo build -p limedl-native --target x86_64-pc-windows-msvc`
-   (compile-only; it will not link the real target).
-2. **Treat a tagged release as the first real platform check** and follow CI to
-   green before publishing, or push the tag only after `check-macos` /
-   `check-rust` are green on that same commit.
-3. When adding a platform-gated module, re-read it asking "what does this file
-   look like with `cfg(windows)` false?" — the file header comment convention in
-   `platform_win.rs` (which exports are shared, which are Windows-only) exists
-   for exactly this review.
-
-One macOS-only diagnostic is exempted rather than fixed: Apple's `ld` notes
-`__eh_frame section too large (max 16MB)` for the `limedl-native` test binary.
-Compact unwind only reserves a 24-bit hint for an FDE's offset in `__eh_frame`, so
-past 16 MB the linker falls back to plain DWARF unwinding — a performance note, not
-a defect. `.cargo/config.toml` therefore passes `-A linker_messages` on both Apple
-targets, which keeps that one note out of cargo's `build.warnings = deny`.
-
-It is about the size of the test binary, not about a dependency: dropping the flag
-after the Skia removal (run 36972236669) failed the macOS native test step with
-`error: warnings are denied by build.warnings configuration`, with nothing linking
-Skia. `cargo clippy` never links, which is why only the test step trips it.
-
-Every rustc/clippy warning stays fatal; a *real* macOS linker warning is now
-only printed, so read the `check-macos` log when a link looks suspicious.
-
-Only commit once every check above is green. If a failure is environmental
-(e.g. a Linux-only script on Windows), fix the code so it is platform-neutral or
-otherwise reruns green in CI rather than committing around it.
+- **Prefer `#[cfg]` over runtime `CARGO_CFG_TARGET_OS` checks** in `build.rs` and
+  `platform_*.rs`; a runtime branch still compiles the dead code on every host.
+  To exercise the gate on Windows:
+  `$env:CARGO_CFG_TARGET_OS = "macos"; cargo build -p limedl-native --target x86_64-pc-windows-msvc`
+  (compile-only; it will not link the real target).
+- **Treat a tagged release as the first real platform check** and follow CI to
+  green before publishing, or push the tag only after `check-macos` / `check-rust`
+  are green on that same commit.
+- When adding a platform-gated module, re-read it asking "what does this file
+  look like with `cfg(windows)` false?".
 
 ## Dependency discipline
 
-After `cargo update`/`cargo add`/`cargo remove`, commit changed lockfiles:
+After `cargo update` / `cargo add` / `cargo remove`, commit the changed
+`Cargo.lock`. Uncommitted lockfile changes cause CI cache misses and stale
+dependency resolution.
 
-```powershell
-git diff --stat Cargo.lock
-git add Cargo.lock
-```
+<!-- OPENWIKI:START -->
 
-Uncommitted lockfile changes cause CI cache misses and stale dependency resolution.
+## OpenWiki
+
+This repository has a generated `openwiki/` evidence index. It is optional just-in-time context, not required startup reading.
+
+- Do not enumerate, preload, or search wikis at task start. Use retrieval when the user asks for it, when unfamiliar architecture or dependency behavior materially affects the task, or when source inspection leaves an important uncertainty. Stop once the question is grounded.
+- When those conditions apply and OpenWiki retrieval tools are available, use `openwiki_search` for just-in-time context and `openwiki_read` for the relevant complete sections. If search returns `workspace_required`, ask which listed workspace to use and retry with its ID.
+- Use `openwiki_list_workspaces` or `openwiki_list_wikis` when workspace membership itself needs to be discovered.
+- If the retrieval tools are unavailable, read `openwiki/quickstart.md` and follow its links to the relevant pages.
+- Treat source code and tests as authoritative. A brief's unknowns and review items are verification gaps, not automatic requirements.
+- Prefer the narrowest quiet validation that proves the changed behavior. Preserve complete failure output.
+
+OpenWiki is updated by running the update flow manually — this repository does not refresh it from CI. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and re-running the update.
+
+<!-- OPENWIKI:END -->

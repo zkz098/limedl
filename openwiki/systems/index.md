@@ -1,0 +1,6 @@
+# Files
+
+- [Disk I/O, Buffer Pool and Storage Detection](disk-io-and-storage.md) - limedl's write path to disk — HDD double-buffering vs SSD write-combining, the IoWorker and slot lifecycle, preallocation and cross-device finalization, disk-space vs single-file-limit errors, per-platform media detection, and the directory override mechanism.
+- [Networking, HTTP Clients and Rate Control](networking-and-rate-control.md) - limedl's shared outbound HTTP path — the HttpClientFactory every client must use, proxy and User-Agent semantics, the HTTP/3 situation, the global token-bucket rate limiter, retry/backoff policy, and URL rewriting for mirrors.
+- [SQLite Persistence and Crash Recovery](persistence-and-recovery.md) - How limedl persists download state in SQLite — the dual read/write connection design and PRAGMAs, versioned migrations, the manifest and chunk repositories, the bt_tasks cache, and the startup reconstruction that clears stale chunk claims.
+- [Settings and Configuration](settings-and-configuration.md) - limedl's configuration single source of truth — the AppSettings shape, SettingsService serialization and atomic persistence, normalize_settings validation, the save fan-out to every backend, and special cases such as disk overrides and Aria2 auth mode.

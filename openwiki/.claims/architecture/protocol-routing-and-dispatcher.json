@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:de55b1073a870eda19b42c1de196a5df3f3acb55f9b1522cd8e1660680b10343",
+  "claims": [
+    {
+      "id": "claim_b7d86f860be047b09e3a4277227183b0",
+      "statement": "DownloadBackend is an async trait that defines start/pause/resume/cancel/remove/purge/open_in_explorer/status/list/update_settings/shutdown, with default open_file and open_dir falling back to open_in_explorer and a default set_priority that errors unless overridden.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/protocol.rs#L8-L45",
+          "version": "repo-lines-v1:sha256:a2e00e7b78fb1a3f7fafcde665621152a4e9c50d3db14f2bd77f25388bcf9f8a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZlNGMzNWM0ZTJkYTIwMTczYjlkYzAxMzgzZjQ1NmUzYTExZGJiZDhiY2I5ZTJmNDc2Y2ExZjY4YThlMDYwMWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUyNzA4MTRiMjExODlmM2UzZDgzY2E4NGQwZGRjZDk1NzMxMWQ5YWQ4OTU2ZDdlMWVlOGEzMzg4ZWQxYmEwNGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU2MTViN2NjMDFhNzUwZDY3ODdkYzk5NGE5MmVjN2FmODQ3ODQ4ZmNkOWJlMGM5YjVlNzQzZDk5YTMwNmQwMmEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_56af935595b244abb139b371170f6938",
+      "statement": "BackendRegistry indexes backends by TaskKind for dispatch and by TypeId for typed downcasts, and register_arc stores the caller's own Arc instead of wrapping a clone, keeping CoreSystems and the registry on the same instances.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/backend_registry/mod.rs#L8-L85",
+          "version": "repo-lines-v1:sha256:7af55d5fe2e7c5b485bf7cd71e4d04b9f966f4375b80e62a70d6f523fcedc3e2:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc3NDZjZmYzYzgxMTY0OWFkMzFlMTI5Yzk2MWQ2ZTU2NWQzNzA5NDg4NjM0YjUxNWYwOWM2MTgxZjlmOTVkOTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYwNGM4MjcwYTA0NTIxMmM5Yjc3NzQ5N2Y2YTdjMzRlNTA3NGM2NjMxM2FjOTc5Zjg2MzAzNjBkNTI2YzNjOGEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_bd732ffab6884046bfc9d903dddc2a71",
+      "statement": "BackendRegistry::list_all merges backend lists sorted newest-first and skips a failing backend; update_all_settings applies to all backends while returning only the first error; shutdown_all awaits every backend's shutdown.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/backend_registry/mod.rs#L87-L125",
+          "version": "repo-lines-v1:sha256:2fe593ceb79499ce888cf4f3ce6520620a04fcc5139d95fb15dcd625b585511a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzZmQ3Yzk5MTQ2YzljYTVjM2NlOWYxMWJiZGM3Nzg3ZDA3NzM0ZTdkZjNmZWI1NDQyMDdiYzE0YjI1NmEwZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNiZTljNmQ2ZTdkMWNmMTAyYzQ0ZWE0YjU3MmZkNDI4OGMzNDhiODEyNzIyNjQ4ZjczZGQ1YjcyZTQyODhmMDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMxMzJhZjUzMTMyNjVjMmY5ZTkyYTM3OWVjYmI2ZjNlM2NhYjQ3YzNlMDc1NzFkNzY5ZDg3MjMwOGQzODFjMGIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6c99fe9a57514e17acb91335af0eb809",
+      "statement": "Dispatcher holds a required registry and event bus plus optional SettingsService, DiskIoService, ConcurrencyManager, CdnService and reqwest client, and offers new, with_settings_service and full constructors for tests, UI fixtures and production respectively.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L41-L105",
+          "version": "repo-lines-v1:sha256:3bd9090ff3337e952efedae79d107e4b5f63c5892e7e457b5e91ff8554428ef4:eyJzZWxlY3RlZExpbmVDb3VudCI6NjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJmMjQzNTQ0NDYxYjAwYjA2NzNjZDM3NjEzZTg2NGRhNTkyYTcxOTIxY2E5ZGE2YTE3YzNhYzgyNDI4MWM5YzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdmODgzMjg5M2Q3ZmUzZjkzZGM0M2Y2MWI4ZGMxZWUzZDVjNWZmMDJkMGYwYjI0ZDQ4NDcwMmFhYjU3YTYwOGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM4MTk3NDdjNGMzM2FmMTM0NGRjYTU5YWU1MmUxNGRiYTcxN2E0NjBlYWUxOWRiZjAyYWU1Y2ZhODdhMDBkN2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f87fb7de0d404e6d80e05f3d4c6dc61d",
+      "statement": "Dispatcher::start fills mirror URLs from the settings URL-rewrite rules when none were supplied, classifies the request, routes to the backend, and emits an initial Updated event from the backend status on success.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L148-L170",
+          "version": "repo-lines-v1:sha256:8172cd9699b43bc5956ff12ed72f445f3608bda49fb86f1aa942e2118dea7c6e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhNjBkMDM1YzU2MWYwOTJiMWI3OGVhYWMzOWM4OTM5OWQ3ZWU4OWY1OTRiMGE5N2Q0YmU1NzY5MWVmZmI3OTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgyM2U2N2U3ZDY3ODg1ZmQwYjAxOGJjYmY1OWFiMzU3ODQ1NTllNDM5NjNkMGE0ZTc1YjVjMjI5YWU4N2JhNDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVjMDEwYWE3YTYyOTU5NDdlMDM2NDE4NmJkNWViODZlNDhkNTQ0ZDVkYTFmOGQ2NjQ5ZDJmZjc0OGViMzAwODYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9c2d192fdfbd49849d474ce4a7fc23ae",
+      "statement": "Dispatcher automatically emits DownloadEvent::Updated from the returned snapshot after a successful pause, resume, cancel, remove or purge, so frontends do not emit lifecycle events themselves.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L172-L212",
+          "version": "repo-lines-v1:sha256:dc148734b33e918729226400ed9e7f49b5ae5320e38c8959e558d3baf3cb2d48:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4OThmNTYxYzNlNDJiNDEzYjFhNDQzMzE2NmIwYWU1ZjVjYTU3ZGE2YzUxMGEwNDhkZDY3MzIxMjZlOWZmYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlMDlhZWU0ZTYwMDI4ZGFkOGE3YzNiM2E0NTczOWIxOWQ5MGExMmQwYzJlMDE5YjhjMmY5Y2U3NmRhYjlmMzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU2NDFlNDkwOWI1ODg0ODkxNDljMmM2ZmVkZDQ3NTk0ZGM5ZDdmMGRhOGI2OWUwYmMyMzIxOTliMzRkNjcxYjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyYzc0MTNlYjk5ZTBiOTQxNjg1NjllMzk1NzIyMjk2M2U1ZDBkYzUyYjM4ZDczZmE1ZjczZWU2ODJkNzZiNWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a8885c854d3c4beca5b27684b49d1d58",
+      "statement": "Dispatcher::set_priority re-reads the backend status and emits Updated after the mutation, keeping the priority in the emitted snapshot consistent with persisted state; open_* and status are read-only or side effects and do not emit.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L213-L245",
+          "version": "repo-lines-v1:sha256:3ecae13648fab49a63a60b7c0a892e4193b336a43f28fde3011bbb8b0932fb90:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM0OWNlNjVkMDBlYTE2NzFkN2VkZDE3YjZmMDI3ODU0NjZjZjBkMDZlOGRkMzE5MmFhNWZjN2ExMDY0ZTgzZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcyZTVlYmVkMDAyN2M4MGQ0Mjg4NjI4ZDBhMzgzZWI4ODhlODFlNjhmMGUxY2MxMGNhMGFjNDVlOWEzYTlhOTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ3YjViZjhkMWVjYjUyNWZmZTgwN2FjM2MwZDlkZDZmYmY1YWUyOTYzM2FmN2IxYmRiZmFkMjZlMjVhMjQxYmQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_90ffc9500e7142f7b1e2b8a9a046e0b9",
+      "statement": "Dispatcher::has_active_downloads lists every backend and returns true when any summary is in DownloadState::Downloading, aggregating HTTP and BT under one query.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L247-L259",
+          "version": "repo-lines-v1:sha256:0ff224f1da6c53babf5e4659593d76725aea1e327d206cea0f47cd742afba0c0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNmNGQ4ZjkxYzA1ZWU5MTRmNWYzMDdhMDI4NjVlNzRiMDQxODE5OTViM2EzN2M5YjAzOGUwYzY5ODVhYWQxODkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYxMTMxOGMwNDY0MWQyYWM3M2Q5ZDU4ZjI5NjVjYzkxMTE0MmE4YzYwZjIxZDI4YjEyYWY4Y2YyZjk2YTBhNTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNjZDU2YzhmMTE2ZWFkYWNhZmNlNjc3NDcwMTViYjY2ZTUyYzRiMTE0MDk5MzY1ZjQwODIxMWU3MGE5MzNhNDciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVmM2FkMDhiOWUwMTk3YjIwZjlmZjdjY2UxMGJjYjM1NmMyZDYxNzc3NWI0YmI5NzE4MDMyY2FiOTQwOGNhMmEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e9ebf9813a874bc490fadc88272973a6",
+      "statement": "Protocol-specific BT operations resolve the concrete backend through the private bt_backend() helper (registry.get_typed::<LazyBtBackend>()) and error when it is not registered.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L466-L505",
+          "version": "repo-lines-v1:sha256:d498e6cb6cf635c0043fe875d0904e83be9b142fc33bda662ca53490a0a19938:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzMWU3ZTU2ZTRjYTk0NmFjMDYyMjM5OTgzOThmZDBjMzgyZTRjNGQ4YTkzYWRiZWQwOThjMmY0MTk3OGM2ZmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ4YjAyZDQ0YWJkMjg3NzExMTlmNDE4OTdhYThlNjM3ZWE5ZGZhZDVkZGZlOGE3NmUxODIxMTAyN2FjOTk0ZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVhNDY5NTBiOTU4ZTkxYTNkYzE1ZWQwYWMwNTIwNDRiZWYxYzI5MzU4OTM0M2M1MGIxMzg2MjA3YTI4MWU5YjEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_249feb67b54147ec8c8cb8eaa48915c0",
+      "statement": "RpcContext::http() and RpcContext::bt() are the only sanctioned get_typed accessors for the aria2 RPC layer, confining protocol-specific reads to two accessors.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L54-L68",
+          "version": "repo-lines-v1:sha256:4e592b27ea6a1d2a89b166a5959f29ecc2e87fa44d7db9f513cc8f7a581f60e0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3N2VkNDRjYmM4MjA4ZGM0NGY0ZjVlMzY5OGE0ZDNkZWE5ZmE1MDc0Yzg1ZmE1OWFhZjkzMjUwOTllMDliMTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdkNTE1YjQ0Y2RjYjhkNTVkMzJkMjU2NmFkMzdhNTgxNjNmNmQ2YmQyZDZhYmRiMGNmOTlkZWVjNmQ3NzU2MTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2NjQ0MzcyMTNjNzMwM2M4MWI3MjI1M2Q5NDg2YWJjMjIxNTEyY2QxM2RmNTMzMTg1YTY1NzU4ZjE3N2ZjZGQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_462a92b4d5644bc099d790b4bf929fe1",
+      "statement": "Dispatcher::fetch_tracker_list uses the dispatcher's configured HTTP client when available and normalizes the response text through normalize_tracker_list_lossy before returning trimmed non-empty lines.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L376-L405",
+          "version": "repo-lines-v1:sha256:d5ac14683ebce42dcb5d048c8c45cf2faecbca0ffbd9a2865d2690008d164b25:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4YWY0YmNkYmFmYWI1OTZlZjVmNDFjNTNiNTQ2NzQ4Y2NkMDY2ZjhkYmM2ZGZhM2UyYTFlM2VhODc5NmNiNTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRlN2E0OGRkNWVjZTViOGIwZmFlYWIxODkyZDIxZDU2Mzc1OWQ5ZTEzZTM1YjU3YTQzM2JlOGExYmI1ZDhjZTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA1YTAzZTE3MWJmYTVmYzgzZmI5YTU3NWIyMDEyZTIwOGNkZGE0MTdiMzczYmI1YzNlYjE4MGYxNzFlNTI2NjgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b4b17648263c483a83edff4df2a947bb",
+      "statement": "Dispatcher::probe_checksum derives the target file name from the URL path when none is supplied and probes candidate SHA-256 checksum files using the configured HTTP client and settings User-Agent.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L556-L584",
+          "version": "repo-lines-v1:sha256:bba331ec1789bfda9162121590b7b56825c5d26191970425901c7e87c22f1ed8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3ZTMwNzZmNjlmNjExYWVhMzFiNTFjMGE2MGRlZTJjNTMzMjc1OGQwMjllMzE0YmE3NWRhODJmZjExM2M3NWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA5NGJjZDMyZTQzMTA0MTI2NWQwNDY0NTFhNTA2ZjQ0YjQ1YjFiYzgwZjU2N2Q0YWU0MmE5NTI1OWIxMjdiZmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}

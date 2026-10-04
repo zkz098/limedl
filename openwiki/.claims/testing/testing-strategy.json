@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:31c3468edf991fa5984fd15b4c26367831b00cbf968ecff510ec85a4244f240d",
+  "claims": [
+    {
+      "id": "claim_65bbce20cdb64f53960b988322db9037",
+      "statement": "Unit tests stay inline when small and move to a sibling tests.rs when larger, cross-module E2E tests live in crates/limedl-core/src/tests/, and large suites are split into scenario directories declared by that module.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/tests/mod.rs#L1-L27",
+          "version": "repo-lines-v1:sha256:34259a486a197e0aa6a9f532f8fc20baaa4cc2d6a6270145970c8e3d4176e256:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNlZjg4NjRjODk4OTgyY2JlMGVmMGY4MTE5ZDVlN2Y5YjM3ZjlkOTBiYTA4ZTFiYWExYTJiYzcyMDcyM2I5NGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIxYTdkZDNhNjRlYTc2NGI2MTZjMGU5NDBlYjA5MTRkNWJhYjU2N2YxOWM5MTIwNGVmNTM1ZjU1N2ZlZGMwMzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_60c0ae6bb7d74bb4b9e5c84db9dd0d64",
+      "statement": "Tests that take the process-global tracing subscriber slot get their own integration binary, because init() panics when a sibling test in the same binary got there first.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/tests/logging_reload_repro.rs#L1-L12",
+          "version": "repo-lines-v1:sha256:7a8055a6b6740a7fe944b00e673e37ba2182b38ef70dfe1ead3acc56706283bc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyMWRlNmYyN2ExOWQwNzE0ZWVhYWVhYjZlYjg5Yzc5YWMzOGY2OGExNWJhM2I2ZTIyOTkyZjU4ODVmNDk2NzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZmZjgxOGE0YzZmNGZjN2Q5MDI2NTJhZmNiZWIzNTI3NmYyNmIxZDIzZThiMDA2OGI2ZTdiMDc4NmJkNjJmYWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY3Y2Y2YjQxYzYwNDllMTg3NDQ0NmI0MDYyZjgzNTg4YjhiYmEyMzg3ODVmYzc1NWFhZGY4YjQzNzJjZDU4MGYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e1df40e5be5b4cf399cdab85e88fb891",
+      "statement": "Tests run under cargo nextest so each test gets its own process and cross-test global-state interference is removed; cargo nextest does not run doctests, and the workspace has none.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L86-L95",
+          "version": "repo-lines-v1:sha256:66fe538108de2fdeba8cdb32f91cff2e2a8781fd00d2977cca5c79133533f155:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNhM2RmMTBmYzQyMjc1NDE3Mjc4MzNjNjUwNmQ4MzE0YTBlOGI2MDcxZDhiNDUwNWVjNzkwNzA3NjQyMzUzZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJhZGU2ZDQ2N2U4OWNjNzNkOThlYWU2NGZkMzQwNmNmNzBlZDIyODUwMDI1ZTY2YTdhNDdiNmEwODdlNjBjNWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA2NjU1ZTlhYjYwOTg0YjYyYzY4NzczNDc3NTI1ODI1YWNjMTcyYmUxNGEzYjMwYzUwMjNkNzZhMDQ0NjJlNTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_41e55e6b40b34ad69571447fc8205581",
+      "statement": "The corruption oracle drives the full engine path, independently re-reads the assembled file and hashes it with SHA-256 against the server's known hash, using deterministic seed-42 content so any failure is a real engine nondeterminism rather than a flaky test.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/tests/corruption_oracle_tests.rs#L1-L30",
+          "version": "repo-lines-v1:sha256:c32e454a63db3427c4212d3468eccfde0b6182385e77d03060bd004ead2a15f1:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjllNTYwYTgzZDJkNmQ4NzRiMTg5NGEwMjEzNzEwNTIyZTllMTM0ZTdjYmQ4OTUzYmM3MjEyM2FkMDA5YmMzNGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNiN2UxZmEyZGY4NjU2OWIwNWUzODk5ZDliOWNmMGJlNTY5Njc4ZDFiMzZjZWYyNjExMTM5M2VkNjQ3NjkyNWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNmMzMDI5MDc3OGFkNTg5NGMzZTJlNGYzOTc4OTdkZjQzMWI0NjJjZTMyM2IxMDk5NmY3ZjJiYmNmYzQ2ZTYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_455fb35ce5714c379b9c9be45b0284ba",
+      "statement": "Adversarial range-shifted and range-bitflip servers keep byte counts identical so only the checksum comparison can catch the corruption, and with an expected checksum the download must end in Failed.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/tests/adversarial_interception_tests.rs#L1-L16",
+          "version": "repo-lines-v1:sha256:872da9db5671b1fcf82fe641c2f855ce5019cce1f9be7e82c65847e995c51745:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIwMDQzYjc1ZGZhNWRkMGU1MmQxZThmOGYxOWZlMDAxOTc4NzI0NWUzYjM0ZWRmZmJjNTZiNGIzYWViMTg5MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVlNzFjZjdhMTNhMWEyNzQ5N2IzNTBiN2VkOTAyNjIxZGYwMWY1MGQxNWNjNjUyZGM1Mzk3MzNlOWQ4NDI1YWIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b3ad97e93be04ab8a01e5a5283efd739",
+      "statement": "Resume corruption tests pause at staggered points, resume, finish and re-read the file requiring SHA-256 equality, using pause_on_any_progress and bandwidth-throttled pause_at_fraction for determinism.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/tests/resume_corruption_tests.rs#L1-L20",
+          "version": "repo-lines-v1:sha256:bd7b9cea65de195fafd8b5a9a730fe3358ce3cc097f0b1ce5ee84ebfcc9fbb7a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjZDVkZDk1YWVlZDFjNjg4YWM4OGY5MWRmMTk4NmFlNzFhZTllMmViZDRjOTNmMGI1ZTJhYmVlZTIwN2MyYTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2ZTQ0N2M3NjFmMjc4ODQ3ZjQ2ZmNmZjVmMjEwOTRjYWRiM2EzNDM5N2EzNjc4ZDBkNTg3YzZkMTRmNjdmNzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM3OWE2MjEyYTgzZjQwOWJhNTAyZGNmMGJjYmY3MzY1YjJhZWJjNjYyYTNmMjA0NmQzNDFiNDEwMmQ0NGRjNTgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_49ec8763cb06431ebfba710c5c7c29d2",
+      "statement": "Buffer integrity tests inject deterministic background-flush failures via buffer_pool::fault and prove the buffer flags degradation without corrupting written bytes and that the download ends in Failed rather than a silent Completed.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/tests/buffer_integrity_tests.rs#L1-L18",
+          "version": "repo-lines-v1:sha256:46339125a51176f7a88b8ea82cab17c2a2a85642b6cd6b8795c97fa2184f438c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMwNzBiNTA1ODg5MjBlMWM3YzVlOThlNzY0ZjFjMjQ0MjhiYjdmMWRiY2VhYjNiNWU2NmU1YjI2Nzk1YjUxZmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0MjY1NzVlMzI1ODUwNDg0YTU2MDljYjAyZWY0MTZlZGViOWNmYjBlYzMzMDc0YTk3NTgxODdhNTNhZTlmYmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ5MjMxNzEzYWU4ZGNiYWI1NDBmN2NjYjA2OGNlNTEwZDg0YjQxMWM3NDYwOWJmYTRlNzQ5ODUyMmM2MGE4N2UifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_eda702afc8524d1bbdd3375a58c1e31f",
+      "statement": "dispatcher_tests covers the Dispatcher facade matrix and exposes make_manager/inject_download as pub(crate) so the Aria2 tests reuse them for resolve_gid and GID-cache eviction.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/tests/dispatcher_tests.rs#L1-L12",
+          "version": "repo-lines-v1:sha256:c504619410efdc6038f8fe5b4801aadbaa3d45a7b8bc78d3fe8acbe01d71fae2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0MzIxYTM5OWQ3OTRkYTUwMzNjZDA3ZDc5YjA4ZTFlMjE4ZGJjOGU1YzhjODgxNmI3MThkODljYzA2OTE3NmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFjNjEyNWUwYWNkZjgzNWIzOTUyZjQ2OGEwMWEwN2I4MjU3MDc4N2FmM2ZhZGFkOGRmODY4MWY1NTQ3NGNjYmQifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/tests/mod.rs#L9-L12",
+          "version": "repo-lines-v1:sha256:7024d355cbd04a7106f0a19e3c3b7852a1b35d1cef2bf605d41ce90bfc41a3dc:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDY0NzA3YjBhODg5ZjBkYWY2YTEwMTUyMTJmYTA3ODgzN2JmMGZiOGY5NzM2NWRhNjA2ODYyMzkwZTdlYmQwZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzRhM2RlODJiOWRiYTU3ZmM4NzE4MGI4ZjljNjNjNmMxMTRkZmM0M2U0NDhmYThhMThkYzU2MjEyYWU5YjMzNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjg5Y2VmMDBmY2VjYzdjZjAzNmE1NGU3ZmE4MzQxYzdkMWIzMDNkZDc0MGIwYTNhOGVjYmU3NDg5NDViN2U0YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMmFiOWI2NGMwMTIyMmU1Zjc0ZmZiMjdhYWRhNjI1MTA2ZmIzOTFjZWZlYmZlZDY4MDc5Y2ExZjk3MTUxZTY0ZCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_1335e647d343459e8a0bacc90e2845ad",
+      "statement": "The Aria2 E2E tests start a real Aria2RpcServer over a live bootstrap CoreSystems on a random port and drive it with real HTTP POST requests.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L1-L20",
+          "version": "repo-lines-v1:sha256:bd752ab896eb77a3fb333f29f9f173214b251d2349fabe38acce9832706c1c97:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzNjEwNWY0Zjg3ZjU3ZWM1YTQ2NDA0ZmVmYjNmMDk1NzUwYzg0ZjlkN2UxZTJlMDNmMTg0YTAxMDc4ODM2MjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJkYmYxMzU5OTg4ZmRiMDgyMzcxNDczYTQwYTgwOWE4N2JiMmY3ZWU2NzZlM2MyNGIzNTIwMmYyMzBlMTMxODQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_040ab62f73f844488171d50dc4fa5666",
+      "statement": "BT tests build a real irontide session with DHT disabled and listen_port 0, and use hand-written bencode fixtures (multi-file and single-file, all-zero piece hashes) so parsing is tested without network.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/tests/mod.rs#L158-L180",
+          "version": "repo-lines-v1:sha256:8c68700857b51896787a95d4d375561ba88fd819da343f6e0c854750f8a66f39:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyMzQwMGVhZTUwMTViMzU3ZjkwM2VhMDVjOGM1NzA3NzcyOTA2ZGY2YjlkZjVkY2NhZWNjNDdjYjJiMTQ0M2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3ZTViMTAwY2YxOTQyNmJjYTFkZDA1N2MwMWEwNTMxMGU4N2MzY2YwMjBlZTJkZjEzZWM2YThhMzMyYzNjMDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ5MTY3ODk1MDhjZmFhZDZjZTE1ODUyOThlNTI1Yzk2MDg1MjI0NTY2NjllMmUwZDRkNGFlMmM2MmRmY2Y2YzAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY3ZjdmNTU0ZjgwZTYxNmI0ZmRkZWZkNjQ2MTY5ZGVkN2VhZjFjZTQ3NjNmZGYzODc0MzdhN2ZmMmQ2MDE3ODMifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/tests/mod.rs#L243-L290",
+          "version": "repo-lines-v1:sha256:6a7c7ee25cb2e48b25fbe0581614316700d21b29455ae2c22b39198cfc24c7ee:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIyNWJjYmQyYWNlZGFlNTAyMWJlZmRhYTBmM2E4M2QxNzkwYWIxNDY2ODlkNTk0NDgyMmFiNGFlYzk4ZDZmZjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIxN2VkMmVlYzE2ZmIxYjA3MWViNTJmYmIzZTY4YmEyMTY0NWM4ZmY2ODQyM2E2YzJiNTg1YjZjYmVlNGJiMzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjViZGQ5ZWVhN2RjNmY2M2MxM2E0NmViMmVmMWRhYTAwYmQ1YzExMzViNzdiZmExNTMwODdkMjAwNmU4Yzg0ZWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3111d422dc7248639ad315dfe5310d46",
+      "statement": "BT tests that go through block_in_place use a multi-thread tokio runtime, because block_in_place panics on a current-thread runtime.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bt_backend/tests/alerts.rs#L434-L436",
+          "version": "repo-lines-v1:sha256:b5beb294cdb0838c3e17469d6ead4f2859140b02c0efc01881f7be0850fe5742:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDJlNGY1NjRiMTNjMWQ3ZGUwMzAwN2Q3YWE3ZDVhZWMwMmU0ZmM0YWE3NjE0NTc2NDM3MTM1NDkwYjlmOGRlZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWQ0ZmQzOGNjZDJiZTc4YWNiZGNiYzZmYjk1ZGY4YTI4MzkwOTIzOWY2YTE4ZmQ0OTJiYWRmYmEyZDJjOGVlMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTFkYTliZTMxYTAzZmJkYTg3NTllZGM2YjIyNjViZWNmY2JjNWRjNGJmYjE1YjVmM2Q0NGQ1ZTcxNmY0Mzg4YiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYWZlOGIyODJlOWYzYWVlNjkyNTg2MDg4N2Y1N2MyZmQ0YWMyNzBkYTZlY2ZjNGZjNzdiOGZjMDIzYzI2ZTU4ZCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_e392c5d1f29e4d378db20040cea6e5aa",
+      "statement": "Coverage runs cargo llvm-cov nextest for limedl-core with --fail-under-lines 85 using pinned cargo-llvm-cov@0.9.0, ignores tests directories so only product code is counted, and produces a second lcov for limedl-native.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L420-L474",
+          "version": "repo-lines-v1:sha256:f6f9cc8e64a0881d9f1acc34e2b32d676f0408fdd66c3d69436ddc28e9112428:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1NzgyMzY5NWExZjc3MTNiMGU5OTE2NzBlMGMzODNjMDdmNzEzOGRjNDYxOGE4MDlmYTE3Y2I1ZGYxMjE3OGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2MGQ3NWU0M2NiZjE5MGE1YjBhODYwNGViMjgyZmNiOTY3M2FlMmY0YWMzMzYyNTc1YzVlNDVmMGY1YTA3ZTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ5Y2I1ZTM4ZTkwYTczMGY5N2ZkMWEzNzM1N2UyYmE5NGZhNmM5MDI1ZjZjNjU0OGViMWYzZTJhY2MxYzhmNzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZjZDljNzdmNGYxNjQ1NDU5ZDFkNmNlZTgxOGZjNmJlNmQyMTdhYjAwNDQ1YjVhZjNiMzgxMmNkY2ExNTFlY2IifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T01:52:48.489Z"
+  }
+}
