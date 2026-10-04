@@ -24,10 +24,10 @@ sources:
     resource: repo://crates/limedl-native/src/ui_tests/updater.rs
   - id: openwiki-source-f1911c421777843811200186
     resource: repo://docs/manual-smoke-testing.md
-generated: { by: "pi", at: "2026-10-04T07:31:34.204Z" }
+generated: { by: "pi", at: "2026-10-04T11:42:48.469Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T07:31:34.204Z
+    at: 2026-10-04T11:42:48.469Z
 ---
 
 # Slint UI Testing
@@ -184,16 +184,19 @@ Evidence: `repo://crates/limedl-native/src/ui_tests/updater.rs#L25-L80`.
 `pump_once` advances the mocked clock by 20 ms, yields the tokio runtime so
 spawned tasks run, then queues a `quit_event_loop` future and runs Slint's event
 loop to drain queued callbacks and due timers. `pump_until` repeats this against
-a 5 s wall-clock deadline and sleeps 1 ms of real time between rounds, then fails
-loudly with the recorded engine calls if the predicate never holds, so a contract
-that does not settle fails instead of hanging CI. The real-time yield matters
-because the mocked clock makes a round almost instant while the engine call being
-waited for can be blocked on `spawn_blocking` work (`SettingsService` persists
-through `tokio::fs`); a counted loop could otherwise exhaust every round before
-such a task was ever polled — the settings-save contract did exactly that on a
-loaded coverage runner.
+a 5 s wall-clock deadline and waits 1 ms of real time between rounds with
+`tokio::time::sleep`, then fails loudly with the recorded engine calls if the
+predicate never holds, so a contract that does not settle fails instead of
+hanging CI. The real-time yield matters because the mocked clock makes a round
+almost instant while the engine call being waited for can be blocked on
+`spawn_blocking` work (`SettingsService` persists through `tokio::fs`); a counted
+loop could otherwise exhaust every round before such a task was ever polled — the
+settings-save contract did exactly that on a loaded coverage runner. The wait is
+an async timer on the real-time current-thread runtime rather than a blocking
+`std::thread::sleep`, so the runtime also polls those spawned completions while
+the wait is in progress.
 
-Evidence: `repo://crates/limedl-native/src/ui_tests/mod.rs#L641-L691`.
+Evidence: `repo://crates/limedl-native/src/ui_tests/mod.rs#L641-L693`.
 
 ### Element ids are test contracts
 

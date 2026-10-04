@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:2b759548c1da717b9360210d3751c49946a5cde4ae7b1cb3aedaed3dac4d192c",
+  "pageVersion": "sha256:23b01658ae09621f6290a99432aef65bc8e6e8d4acdb0ba9e036ed60d11ad528",
   "claims": [
     {
       "id": "claim_8ae54ce2240f44308d879c9a2c645566",
@@ -81,7 +81,7 @@
       "statement": "Element queries skip invisible subtrees so has() doubles as an on-screen check, and a control below the fold of a scrolling tab must be scrolled into view with WindowEvent::PointerScrolled before it can be queried.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/ui_tests/async_contracts/dialogs.rs#L425-L445",
+          "resource": "repo://crates/limedl-native/src/ui_tests/async_contracts/dialogs.rs#L434-L454",
           "version": "repo-lines-v1:sha256:f119c2605f18947012d8898782f4f8abd94b5f0573d3e7293610eac7b81690bc:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ1ZTJkYWNkMTQxY2QxMzBkY2ZkNTc5MzlhYTU5MzBlOWQzNDAwMmE5YmFiMWFlZDg3NTlmY2FkYjVjYzk1NjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyNDcwOWY1MmU0OWU3M2I2ZWJmNzE3MTQ3NTkxMDdiMjQ5N2ZlZTBkNDIzM2U5ODA2YWI2MWEyNDU2MjRiODgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhMDE4ODA3MjJlNzcwNmQ3Zjc2ZmVkODdkNWM3YzVhYWFmMjEwYTY0NmNlNjcwZTkzODljYTk4ZjcxOTA3MmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhiMjNhMzEzNGYzZDQ3YmE1M2MxODg4MzcyZjZhZmZkOTdhZWU3OGY3ODMwMDRkYjIwMzhiOThhOGI1N2QyZmMifQ"
         },
         {
@@ -112,11 +112,11 @@
     },
     {
       "id": "claim_a4dfd79659774293b9ae48cd3fb037b3",
-      "statement": "pump_once advances the mocked clock by 20 ms, yields the tokio runtime, then drains Slint's queue; pump_until repeats this against a 5 s wall-clock deadline with a 1 ms real-time sleep between rounds and fails with the recorded engine calls rather than hanging when a contract never settles.",
+      "statement": "pump_once advances the mocked clock by 20 ms, yields the tokio runtime, then drains Slint's queue; pump_until repeats this against a 5 s wall-clock deadline with a 1 ms async real-time sleep between rounds on the real-time current-thread runtime (so spawned work is polled during the wait) and fails with the recorded engine calls rather than hanging when a contract never settles.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L641-L691",
-          "version": "repo-lines-v1:sha256:538a10d04234eaf92879b7e22f246409086f5a17336b2cf57e271699333dfe3f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjViNWM0NGY3YTIzZjFhNTk2Mzk3YzZjYmRmNzc3ZmVmM2I0NWEwYjYwY2UwMDE2NDQ2NTg5MGZmZTZiMzI1NTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg5MTA2YzJiOTdmMTliOTkzNDgxMWY3YjlmOWQ2M2U4ZWNjZTViNTg3NmQ3YWE4ODkyODYwMmFlMGNhMWIwZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUyYWY1ODViOTI2YTVjYWNjZjA3OTg3Mzc0YzU3YjhmNzJjMjFiOGEyOWM1OTVkNjVmMzY0MGZhZDQ2NDQzMjMifQ"
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L641-L693",
+          "version": "repo-lines-v1:sha256:bbe1df8450fe8409cd30baf91e12c4c7d48d12cc93f3c205f869e23ffcfdacd5:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjViNWM0NGY3YTIzZjFhNTk2Mzk3YzZjYmRmNzc3ZmVmM2I0NWEwYjYwY2UwMDE2NDQ2NTg5MGZmZTZiMzI1NTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1NmMyMzgwNzE0YjAwYzBhNmQzMzJiMzVkZDRmZTRiMGNlOWVlZDY1NDY1MTZhODg3NWQxNDU0NDI5YjIyNWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg5MTA2YzJiOTdmMTliOTkzNDgxMWY3YjlmOWQ2M2U4ZWNjZTViNTg3NmQ3YWE4ODkyODYwMmFlMGNhMWIwZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUifQ"
         }
       ]
     },
@@ -149,7 +149,7 @@
       "statement": "The L2 MCP server requires SLINT_EMIT_DEBUG_INFO and SLINT_MCP_PORT, the slint/mcp feature on the command line only, no other running instance, no --hidden flag, and an isolated LIMEDL_DATA_DIR; it binds 127.0.0.1 without authentication.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L35-L35",
+          "resource": "repo://AGENTS.md#L37-L37",
           "version": "repo-lines-v1:sha256:baf79bd4fbced29848f04d50d6193c4a6fa86f2c2f2a4e377ccb343ba1f2773d:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmFmNzliZDRmYmNlZDI5ODQ4ZjA0ZDUwZDYxOTNjNGE2ZmE4NmYyYzJmMmE0ZTM3N2NjYjM0M2JhMWYyNzczZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYmFmNzliZDRmYmNlZDI5ODQ4ZjA0ZDUwZDYxOTNjNGE2ZmE4NmYyYzJmMmE0ZTM3N2NjYjM0M2JhMWYyNzczZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTljMDhmYjYyMDc4MzMxNjdmODQ0YjgzNGYyYjFlNWRiZTk3ZGU5ODYzMzY5MDhhMjc0YjVmOTY4ZTU1YzZmOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjE3ZmRjYTUzNDVkZWU1N2VmOWZhYTdkODE5MWM4MGU1OTc4NzY0OGY4YTFmMzE2YzkwMWU0MWM2OTJkOGZhZSJ9"
         },
         {
@@ -181,6 +181,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T07:31:34.204Z"
+    "at": "2026-10-04T11:42:48.469Z"
   }
 }

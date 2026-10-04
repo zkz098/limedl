@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:6e15d7c75e91e86fd3f73c9451cdfd84b34d5140a34150bd7cd9e5168f42d4dd",
+  "pageVersion": "sha256:085611fbe16384abdbdfad358ad322581da08e5f87493f2e29624a484bc48af8",
   "claims": [
     {
       "id": "claim_65bbce20cdb64f53960b988322db9037",
@@ -259,10 +259,20 @@
           "version": "repo-lines-v1:sha256:e4fba69e601db36b85e15d8143ee6d2cb9fb8dc595309055d09f16d4084e3462:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVmZTc4ZmM4YmI5MTM2Zjk2Y2Y3YTQxOTkyYmM1MjhjZGUwY2VmOTQ3YzUxZDQ5YjQ3ZWY2MjYzYzBjMmJmNWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE3ZjNjNDMzNDQ4ZWU4NTZjZTUxNDEzMzI4NTQyN2M1Y2RmNzJiZjA2NzRkOWE5MTdhNmI0YTQ4NWE1ZTcyZmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNmZWNiMjE5MzY4ODg0MzcxODk4ZjZlZThmMDhlYTRiNTNkMDA0N2NhOGE5YWJkNzAzNDFlOGVmY2JmYTc5YTYifQ"
         }
       ]
+    },
+    {
+      "id": "claim_97a18247fafb4efe9bcc3ce496794327",
+      "statement": "The Tier 2 Aria2 oracle readiness poll uses a non-panicking rpc_try that returns None on transport or parse errors (connection-refused is the expected state until aria2c binds its port) and checks child.try_wait() each round, so an early child exit is reported with its real exit status instead of as a readiness timeout.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L94-L170",
+          "version": "repo-lines-v1:sha256:66710e83e6c99b5219a1aaf31a20a2c61109aae6802f71307f4c9c85ec696e8b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmOTU4ZDNlYTIxYWRjNTNiOWExOTJiNTNmMDdmOGYxNTNkNTQzMDgxZjdmZmNjY2M2OTA4ZDg0ZDAxMjA4OWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUzZDgwYzhjYTJlMTljOGIxNjg0ZTM3MzYzYjI4NTVlYjJlY2E0Yjg5NDM5ZTQwODc0YjU4ZDA5YjM0NTQyYjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI2ZGVkYWQyMWQ3MmVlNDNmMzhmZGI3MTEyNDA0ZWRmNTUwY2YwZWRjMWMzZjE2NGU1MTU4ZWU1ZTE5ZmFhMDMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFjMDA5OTc1Mzc4NTM0Nzg3NzNhMzY3NDc0MDU1ZWE0MzcxNjE3ZDE0NGRmZTE2YTQ4ZWVjNjNlODQyOWNkMmQifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T11:10:17.271Z"
+    "at": "2026-10-04T11:42:48.469Z"
   }
 }

@@ -54,10 +54,10 @@ sources:
     resource: repo://crates/limedl-core/tests/logging_reload_repro.rs
   - id: openwiki-source-3fe9812b75a7522e89f74344
     resource: repo://docs/aria2-interop-testing.md
-generated: { by: "pi", at: "2026-10-04T11:10:17.271Z" }
+generated: { by: "pi", at: "2026-10-04T11:42:48.469Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T11:10:17.271Z
+    at: 2026-10-04T11:42:48.469Z
 ---
 
 # Testing Strategy
@@ -316,9 +316,14 @@ collects key/type/transport diffs and prints them (nextest needs
 only fails when the oracle cannot start or a server stops answering. The
 `Aria2Oracle` guard handles the operational contract — free port, `--no-conf`,
 `--enable-dht=false`, a `TempDir`, a readiness poll and a `Drop` that kills the
-child.
+child. The readiness poll tolerates the connection-refused state that is expected
+until `aria2c` binds its port: it calls a non-panicking `rpc_try` (returning
+`None` on transport or parse errors) in a bounded retry loop, and checks
+`child.try_wait()` each round so an early child exit fails with the real status
+instead of a readiness timeout.
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60`,
+`repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L94-L170`,
 `repo://.github/workflows/aria2-oracle.yml#L1-L45`,
 `repo://docs/aria2-interop-testing.md#L77-L154`.
 
