@@ -17,8 +17,12 @@ fn current_exe_string() -> Option<String> {
         .map(|p| p.to_string_lossy().into_owned())
 }
 
-/// Windows registry value / .desktop Exec / plist argument string for the
-/// current executable, always with the hidden flag.
+/// Windows registry value / .desktop Exec argument string for the current
+/// executable, always with the hidden flag.
+///
+/// macOS builds its plist `ProgramArguments` array from [`current_exe_string`]
+/// directly, so this is only compiled on Windows and Linux.
+#[cfg(any(windows, target_os = "linux"))]
 fn expected_command() -> Option<String> {
     let exe = current_exe_string()?;
     Some(if exe.contains(' ') {
@@ -387,6 +391,7 @@ pub fn sync_from_settings(autostart_flag: bool) {
 mod tests {
     use super::*;
 
+    #[cfg(any(windows, target_os = "linux"))]
     #[test]
     fn expected_command_contains_hidden_flag() {
         let Some(cmd) = expected_command() else {

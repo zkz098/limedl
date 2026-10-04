@@ -84,6 +84,7 @@ impl TestServer {
         let app = Router::new()
             .route("/file", get(serve_file))
             .route("/file/range", get(serve_file_range))
+            .route("/file/range/bandwidth/{bps}", get(serve_file_range_bandwidth))
             .route("/file/delayed/{ms}", get(serve_file_delayed))
             .route("/file/truncated/{bytes}", get(serve_file_truncated))
             .route("/file/slow/{ms}", get(serve_file_slow))
@@ -148,6 +149,18 @@ impl TestServer {
     /// streaming with parallel byte‑range requests.
     pub fn file_url_range(&self) -> String {
         format!("{}/file/range", self.addr)
+    }
+
+    /// URL for a throttled, range‑aware download.
+    ///
+    /// Like [`Self::file_url_range`] the server advertises `Accept-Ranges: bytes`
+    /// and answers range requests with `206 Partial Content`, but every
+    /// connection is throttled to `bps` bytes/second. A parallel range download
+    /// therefore stays in flight long enough for tests that pause/resume
+    /// mid‑chunk to be deterministic instead of racing a fast localhost
+    /// transfer. The limit is per connection, so N chunk workers share N×`bps`.
+    pub fn file_url_range_bandwidth(&self, bps: u64) -> String {
+        format!("{}/file/range/bandwidth/{bps}", self.addr)
     }
 
     /// URL for a slow download at the given bytes‑per‑second rate.
@@ -517,6 +530,83 @@ async fn serve_file_bandwidth(
 
     let body = Body::from_stream(stream);
     (StatusCode::OK, headers, body).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// GET /file/range/bandwidth/{bps}
+// ---------------------------------------------------------------------------
+
+/// Serve a byte range at the given bytes‑per‑second rate.
+///
+/// Combines [`serve_file_range`]'s `206 Partial Content` handling with
+/// [`serve_file_bandwidth`]'s per‑connection throttling: the range is streamed
+/// in 64 KB chunks with delays, so a multi‑threaded range download remains
+/// mid‑flight long enough for timing‑sensitive tests (pause/resume chunk
+/// teardown) to be deterministic. Without a `Range` header the full file is
+/// streamed at the same rate.
+async fn serve_file_range_bandwidth(
+    State(state): State<Arc<ServerState>>,
+    Path(bps): Path<u64>,
+    req_headers: HeaderMap,
+) -> impl IntoResponse {
+    const CHUNK_SIZE: usize = 64 * 1024; // 64 KB
+
+    let data_len = state.data.len();
+    let mut resp_headers = HeaderMap::new();
+    resp_headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    resp_headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_static("attachment; filename*=UTF-8''test-file.bin"),
+    );
+    add_checksum_headers(&mut resp_headers, &state);
+
+    let (start, end, status) = match req_headers.get(header::RANGE).and_then(|v| v.to_str().ok()) {
+        None => (0, data_len.saturating_sub(1), StatusCode::OK),
+        Some(range_value) => {
+            let Some(range_str) = range_value.strip_prefix("bytes=") else {
+                return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+            };
+            let Some((start, end)) = parse_byte_range(range_str, data_len) else {
+                return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+            };
+            let content_range = format!("bytes {start}-{end}/{data_len}");
+            resp_headers.insert(
+                header::CONTENT_RANGE,
+                HeaderValue::from_str(&content_range).unwrap(),
+            );
+            (start, end, StatusCode::PARTIAL_CONTENT)
+        }
+    };
+
+    let body = if data_len == 0 {
+        Vec::new()
+    } else {
+        state.data[start..=end].to_vec()
+    };
+    resp_headers.insert(header::CONTENT_LENGTH, usize_header_value(body.len()));
+
+    let delay_per_chunk = if bps > 0 {
+        Duration::from_nanos((CHUNK_SIZE as f64 / bps as f64 * 1_000_000_000.0) as u64)
+    } else {
+        Duration::ZERO
+    };
+
+    let stream = stream::unfold((body, 0usize), move |(data, offset)| {
+        let delay = delay_per_chunk;
+        async move {
+            if offset >= data.len() {
+                return None;
+            }
+            let end = (offset + CHUNK_SIZE).min(data.len());
+            let chunk = Bytes::copy_from_slice(&data[offset..end]);
+            if delay > Duration::ZERO {
+                tokio::time::sleep(delay).await;
+            }
+            Some((Ok::<Bytes, Infallible>(chunk), (data, end)))
+        }
+    });
+
+    (status, resp_headers, Body::from_stream(stream)).into_response()
 }
 
 // ---------------------------------------------------------------------------

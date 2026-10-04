@@ -1,7 +1,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
+#[cfg(unix)]
 use foldhash::HashMap;
+#[cfg(unix)]
 use parking_lot::Mutex;
 
 use crate::buffer_pool::BufferPool;

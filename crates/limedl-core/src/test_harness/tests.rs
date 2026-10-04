@@ -62,6 +62,50 @@ async fn range_request_returns_correct_bytes() -> TestResult {
 
 #[tokio::test]
 #[timeout(30_000)]
+async fn range_bandwidth_endpoint_serves_throttled_ranges() -> TestResult {
+    let server = TestServer::new(64 * 1024).await;
+    // 2 MiB/s → 64 KB chunks take ~32 ms, so a 1000-byte range still waits one tick.
+    let url = server.file_url_range_bandwidth(2 * 1024 * 1024);
+
+    let client = reqwest::Client::new();
+    let start = std::time::Instant::now();
+    let response = client
+        .get(&url)
+        .header(header::RANGE, "bytes=1000-1999")
+        .send()
+        .await?;
+    assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+    assert!(response.headers().contains_key(header::ACCEPT_RANGES));
+    let body = response.bytes().await?;
+    assert!(
+        start.elapsed() >= Duration::from_millis(20),
+        "range-bandwidth endpoint did not throttle"
+    );
+    assert_eq!(body.len(), 1000);
+
+    let expected = generate_content(64 * 1024);
+    assert_eq!(&body[..], &expected[1000..2000]);
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(30_000)]
+async fn range_bandwidth_endpoint_serves_full_file_without_range() -> TestResult {
+    let server = TestServer::new(64 * 1024).await;
+    // bps = 0 disables the per-chunk delay; this exercises the no-Range path.
+    let body = reqwest::get(server.file_url_range_bandwidth(0))
+        .await?
+        .bytes()
+        .await?;
+    assert_eq!(body.len() as u64, server.file_size);
+
+    let expected = generate_content(64 * 1024);
+    assert_eq!(&body[..], &expected);
+    Ok(())
+}
+
+#[tokio::test]
+#[timeout(30_000)]
 async fn delayed_endpoint_content_matches() -> TestResult {
     let server = TestServer::new(16 * 1024).await;
     let delayed_url = format!("{}/file/delayed/250", server.addr);

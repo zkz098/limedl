@@ -172,6 +172,11 @@ fn assert_download_matches_source(
 async fn run_multi_thread_resume() -> TestResult {
     const SIZE: u64 = 17 * 1024 * 1024;
     const THREADS: usize = 8;
+    // Throttle each chunk connection so the transfer stays in flight long enough
+    // to pause mid-chunk. On an unthrottled localhost the whole file can finish
+    // and move to `Verifying` between the progress poll and the pause call, which
+    // made this test fail with `expected Paused, got Verifying`.
+    const PER_CONNECTION_BPS: u64 = 2 * 1024 * 1024;
 
     let server = TestServer::new(SIZE).await;
     let temp = TempDir::new()?;
@@ -184,7 +189,13 @@ async fn run_multi_thread_resume() -> TestResult {
         Arc::new(EventBus::new(1024)),
     )?);
 
-    let id = start_download(&manager, &server.file_url_range(), &dest_dir, THREADS).await;
+    let id = start_download(
+        &manager,
+        &server.file_url_range_bandwidth(PER_CONNECTION_BPS),
+        &dest_dir,
+        THREADS,
+    )
+    .await;
     pause_on_any_progress(&manager, &id).await;
     let snap = wait_for_terminal(&manager, &id).await;
     assert!(
