@@ -39,6 +39,7 @@ export component SettingsTabAria2 inherits ScrollView {
                         FormTip { text: @tr("Start a local Aria2 RPC-compatible server, allowing Chrome download extensions to send downloads via the Aria2 protocol."); }
                     } }
                 Text { text: @tr("Allows browser extensions (such as Aria2 Explorer) to intercept downloads"); color: Theme.c6b7280; font-size: 11px; }
+                Text { text: @tr("Off by default. Set a secret before enabling it — otherwise any local program can control downloads through this endpoint."); color: Theme.ca3e635; font-size: 11px; wrap: word-wrap; }
             }
             ToggleSwitch {
                 checked: root.settings_form.aria2_enabled;

@@ -584,6 +584,9 @@ msgstr "启用 Aria2 RPC 服务"
 msgid "Allows browser extensions (such as Aria2 Explorer) to intercept downloads"
 msgstr "供浏览器插件（Aria2 Explorer 等）接管下载"
 
+msgid "Off by default. Set a secret before enabling it — otherwise any local program can control downloads through this endpoint."
+msgstr "默认关闭。启用前请先设置密钥，否则本机任意程序都能通过该接口控制下载。"
+
 msgid "RPC Port (1-65535):"
 msgstr "RPC 端口 (1-65535):"
 

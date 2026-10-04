@@ -73,6 +73,18 @@ impl Aria2RpcServer {
         mut shutdown: tokio::sync::watch::Receiver<bool>,
         cors_allowed_origins: Vec<String>,
     ) -> anyhow::Result<()> {
+        // Warn once, before the context is handed to the router: with an empty
+        // secret the endpoint answers anonymously, so any local process (and any
+        // page the default CORS policy admits) can drive it.
+        if !self.ctx.auth.is_enabled() {
+            tracing::warn!(
+                "Aria2 RPC is serving without authentication on {} — any local process can \
+                 control downloads. Set a secret or switch to per-client tokens to lock it \
+                 down, or disable the service in Settings.",
+                self.addr
+            );
+        }
+
         // Build CORS layer with configurable origins
         let cors = if cors_allowed_origins.is_empty() {
             // Default: localhost only

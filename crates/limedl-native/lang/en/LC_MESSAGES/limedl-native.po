@@ -584,6 +584,9 @@ msgstr "Enable Aria2 RPC Service"
 msgid "Allows browser extensions (such as Aria2 Explorer) to intercept downloads"
 msgstr "Allows browser extensions (such as Aria2 Explorer) to intercept downloads"
 
+msgid "Off by default. Set a secret before enabling it — otherwise any local program can control downloads through this endpoint."
+msgstr "Off by default. Set a secret before enabling it — otherwise any local program can control downloads through this endpoint."
+
 msgid "RPC Port (1-65535):"
 msgstr "RPC Port (1-65535):"
 

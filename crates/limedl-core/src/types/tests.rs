@@ -212,3 +212,16 @@ fn classify_kind_unknown_scheme_returns_error() {
     let result = req.classify_kind();
     assert!(matches!(result, Err(DownloadError::UnsupportedScheme)));
 }
+
+/// The RPC endpoint is unauthenticated while `secret` is empty, so a fresh
+/// install must not expose it until the user opts in. An explicit
+/// `"enabled": true` in an existing settings file still wins (see the
+/// backward-compat tests above).
+#[test]
+fn aria2_rpc_is_disabled_by_default() {
+    assert!(!Aria2RpcSettings::default().enabled);
+
+    // Absent keys fall back to the same safe default when deserializing.
+    let parsed: AppSettings = serde_json::from_str(r#"{"aria2Rpc": {}}"#).unwrap();
+    assert!(!parsed.aria2_rpc.enabled);
+}

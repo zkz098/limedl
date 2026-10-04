@@ -380,7 +380,13 @@ pub struct Aria2RpcSettings {
 impl Default for Aria2RpcSettings {
     fn default() -> Self {
         Self {
-            enabled: true,
+            // Off by default. The endpoint is unauthenticated whenever `secret`
+            // is empty, and while it only binds loopback that still lets any
+            // local process (or a page served from localhost, which the default
+            // CORS policy allows) drive downloads and read paths. Opting in is a
+            // deliberate user action, so the safe value is the default; an
+            // existing `settings.json` that says `"enabled": true` is honoured.
+            enabled: false,
             port: 6800,
             secret: None,
             auth_mode: Aria2AuthMode::Single,
