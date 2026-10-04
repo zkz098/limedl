@@ -3,9 +3,6 @@ type: testing
 title: Slint UI Testing
 description: The two-layer approach to testing limedl's desktop UI — the in-process L1 fixture that drives the real MainWindow (fixture selection, ids as contracts, recording backend, accessibility and geometry assertions) and the L2 MCP server for interactive inspection.
 tags: [testing, slint, ui, fixtures, mcp]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
@@ -23,7 +20,12 @@ sources:
     resource: repo://crates/limedl-native/src/ui_tests/recording.rs
   - id: openwiki-source-031df146f1a4c52e00c3f83b
     resource: repo://crates/limedl-native/src/ui_tests/updater.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+  - id: openwiki-source-f1911c421777843811200186
+    resource: repo://docs/manual-smoke-testing.md
+generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T03:21:09.297Z
 ---
 
 # Slint UI Testing
@@ -208,11 +210,9 @@ for agents and manual inspection, not CI. Operational prerequisites:
   no display. The server binds `127.0.0.1`, has no authentication and validates
   `Origin`, so it is a local development tool.
 
-Evidence: `repo://AGENTS.md#L155-L185`.
+Evidence: `repo://docs/manual-smoke-testing.md#L1-L50`,
+`repo://AGENTS.md#L35`.
 
-<!-- openwiki: broken internal link [/openwiki/desktop/native-ui-architecture.md] link "/openwiki/desktop/native-ui-architecture.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Native Desktop UI (Slint)](/openwiki/desktop/native-ui-architecture.md),
-<!-- openwiki: broken internal link [/openwiki/testing/testing-strategy.md] link "/openwiki/testing/testing-strategy.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Testing Strategy](/openwiki/testing/testing-strategy.md),
-<!-- openwiki: broken internal link [/openwiki/operations/build-release-and-ci.md] link "/openwiki/operations/build-release-and-ci.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Build, Tooling, CI and Release Operations](/openwiki/operations/build-release-and-ci.md).
+Related pages: [Native Desktop UI (Slint)](../desktop/native-ui-architecture.md),
+[Testing Strategy](testing-strategy.md),
+[Build, Tooling, CI and Release Operations](../operations/build-release-and-ci.md).

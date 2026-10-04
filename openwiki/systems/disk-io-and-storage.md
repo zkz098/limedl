@@ -3,9 +3,6 @@ type: system
 title: Disk I/O, Buffer Pool and Storage Detection
 description: limedl's write path to disk — HDD double-buffering vs SSD write-combining, the IoWorker and slot lifecycle, preallocation and cross-device finalization, disk-space vs single-file-limit errors, per-platform media detection, and the directory override mechanism.
 tags: [disk-io, buffer-pool, storage, filesystem, hdd, ssd]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-f81695e53a2587711a61d13e
     resource: repo://crates/limedl-core/src/buffer_pool/download_buffer.rs
@@ -25,7 +22,12 @@ sources:
     resource: repo://crates/limedl-core/src/io_scheduler/queue.rs
   - id: openwiki-source-5482090b6666ff61df781e90
     resource: repo://crates/limedl-core/src/io_scheduler/topology.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+  - id: openwiki-source-9407da3da7a807b7713a5e9d
+    resource: repo://crates/limedl-core/src/services/disk_io.rs
+generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T03:21:09.297Z
 ---
 
 # Disk I/O, Buffer Pool and Storage Detection
@@ -172,6 +174,19 @@ A WSL distro is also listed in the settings UI so an override can reach it.
 Evidence: `repo://crates/limedl-core/src/file_ops/disk_detect.rs#L465-L505`,
 `repo://crates/limedl-core/src/file_ops/disk_detect.rs#L1115-L1125`.
 
+`DiskIoService::resolve_disk_type` is the single entry point used at download
+start: it checks the settings overrides first, then (on Unix only) an in-process
+cache keyed by the `st_dev` device number from `std::os::unix::fs::MetadataExt`,
+and finally falls back to `detect_disk_type`. The cache lets several destination
+paths on one volume share a single probe; Windows has no equivalent because its
+platform probe is already cheap. The cache field and its initializers are
+`#[cfg(unix)]`, and so are the `foldhash::HashMap` / `parking_lot::Mutex` imports
+it uses — importing them unconditionally made Windows builds fail with
+`unused_imports` under `CARGO_BUILD_WARNINGS=deny`.
+
+Evidence: `repo://crates/limedl-core/src/services/disk_io.rs#L1-L45`,
+`repo://crates/limedl-core/src/services/disk_io.rs#L79-L103`.
+
 `is_network_filesystem` is a *closed* set of remote and host-brokered transports
 (NFS, CIFS/SMB, AFP, WebDAV, GlusterFS, 9p, virtiofs, drvfs, guest additions).
 An unknown fstype — a brand-new local filesystem, or `fuse` such as ntfs-3g —
@@ -218,9 +233,6 @@ Evidence: `repo://crates/limedl-core/src/io_scheduler/queue.rs#L52-L65`,
 `repo://crates/limedl-core/src/io_scheduler/mod.rs#L53-L80`,
 `repo://crates/limedl-core/src/io_scheduler/topology.rs#L78-L108`.
 
-<!-- openwiki: broken internal link [/openwiki/workflows/http-download-lifecycle.md] link "/openwiki/workflows/http-download-lifecycle.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [HTTP Download Lifecycle](/openwiki/workflows/http-download-lifecycle.md),
-<!-- openwiki: broken internal link [/openwiki/systems/settings-and-configuration.md] link "/openwiki/systems/settings-and-configuration.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Settings and Configuration](/openwiki/systems/settings-and-configuration.md),
-<!-- openwiki: broken internal link [/openwiki/systems/persistence-and-recovery.md] link "/openwiki/systems/persistence-and-recovery.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[SQLite Persistence and Crash Recovery](/openwiki/systems/persistence-and-recovery.md).
+Related pages: [HTTP Download Lifecycle](../workflows/http-download-lifecycle.md),
+[Settings and Configuration](settings-and-configuration.md),
+[SQLite Persistence and Crash Recovery](persistence-and-recovery.md).

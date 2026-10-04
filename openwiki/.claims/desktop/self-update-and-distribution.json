@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:4681ba92c51664698e44de176df9710311d752f2ecf73597fe763327aa7c6072",
+  "pageVersion": "sha256:d13d924b438824c45f80afa0e1080e4b35dba50fb65478ddab17191d3e3dada5",
   "claims": [
     {
       "id": "claim_b8bf90043cdf4155b5827e79a2b03cd5",
@@ -17,8 +17,8 @@
       "statement": "The updater fetches latest-native.json and its .sig from the permanently named releases/latest URL, caps artifacts at MAX_UPDATE_BYTES (512 MiB), and trusts exactly one embedded minisign key, PUBKEY_B64.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/update/mod.rs#L44-L70",
-          "version": "repo-lines-v1:sha256:15b3204b2a187cedf38ad53291b93a16514580454a1de6cc8b5f4de277eb8e5d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYxMjFkY2QxODhiNWZlY2RhYzdiNjU5MmRjMzBhY2E3YTU5MWI0MGJjZTI5N2FmZmQ3YWU3NTg4OGJjNmY1MGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBiMWI1NjYxODRjY2I4YjA3YzFiOWQwZTQwYzRkNjJkOWI4NmYxYWY5NmE2NmMwYzg1ODdhZDVhYmY1ZDMzYzgifQ"
+          "resource": "repo://crates/limedl-native/src/update/mod.rs#L30-L50",
+          "version": "repo-lines-v1:sha256:64a2f6b0a6d1aa949c6e3b81ccb77a9b2543bc4c8b75fc3cf8d2e7be9a761a3c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4YjFhYTU1NTRiNzRkZDA2NTIxZGUwOWQ4MGJiOTUyNDZkZTJiMjUzZTYzMWFhZjVlYTM1YzQwZWE5ZjFlZmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNiZDdmYjI5MGNmNjJkZTkwOTZiZjMzMmQ0ZGU4ZDQ3MDk5ZGMwNDZiYzc2ZDAzNWExY2NmMmVjMThlZmYxZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRhODYzNDgxYTZjY2NlMmVmNDFjZjc1YzQ0ODNiZjg3MTUwZDAwOGMyNmVhOWJkZTE3ZDJmNzRlMDRlMGFmNGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE1ODllYjU2NWI4OWE2NmVhYmJiNmFkNWM0YzJjY2QzYjE4YmI5NGMzNjQwNWI1NjA5YTZhMTY3MWNjM2MwYjAifQ"
         }
       ]
     },
@@ -177,6 +177,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T01:52:48.489Z"
+    "at": "2026-10-04T03:21:09.297Z"
   }
 }

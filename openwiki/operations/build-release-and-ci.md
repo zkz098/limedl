@@ -3,9 +3,6 @@ type: operations
 title: Build, Tooling, CI and Release Operations
 description: The operational surface of limedl — build prerequisites and rustflags, the xtask tooling, the mandatory pre-commit gate and its Windows blind spot, the CI job graph with nextest/coverage/sonar/supply-chain, and the tag-driven release pipeline.
 tags: [operations, build, ci, release, xtask, tooling]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
     resource: repo://.cargo/config.toml
@@ -27,7 +24,10 @@ sources:
     resource: repo://xtask/src/fetch_font.rs
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T03:21:09.297Z
 ---
 
 # Build, Tooling, CI and Release Operations
@@ -46,7 +46,7 @@ generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
 musl targets) and adds `--cfg reqwest_unstable`, which reqwest's HTTP/3 feature
 requires at compile time. Add both when introducing a new target.
 
-Evidence: `repo://AGENTS.md#L5-L40`, `repo://.cargo/config.toml#L1-L45`.
+Evidence: `repo://AGENTS.md#L3-L21`, `repo://.cargo/config.toml#L1-L45`.
 
 ## xtask tooling
 
@@ -88,7 +88,7 @@ CDN hiccup read as four unrelated failures.
 
 Evidence: `repo://xtask/src/fetch_font.rs#L44-L57`,
 `repo://.github/actions/fetch-misans/action.yml#L1-L46`,
-`repo://.github/workflows/ci.yml#L80-L108`.
+`repo://.github/workflows/ci.yml#L108-L147`.
 
 ## The mandatory pre-commit gate
 
@@ -127,8 +127,8 @@ code. A second lcov is generated for `limedl-native` with
 because `tiny-xlib` turns `cfg(coverage)` into a nightly-only feature under
 stable).
 
-Evidence: `repo://AGENTS.md#L214-L258`,
-`repo://.github/workflows/ci.yml#L403-L474`.
+Evidence: `repo://AGENTS.md#L82-L105`,
+`repo://.github/workflows/ci.yml#L451-L472`.
 
 ### The gate cannot see non-Windows code from Windows
 
@@ -146,7 +146,7 @@ platform check; re-read platform-gated modules asking "what does this look like
 with `cfg(windows)` false?". The `sign-check` workflow and macOS-only linker note
 exemption are covered in the release page.
 
-Evidence: `repo://AGENTS.md#L259-L309`.
+Evidence: `repo://AGENTS.md#L106-L125`.
 
 ## CI job graph
 
@@ -165,8 +165,8 @@ Evidence: `repo://AGENTS.md#L259-L309`.
 Windows is split into three parallel jobs because its native job is the critical
 path and clippy cannot share build artifacts with test builds.
 
-Evidence: `repo://.github/workflows/ci.yml#L110-L289`,
-`repo://.github/workflows/ci.yml#L338-L545`.
+Evidence: `repo://.github/workflows/ci.yml#L148-L336`,
+`repo://.github/workflows/ci.yml#L336-L560`.
 
 ### Cache and RUSTFLAGS contract
 
@@ -189,9 +189,9 @@ Additional rules:
 - Windows jobs exclude build paths from Defender real-time scanning
   (best-effort), which is the dominant Windows-vs-Linux build penalty.
 
-Evidence: `repo://.github/workflows/ci.yml#L30-L80`,
-`repo://.github/workflows/ci.yml#L150-L289`,
-`repo://.github/workflows/ci.yml#L289-L338`.
+Evidence: `repo://.github/workflows/ci.yml#L40-L93`,
+`repo://.github/workflows/ci.yml#L148-L336`,
+`repo://.github/workflows/ci.yml#L336-L515`.
 
 ## Release pipeline
 
@@ -214,9 +214,9 @@ Pushing a `v*` tag triggers `.github/workflows/release.yml`:
 The signing key never appears in the tree; `cargo xtask guard` fails the release
 if the CI secret's derived public key does not match the client's `PUBKEY_B64`.
 
-Evidence: `repo://.github/workflows/release.yml#L1-L31`,
-`repo://.github/workflows/release.yml#L77-L121`,
-`repo://.github/workflows/release.yml#L502-L645`.
+Evidence: `repo://.github/workflows/release.yml#L1-L37`,
+`repo://.github/workflows/release.yml#L77-L128`,
+`repo://.github/workflows/release.yml#L512-L640`.
 
 The `Signing check` workflow is the manual counterpart: it signs a throwaway file
 and runs `guard` without publishing, so a key rotation can be validated on demand.
@@ -234,11 +234,8 @@ is `=1.7.0` because the BT backend depends on a wide slice of the engine API and
 upstream's git repository was removed, so crates.io is the only source of truth.
 Moving off it is a migration, not a version bump.
 
-Evidence: `repo://AGENTS.md#L310-L336`, `repo://Cargo.toml#L70-L74`.
+Evidence: `repo://AGENTS.md#L126-L133`, `repo://Cargo.toml#L70-L74`.
 
-<!-- openwiki: broken internal link [/openwiki/desktop/self-update-and-distribution.md] link "/openwiki/desktop/self-update-and-distribution.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Self-Update and Distribution Channels](/openwiki/desktop/self-update-and-distribution.md),
-<!-- openwiki: broken internal link [/openwiki/testing/testing-strategy.md] link "/openwiki/testing/testing-strategy.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Testing Strategy](/openwiki/testing/testing-strategy.md),
-<!-- openwiki: broken internal link [/openwiki/quickstart.md] link "/openwiki/quickstart.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[limedl Wiki Quickstart](/openwiki/quickstart.md).
+Related pages: [Self-Update and Distribution Channels](../desktop/self-update-and-distribution.md),
+[Testing Strategy](../testing/testing-strategy.md),
+[limedl Wiki Quickstart](../quickstart.md).

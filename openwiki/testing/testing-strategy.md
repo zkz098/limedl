@@ -3,9 +3,6 @@ type: testing
 title: Testing Strategy
 description: How limedl's Rust engine is tested — the test layout conventions, nextest process isolation, the mock-server integration corpus, byte-level corruption oracles and adversarial servers, BT and Aria2 harnesses, and the coverage gate.
 tags: [testing, nextest, integration-tests, corruption, coverage]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-164e2da859b5277df81c7d94
     resource: repo://.github/workflows/ci.yml
@@ -15,6 +12,10 @@ sources:
     resource: repo://crates/limedl-core/src/bt_backend/tests/alerts.rs
   - id: openwiki-source-8a802dd79d30f7920922a1e7
     resource: repo://crates/limedl-core/src/bt_backend/tests/mod.rs
+  - id: openwiki-source-e2995ec6bf7ff16128c760b6
+    resource: repo://crates/limedl-core/src/test_harness/mod.rs
+  - id: openwiki-source-37ca19c9c77c5d1241db1782
+    resource: repo://crates/limedl-core/src/test_harness/tests.rs
   - id: openwiki-source-cb1832cd66a43fcb45eccffd
     resource: repo://crates/limedl-core/src/tests/adversarial_interception_tests.rs
   - id: openwiki-source-3b86741d4858b1e063b6d6f5
@@ -29,7 +30,10 @@ sources:
     resource: repo://crates/limedl-core/src/tests/resume_corruption_tests.rs
   - id: openwiki-source-1a1d4b50d244dfdbcf190f3a
     resource: repo://crates/limedl-core/tests/logging_reload_repro.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T03:21:09.297Z
 ---
 
 # Testing Strategy
@@ -72,7 +76,7 @@ a single libtest process per binary exposes — shared temp dirs, env vars,
 `LazyLock`. `cargo nextest run` does **not** run doctests; the workspace has none,
 and adding one requires a `cargo test --doc` step in CI and the gate.
 
-Evidence: `repo://.github/workflows/ci.yml#L86-L95`.
+Evidence: `repo://.github/workflows/ci.yml#L84-L93`.
 
 ## The corruption oracle
 
@@ -104,9 +108,17 @@ Evidence: `repo://crates/limedl-core/src/tests/adversarial_interception_tests.rs
 `resume_corruption_tests.rs` pauses at staggered points, resumes, finishes, and
 re-reads the file to require SHA-256 equality. Resume is a prime suspect because
 the incremental hasher resets on pause and incomplete-chunk offsets are
-re-derived from the manifest; two deterministic pausing strategies avoid racing a
-fast localhost download (`pause_on_any_progress` and the bandwidth-throttled
-`pause_at_fraction`).
+re-derived from the manifest; the tests avoid racing a fast localhost download by
+throttling the origin instead of the pausing loop. The single-stream cases use
+the bandwidth endpoint with `pause_at_fraction`. The multi-threaded case pauses
+on the first progress (`pause_on_any_progress`) through
+`TestServer::file_url_range_bandwidth`, a range-capable endpoint that throttles
+each chunk connection so the transfer is still in flight when the pause lands —
+without it a 17 MiB localhost download could finish and enter `Verifying`
+between the progress poll and the pause call. The harness endpoints themselves
+are covered by unit tests in `test_harness/tests.rs`
+(`range_bandwidth_endpoint_serves_throttled_ranges`,
+`range_bandwidth_endpoint_serves_full_file_without_range`).
 
 `buffer_integrity_tests.rs` injects deterministic I/O failures into the
 write-combining buffers through `buffer_pool::fault` (compiled only under
@@ -115,7 +127,10 @@ error flag (`has_degraded()`, `flush_all` errors) without corrupting
 already-written bytes, and a real download using the buffer ends in `Failed`
 rather than a silent `Completed`.
 
-Evidence: `repo://crates/limedl-core/src/tests/resume_corruption_tests.rs#L1-L20`,
+Evidence: `repo://crates/limedl-core/src/tests/resume_corruption_tests.rs#L99-L118`,
+`repo://crates/limedl-core/src/tests/resume_corruption_tests.rs#L172-L205`,
+`repo://crates/limedl-core/src/test_harness/mod.rs#L547-L617`,
+`repo://crates/limedl-core/src/test_harness/tests.rs#L63-L106`,
 `repo://crates/limedl-core/src/tests/buffer_integrity_tests.rs#L1-L18`.
 
 ## Mock-server integration corpus
@@ -178,11 +193,8 @@ Evidence: `repo://crates/limedl-core/src/bt_backend/tests/mod.rs#L158-L180`,
 `tests.rs`/`*_tests.rs` files by default, so the metric counts **product code
 only**. A `cargo test --doc` step would be needed if a doctest is ever added.
 
-Evidence: `repo://.github/workflows/ci.yml#L420-L474`.
+Evidence: `repo://.github/workflows/ci.yml#L451-L472`.
 
-<!-- openwiki: broken internal link [/openwiki/testing/slint-ui-testing.md] link "/openwiki/testing/slint-ui-testing.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Slint UI Testing](/openwiki/testing/slint-ui-testing.md),
-<!-- openwiki: broken internal link [/openwiki/operations/build-release-and-ci.md] link "/openwiki/operations/build-release-and-ci.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Build, Tooling, CI and Release Operations](/openwiki/operations/build-release-and-ci.md),
-<!-- openwiki: broken internal link [/openwiki/workflows/http-download-lifecycle.md] link "/openwiki/workflows/http-download-lifecycle.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[HTTP Download Lifecycle](/openwiki/workflows/http-download-lifecycle.md).
+Related pages: [Slint UI Testing](slint-ui-testing.md),
+[Build, Tooling, CI and Release Operations](../operations/build-release-and-ci.md),
+[HTTP Download Lifecycle](../workflows/http-download-lifecycle.md).

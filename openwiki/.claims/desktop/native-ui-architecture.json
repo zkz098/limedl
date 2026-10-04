@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:4d1c948ef2b5c2111adc8798bd45acd7a684bca0b8f22f377a047d715925f42a",
+  "pageVersion": "sha256:19915d6d5d848cb43f47281b86f9737f59c1ea0f18a7d43bd279147d35753db7",
   "claims": [
     {
       "id": "claim_a3116684fdf845e3bf61d5d54d1ccadf",
@@ -147,8 +147,8 @@
       "statement": "Every autostart registration appends --hidden; Windows uses HKCU Run (or the MSIX startupTask extension), Linux an XDG .desktop, and macOS a LaunchAgent, and a moved executable triggers re-registration.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/autostart.rs#L1-L42",
-          "version": "repo-lines-v1:sha256:b544a02787f84da2feaa1f6c78c425b9698687be50e47e5e33f82f9fa18c3de1:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE3ZTZiOGNjNTc3YmQzOTVmMTA0MTE1NzNmMWQ5M2FjMWUyYTA2OGY1NzU4MmIxODE4ZjBiOWM4YmU4N2UzYWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg1ZmU5ZDFiOTUzOWZmNDA5ZGEzMWEyMzBhNzBhYWJmZjFkOTI1MjQ5OWJlY2UzMzVlOTVkZWY2OTBmNjY0ODgifQ"
+          "resource": "repo://crates/limedl-native/src/autostart.rs#L1-L46",
+          "version": "repo-lines-v1:sha256:03f4979b41a1e946faf43925349959f39fc981cf522dc99ebd6b1167c918e18b:eyJzZWxlY3RlZExpbmVDb3VudCI6NDYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE3ZTZiOGNjNTc3YmQzOTVmMTA0MTE1NzNmMWQ5M2FjMWUyYTA2OGY1NzU4MmIxODE4ZjBiOWM4YmU4N2UzYWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg1ZmU5ZDFiOTUzOWZmNDA5ZGEzMWEyMzBhNzBhYWJmZjFkOTI1MjQ5OWJlY2UzMzVlOTVkZWY2OTBmNjY0ODgifQ"
         }
       ]
     },
@@ -193,10 +193,24 @@
           "version": "repo-lines-v1:sha256:91701e314fd940b678a5564db6ebac450785457150c6c21b82cb6cf884d405db:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhODc0NTQ0NWExOTU1NTgwNzcxZWVkYjA1OWE0Y2VmZTNkZTI4MTg5YjM2MzY3MGJlNDgwNWNhZDMzODg4MWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRkM2EyZDk3NjA4OTc4NDdmOTExNTViNTljNDhmNjdmYjQ1N2E0MTc0MWIwODg4N2ZmYWM0ZTdjMGY4MGU4MzcifQ"
         }
       ]
+    },
+    {
+      "id": "claim_cb5ab71aeb104a31857a5c1a863ee861",
+      "statement": "The shared autostart `expected_command` helper (quoted exe path plus --hidden) is compiled only on Windows and Linux; macOS builds its LaunchAgent plist ProgramArguments array from `current_exe_string` directly.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/autostart.rs#L22-L36",
+          "version": "repo-lines-v1:sha256:57c0d8e1fb23d8b3489aeb489d9e573e9537be9b6081cd03cf2d94c1b86d716b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxMWU4YjYyZTMzYmM0ODQxYzg2YTUyYmJmZDQyNGFlNDFlMGJiZWE4MjQyMmQxMGUwZDIwYjlmMzA1ZmI0MGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhNTQzMzNlZTNiYWNjYjkzNjhmN2NhMGZiMGMyZjliNGUyZmE0M2RiNjYwMmRlMWU5NGRlMTI2MGM2ZmM4ZDciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI0ZjU5N2E1NjgwNzZmNzk3ZWJmNjViMWEwZDBiNWY4MzE1MTA5MGNlNGI2ZGEwNDM3NWMwN2RjYTUxMDBmYmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYyMTkxMGNhODRmNzU1MTY3NjhhZjRkOGQwODhkNTBhZGM4NzNiOWExNmY4MDliOGQ1ZTVhYzc1MjZjMjlmYmMifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/autostart.rs#L237-L250",
+          "version": "repo-lines-v1:sha256:2f3d1253a6c9689f7a90bd2320ff8dae37c8d0fbe2062c366e558ea5289e44ed:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MzFkNGI1NmY1MmVhYTBkOGMwZjExYWFjNDk5NjQ3NmQzMDMwMmJlMjg1M2EwYjExZGE5ZTIyMmUxMTIwODUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg3MjNlZGUwMWNkYjg0OWU1OGFhYjViZjFlNmE2NzI4MTgzMDQ3NmZlYTI5NjUzYmE5MWVkZWRlYjNhMGEzOWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQwZGYwYzFlYTBiNWZlMTFlNDIxNjA0NTE2ZDU5NzEyYzljZDhiOWNiMzEyODQ4MTk2MDI3ZDIzZTU0YjhjN2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEzNzIyYmU2ZDU4MmJmMTllNmVjYjViMTJmMDE3MDk5MTMyYTU1N2I5N2RiZjVmY2Y1M2ZjNjI1ODMyNGM4OTcifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T01:52:48.489Z"
+    "at": "2026-10-04T03:21:09.297Z"
   }
 }

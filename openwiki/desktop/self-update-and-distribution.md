@@ -3,9 +3,6 @@ type: desktop
 title: Self-Update and Distribution Channels
 description: How the limedl desktop client detects its install channel, verifies and installs signed updates across portable/NSIS/MSIX/macOS/Linux channels, and how the release pipeline signs artifacts and builds the single latest-native.json manifest.
 tags: [self-update, release, minisign, distribution, packaging]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-4d1d392666be6dfdd7a91a2e
     resource: repo://.github/workflows/release.yml
@@ -21,7 +18,10 @@ sources:
     resource: repo://xtask/src/main.rs
   - id: openwiki-source-c74f60d1c3f2961e83a2a521
     resource: repo://xtask/src/manifest.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T03:21:09.297Z
 ---
 
 # Self-Update and Distribution Channels
@@ -57,7 +57,7 @@ The client trusts exactly one key: the `PUBKEY_B64` constant in `update/mod.rs`
 the manifest signature is mandatory — a missing `.sig` aborts the check rather
 than trusting the JSON.
 
-Evidence: `repo://crates/limedl-native/src/update/mod.rs#L44-L70`.
+Evidence: `repo://crates/limedl-native/src/update/mod.rs#L30-L50`.
 
 Keys are `{os}-{arch}` with macOS spelled `darwin`, and `-portable` is appended
 for the portable/Store channel:
@@ -220,9 +220,6 @@ Evidence: `repo://crates/limedl-native/src/autostart.rs#L1-L10`,
 `repo://packaging/msix/AppxManifest.xml#L54-L66`,
 `repo://crates/limedl-native/src/update/mod.rs#L627-L640`.
 
-<!-- openwiki: broken internal link [/openwiki/desktop/native-ui-architecture.md] link "/openwiki/desktop/native-ui-architecture.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Native Desktop UI (Slint)](/openwiki/desktop/native-ui-architecture.md),
-<!-- openwiki: broken internal link [/openwiki/operations/build-release-and-ci.md] link "/openwiki/operations/build-release-and-ci.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Build, Tooling, CI and Release Operations](/openwiki/operations/build-release-and-ci.md),
-<!-- openwiki: broken internal link [/openwiki/systems/networking-and-rate-control.md] link "/openwiki/systems/networking-and-rate-control.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Networking, HTTP Clients and Rate Control](/openwiki/systems/networking-and-rate-control.md).
+Related pages: [Native Desktop UI (Slint)](native-ui-architecture.md),
+[Build, Tooling, CI and Release Operations](../operations/build-release-and-ci.md),
+[Networking, HTTP Clients and Rate Control](../systems/networking-and-rate-control.md).

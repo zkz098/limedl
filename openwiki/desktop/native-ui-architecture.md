@@ -5,7 +5,7 @@ description: How the limedl Slint desktop client is assembled and driven — the
 tags: [desktop, slint, ui, event-stream, i18n, platform]
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
+    at: 2026-10-04T03:21:09.297Z
 sources:
   - id: openwiki-source-e5a81e0b5d28c08eec080c86
     resource: repo://crates/limedl-native/src/autostart.rs
@@ -43,7 +43,7 @@ sources:
     resource: repo://crates/limedl-native/src/ui_sync.rs
   - id: openwiki-source-90185777dff572d79a3b452d
     resource: repo://crates/limedl-native/ui/theme.slint
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
 ---
 
 # Native Desktop UI (Slint)
@@ -205,13 +205,24 @@ Evidence: `repo://crates/limedl-native/src/single_instance.rs#L1-L181`.
 
 ### Autostart
 
-Every OS registration appends `--hidden`, so login starts go to the tray. Windows
-portable/NSIS uses the HKCU `Run` key; MSIX uses the `windows.startupTask`
-manifest extension because registry `Run` is virtualized in MSIX; Linux writes an
-XDG `.desktop`; macOS writes a LaunchAgent. `registration_is_current` re-registers
-when the executable moved (portable extraction to a new folder, debug vs release).
+`autostart.rs` is a thin dispatcher over per-OS modules: only the `#[cfg]`
+selected backend (`windows_impl`, `linux_impl`, `macos_impl`, or a no-op
+fallback) is compiled, and the shared helpers (`current_exe_string`,
+`registration_is_current`) are used by all of them. Every OS registration
+appends `--hidden`, so login starts go to the tray. Windows portable/NSIS uses
+the HKCU `Run` key; MSIX uses the `windows.startupTask` manifest extension
+because registry `Run` is virtualized in MSIX; Linux writes an XDG `.desktop`;
+macOS writes a LaunchAgent. The `expected_command` helper — which quotes a
+spaced executable path and appends `--hidden` — is shared by Windows and Linux
+only (`#[cfg(any(windows, target_os = "linux"))]`); macOS builds its plist
+`ProgramArguments` array from `current_exe_string` directly. On Unix,
+`registered_for_current_exe` and `sync_from_settings` re-register when the
+executable moved (portable extraction to a new folder, debug vs release) or lost
+the hidden flag.
 
-Evidence: `repo://crates/limedl-native/src/autostart.rs#L1-L42`.
+Evidence: `repo://crates/limedl-native/src/autostart.rs#L11-L42`,
+`repo://crates/limedl-native/src/autostart.rs#L225-L266`,
+`repo://crates/limedl-native/src/autostart.rs#L380-L394`.
 
 ### Tray and power
 
@@ -258,11 +269,7 @@ the OS window theme.
 Evidence: `repo://crates/limedl-native/ui/theme.slint#L1-L26`,
 `repo://crates/limedl-native/src/ui_sync.rs#L304-L319`.
 
-<!-- openwiki: broken internal link [/openwiki/architecture/overview.md] link "/openwiki/architecture/overview.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Workspace and System Architecture](/openwiki/architecture/overview.md),
-<!-- openwiki: broken internal link [/openwiki/systems/settings-and-configuration.md] link "/openwiki/systems/settings-and-configuration.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Settings and Configuration](/openwiki/systems/settings-and-configuration.md),
-<!-- openwiki: broken internal link [/openwiki/desktop/self-update-and-distribution.md] link "/openwiki/desktop/self-update-and-distribution.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Self-Update and Distribution Channels](/openwiki/desktop/self-update-and-distribution.md),
-<!-- openwiki: broken internal link [/openwiki/testing/slint-ui-testing.md] link "/openwiki/testing/slint-ui-testing.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Slint UI Testing](/openwiki/testing/slint-ui-testing.md).
+Related pages: [Workspace and System Architecture](../architecture/overview.md),
+[Settings and Configuration](../systems/settings-and-configuration.md),
+[Self-Update and Distribution Channels](self-update-and-distribution.md),
+[Slint UI Testing](../testing/slint-ui-testing.md).

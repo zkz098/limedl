@@ -5,7 +5,7 @@ description: Entry point and task-routing map for the limedl wiki — where to s
 tags: [quickstart, navigation, onboarding, build, workflow]
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
+    at: 2026-10-04T03:21:09.297Z
 sources:
   - id: openwiki-source-4d1d392666be6dfdd7a91a2e
     resource: repo://.github/workflows/release.yml
@@ -39,7 +39,7 @@ sources:
     resource: repo://README.md
   - id: openwiki-source-ca864fd40fa4107ed35f840f
     resource: repo://xtask/src/fetch_font.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
 ---
 
 # limedl Wiki Quickstart
@@ -55,40 +55,23 @@ Evidence: `repo://Cargo.toml#L1-L11`, `repo://crates/limedl-core/src/lib.rs#L1-L
 
 | Goal | Read first | Start from source |
 | --- | --- | --- |
-<!-- openwiki: broken internal link [/openwiki/architecture/overview.md] link "/openwiki/architecture/overview.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Understand the whole system | [Workspace and System Architecture](/openwiki/architecture/overview.md) | `Cargo.toml`, `crates/limedl-core/src/lib.rs` |
-<!-- openwiki: broken internal link [/openwiki/architecture/bootstrap-and-services.md] link "/openwiki/architecture/bootstrap-and-services.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| See how the engine boots | [Bootstrap, SystemContext and Shared Services](/openwiki/architecture/bootstrap-and-services.md) | `crates/limedl-core/src/bootstrap.rs` |
-<!-- openwiki: broken internal link [/openwiki/architecture/protocol-routing-and-dispatcher.md] link "/openwiki/architecture/protocol-routing-and-dispatcher.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Follow a request to a backend | [Protocol Routing and the Dispatcher Facade](/openwiki/architecture/protocol-routing-and-dispatcher.md) | `crates/limedl-core/src/dispatcher.rs`, `protocol.rs` |
-<!-- openwiki: broken internal link [/openwiki/workflows/http-download-lifecycle.md] link "/openwiki/workflows/http-download-lifecycle.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Trace an HTTP download | [HTTP Download Lifecycle](/openwiki/workflows/http-download-lifecycle.md) | `crates/limedl-core/src/http_executor/`, `manager.rs` |
-<!-- openwiki: broken internal link [/openwiki/workflows/scheduler-and-concurrency.md] link "/openwiki/workflows/scheduler-and-concurrency.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Understand thread counts / AIMD | [Scheduler, AIMD and Concurrency Control](/openwiki/workflows/scheduler-and-concurrency.md) | `crates/limedl-core/src/scheduler/mod.rs`, `aimd/mod.rs` |
-<!-- openwiki: broken internal link [/openwiki/workflows/bit-torrent-backend.md] link "/openwiki/workflows/bit-torrent-backend.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Work on BitTorrent | [BitTorrent Backend](/openwiki/workflows/bit-torrent-backend.md) | `crates/limedl-core/src/bt_backend/` |
-<!-- openwiki: broken internal link [/openwiki/workflows/cdn-acceleration.md] link "/openwiki/workflows/cdn-acceleration.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Work on CDN acceleration | [CDN Acceleration](/openwiki/workflows/cdn-acceleration.md) | `crates/limedl-core/src/cdn/` |
-<!-- openwiki: broken internal link [/openwiki/systems/persistence-and-recovery.md] link "/openwiki/systems/persistence-and-recovery.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Change persistence | [SQLite Persistence and Crash Recovery](/openwiki/systems/persistence-and-recovery.md) | `crates/limedl-core/src/database/`, `persistence.rs` |
-<!-- openwiki: broken internal link [/openwiki/systems/settings-and-configuration.md] link "/openwiki/systems/settings-and-configuration.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Change settings | [Settings and Configuration](/openwiki/systems/settings-and-configuration.md) | `crates/limedl-core/src/settings/`, `services/settings_service.rs` |
-<!-- openwiki: broken internal link [/openwiki/systems/disk-io-and-storage.md] link "/openwiki/systems/disk-io-and-storage.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Work on disk I/O / buffers | [Disk I/O, Buffer Pool and Storage Detection](/openwiki/systems/disk-io-and-storage.md) | `crates/limedl-core/src/buffer_pool/`, `file_ops/` |
-<!-- openwiki: broken internal link [/openwiki/systems/networking-and-rate-control.md] link "/openwiki/systems/networking-and-rate-control.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Change networking / proxy / UA | [Networking, HTTP Clients and Rate Control](/openwiki/systems/networking-and-rate-control.md) | `crates/limedl-core/src/http_client_factory/mod.rs` |
-<!-- openwiki: broken internal link [/openwiki/integrations/aria2-rpc-server.md] link "/openwiki/integrations/aria2-rpc-server.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Work on the Aria2 RPC API | [Aria2 JSON-RPC Compatibility Server](/openwiki/integrations/aria2-rpc-server.md) | `crates/limedl-core/src/aria2_rpc/` |
-<!-- openwiki: broken internal link [/openwiki/desktop/native-ui-architecture.md] link "/openwiki/desktop/native-ui-architecture.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Work on the desktop UI | [Native Desktop UI (Slint)](/openwiki/desktop/native-ui-architecture.md) | `crates/limedl-native/src/main.rs`, `ui_boot.rs`, `handlers/` |
-<!-- openwiki: broken internal link [/openwiki/desktop/self-update-and-distribution.md] link "/openwiki/desktop/self-update-and-distribution.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Change the updater / packaging | [Self-Update and Distribution Channels](/openwiki/desktop/self-update-and-distribution.md) | `crates/limedl-native/src/update/mod.rs` |
-<!-- openwiki: broken internal link [/openwiki/operations/build-release-and-ci.md] link "/openwiki/operations/build-release-and-ci.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Build / CI / release | [Build, Tooling, CI and Release Operations](/openwiki/operations/build-release-and-ci.md) | `.github/workflows/`, `xtask/` |
-<!-- openwiki: broken internal link [/openwiki/testing/testing-strategy.md] link "/openwiki/testing/testing-strategy.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Write engine tests | [Testing Strategy](/openwiki/testing/testing-strategy.md) | `crates/limedl-core/src/tests/` |
-<!-- openwiki: broken internal link [/openwiki/testing/slint-ui-testing.md] link "/openwiki/testing/slint-ui-testing.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-| Write UI tests | [Slint UI Testing](/openwiki/testing/slint-ui-testing.md) | `crates/limedl-native/src/ui_tests/` |
+| Understand the whole system | [Workspace and System Architecture](architecture/overview.md) | `Cargo.toml`, `crates/limedl-core/src/lib.rs` |
+| See how the engine boots | [Bootstrap, SystemContext and Shared Services](architecture/bootstrap-and-services.md) | `crates/limedl-core/src/bootstrap.rs` |
+| Follow a request to a backend | [Protocol Routing and the Dispatcher Facade](architecture/protocol-routing-and-dispatcher.md) | `crates/limedl-core/src/dispatcher.rs`, `protocol.rs` |
+| Trace an HTTP download | [HTTP Download Lifecycle](workflows/http-download-lifecycle.md) | `crates/limedl-core/src/http_executor/`, `manager.rs` |
+| Understand thread counts / AIMD | [Scheduler, AIMD and Concurrency Control](workflows/scheduler-and-concurrency.md) | `crates/limedl-core/src/scheduler/mod.rs`, `aimd/mod.rs` |
+| Work on BitTorrent | [BitTorrent Backend](workflows/bit-torrent-backend.md) | `crates/limedl-core/src/bt_backend/` |
+| Work on CDN acceleration | [CDN Acceleration](workflows/cdn-acceleration.md) | `crates/limedl-core/src/cdn/` |
+| Change persistence | [SQLite Persistence and Crash Recovery](systems/persistence-and-recovery.md) | `crates/limedl-core/src/database/`, `persistence.rs` |
+| Change settings | [Settings and Configuration](systems/settings-and-configuration.md) | `crates/limedl-core/src/settings/`, `services/settings_service.rs` |
+| Work on disk I/O / buffers | [Disk I/O, Buffer Pool and Storage Detection](systems/disk-io-and-storage.md) | `crates/limedl-core/src/buffer_pool/`, `file_ops/` |
+| Change networking / proxy / UA | [Networking, HTTP Clients and Rate Control](systems/networking-and-rate-control.md) | `crates/limedl-core/src/http_client_factory/mod.rs` |
+| Work on the Aria2 RPC API | [Aria2 JSON-RPC Compatibility Server](integrations/aria2-rpc-server.md) | `crates/limedl-core/src/aria2_rpc/` |
+| Work on the desktop UI | [Native Desktop UI (Slint)](desktop/native-ui-architecture.md) | `crates/limedl-native/src/main.rs`, `ui_boot.rs`, `handlers/` |
+| Change the updater / packaging | [Self-Update and Distribution Channels](desktop/self-update-and-distribution.md) | `crates/limedl-native/src/update/mod.rs` |
+| Build / CI / release | [Build, Tooling, CI and Release Operations](operations/build-release-and-ci.md) | `.github/workflows/`, `xtask/` |
+| Write engine tests | [Testing Strategy](testing/testing-strategy.md) | `crates/limedl-core/src/tests/` |
+| Write UI tests | [Slint UI Testing](testing/slint-ui-testing.md) | `crates/limedl-native/src/ui_tests/` |
 
 ## Build and run
 
@@ -103,7 +86,7 @@ cargo run -p limedl-native
 Linux also needs `libfontconfig1-dev`; the app keeps its data under the OS local
 data directory and honours `LIMEDL_DATA_DIR` as an override.
 
-Evidence: `repo://README.md#L70-L96`, `repo://AGENTS.md#L5-L40`.
+Evidence: `repo://README.md#L70-L96`, `repo://AGENTS.md#L3-L21`.
 
 ## The mandatory pre-commit gate
 
@@ -121,10 +104,9 @@ cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 
 Coverage is a hard CI gate at 85 % lines for `limedl-core`. The full contract and
 its Windows blind spot are on
-<!-- openwiki: broken internal link [/openwiki/operations/build-release-and-ci.md] link "/openwiki/operations/build-release-and-ci.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Build, Tooling, CI and Release Operations](/openwiki/operations/build-release-and-ci.md).
+[Build, Tooling, CI and Release Operations](operations/build-release-and-ci.md).
 
-Evidence: `repo://AGENTS.md#L214-L309`.
+Evidence: `repo://AGENTS.md#L82-L125`.
 
 ## Load-bearing invariants (read before refactoring)
 
@@ -166,21 +148,15 @@ Evidence: `repo://AGENTS.md#L214-L309`.
   `i18n::format_*`, never hardcoded CJK.
   `repo://crates/limedl-native/src/i18n/mod.rs#L1-L16`
 - Commit subjects stay Conventional (`feat:`, `fix:`, …) because release notes are
-  generated by git-cliff. `repo://.github/workflows/release.yml#L77-L121`
+  generated by git-cliff. `repo://.github/workflows/release.yml#L77-L128`
 - After dependency changes, commit the updated `Cargo.lock`.
-  `repo://AGENTS.md#L310-L336`
+  `repo://AGENTS.md#L126-L133`
 
 ## Suggested reading order
 
-<!-- openwiki: broken internal link [/openwiki/architecture/overview.md] link "/openwiki/architecture/overview.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-1. [Workspace and System Architecture](/openwiki/architecture/overview.md)
-<!-- openwiki: broken internal link [/openwiki/architecture/bootstrap-and-services.md] link "/openwiki/architecture/bootstrap-and-services.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-2. [Bootstrap, SystemContext and Shared Services](/openwiki/architecture/bootstrap-and-services.md)
-<!-- openwiki: broken internal link [/openwiki/architecture/protocol-routing-and-dispatcher.md] link "/openwiki/architecture/protocol-routing-and-dispatcher.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-3. [Protocol Routing and the Dispatcher Facade](/openwiki/architecture/protocol-routing-and-dispatcher.md)
-<!-- openwiki: broken internal link [/openwiki/workflows/http-download-lifecycle.md] link "/openwiki/workflows/http-download-lifecycle.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-4. [HTTP Download Lifecycle](/openwiki/workflows/http-download-lifecycle.md)
-<!-- openwiki: broken internal link [/openwiki/workflows/scheduler-and-concurrency.md] link "/openwiki/workflows/scheduler-and-concurrency.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-5. [Scheduler, AIMD and Concurrency Control](/openwiki/workflows/scheduler-and-concurrency.md)
-<!-- openwiki: broken internal link [/openwiki/testing/testing-strategy.md] link "/openwiki/testing/testing-strategy.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-6. [Testing Strategy](/openwiki/testing/testing-strategy.md)
+1. [Workspace and System Architecture](architecture/overview.md)
+2. [Bootstrap, SystemContext and Shared Services](architecture/bootstrap-and-services.md)
+3. [Protocol Routing and the Dispatcher Facade](architecture/protocol-routing-and-dispatcher.md)
+4. [HTTP Download Lifecycle](workflows/http-download-lifecycle.md)
+5. [Scheduler, AIMD and Concurrency Control](workflows/scheduler-and-concurrency.md)
+6. [Testing Strategy](testing/testing-strategy.md)

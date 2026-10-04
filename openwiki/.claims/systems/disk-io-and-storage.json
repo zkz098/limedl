@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:4c27933219094c8f9c79cc418b062387620db913a3dbf685f155e5ce8289c3a2",
+  "pageVersion": "sha256:d1c9a367ae19fe84ab7b49a21e83625d13a9c5830cee8e432f42100c801fb21f",
   "claims": [
     {
       "id": "claim_dcd662ecbad04385b8c7433a003d129d",
@@ -161,10 +161,24 @@
           "version": "repo-lines-v1:sha256:89ba9ff7b195745b1baab40ce0973fa799bec807639a36046b765b7dcb3031e0:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYxZThkYmFlODkyYjU2MTBlOTMxODlhOTU1MjljOGE4Nzc3MmQ4ZTg5ZmU3OTVlMjAxZDRhMjZmODBmZWI2NTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkYmI1YTFmNWY4OTA3MGYwYjdlZTczNjg3YjFmOTI5MTczNDRmNDIxNWFjM2Y0NWQ0YmIzMmNhY2Y2NzVmOTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcyOTI3Zjk1NWRiZDEzZGZkNmUyNmE2YjYwMTZiYzhjYTQ5YzY1YTg2N2VhN2ExMGMzODkzMTliNzhmY2ExMWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhjN2Y0ZmNmOWYyMTQxYjljNDNlMGU5ZmI1ZDBkMTk0YWVhNWJmMDM3MTVkMjgzNjBmMTAyMjM1Njg3Zjc4OTgifQ"
         }
       ]
+    },
+    {
+      "id": "claim_51a75eb757f14c2baf8c6a2cb201fb17",
+      "statement": "`DiskIoService::resolve_disk_type` checks settings overrides first, then on Unix a cache keyed by the st_dev device number, then detect_disk_type; the cache field and the foldhash::HashMap / parking_lot::Mutex imports it needs are cfg(unix)-gated so Windows builds do not see them as unused imports.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/services/disk_io.rs#L1-L45",
+          "version": "repo-lines-v1:sha256:bf674ec2bf4efacdfb33bb4c46af38b786907f96f430be5bc4c48f1b47094904:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2YjFiMTZjOWYwNDVhYTNmMDFhNTg4YTYyODljMmRkZTgxNmVkZTE0MTBmNWZjMTRkYjc2ZDU0M2JhNmQwNDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg3MmE4YjYwMjA2ODQ4OWNjYTgzOTIwNGMzMDgzMmVlMDc5Y2UzZjRjNDc1Yjk2MWVmZDZkODZhZjk2M2NiZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNlZjk0YTU2NDA2YzY2MjNlZmU4YmQ1NDkwNzhjZTBhYjNjNDhjMjkyMDFmZDMwYzY3YWU5NDU5NzZmMWEzYzYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/services/disk_io.rs#L79-L103",
+          "version": "repo-lines-v1:sha256:86b4394bf7cb6bba2aa6e699e57771ded29bbe4449153fc92d20ab36edd9a465:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxMjk3MWRlZmFmZWFlM2NmYTIyNTlmNDIzYTUzNjFjOWRkOGQyZGNkNGVlYTEwM2E1NzY1OTUyMzZjMzRlMWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEwOTA2NzdhMmU3OTU2OTI3NWUwNGY1MmNiNzg5ZGY0ODAzN2Y2OThiNjJlYzdlMjkxNGM0YTIxY2FmNzk0MmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRmNzdjY2Q3MjdmNDAyMDJmODFhOWMwMjcyZmZlMWRhMzEyZjU2YjRjNTVjMDU2NDU5MTA2MWJhMTY3MjgyNDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNjNmFmMWFkZGQ1NDY5NjYyYmI3YjFhYzY1NWY2YWY4NWViYWFiMTIxMTk3Njg1NWJkN2RkYThiMTcwNzEwY2UifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T01:52:48.489Z"
+    "at": "2026-10-04T03:21:09.297Z"
   }
 }

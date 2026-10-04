@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:b1047f6cc489d0082d019fe954902ef57f18aea06e067096ac5b136a86725266",
+  "pageVersion": "sha256:b82ce96e9bfd4e982c88c6968cf9faaab9ea1df523097fff19f2addbbfed1e05",
   "claims": [
     {
       "id": "claim_ebf902f2ec634cfda5a0a6f0ae54d147",
       "statement": "Building requires MSVC initialization on Windows, a one-time cargo xtask fetch-font, libfontconfig1-dev on Linux, and a cargo-nextest version pinned to what CI installs.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L5-L40",
-          "version": "repo-lines-v1:sha256:d74e3df4c771c1fde344c7cc843280a50e791a8918cd9bc4beaabd49315a5acc:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMjBiMDcxOGVkMDQwNmVmMzc2OWViMzRjN2E4NjNkNzNmMzlmOWE5N2JmYWRhZTE4NjRhMzdjY2RmMDgxZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzZTYxZDU4NGNkMWVlZWMxN2Y2YmZjMDI0Y2NkZDI1ZWYxMDdjMDNiOWQ2NmY5MzU2NzBhOTQ3MjQzOWIyYWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE1ZWNiNzg2ZmQ3ZTk1OTBkZmM2MWUzMDAxYmI1ZjU1YjE1YjRjYTMyYmFlNGMwNGMyNDZlYjNmMDlhMWFiMDUifQ"
+          "resource": "repo://AGENTS.md#L3-L21",
+          "version": "repo-lines-v1:sha256:4d580b193d8099fe5a85c7c2361ff312c6c20179c4bed4b55c5ef6bcc455af16:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMjBiMDcxOGVkMDQwNmVmMzc2OWViMzRjN2E4NjNkNzNmMzlmOWE5N2JmYWRhZTE4NjRhMzdjY2RmMDgxZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ1NGRhNWZhYzhjNTkwOTA4YzQxMWQxYzk3ZjJjMTE5NjY3M2U1NjlkZWY3MjE4YTNjZTMwZDBmYzU4NDA5YTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZlZTkwMTNjZDY0YjRmN2VmMzVlNTY1ZTU0MjI0ZjEwZTJmMDAxZTFlMzM1MzA3YWJlNTI1YzQzNGJiOTAxNTIifQ"
         }
       ]
     },
@@ -65,8 +65,8 @@
           "version": "repo-lines-v1:sha256:64e79ac86abc18b3c93781a2d9fcc808c488de11ee32c798d124d69eced66eb0:eyJzZWxlY3RlZExpbmVDb3VudCI6NDYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlYzhiZjE4MzFkMzRiZjdjZTNhMGNhOWI4ZWM1ZGQ1NGQxNWE3YmY1MDQ0NWVlOWQwNzY2ZThmYmJhMWViZjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0YWNhYmE5ZDcxZjg1Y2VjNDg2NjFkNjg3MGYyY2RhMzYyZDJjZDZkNDY3NDVkODQ2MzlhYWExYThlN2UwYzEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         },
         {
-          "resource": "repo://.github/workflows/ci.yml#L80-L108",
-          "version": "repo-lines-v1:sha256:7ec33dce6c7f75616d6e7ace109c68e49d676f9fbe0ff97bdfae97981079c464:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyMTViNzNkM2VmYzYyYjY5MWI3ZmEyYjUxZWQzNmU3YTk4MjI3NmVkZmE4YzcxZDFmYWZhZGQwNWUyNjkzYTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3ZTI3ZDMwMzcxNTg4NWM4NDlmZTZjZjIwNjAzMjk4M2QzNDA0NDVhNTAwNWU5MmQ5MmM4NDM4NDlhYjc4YjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3NGRiYTI1MmYyNWNhMDc3ZDZkOGM3YjA0OGVmNzA4ZDFhN2YzZWMxZjA2NzA3OGJjODlmMGFmOTExZDc5ZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU5NGU3NTUwNTM4NDlkNzkwN2Q3ODk5Y2ExYmU1OTFiZmY2YzAxNTYzYzI2ZjRiYzY0ZDNhN2NkZGY2Mjc3NTcifQ"
+          "resource": "repo://.github/workflows/ci.yml#L108-L147",
+          "version": "repo-lines-v1:sha256:608d2037d17abe6a3245d70ca152ba262d776e7a88bdbec46c0e7e211705aeb4:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzYjc2YjViNjc0ODJhYjkxZDFiNGQzZGE1OWQxOWFhOWM3YzJkMDA2MzU4YTk5Zjc4Mzk2OGVlZGNiYzkyMTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4Y2M2ZjE3MGQxZDA0NTIwNmJmMDRlYzRlNjg5NDdlMTlkMjM3N2Q0ZDA0ZTQ0OWQ2NDYyM2ViZWZhNjU1OTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVlZTY3OTY5NGRhZGUzNDNjNGVkMjk3ZTQ2MDVkZmVjMmI5OGMyYWJiNDI5Y2FjMGYzMDRiYTMxNzA2NDVhMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRjOWYxZDQwOGI0MDk4MjJlOTU4MTA5M2ZjZWE2OTQzYTIzNjJjZDg4YjY5ZmI4MmY5NWUxM2E4MDhhZTk5MTgifQ"
         }
       ]
     },
@@ -75,8 +75,8 @@
       "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native) with CARGO_BUILD_WARNINGS=deny, not RUSTFLAGS, so .cargo/config.toml's flags stay authoritative.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L214-L258",
-          "version": "repo-lines-v1:sha256:8dfe8b76946fd7ce14733d38b88f5d64f92271980920bc0801098df7cb2a86c9:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwOGE2Y2Y2OWI1N2E0NjQ0MWJkOGEwMGEyODg5ZmJhMmI4ZjMyMDNhNmVhMjFiZmUzNjI4N2JlMWNhZWM2NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU4MGFjNzBlNmQwNDI4Mjc4NzE2MWQ5ZjNjYzNhYTJiMDFhODY4NjY0YTdiZDgwNTUyOTc4ODU3ZTYwYmQ5YzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4MzhmOTQ3YmFiYWVhNTZjNjM2YTAyNjA1ZTE5ZjgwYTY1OGQ2MTc0ZTk4NGY2ZTZhMzY3N2IzNzhlODEzYzAifQ"
+          "resource": "repo://AGENTS.md#L82-L105",
+          "version": "repo-lines-v1:sha256:5d4f549bd5dc82df6a611968c30b269861506c87a47edc512fbb6a16ad2f8a00:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwOGE2Y2Y2OWI1N2E0NjQ0MWJkOGEwMGEyODg5ZmJhMmI4ZjMyMDNhNmVhMjFiZmUzNjI4N2JlMWNhZWM2NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUxNjgwODAxNmY5MjgzZTRlMmE1ZjQ0OTZhMWVhMjkzYjA2YjAwZTNlZTJjMjdjOGE3MmI2ZDY3NjNlZDFjY2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlYTQ1Y2ViNGQyY2UzOTU5MzAxMjRlMzI2ZmQ0NTAwYTFiYjIxNzllNWRhNTI3ZTA3ZWM4YzEwZTM2ZmE0MzAifQ"
         }
       ]
     },
@@ -85,7 +85,7 @@
       "statement": "Coverage is a hard gate: limedl-core runs cargo llvm-cov nextest with --fail-under-lines 85 using pinned cargo-llvm-cov@0.9.0, and limedl-native gets a second lcov with --ignore-filename-regex 'crates.limedl-core' and --no-cfg-coverage.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/ci.yml#L403-L474",
+          "resource": "repo://.github/workflows/ci.yml#L401-L472",
           "version": "repo-lines-v1:sha256:99df9dd29c1b58eed01cc6530c919fc67ff2200d919f06ad91079212f0d7f0d8:eyJzZWxlY3RlZExpbmVDb3VudCI6NzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJjYTg5ZWRhYmVmZDE2YmIzZGE3ZjNiMjg2YjY0OGZhMTQwOTQ3Zjc0NWE0ODc0NTc0MGVlN2Q5Y2MwOTZjZDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2MGQ3NWU0M2NiZjE5MGE1YjBhODYwNGViMjgyZmNiOTY3M2FlMmY0YWMzMzYyNTc1YzVlNDVmMGY1YTA3ZTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU0ZmEzYzUyMDU2NmFlZmRkZmZkY2VjZDgyYjNlZGJjYzY0YzcyY2NjNWYxYjk3ZWVhMTU0MDViYTZmM2IxZjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZjZDljNzdmNGYxNjQ1NDU5ZDFkNmNlZTgxOGZjNmJlNmQyMTdhYjAwNDQ1YjVhZjNiMzgxMmNkY2ExNTFlY2IifQ"
         }
       ]
@@ -95,8 +95,8 @@
       "statement": "On a Windows host the gate never compiles cfg(not(windows)) code, so non-Windows-only unused imports, Windows-only build.rs dependencies, missing dependency features and missing -dev packages can only be caught by the first tagged release; the project mitigates this by preferring #[cfg] over runtime target checks.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L259-L309",
-          "version": "repo-lines-v1:sha256:86d5b3661f0fc15986c1d634f148f18fc2cf3070bebcf975a244bd1c1ba406a4:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMTUzYjFlNTAzZDMyMDhlOTc3NGMxZmYzNGRjNDIyYzg1ZjM4MDY5YjFkNTdmYjQ5ZGZmYzg1N2JiMTJjYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVmYmE0MmUxZmI4YjAyN2IwNjMwZDU1ZmM0MjY2ZGViMTc1NTgwMzdkNzM0OTUxYWJmMjU1NWM4NWJlZjYwOGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM0ODFkYjEzNjQ1YzcxMzI3OGMwZTIyZmQ1NTE4YWUzY2JkNGQ4Y2FjNWM5OWY5YjQ5NGQ4YTgyNTVkMmRkMDQifQ"
+          "resource": "repo://AGENTS.md#L106-L125",
+          "version": "repo-lines-v1:sha256:bfe2bd0cccc2c1d00dac3f446b5f00cbb488b8bdb8d69d5cadb8d676359f4635:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMTUzYjFlNTAzZDMyMDhlOTc3NGMxZmYzNGRjNDIyYzg1ZjM4MDY5YjFkNTdmYjQ5ZGZmYzg1N2JiMTJjYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExMTdlYjgxOTRhZTAyNWFjYWM5ZWE1YzE1ZDNlNTM1NjU3YjM2ZTAyMDVhMjUwYmJjZDMzMzZmZmY0ZWQ2MzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ5NDgxZjg1MzFkOWUyZTc2OGU3NmFlMmZjYzExZGRjM2UyZjk2OGEwMDU0NTdlODcyMzdlZDgwNzAwY2VkMjUifQ"
         }
       ]
     },
@@ -105,11 +105,11 @@
       "statement": "CI runs font, check-windows (clippy), test-windows-core (core + xtask nextest), test-windows-native, check-macos (clippy + core + native nextest), check-rust (coverage, clippy, SonarCloud, native nextest) and supply-chain (cargo deny check -W rejected bans licenses sources plus cargo audit).",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/ci.yml#L110-L289",
+          "resource": "repo://.github/workflows/ci.yml#L108-L287",
           "version": "repo-lines-v1:sha256:3f7f263fa340bc5ecbef3c3d6e656d68cbeefb2a2f574248feecbc566c012aef:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzM2I3NmI1YjY3NDgyYWI5MWQxYjRkM2RhNTlkMTlhYTljN2MyZDAwNjM1OGE5OWY3ODM5NjhlZWRjYmM5MjEwIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIxODBjNzk4ZTgyYjA3NjNlOWNjY2YzYTExMGQ0Mjk4Y2U1NDg4MDU5OGRkNjdlZmE2ZDcyZjQyZDJjZDMwODU1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlZWU2Nzk2OTRkYWRlMzQzYzRlZDI5N2U0NjA1ZGZlYzJiOThjMmFiYjQyOWNhYzBmMzA0YmEzMTcwNjQ1YTAxIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJiMWM3Zjk4YmI1OWM0NjlhY2NkY2E5ZWU1NmVjOGU5NzczNWU3YmU4NjIwMTc0ODJkNTI2OTYzMDRiM2JhNzI2In0"
         },
         {
-          "resource": "repo://.github/workflows/ci.yml#L338-L545",
+          "resource": "repo://.github/workflows/ci.yml#L336-L543",
           "version": "repo-lines-v1:sha256:8bb726786a43a3fac7b13b9bf1d904fa5db5d0121aa89415cf0406a1046af4b3:eyJzZWxlY3RlZExpbmVDb3VudCI6MjA4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMGE5Yjc3NzAzMWJjYzEzYjY1ZDU1OTE5YjY1Yjg3M2ZjMDAzODkwNmJlYmRiZmIzODgzMTZlNGRiNWVkYzhhIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MDc5OGUyODUwNzNiYmMwMzBlOGQ3N2U5MWY1NGY4Y2QxMGUxMDgyNjAxYTNjMmFhNWU0ZTcwYWY4ZTViNzg0IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwOGQ3YjczODQzMGRkODAzZDRjMmQ5NjI5MWZlODU5ZWRhMDE0OTY3MjA2MDEwZjU1OTZkNWQxOTA2YmQ2Njg4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
         }
       ]
@@ -119,7 +119,7 @@
       "statement": "Every Rust CI job passes cache:false to setup-rust-toolchain and runs swatinem/rust-cache once, shares one ci-debug key per OS, has exactly one writer gated on refs/heads/main, and leaves rustflags empty so .cargo/config.toml stays authoritative.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/ci.yml#L30-L80",
+          "resource": "repo://.github/workflows/ci.yml#L28-L78",
           "version": "repo-lines-v1:sha256:b76d0eda6b1165bd2c3bcfaae41aafae37aa14e8a609963afd80e4569c3b41bc:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyMTViNzNkM2VmYzYyYjY5MWI3ZmEyYjUxZWQzNmU3YTk4MjI3NmVkZmE4YzcxZDFmYWZhZGQwNWUyNjkzYTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU2NGRmOGI1YWVhMjNkMzFmZWQ5ZTZlZGM3YTBjMzg3Y2I1MDZlYjkwYTBlY2E4MDI5OGVhMzNiMDE3MTkyNTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgyOTBhYTVjYzYxMTU1ZGRhNWRjYzJjOTNmMzg1ZGU3Nzk1ZWRjNGE2YzQwOWNhNTMzZGFhYzU5MjgwMTBiNGIifQ"
         }
       ]
@@ -129,16 +129,16 @@
       "statement": "A v* tag triggers the release: font fetches once, changelog generates the body with git-cliff from Conventional Commits, three platform jobs build and upload artifacts, and native-manifest is the sole writer of latest-native.json, running with if: always() and merging only succeeded platforms before signing and guarding.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L1-L31",
-          "version": "repo-lines-v1:sha256:762af47b2460f69c97ad737faf83813b346a0b40bab56300a38849aeb384628f:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZWVmOTAzMGQwYzcwMjkwMTBjNDYzNTY4OWY1ODMyOGQxMDllNmE4NWVkMWE5MjQ1YjIwZjM5NTViN2RiMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNlMjU0ZWIzYThlODg2NmQ4ZDc0OWY2MjUzMDYzMGNhMTZkMDgwNzYyMTQ5NjdhYjcwNDhkMjMyNzNmZmMyZmQifQ"
+          "resource": "repo://.github/workflows/release.yml#L1-L37",
+          "version": "repo-lines-v1:sha256:8fa480337946ae15abd285511de7073b89f7e1493e9af9ab2fef02be97c361ae:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZWVmOTAzMGQwYzcwMjkwMTBjNDYzNTY4OWY1ODMyOGQxMDllNmE4NWVkMWE5MjQ1YjIwZjM5NTViN2RiMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5ZWNlZGMxOGVjYWYxZGFmOWU3YmVmYjlmZDc5ZTJjM2NmMTU1OTllNTNlNzljZGJkOTAxZWU2ZTJjOTc5ZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5YTBjOGM1NTM1MTczOGM0Y2FjMTdiMTIzMzVkY2NjMWVkY2YzZDJkNjBlYWJlMGExMDljMTA0NDA1Y2Q2YTkifQ"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L502-L645",
-          "version": "repo-lines-v1:sha256:9d3b778d52b81a813230ecf914a9322188f1f83b5ab121504315c4b31258af84:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQ0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmZjhjYjg5NGM3N2M0MjVmY2NkNThlYWYyZWRmNTI3MGZhYjI5YzhkOTZhZGYxMTZhMDUyMjdiNGVlMTBjNzk5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJjNTM5Y2JiN2QwZDI1MGYyZTEzZjc3NTUzMGE5OWUyNDljN2VmZmIyNjViNDBmZDA1NzQ1ODU1N2MzNDRkNzc1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI0ZGYzYjI1OTI3OGEzMTZiYjFkN2YzMDk1NDY3N2Y0MmRiYmFiMWU2MDZiZmFjYWY5NGRlMWE1MThmNmI1MDhhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3ODFlODcyYjcwZWY2ZGQ5ZDM1OTk5MjgwNjEzOTBkZjg0NTc0NzI3MzNiZmYzNGQ3Mzg4ZDZkZmM5NzIwMDVkIn0"
+          "resource": "repo://.github/workflows/release.yml#L512-L640",
+          "version": "repo-lines-v1:sha256:b58971fc8a85c4a67335dac75ec7743e10c20b629c1efcb992dc92764cc3471b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTI5LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI2NDdjYjZjOTRkOTZlMzY4OGRjNWI5MTM0OTAwNTIwNDhhMTdiNmJkYjE1YzExMjdiMjc5OTA4YjY5MzdhYzA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJmMTRhNTAzMGUxMzU4YmNmNGE3ZjdjN2FkZjRiZjI1ZmVjNGFlNWZjYWUzMDMzMTc1YTYzMDc0NTVmY2MwMWM4IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxMTc4MmNiYTY4MzJlNGVmNWU3NDEzNjIwNTZjNmE3NTI4NWM3NjhjMWY3OTNiNWZkZTJlNjdmMjIxYTFlODk2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI2OTY0MDhkZGM5YzU3MmQ0N2RiOWU3Y2QwMjhmNTBjNDg2OTM4MTAzYTcwNmQ0NzIyYWM1YWNlMWM2NDMyMzIxIn0"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L77-L121",
-          "version": "repo-lines-v1:sha256:bc4d1e63cd8f73999035c73a04b14060994c7cecaf93f7c8e0c60b0541160434:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlhMjY0ZTI0NmIyM2RhMjQ4ODRmZjBlYWM5MjJiZTFkOGJiMmY4YmNmZDI4ZGM2N2RlOGJiZTY1NzBlMTZlZTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0Mzk5NDc4OWM4MWE2ZGFlY2IyMWQzOWU2NGZmYTliODA2ZjczYWFiNjQzMTQ4MGFmZmY4MzE3MTExNTA5ZTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM4ZDQ1NTc5YjBkMzY5ZDVmZTg3MGZkMWJkNjYxNWRmNDZmYjZjN2Q0NmUzYzhkZGZlZjE4MWMzODYzMGUzOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0MTRmOGIwODc3YTViYjM4MTY0NjBjZGZjMjE1ZjRiOGU0NGNlNmE1Yzg5NzA2NTljY2JhNzEyZDgzZjZjY2EifQ"
+          "resource": "repo://.github/workflows/release.yml#L77-L128",
+          "version": "repo-lines-v1:sha256:dfbe2e81c026996594719bd4c164dbee512aab6672708257dd3211a777e9d683:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlhMjY0ZTI0NmIyM2RhMjQ4ODRmZjBlYWM5MjJiZTFkOGJiMmY4YmNmZDI4ZGM2N2RlOGJiZTY1NzBlMTZlZTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4Y2M2ZjE3MGQxZDA0NTIwNmJmMDRlYzRlNjg5NDdlMTlkMjM3N2Q0ZDA0ZTQ0OWQ2NDYyM2ViZWZhNjU1OTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM4ZDQ1NTc5YjBkMzY5ZDVmZTg3MGZkMWJkNjYxNWRmNDZmYjZjN2Q0NmUzYzhkZGZlZjE4MWMzODYzMGUzOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkxZTcyOTgxMTY4NGE0ODczNzU5ODMyYTIzYzIzOTg5NzQxNzdiZTY0NjYxNDRiYWVkYWNhNzYxZjg0MjFlOTQifQ"
         }
       ]
     },
@@ -157,8 +157,8 @@
       "statement": "Lockfile changes after cargo update/add/remove must be committed, and irontide is pinned exactly to =1.7.0 because the BT backend depends on a wide engine API and upstream's git repository was removed, making crates.io the only source of truth.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L310-L336",
-          "version": "repo-lines-v1:sha256:b32a5920364f0545683c9b2a6955b8f0b9ea9759593fbeac26403f95d2d533cb:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyNTcwZDIzN2ZlMDJmMzcyNmVlYzkwMzI1NGEyYjNmNWE1ZTcwZmNlNDYwN2E1MGZjNTY4OWQ3M2Y4NDk3ZTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5Zjc4NzE0ODkzYWE3Nzk0MmNlYTFjNGEyZTAyMzFkYmI3ZmEyYTQxYTcwYzgxNDYwYTNjNjc1NjJkYTNhYWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhmYmE5NDlhZmYzNGY5NzU4NTAzZWZlYjhjMGU2OGQyOTgxYWViNWVlM2NjODZiNzUzNmMwZThhYmQ0ZGY2NTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://AGENTS.md#L126-L133",
+          "version": "repo-lines-v1:sha256:859c481a159eaa7d362fd4cfad8c752a6977f2baa88167530e2af59af7e7aa80:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTNjYzRhNzEwYmYzMWEyN2Q3MTk2MDRmYTdkYTEyZWJhNGY5MTY4ZTZjYzRkOWY4NmQ4YjJjOTE5NTYzYzRjZCJ9"
         },
         {
           "resource": "repo://Cargo.toml#L70-L74",
@@ -169,6 +169,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T01:52:48.489Z"
+    "at": "2026-10-04T03:21:09.297Z"
   }
 }

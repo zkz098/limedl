@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:31c3468edf991fa5984fd15b4c26367831b00cbf968ecff510ec85a4244f240d",
+  "pageVersion": "sha256:d7bed83fcdcb86fca30daebe371cf535079267b8cd83cf31b91997fa8f3195cb",
   "claims": [
     {
       "id": "claim_65bbce20cdb64f53960b988322db9037",
@@ -27,8 +27,8 @@
       "statement": "Tests run under cargo nextest so each test gets its own process and cross-test global-state interference is removed; cargo nextest does not run doctests, and the workspace has none.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/ci.yml#L86-L95",
-          "version": "repo-lines-v1:sha256:66fe538108de2fdeba8cdb32f91cff2e2a8781fd00d2977cca5c79133533f155:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNhM2RmMTBmYzQyMjc1NDE3Mjc4MzNjNjUwNmQ4MzE0YTBlOGI2MDcxZDhiNDUwNWVjNzkwNzA3NjQyMzUzZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJhZGU2ZDQ2N2U4OWNjNzNkOThlYWU2NGZkMzQwNmNmNzBlZDIyODUwMDI1ZTY2YTdhNDdiNmEwODdlNjBjNWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA2NjU1ZTlhYjYwOTg0YjYyYzY4NzczNDc3NTI1ODI1YWNjMTcyYmUxNGEzYjMwYzUwMjNkNzZhMDQ0NjJlNTkifQ"
+          "resource": "repo://.github/workflows/ci.yml#L84-L93",
+          "version": "repo-lines-v1:sha256:db8e648b3c5398caec552cf6e1e6ed3632c68be8dab1dc99a05132cc1fe02a8e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNhM2RmMTBmYzQyMjc1NDE3Mjc4MzNjNjUwNmQ4MzE0YTBlOGI2MDcxZDhiNDUwNWVjNzkwNzA3NjQyMzUzZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJhZGU2ZDQ2N2U4OWNjNzNkOThlYWU2NGZkMzQwNmNmNzBlZDIyODUwMDI1ZTY2YTdhNDdiNmEwODdlNjBjNWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA2NjU1ZTlhYjYwOTg0YjYyYzY4NzczNDc3NTI1ODI1YWNjMTcyYmUxNGEzYjMwYzUwMjNkNzZhMDQ0NjJlNTkifQ"
         }
       ]
     },
@@ -125,14 +125,38 @@
       "statement": "Coverage runs cargo llvm-cov nextest for limedl-core with --fail-under-lines 85 using pinned cargo-llvm-cov@0.9.0, ignores tests directories so only product code is counted, and produces a second lcov for limedl-native.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/ci.yml#L420-L474",
+          "resource": "repo://.github/workflows/ci.yml#L418-L472",
           "version": "repo-lines-v1:sha256:f6f9cc8e64a0881d9f1acc34e2b32d676f0408fdd66c3d69436ddc28e9112428:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1NzgyMzY5NWExZjc3MTNiMGU5OTE2NzBlMGMzODNjMDdmNzEzOGRjNDYxOGE4MDlmYTE3Y2I1ZGYxMjE3OGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2MGQ3NWU0M2NiZjE5MGE1YjBhODYwNGViMjgyZmNiOTY3M2FlMmY0YWMzMzYyNTc1YzVlNDVmMGY1YTA3ZTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ5Y2I1ZTM4ZTkwYTczMGY5N2ZkMWEzNzM1N2UyYmE5NGZhNmM5MDI1ZjZjNjU0OGViMWYzZTJhY2MxYzhmNzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZjZDljNzdmNGYxNjQ1NDU5ZDFkNmNlZTgxOGZjNmJlNmQyMTdhYjAwNDQ1YjVhZjNiMzgxMmNkY2ExNTFlY2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a02765ed3e074adab1de71c25269776b",
+      "statement": "Pause/resume tests throttle the origin rather than race a fast localhost: the multi-threaded resume test downloads through TestServer::file_url_range_bandwidth, a range-capable endpoint that throttles each chunk connection so the transfer is still in flight when pause lands.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/test_harness/mod.rs#L547-L617",
+          "version": "repo-lines-v1:sha256:e4d4a533a242e9dc6362188caa41527082cc1c3f9d1290410fa88d14ad6fa3d9:eyJzZWxlY3RlZExpbmVDb3VudCI6NzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiYTNjYmE3NjgyM2YyMTE4NGUyNGQzNDQ3NzljNWY4YzQ1YjJmNTFjZjUyMjg1MjkwYWVmYWI5MGIxNDE3ZTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ODllZmU0MzBiMmY0Y2FlY2I3MDAwYmIwOTAwMGQ4YjIzNjk4YTFlNDBjNjE2MjM0ZGZmYmJlY2RjZjUxNGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5OWQ5N2E4ZTQ2NmUxNWQzODhkY2UxMGI1NmNkYTM5MDU3ODQ0NTQ5NTgyZjAyMTUwZjE2NzcxZGI4MjRkZmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxYmQ3OWJiN2JkYmRiOTIxZWIwODM3NWRjMTE2NTM0YTM3ZTMzMzAzYjUyYjljNzhhZDU2YWM3NzJmYjBkYWYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/tests/resume_corruption_tests.rs#L172-L205",
+          "version": "repo-lines-v1:sha256:28b897f9357e813de482c736499b4d7ef9e0f7c16eb49b7afd73337d2db74671:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2M2U1YjA0ZDNlMmRiYzc0NWZjNzNiMmM1YTIwNWRkMzczZDcxNzYxMTEyNmE1ZDFkYjBjNzRhNjE3NzAyNDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc5ZWJiMzRlODc4YzlmYjIyZTg4MjYxMzIzYThmYjNhOTBjNjFhNmJkODkwYTY4YWQwYzc5NDhjYjFkMzZjNzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM1ZjZmNDY2ZTU5Y2ZjMzA3MDNjNDVmNzJhZjY1ZGU1NGFjMzYzZDM1NGNjMWEzMzMwMzUwYWNkNDUyNDM0YzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNlMzUzZjMwYmJlZGNiMGIyMDFlYzkzOWYzNGYwOTg2Zjg1YzM2ZTBlOGJiYzk2MDU2Y2RhMzM5ZWQ1MzUwZTcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6e2cfe6923304c3f9c08e6b44f416d59",
+      "statement": "The throttled range harness endpoint is covered by unit tests for both the range (206, throttled) and no-Range (full body) paths.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/test_harness/tests.rs#L63-L106",
+          "version": "repo-lines-v1:sha256:6993ae900407433de393a860a4a129492640acaccaaf6dd65d5103f6b1ccd596:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxOTQ4NGVlZGYzNjRmYjhjMTJmMWViOThmYmY2YTliNGY2NTBmNDI3ODc0YThkNzM1OTAxMGFhZGU0MzFiYzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM1ZjZmNDY2ZTU5Y2ZjMzA3MDNjNDVmNzJhZjY1ZGU1NGFjMzYzZDM1NGNjMWEzMzMwMzUwYWNkNDUyNDM0YzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2NmJiMTg1M2ZlNzliYTAyZjdjZGM1MTIwNGNhMzljMThiN2ZiNzRhZjc3ODY5MmI5YTlmZTY4NWYwMzY2MjkifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T01:52:48.489Z"
+    "at": "2026-10-04T03:21:09.297Z"
   }
 }
