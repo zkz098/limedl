@@ -9,9 +9,12 @@ name: Aria2 oracle
 #   - it needs a third-party binary (`aria2`) and its output drifts with the
 #     aria2 release, so it must not gate pull requests.
 #
-# Gaps are reported, not asserted (see the oracle test module): a run only fails
-# when the oracle itself cannot start or a server stops answering. Promote
-# specific gaps to hard assertions once the report has been stable for a while.
+# The oracle asserts the client-facing contract against allowlists (AriaNg option
+# keys, always-present tellStatus keys, the documented listMethods/
+# listNotifications delta, code 1 error objects and JSON-RPC batch); a run fails
+# on anything outside them, or when the oracle itself cannot start or a server
+# stops answering. The remaining aria2-only differences are printed as
+# allowlisted notes (nextest `--success-output=final`).
 on:
   schedule:
     # Nightly at 04:17 UTC, off the hour to avoid the scheduler stampede.
