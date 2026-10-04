@@ -148,6 +148,7 @@ export component SettingsTabAbout inherits ScrollView {
                             width: parent.width * clamp(root.update_state.progress_percent, 0, 100) / 100;
                             border-radius: 3px;
                             background: Theme.c84cc16;
+                            animate width { duration: 250ms; easing: ease-out; }
                         }
                     }
                     update_progress_label := Text {

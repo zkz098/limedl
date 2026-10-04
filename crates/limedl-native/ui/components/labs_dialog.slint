@@ -274,6 +274,7 @@ export component LabsDialog inherits Rectangle {
                                         width: min(parent.width * root.labs_form.cdn_progress_percent / 100.0, parent.width);
                                         background: Theme.c38bdf8;
                                         border-radius: 3px;
+                                        animate width { duration: 250ms; easing: ease-out; }
                                     }
                                 }
                             }

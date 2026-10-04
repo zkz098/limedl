@@ -582,12 +582,14 @@ impl TestUi {
 
     // ── assertions: toasts ─────────────────────────────────────────────
 
-    /// The pending toasts as `(kind, message)`.
+    /// The pending toasts as `(kind, message)`. Toasts that are playing their
+    /// exit animation (`leaving`) are already retired and must not count.
     pub fn toasts(&self) -> Vec<(String, String)> {
         self.ctx
             .toast_queue
             .lock()
             .iter()
+            .filter(|entry| !entry.leaving)
             .map(|entry| (entry.kind.to_string(), entry.message.clone()))
             .collect()
     }
@@ -615,12 +617,14 @@ impl TestUi {
         self.window.invoke_dismiss_toast(id);
     }
 
-    /// Ids of the pending toasts (for [`Self::dismiss_toast`]).
+    /// Ids of the pending toasts (for [`Self::dismiss_toast`]). Leaving toasts
+    /// are excluded: their close button is fading out with them.
     pub fn toast_ids(&self) -> Vec<i32> {
         self.ctx
             .toast_queue
             .lock()
             .iter()
+            .filter(|entry| !entry.leaving)
             .map(|entry| entry.id as i32)
             .collect()
     }

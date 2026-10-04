@@ -28,69 +28,99 @@ export component ToastStack inherits Rectangle {
             spacing: 8px;
             alignment: start;
 
+            // One layout slot per toast. The slot keeps its height while the
+            // card slides out, so retiring one toast does not reflow the rest
+            // mid-animation; Rust drops the row once the exit has played.
             for toast[index] in root.toasts : Rectangle {
                 width: 100%;
-                height: self.preferred-height;
-                background: root.toast_bg(toast.kind);
-                border-color: root.toast_border(toast.kind);
-                border-width: 1px;
-                border-radius: 8px;
-                drop-shadow-blur: 14px;
-                drop-shadow-color: Theme.c000000cc;
-                clip: true;
+                height: toast_card.preferred-height;
 
-                HorizontalLayout {
-                    alignment: start;
-
-                    // Left severity accent strip
-                    Rectangle {
-                        width: 4px;
-                        background: root.toast_color(toast.kind);
+                // Enter/exit state. `entered` is flipped by a one-shot Timer
+                // rather than in `init` so the first frame really renders at the
+                // off-screen position and the property animation has a value to
+                // animate from.
+                property <bool> entered: false;
+                Timer {
+                    interval: 1ms;
+                    triggered => {
+                        entered = true;
+                        self.running = false;
                     }
+                }
+
+                // The card is not a direct layout child, so its `x` is free to
+                // animate: it slides in from the right edge and slides back out
+                // when `toast.leaving` flips. The stack's `clip` hides the part
+                // that is still off-screen. Keep the 200ms in sync with
+                // `TOAST_EXIT_MS` in src/toast.rs.
+                toast_card := Rectangle {
+                    x: toast.leaving ? 26px : (entered ? 0px : 26px);
+                    y: 0;
+                    width: parent.width;
+                    height: self.preferred-height;
+                    opacity: toast.leaving ? 0.0 : (entered ? 1.0 : 0.0);
+                    animate x, opacity { duration: 200ms; easing: ease-out; }
+                    background: root.toast_bg(toast.kind);
+                    border-color: root.toast_border(toast.kind);
+                    border-width: 1px;
+                    border-radius: 8px;
+                    drop-shadow-blur: 14px;
+                    drop-shadow-color: Theme.c000000cc;
+                    clip: true;
 
                     HorizontalLayout {
-                        padding-left: 10px;
-                        padding-right: 8px;
-                        padding-top: 10px;
-                        padding-bottom: 10px;
-                        spacing: 8px;
                         alignment: start;
-                        horizontal-stretch: 1;
 
-                        // Kind icon
-                        VerticalLayout {
-                            alignment: center;
-                            width: 18px;
-                            Image {
-                                source: root.toast_icon(toast.kind);
-                                colorize: root.toast_color(toast.kind);
-                                width: 16px;
-                                height: 16px;
-                                image-fit: contain;
-                            }
+                        // Left severity accent strip
+                        Rectangle {
+                            width: 4px;
+                            background: root.toast_color(toast.kind);
                         }
 
-                        // Message
-                        VerticalLayout {
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 8px;
+                            padding-top: 10px;
+                            padding-bottom: 10px;
+                            spacing: 8px;
+                            alignment: start;
                             horizontal-stretch: 1;
-                            alignment: center;
-                            Text {
-                                text: toast.message;
-                                color: Theme.cf3f4f6;
-                                font-size: 12px;
-                                font-weight: 500;
-                                wrap: word-wrap;
-                                vertical-alignment: center;
-                            }
-                        }
 
-                        // Close button. The id addresses one row of the toast
-                        // stack, so the UI tests can click the real control
-                        // instead of calling the dismiss handler.
-                        toast_close := IconButton {
-                            icon: @image-url("../assets/icons/close-line.svg");
-                            text_color: Theme.c8b95a5;
-                            clicked => { root.dismiss(toast.id); }
+                            // Kind icon
+                            VerticalLayout {
+                                alignment: center;
+                                width: 18px;
+                                Image {
+                                    source: root.toast_icon(toast.kind);
+                                    colorize: root.toast_color(toast.kind);
+                                    width: 16px;
+                                    height: 16px;
+                                    image-fit: contain;
+                                }
+                            }
+
+                            // Message
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                Text {
+                                    text: toast.message;
+                                    color: Theme.cf3f4f6;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                    wrap: word-wrap;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            // Close button. The id addresses one row of the toast
+                            // stack, so the UI tests can click the real control
+                            // instead of calling the dismiss handler.
+                            toast_close := IconButton {
+                                icon: @image-url("../assets/icons/close-line.svg");
+                                text_color: Theme.c8b95a5;
+                                clicked => { root.dismiss(toast.id); }
+                            }
                         }
                     }
                 }

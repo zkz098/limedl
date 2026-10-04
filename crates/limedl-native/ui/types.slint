@@ -293,6 +293,9 @@ export struct ToastItem {
     id: int,
     message: string,
     kind: string,
+    /// Set by Rust while the card plays its exit animation; the row stays in
+    /// the model until the animation is done so the stack does not reflow.
+    leaving: bool,
 }
 
 export struct SetupFormData {

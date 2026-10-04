@@ -1,18 +1,30 @@
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use parking_lot::Mutex;
-use slint::{SharedString, VecModel};
+use slint::{Model, SharedString, VecModel};
 
 use crate::{MainWindow, ToastItem};
+
+/// How long a dismissed toast stays in the queue (and therefore in the Slint
+/// model) so the card can play its exit animation before the row is dropped.
+/// Keep this a little longer than the `animate` duration in
+/// `ui/components/toast_stack.slint`, so a slow first frame of the exit
+/// animation is not cut off.
+pub const TOAST_EXIT_MS: u64 = 240;
 
 /// One pending in-app toast (auto-expires after `duration`).
 pub struct ToastEntry {
     pub id: usize,
     pub message: String,
     pub kind: &'static str, // success / error / warning / info
+    /// Set while the card plays its exit animation. The row stays in the model
+    /// (and in the layout) until the exit timer removes it, so the stack does
+    /// not reflow under a fading card.
+    pub leaving: bool,
 }
 
 pub type ToastQueue = Arc<Mutex<Vec<ToastEntry>>>;
@@ -20,6 +32,10 @@ pub type ToastQueue = Arc<Mutex<Vec<ToastEntry>>>;
 static TOAST_SEQ: AtomicUsize = AtomicUsize::new(1);
 
 /// Push the current queue contents into the Slint property (any thread).
+///
+/// The model is reconciled **in place** rather than replaced: a fresh
+/// `VecModel` would make the repeater destroy and recreate every row, replaying
+/// the enter animation of untouched toasts whenever a sibling is dismissed.
 pub fn sync_toasts(ui_weak: &slint::Weak<MainWindow>, queue: &ToastQueue) {
     let items: Vec<ToastItem> = queue
         .lock()
@@ -28,14 +44,47 @@ pub fn sync_toasts(ui_weak: &slint::Weak<MainWindow>, queue: &ToastQueue) {
             id: e.id as i32,
             message: SharedString::from(e.message.as_str()),
             kind: SharedString::from(e.kind),
+            leaving: e.leaving,
         })
         .collect();
     let weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = weak.upgrade() {
-            ui.set_toasts(Rc::new(VecModel::from(items)).into());
+            apply_toasts(&ui, items);
         }
     });
+}
+
+/// Diff `items` into the live `toasts` model, reusing rows whose id survives.
+pub(crate) fn apply_toasts(ui: &MainWindow, items: Vec<ToastItem>) {
+    let model = ui.get_toasts();
+    let Some(model) = model.as_any().downcast_ref::<VecModel<ToastItem>>() else {
+        // The property's default value is a `SharedVectorModel`, so the first
+        // sync lands here; after that the property holds our `VecModel`.
+        ui.set_toasts(Rc::new(VecModel::from(items)).into());
+        return;
+    };
+
+    let live_ids: HashSet<i32> = items.iter().map(|item| item.id).collect();
+    let mut row = 0;
+    while row < model.row_count() {
+        if live_ids.contains(&model.row_data(row).unwrap().id) {
+            row += 1;
+        } else {
+            model.remove(row);
+        }
+    }
+
+    for (row, item) in items.into_iter().enumerate() {
+        match model.row_data(row) {
+            Some(existing) if existing.id == item.id => {
+                if existing != item {
+                    model.set_row_data(row, item);
+                }
+            }
+            _ => model.insert(row, item),
+        }
+    }
 }
 
 /// Show an in-app toast; auto-dismisses after `duration`. Safe from any thread.
@@ -51,21 +100,48 @@ pub fn push_toast(
         id,
         message,
         kind,
+        leaving: false,
     });
     sync_toasts(ui_weak, queue);
     let ui_weak = ui_weak.clone();
     let queue = queue.clone();
     tokio::spawn(async move {
         tokio::time::sleep(duration).await;
-        queue.lock().retain(|e| e.id != id);
-        sync_toasts(&ui_weak, &queue);
+        retire_toast(&ui_weak, &queue, id);
     });
 }
 
 /// Dismiss a toast immediately (from the UI close button).
 pub fn dismiss_toast(ui_weak: &slint::Weak<MainWindow>, queue: &ToastQueue, id: i32) {
-    queue.lock().retain(|e| e.id != id as usize);
+    retire_toast(ui_weak, queue, id as usize);
+}
+
+/// Start a toast's exit animation, then drop it once the animation has had
+/// time to play. Also used by the auto-expire timer, so both dismissal paths
+/// animate out. A second call for the same id is a no-op.
+fn retire_toast(ui_weak: &slint::Weak<MainWindow>, queue: &ToastQueue, id: usize) {
+    let started = {
+        let mut entries = queue.lock();
+        match entries.iter_mut().find(|e| e.id == id) {
+            Some(entry) if !entry.leaving => {
+                entry.leaving = true;
+                true
+            }
+            _ => false,
+        }
+    };
+    if !started {
+        return;
+    }
     sync_toasts(ui_weak, queue);
+
+    let ui_weak = ui_weak.clone();
+    let queue = queue.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(TOAST_EXIT_MS)).await;
+        queue.lock().retain(|e| e.id != id);
+        sync_toasts(&ui_weak, &queue);
+    });
 }
 
 /// Collapse duplicate download warnings into a single toast.
