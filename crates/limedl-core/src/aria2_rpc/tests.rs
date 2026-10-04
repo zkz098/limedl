@@ -253,7 +253,7 @@ fn handle_list_methods_returns_array() {
     assert!(methods.contains(&json!("system.listNotifications")));
 
     // Verify the exact count
-    assert_eq!(methods.len(), 32);
+    assert_eq!(methods.len(), 36);
 }
 
 #[test]
@@ -1135,4 +1135,89 @@ fn cleanup_old_aria2_temp_files_removes_only_stale_torrents() {
 
     let _ = std::fs::remove_file(&fresh);
     let _ = std::fs::remove_file(&other);
+}
+
+// ── split_aria2_tail: client call shapes ──────────────────────────────────
+
+#[test]
+#[timeout(10_000)]
+fn split_aria2_tail_ariang_add_torrent_shape() {
+    // AriaNg: `addTorrent(torrent, [], options)`.
+    let params = vec![
+        json!("base64"),
+        json!([]),
+        json!({"dir": "/tmp/x", "pause": "true"}),
+    ];
+    let (uris, options, position) = split_aria2_tail(&params, 1);
+    assert_eq!(uris, Some(Vec::new()));
+    assert_eq!(options.as_ref().unwrap()["dir"], "/tmp/x");
+    assert_eq!(position, None);
+}
+
+#[test]
+#[timeout(10_000)]
+fn split_aria2_tail_legacy_add_torrent_shape() {
+    // limedl's own tests used to send `addTorrent(torrent, options)`.
+    let params = vec![json!("base64"), json!({"dir": "/tmp/x"})];
+    let (uris, options, position) = split_aria2_tail(&params, 1);
+    assert_eq!(uris, None);
+    assert_eq!(options.as_ref().unwrap()["dir"], "/tmp/x");
+    assert_eq!(position, None);
+}
+
+#[test]
+#[timeout(10_000)]
+fn split_aria2_tail_add_uri_position() {
+    // `addUri(uris, options, position)`.
+    let params = vec![
+        json!(["http://a"]),
+        json!({"dir": "/tmp/x"}),
+        json!(0),
+    ];
+    let (uris, options, position) = split_aria2_tail(&params, 1);
+    assert_eq!(uris, None);
+    assert!(options.is_some());
+    assert_eq!(position, Some(0));
+}
+
+#[test]
+#[timeout(10_000)]
+fn split_aria2_tail_full_add_torrent_shape() {
+    // `addTorrent(torrent, uris, options, position)`.
+    let params = vec![
+        json!("base64"),
+        json!(["http://web-seed/"]),
+        json!({"pause": "true"}),
+        json!(2),
+    ];
+    let (uris, options, position) = split_aria2_tail(&params, 1);
+    assert_eq!(uris, Some(vec!["http://web-seed/".to_string()]));
+    assert!(options.is_some());
+    assert_eq!(position, Some(2));
+}
+
+// ── bitfield_from_bits ────────────────────────────────────────────────────
+
+#[test]
+#[timeout(10_000)]
+fn bitfield_from_bits_packs_msb_first() {
+    // 4 pieces -> one nibble, piece 0 is the highest bit.
+    assert_eq!(bitfield_from_bits(&[true, false, true, false]), "a");
+    assert_eq!(bitfield_from_bits(&[false, false, false, true]), "1");
+}
+
+#[test]
+#[timeout(10_000)]
+fn bitfield_from_bits_pads_the_trailing_nibble() {
+    // 1 piece -> the single bit is the MSB of the nibble.
+    assert_eq!(bitfield_from_bits(&[true]), "8");
+    assert_eq!(bitfield_from_bits(&[false]), "0");
+    // 5 pieces -> two nibbles, the second left-aligned.
+    assert_eq!(bitfield_from_bits(&[true, true, true, true, true]), "f8");
+}
+
+#[test]
+#[timeout(10_000)]
+fn bitfield_from_bits_empty_is_empty() {
+    assert_eq!(bitfield_from_bits(&[]), "");
 }

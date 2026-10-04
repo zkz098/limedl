@@ -117,63 +117,125 @@ pub(crate) fn state_to_aria2(state: &DownloadState) -> &'static str {
     }
 }
 
+/// Terminal states, for which aria2 exposes `errorCode`/`errorMessage`.
+fn is_terminal_state(state: DownloadState) -> bool {
+    matches!(
+        state,
+        DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
+    )
+}
+
+fn u64_str(value: Option<u64>) -> String {
+    value.map_or_else(|| "0".to_string(), |v| v.to_string())
+}
+
+fn f64_str(value: Option<f64>) -> String {
+    value.map_or_else(|| "0".to_string(), |v| v.to_string())
+}
+
+fn bool_str(value: bool) -> String {
+    if value { "true" } else { "false" }.to_string()
+}
+
+/// Encode piece completion as aria2's `bitfield`.
+///
+/// aria2's highest bit corresponds to piece 0 and any overflow bits at the
+/// end are zero, so bits are packed MSB-first and the trailing nibble is
+/// left-aligned. An empty slice yields an empty string (aria2 omits the key
+/// for a download that has not started).
+pub(crate) fn bitfield_from_bits(bits: &[bool]) -> String {
+    let mut out = String::with_capacity(bits.len().div_ceil(4));
+    let mut nibble = 0u8;
+    for (index, &bit) in bits.iter().enumerate() {
+        nibble = (nibble << 1) | u8::from(bit);
+        if index % 4 == 3 {
+            out.push(char::from_digit(u32::from(nibble), 16).unwrap_or('0'));
+            nibble = 0;
+        }
+    }
+    let remainder = bits.len() % 4;
+    if remainder != 0 {
+        out.push(char::from_digit(u32::from(nibble << (4 - remainder)), 16).unwrap_or('0'));
+    }
+    out
+}
+
 pub(crate) fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
     let gid = internal_id_to_gid(&summary.id);
-    let total_len = summary
-        .total_bytes
-        .map_or_else(|| "0".to_string(), |b| b.to_string());
-    let speed = summary
-        .speed_bytes_per_second
-        .map_or_else(|| "0".to_string(), |s| s.to_string());
-    let seeders = summary
-        .peer_count
-        .map_or_else(|| "0".to_string(), |p| p.to_string());
-    let uploaded = summary
-        .uploaded_bytes
-        .map_or_else(|| "0".to_string(), |b| b.to_string());
-    let upload_speed = summary
-        .upload_speed_bytes_per_second
-        .map_or_else(|| "0".to_string(), |s| s.to_string());
     let is_bt = matches!(summary.kind, TaskKind::Bt);
 
-    let bt_block = if is_bt {
-        serde_json::json!({
-            "infoHash": summary.info_hash.as_deref().unwrap_or(""),
-            "uploadLength": uploaded,
-            "uploadSpeed": upload_speed,
-            "numSeeders": seeders,
-        })
-    } else {
-        serde_json::json!({
-            "infoHash": "",
-            "uploadLength": "0",
-        })
-    };
+    // `seeder` describes the *local* endpoint: it is a seeder once it holds
+    // the whole payload. A task with an unknown total length cannot claim it.
+    let seeder = is_bt
+        && summary
+            .total_bytes
+            .is_some_and(|total| total > 0 && summary.downloaded_bytes >= total);
 
-    serde_json::json!({
-        "gid": gid,
-        "status": state_to_aria2(&summary.state),
-        "totalLength": total_len,
-        "completedLength": summary.downloaded_bytes.to_string(),
-        "downloadSpeed": speed,
-        "uploadSpeed": upload_speed,
-        "connections": summary.connection_count.to_string(),
-        "numSeeders": seeders,
-        "dir": summary.destination_path,
-        "files": build_file_list(summary),
-        "bittorrent": bt_block,
-    })
+    let mut map = serde_json::Map::new();
+    map.insert("gid".to_string(), Value::String(gid));
+    map.insert(
+        "status".to_string(),
+        Value::String(state_to_aria2(&summary.state).to_string()),
+    );
+    map.insert("totalLength".to_string(), Value::String(u64_str(summary.total_bytes)));
+    map.insert(
+        "completedLength".to_string(),
+        Value::String(summary.downloaded_bytes.to_string()),
+    );
+    map.insert("uploadLength".to_string(), Value::String(u64_str(summary.uploaded_bytes)));
+    map.insert(
+        "downloadSpeed".to_string(),
+        Value::String(f64_str(summary.speed_bytes_per_second)),
+    );
+    map.insert(
+        "uploadSpeed".to_string(),
+        Value::String(f64_str(summary.upload_speed_bytes_per_second)),
+    );
+    map.insert(
+        "connections".to_string(),
+        Value::String(summary.connection_count.to_string()),
+    );
+    if is_bt {
+        // aria2 keeps `infoHash`, `numSeeders` and `seeder` at the top level;
+        // the `bittorrent` object carries torrent metadata instead.
+        map.insert(
+            "infoHash".to_string(),
+            Value::String(summary.info_hash.clone().unwrap_or_default()),
+        );
+        map.insert(
+            "numSeeders".to_string(),
+            Value::String(summary.peer_count.map_or_else(|| "0".to_string(), |p| p.to_string())),
+        );
+        map.insert("seeder".to_string(), Value::String(bool_str(seeder)));
+    }
+    if is_terminal_state(summary.state) {
+        // aria2 defines code 0 as "no error" and 1 as the generic unknown
+        // error. limedl does not persist aria2 exit-status codes, so report a
+        // real failure as 1 rather than guessing a specific, misleading code;
+        // the human-readable reason stays in `errorMessage`.
+        map.insert(
+            "errorCode".to_string(),
+            Value::String(if summary.error.is_some() { "1".to_string() } else { "0".to_string() }),
+        );
+        map.insert(
+            "errorMessage".to_string(),
+            Value::String(summary.error.clone().unwrap_or_default()),
+        );
+    }
+    map.insert("dir".to_string(), Value::String(summary.destination_path.clone()));
+    map.insert("files".to_string(), build_file_list(summary));
+    // `bitfield`/`numPieces`/`pieceLength` and the BitTorrent `bittorrent`
+    // object need a backend/manifest lookup, so the caller adds them for
+    // tellStatus/tellActive. The list-wide methods stay cheap and omit them.
+    Value::Object(map)
 }
 
 pub(crate) fn build_file_list(summary: &DownloadSummary) -> Value {
-    let total_len = summary
-        .total_bytes
-        .map_or_else(|| "0".to_string(), |b| b.to_string());
-
     Value::Array(vec![serde_json::json!({
         "index": "1",
-        "path": summary.file_name,
-        "length": total_len,
+        // aria2 reports the absolute save path, not just the file name.
+        "path": summary.destination_path,
+        "length": u64_str(summary.total_bytes),
         "completedLength": summary.downloaded_bytes.to_string(),
         "selected": "true",
         "uris": [{"uri": summary.url, "status": "used"}]

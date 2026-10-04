@@ -81,6 +81,50 @@ pub(crate) fn option_is_true(
     options.and_then(|o| o.get(key)).is_some_and(aria2_bool)
 }
 
+/// The optional trailing arguments of an aria2 RPC call: `(uris, options,
+/// position)`, each absent unless the caller sent it.
+type Aria2Tail = (
+    Option<Vec<String>>,
+    Option<serde_json::Map<String, Value>>,
+    Option<i64>,
+);
+
+/// Split the trailing arguments of an aria2 RPC call by JSON type.
+///
+/// aria2's method signatures are type-driven: `addTorrent` is
+/// `(torrent[, uris[, options[, position]]])`, so `uris` may be present or
+/// omitted before `options`. AriaNg sends `addTorrent` as
+/// `[torrent, [], options]`, which a naive `params.get(1)` read mistakes for
+/// the options object and silently drops `dir`/`out`/`pause`/`select-file`;
+/// the existing tests only exercised `[torrent, options]`, so the bug stayed
+/// invisible. Scanning by type accepts both shapes and any future mix.
+///
+/// `from` is the index of the first optional argument (1 for both `addUri`
+/// and `addTorrent`, whose first element is the URI list / torrent payload).
+/// Returns the first URI array, the first options object and the first
+/// integer position, each optional.
+pub(crate) fn split_aria2_tail(params: &[Value], from: usize) -> Aria2Tail {
+    let mut uris = None;
+    let mut options = None;
+    let mut position = None;
+    for value in params.iter().skip(from) {
+        match value {
+            Value::Array(items) if uris.is_none() => {
+                uris = Some(
+                    items
+                        .iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect(),
+                );
+            }
+            Value::Object(map) if options.is_none() => options = Some(map.clone()),
+            Value::Number(n) if position.is_none() => position = n.as_i64(),
+            _ => {}
+        }
+    }
+    (uris, options, position)
+}
+
 /// Parse aria2's `select-file`: a 1-based comma-separated index list, into the
 /// engine's 0-based file indices.
 pub(crate) fn parse_select_file(

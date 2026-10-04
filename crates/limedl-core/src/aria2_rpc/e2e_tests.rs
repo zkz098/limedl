@@ -20,7 +20,7 @@ use crate::types::{Aria2AuthMode, Aria2Client, Aria2RpcSettings};
 
 /// Bootstrap subsystems, start an Aria2RpcServer on a random port, and return
 /// the HTTP base URL, shutdown channel and live core systems.
-async fn start_rpc_server_with(
+pub(super) async fn start_rpc_server_with(
     secret: Option<&str>,
     cors_allowed_origins: Vec<String>,
 ) -> (
@@ -100,7 +100,7 @@ async fn spawn_rpc_server_with_settings(
 
 /// Start an RPC server without a secret (the settings a desktop install uses
 /// by default).
-async fn start_rpc_server() -> (
+pub(super) async fn start_rpc_server() -> (
     String,
     tokio::sync::watch::Sender<bool>,
     TempDir,
@@ -110,7 +110,7 @@ async fn start_rpc_server() -> (
 }
 
 /// Start an RPC server protected by a secret token.
-async fn start_rpc_server_with_secret(secret: Option<&str>) -> (
+pub(super) async fn start_rpc_server_with_secret(secret: Option<&str>) -> (
     String,
     tokio::sync::watch::Sender<bool>,
     TempDir,
@@ -146,7 +146,7 @@ async fn start_rpc_server_with_clients(
 }
 
 /// Poll `aria2.tellStatus` until the aria2 status string is one of `expected`.
-async fn wait_for_status(
+pub(super) async fn wait_for_status(
     client: &reqwest::Client,
     rpc_url: &str,
     gid: &str,
@@ -169,7 +169,7 @@ async fn wait_for_status(
 }
 
 /// Send a JSON-RPC request and return the parsed response.
-async fn rpc_call(
+pub(super) async fn rpc_call(
     client: &reqwest::Client,
     url: &str,
     method: &str,
@@ -195,7 +195,7 @@ async fn rpc_call(
 }
 
 /// POST an arbitrary body (valid or not) and parse the JSON-RPC answer.
-async fn rpc_post_raw(client: &reqwest::Client, url: &str, body: &str) -> serde_json::Value {
+pub(super) async fn rpc_post_raw(client: &reqwest::Client, url: &str, body: &str) -> serde_json::Value {
     let text = client
         .post(url)
         .header("Content-Type", "application/json")
@@ -951,9 +951,11 @@ async fn aria2_multicall_batches_calls_and_wraps_errors() {
 }
 
 /// With a secret configured, **every** method requires the token — including
-/// the ones that used to skip the check entirely (`getVersion`, `tellActive`,
-/// `pauseAll`, `system.listMethods`, `shutdown`) — and a valid token is
-/// accepted by single calls and by multicall.
+/// With a secret configured, every *routed data* method requires the token —
+/// including the ones that used to skip the check entirely (`getVersion`,
+/// `tellActive`, `pauseAll`, `shutdown`) — and a valid token is accepted by
+/// single calls and by multicall. The read-only `system.listMethods` /
+/// `system.listNotifications` are intentionally anonymous, as in aria2.
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(90_000)]
 async fn aria2_secret_token_gates_every_method() {
@@ -970,12 +972,20 @@ async fn aria2_secret_token_gates_every_method() {
         "aria2.tellActive",
         "aria2.pauseAll",
         "aria2.shutdown",
-        "system.listMethods",
     ] {
         let resp = rpc_call(&client, &rpc_url, method, serde_json::json!([])).await;
         assert_eq!(
             resp["error"]["code"], 1,
             "{method} must require the token: {resp}"
+        );
+    }
+
+    // aria2 allows the capability-probe methods without a token.
+    for method in ["system.listMethods", "system.listNotifications"] {
+        let resp = rpc_call(&client, &rpc_url, method, serde_json::json!([])).await;
+        assert!(
+            resp["result"].is_array(),
+            "{method} must not require the token: {resp}"
         );
     }
 
@@ -1709,7 +1719,7 @@ async fn aria2_add_uri_accepts_magnet_as_bt() {
         serde_json::json!([gid]),
     )
     .await;
-    let reported = resp["result"]["bittorrent"]["infoHash"]
+    let reported = resp["result"]["infoHash"]
         .as_str()
         .unwrap_or_else(|| panic!("BT status must carry an infoHash: {resp}"));
     assert_eq!(reported.to_ascii_lowercase(), info_hash);
@@ -1828,7 +1838,7 @@ async fn aria2_add_torrent_serves_bt_files_and_options() {
     // with 1-based string indices like aria2 itself emits.
     let status = wait_for_bt_files(&client, &rpc_url, &gid).await;
     assert_eq!(
-        status["bittorrent"]["infoHash"]
+        status["infoHash"]
             .as_str()
             .map(str::to_ascii_lowercase),
         Some(expected_hash.clone()),
@@ -2295,7 +2305,7 @@ async fn aria2_add_torrent_single_file_reports_one_entry() {
 
     let status = wait_for_bt_files(&client, &rpc_url, &gid).await;
     assert_eq!(
-        status["bittorrent"]["infoHash"]
+        status["infoHash"]
             .as_str()
             .map(str::to_ascii_lowercase),
         Some(expected_hash),

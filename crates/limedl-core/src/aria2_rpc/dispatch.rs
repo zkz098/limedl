@@ -1,6 +1,6 @@
 //! Method dispatch table for JSON-RPC requests.
 
-use super::{ERR_METHOD_NOT_FOUND, JsonRpcError, RpcContext, Value, handle_add_torrent, handle_add_uri, handle_change_global_option, handle_change_option, handle_get_files, handle_get_global_option, handle_get_option, handle_get_peers, handle_get_session_info, handle_get_uris, handle_global_stat, handle_list_methods, handle_list_notifications, handle_multicall, handle_pause, handle_pause_all, handle_purge_download_result, handle_remove, handle_remove_download_result, handle_save_session, handle_shutdown, handle_tell_active, handle_tell_status, handle_tell_stopped, handle_tell_waiting, handle_unpause, handle_unpause_all, handle_version, make_error};
+use super::{ERR_METHOD_NOT_FOUND, JsonRpcError, RpcContext, Value, handle_add_torrent, handle_add_uri, handle_change_global_option, handle_change_option, handle_change_position, handle_change_uri, handle_get_files, handle_get_global_option, handle_get_option, handle_get_peers, handle_get_servers, handle_get_session_info, handle_get_uris, handle_global_stat, handle_list_methods, handle_list_notifications, handle_multicall, handle_pause, handle_pause_all, handle_purge_download_result, handle_remove, handle_remove_download_result, handle_save_session, handle_shutdown, handle_tell_active, handle_tell_status, handle_tell_stopped, handle_tell_waiting, handle_unpause, handle_unpause_all, handle_version, make_error};
 use super::{check_token, strip_token};
 
 /// Dispatch a JSON-RPC method, enforcing the secret token first.
@@ -16,15 +16,31 @@ pub(crate) async fn dispatch_method(
     method: &str,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
+    // aria2 exempts a few methods from the outer token requirement:
+    //   - `system.listMethods` / `system.listNotifications` only reveal method
+    //     names; AriaNg calls them without a token even when a secret is set.
+    //   - `system.multicall` carries no outer token in aria2: each nested call
+    //     is authenticated on its own. `handle_multicall` routes nested calls
+    //     back through this function, so skipping the outer check here does not
+    //     open a hole — an unauthenticated nested call fails its own check.
+    if matches!(
+        method,
+        "system.listMethods"
+            | "system.listNotifications"
+            | "system.multicall"
+            | "aria2.multicall"
+    ) {
+        return dispatch_authorized(ctx, method, strip_token(params)).await;
+    }
     check_token(ctx, &params)?;
     dispatch_authorized(ctx, method, strip_token(params)).await
 }
 
 /// Route a method whose caller has already been authenticated.
 ///
-/// `system.multicall` uses this for its nested calls: the outer request is
-/// checked once, and each nested call is dispatched with its own parameters
-/// (the token element, if the client repeats it there, stripped).
+/// `handle_multicall` calls [`dispatch_method`] for each nested call (not this
+/// function), so every nested call is authenticated and stripped on its own;
+/// this function is the raw routing table and performs no token work itself.
 pub(crate) async fn dispatch_authorized(
     ctx: &RpcContext,
     method: &str,
@@ -49,14 +65,17 @@ pub(crate) async fn dispatch_authorized(
         "aria2.getGlobalOption" => handle_get_global_option(ctx).await,
         "aria2.changeGlobalOption" => handle_change_global_option(ctx, params).await,
         "aria2.changeOption" => handle_change_option(ctx, params).await,
+        "aria2.changeUri" => handle_change_uri(ctx, params).await,
+        "aria2.changePosition" => handle_change_position(ctx, params).await,
         "aria2.getVersion" => Ok(handle_version()),
         "aria2.getFiles" => handle_get_files(ctx, params).await,
         "aria2.getOption" => handle_get_option(ctx, params).await,
         "aria2.getUris" => handle_get_uris(ctx, params).await,
+        "aria2.getServers" => handle_get_servers(ctx, params).await,
         "aria2.getPeers" => handle_get_peers(ctx, params).await,
         "aria2.getSessionInfo" => Ok(handle_get_session_info(ctx)),
         "aria2.saveSession" => Ok(handle_save_session()),
-        "aria2.shutdown" => handle_shutdown(ctx).await,
+        "aria2.shutdown" | "aria2.forceShutdown" => handle_shutdown(ctx).await,
         "system.listMethods" => Ok(handle_list_methods()),
         "system.listNotifications" => Ok(handle_list_notifications()),
         _ => Err(make_error(

@@ -78,6 +78,7 @@ otherwise drift from the code just changed.
 | Known issues & accepted warnings | `docs/troubleshooting.md` |
 | Linux desktop build & packaging | `docs/desktop-build-and-packaging.md` |
 | Manual smoke testing / MCP | `docs/manual-smoke-testing.md` |
+| Aria2 RPC interop testing | `docs/aria2-interop-testing.md` |
 | Checksum algorithms, async file I/O | `docs/engine-dev-notes.md` |
 | Regressions the test suite caught | `docs/test-regression-notes.md` |
 
@@ -144,6 +145,6 @@ This repository has a generated `openwiki/` evidence index. It is optional just-
 - Treat source code and tests as authoritative. A brief's unknowns and review items are verification gaps, not automatic requirements.
 - Prefer the narrowest quiet validation that proves the changed behavior. Preserve complete failure output.
 
-OpenWiki is updated by running the update flow manually — this repository does not refresh it from CI. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and re-running the update.
+The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
 
 <!-- OPENWIKI:END -->

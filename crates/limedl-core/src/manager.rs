@@ -839,6 +839,87 @@ impl DownloadManager {
         vec![url.to_string()]
     }
 
+    /// Rewrite a download's HTTP URI candidate list (aria2.changeUri).
+    ///
+    /// `del_uris` removes one occurrence per entry (aria2's semantics: removing
+    /// three copies of the same URI needs three entries); `add_uris` is then
+    /// inserted at `position`, or appended when `position` is `None`. At least
+    /// one URI must remain. The primary URL, the mirror list, the current
+    /// mirror index and the snapshot are kept consistent and persisted.
+    ///
+    /// Returns `(deleted, added)`.
+    pub async fn change_task_uris(
+        &self,
+        download_id: &str,
+        del_uris: &[String],
+        add_uris: &[String],
+        position: Option<usize>,
+    ) -> Result<(usize, usize)> {
+        let managed = self
+            .downloads
+            .read()
+            .await
+            .get(download_id)
+            .cloned()
+            .ok_or(DownloadError::NotFound)?;
+
+        let mut deleted = 0usize;
+        {
+            let mut core = managed.lock_core();
+            // Candidate list = primary + mirrors, de-duplicated (mirrors may
+            // already contain the primary, as `addUri` stores the whole list).
+            let mut candidates: Vec<String> = Vec::new();
+            for candidate in std::iter::once(core.manifest.url.clone())
+                .chain(core.manifest.mirror_urls.clone())
+            {
+                if !candidates.contains(&candidate) {
+                    candidates.push(candidate);
+                }
+            }
+
+            for uri in del_uris {
+                if let Some(index) = candidates.iter().position(|candidate| candidate == uri) {
+                    candidates.remove(index);
+                    deleted += 1;
+                }
+            }
+            if candidates.is_empty() {
+                return Err(DownloadError::InvalidRequest(
+                    "refusing to remove every URI".to_string(),
+                ));
+            }
+
+            let insert_at = position.unwrap_or(candidates.len()).min(candidates.len());
+            for (offset, uri) in add_uris.iter().enumerate() {
+                candidates.insert(insert_at + offset, uri.clone());
+            }
+
+            let current = core
+                .manifest
+                .mirror_url
+                .clone()
+                .filter(|url| candidates.contains(url))
+                .unwrap_or_else(|| candidates[0].clone());
+            let index = candidates
+                .iter()
+                .position(|candidate| candidate == &current)
+                .unwrap_or(0);
+            let now = now_ms();
+            core.manifest.url = candidates[0].clone();
+            core.manifest.mirror_urls = candidates;
+            core.manifest.current_mirror_index = index;
+            core.manifest.mirror_url = Some(current.clone());
+            core.manifest.final_url = current.clone();
+            core.manifest.updated_at_ms = now;
+            core.snapshot.url = core.manifest.url.clone();
+            core.snapshot.final_url = current;
+            core.snapshot.updated_at_ms = now;
+        }
+
+        self.persist(managed).await?;
+        Ok((deleted, add_uris.len()))
+    }
+
     pub fn game_mode(&self) -> bool {
         self.disk_io.game_mode()
     }

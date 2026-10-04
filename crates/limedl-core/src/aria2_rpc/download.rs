@@ -2,7 +2,7 @@
 
 use base64::Engine;
 
-use super::{DownloadState, ERR_INTERNAL, ERR_INVALID_PARAMS, Id20, JsonRpcError, RpcContext, StartDownloadRequest, TaskId, TaskKind, Uuid, Value, broadcast_event, cleanup_old_aria2_temp_files, collect_request_headers, extract_gid, extract_option_str, extract_option_u32, extract_option_usize, get_all_summaries, internal_id_to_gid, make_error, option_is_true, parse_checksum_option, parse_select_file, resolve_gid};
+use super::{DownloadState, ERR_INTERNAL, ERR_INVALID_PARAMS, Id20, JsonRpcError, Priority, RpcContext, StartDownloadRequest, TaskId, TaskKind, Uuid, Value, broadcast_event, cleanup_old_aria2_temp_files, collect_request_headers, extract_gid, extract_option_str, extract_option_u32, extract_option_usize, get_all_summaries, internal_id_to_gid, make_error, option_is_true, parse_checksum_option, parse_select_file, resolve_gid, split_aria2_tail, waiting_order};
 
 /// Which backend `aria2.addUri` must route a URI to.
 ///
@@ -34,7 +34,11 @@ pub(crate) async fn handle_add_uri(
         return Err(make_error(ERR_INVALID_PARAMS, "No URIs provided"));
     }
 
-    let options = params.get(1).and_then(|v| v.as_object());
+    // aria2's signature is `addUri(uris[, options[, position]])`; read the
+    // optional tail by type so an empty `uris` mirror list before `options`
+    // (a shape some clients send) cannot be mistaken for the options object.
+    let (_, options, position) = split_aria2_tail(&params, 1);
+    let options = options.as_ref();
     // aria2 treats `uris` as an ordered candidate list: the first entry is the
     // primary target and the remaining entries act as mirrors.
     let url = uris
@@ -103,6 +107,14 @@ pub(crate) async fn handle_add_uri(
         .await
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
+    if position == Some(0) {
+        // aria2 lets the caller insert at the front of the waiting queue.
+        // limedl's queue is priority-ordered, so only position 0 has an exact
+        // mapping (High); other positions stay at the caller's default and are
+        // documented as unsupported rather than silently reordered.
+        let _ = ctx.dispatcher.set_priority(&task_id, Priority::High).await;
+    }
+
     let start_paused = option_is_true(options, "pause");
     if start_paused {
         let _ = ctx.dispatcher.pause(&task_id).await;
@@ -144,7 +156,13 @@ pub(crate) async fn handle_add_torrent(
         .await
         .map_err(|e| make_error(ERR_INTERNAL, format!("Failed to write torrent file: {e}")))?;
 
-    let options = params.get(1).and_then(|v| v.as_object());
+    // aria2's signature is `addTorrent(torrent[, uris[, options[, position]]])`.
+    // AriaNg sends `[torrent, [], options]`; reading `params[1]` directly as the
+    // options object dropped `dir`/`out`/`pause`/`select-file` silently. Scan
+    // by type so both `[torrent, options]` and `[torrent, [], options]` work.
+    // `uris` is the Web-seeding list, which limedl does not use yet.
+    let (_web_seeds, options, position) = split_aria2_tail(&params, 1);
+    let options = options.as_ref();
     let destination_dir = options
         .and_then(|o| o.get("dir"))
         .and_then(|v| v.as_str())
@@ -182,6 +200,11 @@ pub(crate) async fn handle_add_torrent(
 
     if option_is_true(options, "pause") {
         let _ = ctx.dispatcher.pause(&task_id).await;
+    }
+
+    if position == Some(0) {
+        // Same priority approximation as `addUri` (see there).
+        let _ = ctx.dispatcher.set_priority(&task_id, Priority::High).await;
     }
 
     // The BT backend's emit_pending_summary already emits Updated during
@@ -433,4 +456,151 @@ pub(crate) async fn handle_purge_download_result(ctx: &RpcContext) -> Result<Val
 
     tracing::info!("Purged {purged_count} completed/error/removed downloads");
     Ok(Value::String("OK".to_string()))
+}
+
+/// Read a JSON value as a list of strings, ignoring non-string entries.
+fn string_list(value: Option<&Value>) -> Option<Vec<String>> {
+    Some(
+        value?
+            .as_array()?
+            .iter()
+            .filter_map(|item| item.as_str().map(String::from))
+            .collect(),
+    )
+}
+
+/// `aria2.changeUri` — remove and/or add candidate URIs for a download.
+///
+/// aria2 attaches URIs to a specific 1-based file; limedl's HTTP downloads are
+/// single-file, so `fileIndex` must be 1. BitTorrent tasks are rejected, as in
+/// aria2: a torrent's sources come from trackers and DHT, not a URI list. The
+/// reply is aria2's two-integer `[deleted, added]` array.
+pub(crate) async fn handle_change_uri(
+    ctx: &RpcContext,
+    params: Vec<Value>,
+) -> Result<Value, JsonRpcError> {
+    let gid = extract_gid(&params)?;
+    let file_index = params
+        .get(1)
+        .and_then(|v| {
+            v.as_u64()
+                .or_else(|| v.as_str().and_then(|s| s.trim().parse().ok()))
+        })
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing fileIndex"))?;
+    let del_uris = string_list(params.get(2))
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "delUris must be an array"))?;
+    let add_uris = string_list(params.get(3))
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "addUris must be an array"))?;
+    let position = params.get(4).and_then(|v| v.as_u64()).map(|n| n as usize);
+
+    let task_id = resolve_gid(ctx, &gid)
+        .await
+        .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
+    let TaskId::Http(uuid) = task_id else {
+        return Err(make_error(
+            ERR_INVALID_PARAMS,
+            "changeUri only supports HTTP/FTP downloads",
+        ));
+    };
+    if file_index != 1 {
+        return Err(make_error(
+            ERR_INVALID_PARAMS,
+            "limedl HTTP downloads have exactly one file (fileIndex must be 1)",
+        ));
+    }
+
+    let dm = ctx
+        .http()
+        .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
+    let (deleted, added) = dm
+        .change_task_uris(&uuid.to_string(), &del_uris, &add_uris, position)
+        .await
+        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+    Ok(serde_json::json!([deleted, added]))
+}
+
+/// `aria2.changePosition` — move a queued download.
+///
+/// limedl's waiting queue is ordered by `(priority desc, created_at asc)`, not
+/// an arbitrary position, so only the three priority levels can be persisted.
+/// The requested index is mapped onto them (front = High, back = Low,
+/// otherwise Normal for `POS_SET`; one level up/down for `POS_CUR`) and the
+/// **actual** resulting index is returned, so a client is never told a position
+/// that was not applied. `tellWaiting` uses the same order.
+pub(crate) async fn handle_change_position(
+    ctx: &RpcContext,
+    params: Vec<Value>,
+) -> Result<Value, JsonRpcError> {
+    let gid = extract_gid(&params)?;
+    let position = params
+        .get(1)
+        .and_then(|v| {
+            v.as_i64()
+                .or_else(|| v.as_str().and_then(|s| s.trim().parse().ok()))
+        })
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing position"))?;
+    let how = params
+        .get(2)
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing how"))?;
+
+    let task_id = resolve_gid(ctx, &gid)
+        .await
+        .ok_or_else(|| make_error(1, format!("GID not found: {gid}")))?;
+
+    let order = waiting_order(ctx).await?;
+    let current_index = order
+        .iter()
+        .position(|summary| summary.id == task_id.raw_id())
+        .ok_or_else(|| make_error(1, format!("GID {gid} is not in the waiting queue")))?;
+    let last = order.len().saturating_sub(1) as i64;
+
+    let target = match how {
+        "POS_SET" => position,
+        "POS_CUR" => current_index as i64 + position,
+        // aria2's POS_END takes a (usually negative) offset from the end.
+        "POS_END" => order.len() as i64 + position,
+        other => {
+            return Err(make_error(
+                ERR_INVALID_PARAMS,
+                format!("Unknown how value: {other}"),
+            ));
+        }
+    }
+    .clamp(0, last.max(0));
+
+    let current_priority = order[current_index].priority;
+    let next_priority = match how {
+        "POS_SET" if target == 0 => Priority::High,
+        "POS_SET" if target == last => Priority::Low,
+        "POS_SET" => Priority::Normal,
+        "POS_END" => Priority::Low,
+        _ => {
+            // POS_CUR: a negative offset moves earlier, a positive one later.
+            let step = if position < 0 {
+                1
+            } else if position > 0 {
+                -1
+            } else {
+                0
+            };
+            Priority::from((current_priority as i16 + step).clamp(0, 2) as u8)
+        }
+    };
+
+    if next_priority != current_priority {
+        ctx.dispatcher
+            .set_priority(&task_id, next_priority)
+            .await
+            .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+    }
+
+    // Recompute rather than returning `target`: the priority model can round
+    // the request, and the answer must describe the queue as it really is.
+    let resulting = waiting_order(ctx)
+        .await?
+        .iter()
+        .position(|summary| summary.id == task_id.raw_id())
+        .unwrap_or(current_index);
+    Ok(Value::Number((resulting as i64).into()))
 }

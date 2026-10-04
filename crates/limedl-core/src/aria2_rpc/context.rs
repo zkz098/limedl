@@ -76,9 +76,10 @@ impl RpcContext {
 
 /// Enforce the configured authentication scheme.
 ///
-/// Runs on every routed method (see `dispatch_method`), so a new handler is
-/// protected automatically. Only the `token:`-prefixed first parameter is
-/// accepted, matching aria2's wire format.
+/// `dispatch_method` calls this for every routed method except the aria2
+/// exemptions (`system.listMethods`, `system.listNotifications`, and the outer
+/// `multicall` call), so a new handler is protected automatically. Only the
+/// `token:`-prefixed first parameter is accepted, matching aria2's wire format.
 pub(crate) fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), JsonRpcError> {
     if !ctx.auth.is_enabled() {
         return Ok(());

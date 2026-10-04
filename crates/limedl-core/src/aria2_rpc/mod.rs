@@ -29,7 +29,7 @@ use crate::{
     manager::DownloadManager,
     types::{
         Aria2AuthMode, Aria2RpcSettings, BtFileStatus, BtPeerInfo, ChecksumMode, DownloadState,
-        DownloadSummary, StartDownloadRequest, TaskId, TaskKind,
+        DownloadSummary, Priority, StartDownloadRequest, TaskId, TaskKind,
     },
 };
 
@@ -67,3 +67,6 @@ mod tests;
 
 #[cfg(test)]
 mod e2e_tests;
+
+#[cfg(test)]
+mod interop_tests;
