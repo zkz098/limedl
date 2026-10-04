@@ -1,4 +1,4 @@
-﻿use std::time::Duration;
+use std::time::Duration;
 
 use reqwest::{Client, ClientBuilder, Proxy, header, redirect::Policy};
 
@@ -42,7 +42,7 @@ pub fn configure_client_builder(
     builder = builder
         .redirect(Policy::limited(10))
         .tcp_nodelay(true)
-        .read_timeout(Duration::from_secs(15))
+        .read_timeout(Duration::from_secs(30))
         .user_agent(default_user_agent)
         .connect_timeout(Duration::from_secs(30))
         .pool_max_idle_per_host(20)

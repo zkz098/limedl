@@ -157,7 +157,7 @@ async fn backoff_or_cancel(token: &CancellationToken, attempt: u32) -> Result<()
 /// Sets the snapshot and manifest state to `Retrying`, records the error
 /// message, and marks a penalty on the AIMD state for backpressure on
 /// connection concurrency.
-fn register_retry_penalty(managed: &Arc<ManagedDownload>, error: String) {
+pub(crate) fn register_retry_penalty(managed: &Arc<ManagedDownload>, error: String) {
     {
         let mut core = managed.lock_core();
         core.snapshot.state = DownloadState::Retrying;

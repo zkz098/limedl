@@ -4,7 +4,15 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 use reqwest::Response;
 
-use super::{Arc, BatchLimiter, CancellationToken, ChunkManifest, ChunkWorkerOutcome, Client, Database, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, JoinSet, ManagedDownload, ProgressThrottle, RateLimiter, RequestBudget, Result, StatusCode, WORK_STEAL_MIN_SPLIT_SIZE, build_segment_request, cancellation_chunk_outcome, if_range_header, is_too_many_requests_error, now_ms, record_durable_bytes, record_progress_on_managed, request_with_retry, validate_segment_response, write_all_at};
+use super::{
+    Arc, BatchLimiter, CancellationToken, ChunkManifest, ChunkWorkerOutcome, Client, Database,
+    DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, JoinSet,
+    ManagedDownload, ProgressThrottle, RateLimiter, RequestBudget, Result, StatusCode,
+    WORK_STEAL_MIN_SPLIT_SIZE, build_segment_request, cancellation_chunk_outcome, if_range_header,
+    is_too_many_requests_error, jittered_backoff_delay, now_ms, record_durable_bytes,
+    record_progress_on_managed, register_retry_penalty, request_with_retry, sleep,
+    validate_segment_response, write_all_at,
+};
 
 // ── Free helper functions ─────────────────────────────────────────────────────
 
@@ -198,6 +206,8 @@ enum SegmentBody {
     Exhausted,
     /// The worker must stop with this outcome.
     Stop(ChunkWorkerOutcome),
+    /// The body stream was interrupted before reaching the requested end.
+    StreamInterrupted(reqwest::Error),
 }
 
 /// Upper bound on the number of separate segment requests one chunk may issue.
@@ -222,6 +232,8 @@ impl ChunkWorkerCtx {
         let mut throttle = ProgressThrottle::new();
         let mut batch = BatchLimiter::new();
         let mut budget = RequestBudget::new(MAX_SEGMENT_FETCHES_PER_CHUNK);
+        let mut consecutive_stream_errors: u32 = 0;
+        let mut last_progress_offset = current;
         while current <= end {
             if self.token.is_cancelled() {
                 return Ok(self.pause_or_cancel());
@@ -252,12 +264,49 @@ impl ChunkWorkerCtx {
 
             validate_segment_response(&response, current, end)?;
 
+            {
+                let mut core = self.managed.lock_core();
+                if core.snapshot.state == DownloadState::Retrying {
+                    core.snapshot.state = DownloadState::Downloading;
+                    core.manifest.state = DownloadState::Downloading;
+                    core.snapshot.updated_at_ms = now_ms();
+                    core.manifest.updated_at_ms = now_ms();
+                }
+            }
+
             match self
                 .consume_segment(response, &mut current, end, &mut batch, &mut throttle)
                 .await?
             {
-                SegmentBody::Exhausted => {}
+                SegmentBody::Exhausted => {
+                    if current > last_progress_offset {
+                        consecutive_stream_errors = 0;
+                        last_progress_offset = current;
+                    }
+                }
                 SegmentBody::Stop(outcome) => return Ok(outcome),
+                SegmentBody::StreamInterrupted(err) => {
+                    tracing::warn!(
+                        "Worker {} chunk {} stream interrupted at offset {current}/{end}: {err}",
+                        self.worker_id,
+                        self.chunk.index
+                    );
+                    register_retry_penalty(&self.managed, err.to_string());
+                    if current > last_progress_offset {
+                        consecutive_stream_errors = 1;
+                        last_progress_offset = current;
+                    } else {
+                        consecutive_stream_errors = consecutive_stream_errors.saturating_add(1);
+                    }
+                    if consecutive_stream_errors > self.max_retries {
+                        self.release();
+                        return Err(DownloadError::from(err));
+                    }
+                    tokio::select! {
+                        _ = self.token.cancelled() => return Ok(self.pause_or_cancel()),
+                        _ = sleep(jittered_backoff_delay(consecutive_stream_errors)) => {}
+                    }
+                }
             }
         }
 
@@ -350,7 +399,13 @@ impl ChunkWorkerCtx {
             }
             next = stream.next() => next,
         } {
-            let bytes = bytes?;
+            let bytes = match bytes {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    batch.flush(&self.rate_limiter).await;
+                    return Ok(SegmentBody::StreamInterrupted(err));
+                }
+            };
             batch.account(&self.rate_limiter, bytes.len()).await;
 
             // Check dynamic chunk end (which may have been shortened if work was stolen)

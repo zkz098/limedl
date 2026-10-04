@@ -3,7 +3,16 @@
 use bytes::Bytes;
 use futures_util::StreamExt;
 
-use super::{Arc, BatchLimiter, CancellationToken, Client, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, HttpExecutor, Instant, ManagedDownload, Path, PathBuf, ProgressThrottle, RequestBudget, Result, RunOutcome, StatusCode, apply_extra_headers, build_write_buffer, cancellation_outcome, check_disk_space_periodically, contiguous_prefix_end, finish_buffer_flush, flush_write_buffer, fs, header, identity_encoding, if_range_header, io_error_with_path, now_ms, open_download_file, record_durable_bytes, request_with_retry, reset_download_file, wait_or_stop, write_all_at};
+use super::{
+    Arc, BatchLimiter, CancellationToken, Client, DiskType, DownloadBuffer, DownloadError,
+    DownloadManager, DownloadState, HttpExecutor, Instant, ManagedDownload, Path, PathBuf,
+    ProgressThrottle, RequestBudget, Result, RunOutcome, StatusCode, apply_extra_headers,
+    build_write_buffer, cancellation_outcome, check_disk_space_periodically, contiguous_prefix_end,
+    finish_buffer_flush, flush_write_buffer, fs, header, identity_encoding, if_range_header,
+    io_error_with_path, jittered_backoff_delay, now_ms, open_download_file, record_durable_bytes,
+    register_retry_penalty, request_with_retry, reset_download_file, sleep, wait_or_stop,
+    write_all_at,
+};
 
 /// Upper bound on the number of responses one single-stream download may consume.
 ///
@@ -29,6 +38,8 @@ impl HttpExecutor {
         let mut throttle = ProgressThrottle::new();
         let mut batch = BatchLimiter::new();
         let mut budget = RequestBudget::new(MAX_SINGLE_STREAM_REQUESTS);
+        let mut consecutive_stream_errors: u32 = 0;
+        let mut last_progress_offset = 0;
 
         loop {
             if let Some(outcome) = wait_or_stop(&dm, &managed, &token, &write_buffer).await {
@@ -86,6 +97,9 @@ impl HttpExecutor {
             let mut absolute_offset =
                 single_start_offset(&dm, &managed, &file, &write_buffer, status, start_offset)
                     .await?;
+            if absolute_offset < last_progress_offset {
+                last_progress_offset = absolute_offset;
+            }
 
             {
                 let mut core = managed.lock_core();
@@ -97,6 +111,7 @@ impl HttpExecutor {
                 core.manifest.updated_at_ms = now_ms();
             }
 
+            let mut stream_error = None;
             while let Some(chunk) = tokio::select! {
                 _ = token.cancelled() => {
                     // Flush remaining rate limiter bytes before exiting
@@ -109,7 +124,13 @@ impl HttpExecutor {
                 }
                 chunk = stream.next() => chunk,
             } {
-                let chunk = chunk?;
+                let chunk = match chunk {
+                    Ok(chunk) => chunk,
+                    Err(err) => {
+                        stream_error = Some(err);
+                        break;
+                    }
+                };
                 batch.account(&dm.rate_limiter, chunk.len()).await;
                 guard_content_length(total_bytes, absolute_offset, chunk.len())?;
                 write_chunk_bytes(
@@ -131,9 +152,35 @@ impl HttpExecutor {
             // Flush remaining rate limiter bytes after stream ends
             batch.flush(&dm.rate_limiter).await;
 
-            if single_finished(&managed) {
-                finish_buffer_flush(&dm, &managed, &write_buffer).await?;
-                return Ok(RunOutcome::Finished);
+            if let Some(err) = stream_error {
+                tracing::warn!(
+                    "Single-stream download interrupted at offset {absolute_offset}: {err}"
+                );
+                register_retry_penalty(&managed, err.to_string());
+                if absolute_offset > last_progress_offset {
+                    consecutive_stream_errors = 1;
+                    last_progress_offset = absolute_offset;
+                } else {
+                    consecutive_stream_errors = consecutive_stream_errors.saturating_add(1);
+                }
+                if consecutive_stream_errors > max_retries {
+                    flush_write_buffer(&write_buffer, "error").await;
+                    return Err(DownloadError::from(err));
+                }
+                tokio::select! {
+                    _ = token.cancelled() => {
+                        flush_write_buffer(&write_buffer, "cancel").await;
+                        return Ok(cancellation_outcome(&managed));
+                    }
+                    _ = sleep(jittered_backoff_delay(consecutive_stream_errors)) => {}
+                }
+            } else {
+                consecutive_stream_errors = 0;
+                last_progress_offset = absolute_offset;
+                if single_finished(&managed) {
+                    finish_buffer_flush(&dm, &managed, &write_buffer).await?;
+                    return Ok(RunOutcome::Finished);
+                }
             }
         }
     }

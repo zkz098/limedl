@@ -590,7 +590,7 @@ fn log_background_error(context: &str, error: impl std::fmt::Display) {
 /// Returns `true` if the error represents a transport-level network failure.
 fn is_network_error(error: &DownloadError) -> bool {
     match error {
-        DownloadError::Http(e) => e.is_connect() || e.is_timeout() || e.is_body(),
+        DownloadError::Http(e) => e.is_connect() || e.is_timeout() || e.is_body() || e.is_decode(),
         _ => false,
     }
 }

@@ -432,3 +432,161 @@ async fn wrong_content_length_truncates_completed_download() -> TestResult {
     let _ = manager.remove(&id.to_string()).await;
     Ok(())
 }
+
+/// A download whose response body stream breaks mid-transfer (e.g. simulated
+/// connection reset) must seamlessly recover by resuming from the durable
+/// offset rather than failing the task with "error decoding response body".
+#[tokio::test]
+#[timeout(30_000)]
+async fn stream_interruption_resumes_and_completes() -> TestResult {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use axum::{
+        Router,
+        body::Body,
+        extract::State,
+        http::{HeaderMap, Method, StatusCode, header},
+        response::IntoResponse,
+        routing::any,
+    };
+    use futures_util::stream;
+
+    let test_data = generate_test_content(64 * 1024);
+    let total_len = test_data.len();
+    let data_arc = Arc::new(test_data);
+    let attempts = Arc::new(AtomicUsize::new(0));
+
+    let app_state = (data_arc.clone(), attempts.clone());
+    let app = Router::new()
+        .route(
+            "/interrupted",
+            any(
+                move |method: Method,
+                 State((data, attempts)): State<(Arc<Vec<u8>>, Arc<AtomicUsize>)>,
+                 headers: HeaderMap| async move {
+                    let mut resp_headers = HeaderMap::new();
+                    resp_headers.insert(header::ACCEPT_RANGES, "bytes".parse().unwrap());
+                    resp_headers.insert(
+                        header::CONTENT_DISPOSITION,
+                        "attachment; filename=\"flaky.bin\"".parse().unwrap(),
+                    );
+
+                    if method == Method::HEAD {
+                        resp_headers.insert(
+                            header::CONTENT_LENGTH,
+                            data.len().to_string().parse().unwrap(),
+                        );
+                        return (StatusCode::OK, resp_headers).into_response();
+                    }
+
+                    let count = attempts.fetch_add(1, Ordering::SeqCst);
+                    let range = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
+
+                    if count == 0 {
+                        // First GET attempt: send 16 KB then abort with a reset error
+                        let chunk = bytes::Bytes::copy_from_slice(&data[..16 * 1024]);
+                        let err = std::io::Error::new(
+                            std::io::ErrorKind::ConnectionReset,
+                            "simulated reset",
+                        );
+                        let s = stream::iter(vec![
+                            Ok::<_, std::io::Error>(chunk),
+                            Err(err),
+                        ]);
+                        resp_headers.insert(
+                            header::CONTENT_LENGTH,
+                            data.len().to_string().parse().unwrap(),
+                        );
+                        resp_headers.insert(
+                            header::CONTENT_RANGE,
+                            format!("bytes 0-{}/{total_len}", data.len() - 1)
+                                .parse()
+                                .unwrap(),
+                        );
+                        (StatusCode::PARTIAL_CONTENT, resp_headers, Body::from_stream(s))
+                            .into_response()
+                    } else {
+                        // Resumed GET attempt: serve from requested Range
+                        let (start, end) = if let Some(r) = range {
+                            let r = r.strip_prefix("bytes=").unwrap();
+                            let parts: Vec<&str> = r.split('-').collect();
+                            let start: usize = parts[0].parse().unwrap();
+                            let end: usize = if parts.len() > 1 && !parts[1].is_empty() {
+                                parts[1].parse().unwrap()
+                            } else {
+                                data.len() - 1
+                            };
+                            (start, end)
+                        } else {
+                            (0, data.len() - 1)
+                        };
+                        let slice = bytes::Bytes::copy_from_slice(&data[start..=end]);
+                        resp_headers.insert(
+                            header::CONTENT_LENGTH,
+                            (end - start + 1).to_string().parse().unwrap(),
+                        );
+                        resp_headers.insert(
+                            header::CONTENT_RANGE,
+                            format!("bytes {start}-{end}/{total_len}").parse().unwrap(),
+                        );
+                        (StatusCode::PARTIAL_CONTENT, resp_headers, Body::from(slice))
+                            .into_response()
+                    }
+                },
+            ),
+        )
+        .with_state(app_state);
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let addr = listener.local_addr()?;
+    let server_handle = tokio::spawn(async move {
+        let _ = axum::serve(listener, app).await;
+    });
+
+    let temp = tempdir()?;
+    std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
+
+    let manager = Arc::new(DownloadManager::new_with_components(
+        temp.path().join("state"),
+        Arc::new(RateLimiter::default()),
+        Arc::new(EventBus::new(1024)),
+    )?);
+
+    let id = manager
+        .start(StartDownloadRequest {
+            kind: None,
+            url: format!("http://{addr}/interrupted"),
+            destination_dir: temp.path().join("out").to_string_lossy().to_string(),
+            file_name: None,
+            user_agent: None,
+            thread_mode: Some(ThreadMode::Fixed),
+            thread_count: Some(1),
+            max_retries: Some(3),
+            checksum: Some(ChecksumMode::None),
+            expected_checksum: None,
+            selected_file_indices: None,
+            start_paused: false,
+            headers: None,
+            mirror_urls: None,
+            priority: None,
+        })
+        .await?;
+
+    let status = wait_for_terminal(&manager, &id.to_string()).await;
+    assert_eq!(
+        status.state,
+        DownloadState::Completed,
+        "interrupted stream should resume and complete, got {:?} with error={:?}",
+        status.state,
+        status.error
+    );
+    assert_eq!(status.downloaded_bytes as usize, total_len);
+
+    let dest_path = std::path::Path::new(&status.destination_path);
+    let downloaded = tokio::fs::read(dest_path).await?;
+    assert_eq!(downloaded, *data_arc);
+
+    let _ = manager.remove(&id.to_string()).await;
+    server_handle.abort();
+    Ok(())
+}
+

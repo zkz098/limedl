@@ -49,7 +49,7 @@ use crate::{
     now_ms,
     persistence::persist_manifest_snapshot,
     rate_limiter::RateLimiter,
-    retry::request_with_retry,
+    retry::{jittered_backoff_delay, register_retry_penalty, request_with_retry},
     types::{AdaptiveProfile, ChecksumMode, DiskType, DownloadState, StartDownloadRequest, TaskKind, ThreadMode},
 };
 

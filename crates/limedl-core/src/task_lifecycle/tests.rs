@@ -259,6 +259,46 @@ fn is_network_error_http_builder_not_network() {
 }
 
 #[test]
+fn is_network_error_http_decode_is_true() {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(async {
+        use axum::{Router, routing::get};
+        let app = Router::new().route(
+            "/bad-gzip",
+            get(|| async {
+                (
+                    [(axum::http::header::CONTENT_ENCODING, "gzip")],
+                    "not gzip content",
+                )
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let handle = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        let err = reqwest::Client::new()
+            .get(format!("http://{addr}/bad-gzip"))
+            .send()
+            .await
+            .unwrap()
+            .bytes()
+            .await
+            .unwrap_err();
+
+        assert!(err.is_decode());
+        let dl_err = DownloadError::Http(err);
+        assert!(is_network_error(&dl_err));
+
+        handle.abort();
+    });
+}
+
+#[test]
 fn is_network_error_io_is_false() {
     let dl_err = DownloadError::Io(std::io::Error::new(
         std::io::ErrorKind::ConnectionRefused,
