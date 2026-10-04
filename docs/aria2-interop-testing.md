@@ -74,35 +74,75 @@ The test then asserts key sets and value **types** (aria2 serialises every
 value as a string), not exact values, so a version bump does not break it.
 Record the capturing aria2 version in the fixture file.
 
-### Mode B — live dual-run diff (strongest, heaviest)
+### Mode B — live dual-run diff (implemented, nightly)
 
-Start `aria2c --enable-rpc` and limedl's server on two ports, send the same
-request to both, and diff the responses after normalization:
+`crates/limedl-core/src/aria2_rpc/oracle_tests.rs` starts a real
+`aria2c --enable-rpc` beside limedl's server, sends both the same requests, and
+reports how the responses differ. It is the executable form of the deviation
+table below.
 
-- normalize volatile fields: `gid`, `downloadSpeed`, `uploadSpeed`,
-  `completedLength`, `dir`, `sessionId`, `numStopped*`, timestamps;
-- assert limedl's key set is a **superset** of aria2's for each state;
-- allowlist the intentional deviations below.
+Run it locally:
 
-CI placement (sketch, `.github/workflows/ci.yml`):
-
-```yaml
-  check-aria2-interop:
-    name: Aria2 oracle diff (Linux)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@...
-      - run: sudo apt-get update && sudo apt-get install -y aria2
-      - run: aria2c --version
-      - run: ARIA2_ORACLE_BIN=$(command -v aria2c) cargo nextest run
-          --manifest-path crates/limedl-core/Cargo.toml
-          --features "test-utils,aria2-rpc" -E 'test(/oracle/)'
+```sh
+ARIA2_ORACLE_BIN=$(command -v aria2c) cargo nextest run \
+  --manifest-path crates/limedl-core/Cargo.toml \
+  --features "test-utils,aria2-rpc" \
+  -E 'test(/aria2_rpc::oracle_tests::/)' --success-output=final
 ```
 
-Keep it out of the Windows/macOS required gates: Windows needs an extra package
-manager step (`choco install aria2` / a release zip) and the host-side gate is
-already the flakiest. A Linux-only nightly job gives the signal with the least
-maintenance.
+When `ARIA2_ORACLE_BIN` is unset every oracle test returns early, so the normal
+core gate never needs aria2. A set-but-unusable path panics, so the job cannot
+pass by accident.
+
+**Policy: gaps are reported, not asserted.** A run only fails when the oracle
+cannot start or a server stops answering; the gap report is printed by
+`--success-output=final`. Flip individual entries to hard assertions once the
+report has been stable (the plan's M3).
+
+`Aria2Oracle` owns the operational contract: a free port, `--no-conf`,
+`--enable-dht=false`, a `TempDir` for `--dir`, a `getVersion` readiness poll with
+a deadline, and a `Drop` that kills the child.
+
+Coverage (all offline, against `test_harness::TestServer`):
+
+| Test | Compares |
+| --- | --- |
+| `oracle_list_methods_diff` | method set; today the only diff is `addMetalink` (missing) + `aria2.multicall` (extra) |
+| `oracle_list_notifications_diff` | notification set (currently equal) |
+| `oracle_get_version_shape` | `version`/`enabledFeatures` shapes; feature diff reported |
+| `oracle_error_objects` | unknown method / missing params / bad GID return an error object |
+| `oracle_tell_status_keys` | `tellStatus` key set and value types |
+| `oracle_get_option_keys` / `oracle_get_global_option_keys` | option key sets (report-only) |
+| `oracle_change_position_returns_integer` | the reply is an integer |
+| `oracle_transport_gaps` | HTTP GET/JSONP and batch POST support |
+
+CI: `.github/workflows/aria2-oracle.yml` runs on a nightly `schedule` and
+`workflow_dispatch` (never on PRs) on ubuntu-latest. It reads the Linux
+`ci-debug` rust-cache entry with `save-if: false`, so it reuses `check-rust`'s
+artifacts instead of paying a cold build.
+
+### Observed baseline (aria2 1.37.0)
+
+Captured by the first oracle run; a change here shows up in the report diff:
+
+- `system.listMethods`: aria2 has 36 methods; limedl lacks `aria2.addMetalink`
+  and adds the `aria2.multicall` alias.
+- `system.listNotifications`: identical (6).
+- `getVersion`: limedl does not advertise `Metalink` / `SFTP` (and correctly
+  omits `XML-RPC`, which aria2 lists because it serves it).
+- `tellStatus` (paused HTTP): limedl omits `numPieces` / `pieceLength` /
+  `bitfield` until chunks are planned; aria2 always emits the first two.
+- Error responses: aria2 returns `code: 1` for **every** failure (unauthorized,
+  unknown method, missing params, bad GID); limedl returns JSON-RPC
+  `-32601`/`-32602`/`1`. AriaNg keys off `message`, so this is tolerated.
+- `getOption` / `getGlobalOption`: limedl returns a fixed subset (52 and 126 key
+  differences today) — the largest reported gap.
+- Transports: aria2 accepts HTTP GET/JSONP and a top-level JSON-RPC batch;
+  limedl rejects both (GET → 400 from the WebSocket-only route).
+
+Keep the oracle out of the Windows/macOS required gates: Windows needs an extra
+package manager step and those host gates are already the flakiest. A Linux-only
+nightly workflow gives the signal with the least maintenance.
 
 Per-platform fetch if a job ever needs it:
 
@@ -134,6 +174,8 @@ choices, not bugs; each one is documented where it is implemented.
 | BT `tellStatus.dir` / `getOption.dir` | report the BT backend's default output dir, not the per-task `dir` | the BT backend does not track a per-task output dir yet |
 | `addTorrent` `out` / `select-file` | parsed but not applied at start for BT | use `aria2.changeOption` after metadata; `select-file` at start needs a BT-backend change |
 | `errorCode` | `"0"` (no error) or `"1"` (failure) | limedl does not persist aria2 exit-status codes; the reason stays in `errorMessage` |
+| JSON-RPC error codes | `-32601` / `-32602` / `1` | aria2 returns `code: 1` for every failure (confirmed against 1.37.0); AriaNg keys off `message`, so the JSON-RPC codes are tolerated. The oracle reports the difference. |
+| `tellStatus` piece map | `numPieces` / `pieceLength` / `bitfield` appear once chunks are planned | aria2 always emits `numPieces`/`pieceLength`; limedl only has them after the range probe |
 | `numStoppedTotal` | mirrors the current stopped count | no lifetime counter |
 | `getVersion` | reports `0.1.0` and lists `XML-RPC` / `Firefox3 Cookie` | **stale**; limedl has no XML-RPC endpoint. To be corrected, and then asserted by Tier 1. |
 | `getGlobalOption` / `changeGlobalOption` | a fixed subset (`dir`, `max-concurrent-downloads`, …); `max-overall-download-limit` is accepted but ignored | engine settings model |

@@ -70,3 +70,6 @@ mod e2e_tests;
 
 #[cfg(test)]
 mod interop_tests;
+
+#[cfg(test)]
+mod oracle_tests;

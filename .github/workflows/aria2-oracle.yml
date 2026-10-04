@@ -1,0 +1,65 @@
+name: Aria2 oracle
+
+# Tier 2 Mode B of the aria2 interoperability plan (docs/aria2-interop-testing.md):
+# start a real `aria2c --enable-rpc` next to limedl's RPC server, drive both with
+# the same requests, and report how the responses differ.
+#
+# Deliberately a separate workflow instead of a job in ci.yml:
+#   - `schedule` in ci.yml would run the entire Windows/macOS/Linux matrix nightly;
+#   - it needs a third-party binary (`aria2`) and its output drifts with the
+#     aria2 release, so it must not gate pull requests.
+#
+# Gaps are reported, not asserted (see the oracle test module): a run only fails
+# when the oracle itself cannot start or a server stops answering. Promote
+# specific gaps to hard assertions once the report has been stable for a while.
+on:
+  schedule:
+    # Nightly at 04:17 UTC, off the hour to avoid the scheduler stampede.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aria2-oracle
+  cancel-in-progress: true
+
+env:
+  CARGO_BUILD_WARNINGS: deny
+
+jobs:
+  check-aria2-oracle:
+    name: Aria2 oracle diff (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+          cache: false
+          rustflags: ""
+      # Reader of the Linux `ci-debug` entry (writer: check-rust in ci.yml). The
+      # oracle tests compile the same limedl-core graph, so this reuses the
+      # cached artifacts instead of paying a cold build on every nightly run.
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          shared-key: ci-debug
+          save-if: false
+      - name: Install aria2
+        run: sudo apt-get update && sudo apt-get install -y aria2
+      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+        with:
+          tool: nextest@0.9.144
+      - name: Aria2 oracle diff
+        env:
+          ARIA2_ORACLE_BIN: /usr/bin/aria2c
+        run: |
+          aria2c --version
+          # `--success-output=final` prints the gap report captured from passing
+          # tests; nextest otherwise hides it and the run would be a silent pass.
+          cargo nextest run \
+            --manifest-path crates/limedl-core/Cargo.toml \
+            --features "test-utils,aria2-rpc" \
+            -E 'test(/aria2_rpc::oracle_tests::/)' \
+            --success-output=final
