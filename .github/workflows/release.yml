@@ -461,7 +461,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --user --break-system-packages ziglang
+          python3 -m pip install --user --break-system-packages --only-binary ":all:" "ziglang==0.16.0"
           ZIG_DIR="$(python3 -c 'import os, ziglang; print(os.path.dirname(ziglang.__file__))')"
           mkdir -p "$HOME/.local/bin"
           ln -sf "$ZIG_DIR/zig" "$HOME/.local/bin/zig"
@@ -583,7 +583,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --user --break-system-packages ziglang
+          python3 -m pip install --user --break-system-packages --only-binary ":all:" "ziglang==0.16.0"
           ZIG_DIR="$(python3 -c 'import os, ziglang; print(os.path.dirname(ziglang.__file__))')"
           mkdir -p "$HOME/.local/bin"
           ln -sf "$ZIG_DIR/zig" "$HOME/.local/bin/zig"
