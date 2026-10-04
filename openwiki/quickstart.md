@@ -4,6 +4,8 @@ title: limedl Wiki Quickstart
 description: Entry point and task-routing map for the limedl wiki — where to start for building, understanding the engine, adding a backend, debugging downloads, testing and shipping a release, plus the repository's load-bearing invariants.
 tags: [quickstart, navigation, onboarding, build, workflow]
 sources:
+  - id: openwiki-source-06de9eea8068258882d65c0b
+    resource: repo://.github/workflows/aria2-oracle.yml
   - id: openwiki-source-4d1d392666be6dfdd7a91a2e
     resource: repo://.github/workflows/release.yml
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
@@ -14,6 +16,8 @@ sources:
     resource: repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs
   - id: openwiki-source-9529b707cb48393fd5c5dcfb
     resource: repo://crates/limedl-core/src/aria2_rpc/options.rs
+  - id: openwiki-source-cb3b278da9fc4917fdb881e9
+    resource: repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs
   - id: openwiki-source-2262be0eb4e0dcf867247c95
     resource: repo://crates/limedl-core/src/backend_registry/mod.rs
   - id: openwiki-source-093388d09b520118fa26ce32
@@ -40,10 +44,10 @@ sources:
     resource: repo://README.md
   - id: openwiki-source-ca864fd40fa4107ed35f840f
     resource: repo://xtask/src/fetch_font.rs
-generated: { by: "pi", at: "2026-10-04T10:20:09.270Z" }
+generated: { by: "pi", at: "2026-10-04T10:39:31.763Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T10:20:09.270Z
+    at: 2026-10-04T10:39:31.763Z
 ---
 
 # limedl Wiki Quickstart
@@ -70,7 +74,7 @@ Evidence: `repo://Cargo.toml#L1-L11`, `repo://crates/limedl-core/src/lib.rs#L1-L
 | Change settings | [Settings and Configuration](systems/settings-and-configuration.md) | `crates/limedl-core/src/settings/`, `services/settings_service.rs` |
 | Work on disk I/O / buffers | [Disk I/O, Buffer Pool and Storage Detection](systems/disk-io-and-storage.md) | `crates/limedl-core/src/buffer_pool/`, `file_ops/` |
 | Change networking / proxy / UA | [Networking, HTTP Clients and Rate Control](systems/networking-and-rate-control.md) | `crates/limedl-core/src/http_client_factory/mod.rs` |
-| Work on the Aria2 RPC API | [Aria2 JSON-RPC Compatibility Server](integrations/aria2-rpc-server.md) | `crates/limedl-core/src/aria2_rpc/`; interop fixtures in `aria2_rpc/interop_tests.rs`, runbook `docs/aria2-interop-testing.md` |
+| Work on the Aria2 RPC API | [Aria2 JSON-RPC Compatibility Server](integrations/aria2-rpc-server.md) | `crates/limedl-core/src/aria2_rpc/`; interop fixtures in `aria2_rpc/interop_tests.rs`, Tier 2 `aria2c` oracle in `aria2_rpc/oracle_tests.rs`, runbook `docs/aria2-interop-testing.md` |
 | Work on the desktop UI | [Native Desktop UI (Slint)](desktop/native-ui-architecture.md) | `crates/limedl-native/src/main.rs`, `ui_boot.rs`, `handlers/` |
 | Change the updater / packaging | [Self-Update and Distribution Channels](desktop/self-update-and-distribution.md) | `crates/limedl-native/src/update/mod.rs` |
 | Build / CI / release | [Build, Tooling, CI and Release Operations](operations/build-release-and-ci.md) | `.github/workflows/`, `xtask/` |

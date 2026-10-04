@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:f6b9856e255277affcf439acd203a9ca26fb2dfdc63203a45b534cc176fb4bc1",
+  "pageVersion": "sha256:aadae3a4b434ee886084ee8f89b80086a03916bde51e9ed3af03e4ca214d99dc",
   "claims": [
     {
       "id": "claim_6719a8b6ce264d6fa5e8103236b5336c",
@@ -197,10 +197,24 @@
           "version": "repo-lines-v1:sha256:61d472e472c83c902cbd448d1c3883ff2e7fcd020ae9e936fc4347ac3700ec1f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRjZmUzZmZmOWM1YjRkNjg2NWQ1YWJiMGM4Y2QwODZhMDZmNjUyNGY5NGE5NDYyODE4M2EzNjc2MDI2MWZlODgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2Yzc0ZjZhNmM3YzgzOTJjY2U1MGFmYTBhNDdkY2E2YmExZTVhNmIwYTJiZTUwMmVhNGEwNWZlMzI0N2ZiMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEyNGZmMDM4ZWM4N2ZjNThlOWE1MzE0MmYwMWFiOGExMGYyNTBkYWZlNmVhY2JjNzRiZWEyOTNjMzJkYjJkMzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0NGNiY2IzNjMzZThhYjM2YjA0ZmY5OGRiODMxMTYyNWI1ODU5ZTk0NDk2ZmY2ZTM5MTZmMTJjMTlhMWNkZTIifQ"
         }
       ]
+    },
+    {
+      "id": "claim_871fb9c15b804f598d807c7c22bb0ca5",
+      "statement": "Aria2 RPC interoperability has a Tier 2 live-aria2c oracle in aria2_rpc/oracle_tests.rs, run by the nightly/manual .github/workflows/aria2-oracle.yml.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L45",
+          "version": "repo-lines-v1:sha256:3ebe04bd1a7715c472921803e86925329a7a1b7e5df9b524f9e9da7d934b5c56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYmZiNTU3MTExMDZlMDdjZTQ5MjZiMWQzODYxZWFkM2FkNmZkMWU4NDgwZmIxMmUxZDMzNmY1NzVlYjNhNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI4MGNjNzBjZjM1NWI0YjU0MzE0MDI1MWY0Zjk2MWJjNjMwYzIwYmZkMDg1YjU2OTlmNmIxZTg0ODZjZjIyZTMifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60",
+          "version": "repo-lines-v1:sha256:353a612cb21fd6af4dc72ab1ade04f40651e0f9d718192bef3c8b92c81b6213e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0N2UyNGUzNjE4YTZjNDkwYzYyYjAxZWE5Y2U0MWQ5YzE2NmRlMTE2ZTQ2MTViMDUxOGM5ZDRmNDBiM2JiODYifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T10:20:09.270Z"
+    "at": "2026-10-04T10:39:31.763Z"
   }
 }

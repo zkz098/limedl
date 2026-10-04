@@ -4,6 +4,8 @@ title: Aria2 JSON-RPC Compatibility Server
 description: The aria2-compatible HTTP and WebSocket server of limedl — method routing, GID derivation and caching, three auth modes with Argon2 token storage, type-driven request parsing and aria2 option translation, the fuller tellStatus/getServers/changeUri/changePosition surface, notification ownership, and the graceful hot-reload port handoff.
 tags: [aria2, rpc, integration, authentication, json-rpc, websocket]
 sources:
+  - id: openwiki-source-06de9eea8068258882d65c0b
+    resource: repo://.github/workflows/aria2-oracle.yml
   - id: openwiki-source-8ec1f0436491ce5daa75720b
     resource: repo://crates/limedl-core/src/aria2_rpc/context.rs
   - id: openwiki-source-a126aed2e5b28c6cc1b7781c
@@ -14,6 +16,8 @@ sources:
     resource: repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs
   - id: openwiki-source-9529b707cb48393fd5c5dcfb
     resource: repo://crates/limedl-core/src/aria2_rpc/options.rs
+  - id: openwiki-source-cb3b278da9fc4917fdb881e9
+    resource: repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs
   - id: openwiki-source-b02cae0469c12fb7309d95fb
     resource: repo://crates/limedl-core/src/aria2_rpc/protocol.rs
   - id: openwiki-source-0a4bf1d1495b125d077c4e3c
@@ -30,10 +34,12 @@ sources:
     resource: repo://crates/limedl-core/src/manager.rs
   - id: openwiki-source-7ef10e5bb7f9bf65c86b6285
     resource: repo://crates/limedl-core/src/types/settings.rs
-generated: { by: "pi", at: "2026-10-04T10:20:09.270Z" }
+  - id: openwiki-source-3fe9812b75a7522e89f74344
+    resource: repo://docs/aria2-interop-testing.md
+generated: { by: "pi", at: "2026-10-04T10:39:31.763Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T10:20:09.270Z
+    at: 2026-10-04T10:39:31.763Z
 ---
 
 # Aria2 JSON-RPC Compatibility Server
@@ -318,6 +324,24 @@ These are documented choices, not bugs, and are tracked alongside the Tier 1/Tie
   a subset; `getVersion` still reports a stale version/feature list.
 - GID prefix matching is not supported (exact GID only); HTTPS RPC, HTTP Basic
   auth and `--rpc-listen-all` are not served.
+
+## Tier 2 oracle (live `aria2c`)
+
+`aria2_rpc/oracle_tests.rs` starts a real `aria2c --enable-rpc` beside limedl's
+server and reports how the same requests differ. It is opted in by
+`ARIA2_ORACLE_BIN`: unset, each test returns early so the normal core gate needs
+no aria2; set but unusable, it panics. `.github/workflows/aria2-oracle.yml` sets
+it on a nightly `schedule` and `workflow_dispatch` (never on PRs, Linux only).
+
+Gaps are **reported, not asserted** for now: the report is printed by nextest's
+`--success-output=final`, and a run only fails when the oracle cannot start or a
+server stops answering. The first aria2 1.37.0 run reported the deviations above
+plus the option-key and GET/JSONP/Batch transport gaps; individual entries are
+promoted to hard assertions once the report is stable.
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60`,
+`repo://docs/aria2-interop-testing.md#L77-L154`,
+`repo://.github/workflows/aria2-oracle.yml#L1-L45`.
 
 ## Terminal-result visibility
 

@@ -9,11 +9,11 @@
       "completedRunId": "3ebdb451-7419-4982-b2f0-16cb7f2c6e6b"
     },
     "/openwiki/architecture/overview.md": {
+      "gitHead": "4a302e76dd7d540d046b385aa9558735b6639ace",
+      "sourceFingerprint": "sha256:e5551e76c948b846da67e832d7f21ee1ec6b9c80563427a9f5400c318bb28a87",
       "pageVersion": "sha256:9fbb06af9b19e8a1d8edeec5c48bf971b7b2747133d04cb76871b7a37569d236",
       "completedBy": "pi",
-      "completedRunId": "3d286f86-52ba-4a1d-9d3d-669c7b43e072",
-      "gitHead": "4a302e76dd7d540d046b385aa9558735b6639ace",
-      "sourceFingerprint": "sha256:e5551e76c948b846da67e832d7f21ee1ec6b9c80563427a9f5400c318bb28a87"
+      "completedRunId": "3d286f86-52ba-4a1d-9d3d-669c7b43e072"
     },
     "/openwiki/architecture/protocol-routing-and-dispatcher.md": {
       "gitHead": "1e0b3b9485bae0d91d2e43e51b09a417cbb1a492",
@@ -23,11 +23,11 @@
       "completedRunId": "3ebdb451-7419-4982-b2f0-16cb7f2c6e6b"
     },
     "/openwiki/desktop/native-ui-architecture.md": {
+      "gitHead": "4a302e76dd7d540d046b385aa9558735b6639ace",
+      "sourceFingerprint": "sha256:e5551e76c948b846da67e832d7f21ee1ec6b9c80563427a9f5400c318bb28a87",
       "pageVersion": "sha256:10d9cff2bb058658b77aecd366993c2dfdadf3b10d1a04ac6a56c5e0c96d2b7d",
       "completedBy": "pi",
-      "completedRunId": "3d286f86-52ba-4a1d-9d3d-669c7b43e072",
-      "gitHead": "4a302e76dd7d540d046b385aa9558735b6639ace",
-      "sourceFingerprint": "sha256:e5551e76c948b846da67e832d7f21ee1ec6b9c80563427a9f5400c318bb28a87"
+      "completedRunId": "3d286f86-52ba-4a1d-9d3d-669c7b43e072"
     },
     "/openwiki/desktop/self-update-and-distribution.md": {
       "gitHead": "7742de755ce41bead3f8a2f30a8b65b164591836",
@@ -37,25 +37,25 @@
       "completedRunId": "7c41b6ab-b8cf-4d38-8685-fa10d3a1e8c0"
     },
     "/openwiki/integrations/aria2-rpc-server.md": {
-      "pageVersion": "sha256:3f837bd0435b6013a7d4ac915b346b90a6e65eb4e52d94b9d7f543174b5c920b",
+      "pageVersion": "sha256:ce9a9b88af96370c1a404d734541c102de3387ec12a67edb628105230d83f04c",
       "completedBy": "pi",
-      "completedRunId": "3d286f86-52ba-4a1d-9d3d-669c7b43e072",
-      "gitHead": "4a302e76dd7d540d046b385aa9558735b6639ace",
-      "sourceFingerprint": "sha256:e5551e76c948b846da67e832d7f21ee1ec6b9c80563427a9f5400c318bb28a87"
+      "completedRunId": "fc3cb4d2-d8e4-48e4-997a-b543ff0aecdd",
+      "gitHead": "8f9de16ef6baa0dd1c76dea9bba452461c8d6eaf",
+      "sourceFingerprint": "sha256:f1b756097e96276b2e99ad3a5924d7e9bffa4475d212e4698b2ab139f858f073"
     },
     "/openwiki/operations/build-release-and-ci.md": {
-      "pageVersion": "sha256:3b438dcbf2bd17220f5f48006620a554b6143a926063a7ad0ccf0178cf2f23cd",
+      "pageVersion": "sha256:0a3714aab2be6e456b3cbc04f41243d9e2c3e0765f54801d367be7a2f7354d1d",
       "completedBy": "pi",
-      "completedRunId": "3d286f86-52ba-4a1d-9d3d-669c7b43e072",
-      "gitHead": "4a302e76dd7d540d046b385aa9558735b6639ace",
-      "sourceFingerprint": "sha256:e5551e76c948b846da67e832d7f21ee1ec6b9c80563427a9f5400c318bb28a87"
+      "completedRunId": "fc3cb4d2-d8e4-48e4-997a-b543ff0aecdd",
+      "gitHead": "8f9de16ef6baa0dd1c76dea9bba452461c8d6eaf",
+      "sourceFingerprint": "sha256:f1b756097e96276b2e99ad3a5924d7e9bffa4475d212e4698b2ab139f858f073"
     },
     "/openwiki/quickstart.md": {
-      "pageVersion": "sha256:f6b9856e255277affcf439acd203a9ca26fb2dfdc63203a45b534cc176fb4bc1",
+      "pageVersion": "sha256:aadae3a4b434ee886084ee8f89b80086a03916bde51e9ed3af03e4ca214d99dc",
       "completedBy": "pi",
-      "completedRunId": "3d286f86-52ba-4a1d-9d3d-669c7b43e072",
-      "gitHead": "4a302e76dd7d540d046b385aa9558735b6639ace",
-      "sourceFingerprint": "sha256:e5551e76c948b846da67e832d7f21ee1ec6b9c80563427a9f5400c318bb28a87"
+      "completedRunId": "fc3cb4d2-d8e4-48e4-997a-b543ff0aecdd",
+      "gitHead": "8f9de16ef6baa0dd1c76dea9bba452461c8d6eaf",
+      "sourceFingerprint": "sha256:f1b756097e96276b2e99ad3a5924d7e9bffa4475d212e4698b2ab139f858f073"
     },
     "/openwiki/systems/disk-io-and-storage.md": {
       "gitHead": "9c4e9d28d5b0df8487bc5a0254b565ee47beabfa",
@@ -93,11 +93,11 @@
       "completedRunId": "748560d7-d3d9-476e-8033-71b826358d51"
     },
     "/openwiki/testing/testing-strategy.md": {
-      "pageVersion": "sha256:a630f03ffa33ff08e1782bb4f6401421e16901c893c100e6ac8320ac7de6cd18",
+      "pageVersion": "sha256:7e74590d3eecba8e7bd64a069627ddb9cf8237c761dad472355ec5a36a9650ed",
       "completedBy": "pi",
-      "completedRunId": "3d286f86-52ba-4a1d-9d3d-669c7b43e072",
-      "gitHead": "4a302e76dd7d540d046b385aa9558735b6639ace",
-      "sourceFingerprint": "sha256:e5551e76c948b846da67e832d7f21ee1ec6b9c80563427a9f5400c318bb28a87"
+      "completedRunId": "fc3cb4d2-d8e4-48e4-997a-b543ff0aecdd",
+      "gitHead": "8f9de16ef6baa0dd1c76dea9bba452461c8d6eaf",
+      "sourceFingerprint": "sha256:f1b756097e96276b2e99ad3a5924d7e9bffa4475d212e4698b2ab139f858f073"
     },
     "/openwiki/workflows/bit-torrent-backend.md": {
       "gitHead": "1e0b3b9485bae0d91d2e43e51b09a417cbb1a492",

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:3f837bd0435b6013a7d4ac915b346b90a6e65eb4e52d94b9d7f543174b5c920b",
+  "pageVersion": "sha256:ce9a9b88af96370c1a404d734541c102de3387ec12a67edb628105230d83f04c",
   "claims": [
     {
       "id": "claim_9069efa9e70847f4afdb9194ea98ad55",
@@ -34,11 +34,11 @@
     },
     {
       "id": "claim_8051fbd4de38473bb300686746ddc0b4",
-      "statement": "check_token accepts only a token:-prefixed first parameter, uses constant-time comparison for the shared secret and Argon2 verification for per-client tokens, and runs on every routed method.",
+      "statement": "check_token accepts only a token:-prefixed first parameter, uses constant-time comparison for the shared secret and Argon2 verification for per-client tokens; dispatch_method calls it for every routed method except the anonymous system.listMethods/listNotifications and the outer multicall call.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L70-L110",
-          "version": "repo-lines-v1:sha256:5c018054e5a878667d0a85197027bdebdf94b2432c4e8d894938ff3a3f7aa8e0:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNjNmU1YmMyZGU3YmE3ZTkzODQyMzY2MDhkNjVhODlhOWI5ZGRhODg1YzVlZWQwMDViMjIyZmI2NTAyNTVlMjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQyNDkyNGQ3YWM1OTEyNmM0YWM5NzE1NTljZjhmYWQ2Njg0YjMzN2MyMDBiMWYwNjZmODVjZWRkNmNmZDExNGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ3NWRhNmUzMWMyZDdhZjM1ODExZjBlMDI4NjdjODdiZWZiZmY5MDk1YWQ1NDc5ODgzNmNkNTZhN2JjYmRjY2QifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L76-L110",
+          "version": "repo-lines-v1:sha256:b82e5433964553b297678729cda7b12a847a5448382e30b00c574af2c99f94b7:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM3NDBiZjM1YjdhYTBhZTc4MDI4OGUyNjI4NmY0Mjc1N2ExMDVhYjRkOGFlNjA0NzU4NzMyZTk5YjkwNDkwZjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgwNGZmNDYxOTc4N2Y1N2QzZDQ5NzFlYWJjYmRjMmRiYmEyMzc5MTczN2ZlZmMxMjgxOGNkMDUzYTliNWMzYjMifQ"
         }
       ]
     },
@@ -47,8 +47,8 @@
       "statement": "dispatch_method enforces the token centrally before strip_token and then routes via dispatch_authorized, which is deliberate because per-handler checks were previously inverted and some bulk methods skipped authentication; system.listMethods/listNotifications, and the outer multicall call, are anonymous, while every nested multicall is authenticated individually by routing back through dispatch_method.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/dispatch.rs#L14-L42",
-          "version": "repo-lines-v1:sha256:f533d23b44964519ce9e89612bdd1226cc9d534cc0b654e402d0b14683fe1267:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJiYTQxZDNmYzZjMTgwMjI0OTExZWRlZTM5YjZiNDFjNGE5NDk1YTE0M2U1ZGUyYzA1MTA5ZmFkN2IzMzZkYjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmNjE4MTdiODkyNWEwMWU1ODE1NzVhYTkzYjVhNjkwY2NkODA3NTQwYTFiMzgwOGQ5MGM4ZTExMDQ4OTNjNjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZkN2IxOTc1YWJkMTdkNzY5NDMxYTM4OGVlMGZjNjEwNzYyMzU4MzRjODAzYTllYWFkNzA3NzcyZjJjNjg2NTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVhNTFlNDdjOTQ4YTM0ODVmMmUzYWYxMjVhZDU1ZDg0MWQ4Yzk0ZjI0MGI0OWQyN2M4YjU3OGYyYzM1YWYwZTMifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/dispatch.rs#L7-L42",
+          "version": "repo-lines-v1:sha256:a68e4496d8c26bb9dac2dc6019865e4f195cae392ca217e735152dd1d2234469:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ODllZmU0MzBiMmY0Y2FlY2I3MDAwYmIwOTAwMGQ4YjIzNjk4YTFlNDBjNjE2MjM0ZGZmYmJlY2RjZjUxNGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg1ZTViOGNmMmFjOTc4YzU1YzkzNDM4ZjRiY2NmOTQ2OTIyMGM0NWY4NDM0YjVhODZjNDBmYWI4NDc1ODIwZjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFkN2U5ODM5YTA0NDBmZjlkZGZkMDE1ZGE5MWFlYTM2MjRiNjRjMjdiZTEwNTM0YzBhMzJlOTIyMDYyY2RkMDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFiNmQwZTk1MDUxYmUxN2ZmOGJiMDExZjNkNzE5MTVmZWNjYzJmMTA2MmJlODk4MjY1MDY3YjQ1OWIxOTU5NWEifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/aria2_rpc/system.rs#L51-L90",
@@ -271,10 +271,28 @@
           "version": "repo-lines-v1:sha256:61d472e472c83c902cbd448d1c3883ff2e7fcd020ae9e936fc4347ac3700ec1f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRjZmUzZmZmOWM1YjRkNjg2NWQ1YWJiMGM4Y2QwODZhMDZmNjUyNGY5NGE5NDYyODE4M2EzNjc2MDI2MWZlODgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2Yzc0ZjZhNmM3YzgzOTJjY2U1MGFmYTBhNDdkY2E2YmExZTVhNmIwYTJiZTUwMmVhNGEwNWZlMzI0N2ZiMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEyNGZmMDM4ZWM4N2ZjNThlOWE1MzE0MmYwMWFiOGExMGYyNTBkYWZlNmVhY2JjNzRiZWEyOTNjMzJkYjJkMzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0NGNiY2IzNjMzZThhYjM2YjA0ZmY5OGRiODMxMTYyNWI1ODU5ZTk0NDk2ZmY2ZTM5MTZmMTJjMTlhMWNkZTIifQ"
         }
       ]
+    },
+    {
+      "id": "claim_ef4584fa4548438c8892d45d54bfa076",
+      "statement": "aria2_rpc/oracle_tests.rs is a Tier 2 live-aria2c oracle: a real aria2c --enable-rpc is started beside limedl (opt-in via ARIA2_ORACLE_BIN, nightly/manual Linux workflow), response gaps are reported rather than asserted, and the job only fails on oracle-startup or transport failures.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L45",
+          "version": "repo-lines-v1:sha256:3ebe04bd1a7715c472921803e86925329a7a1b7e5df9b524f9e9da7d934b5c56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYmZiNTU3MTExMDZlMDdjZTQ5MjZiMWQzODYxZWFkM2FkNmZkMWU4NDgwZmIxMmUxZDMzNmY1NzVlYjNhNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI4MGNjNzBjZjM1NWI0YjU0MzE0MDI1MWY0Zjk2MWJjNjMwYzIwYmZkMDg1YjU2OTlmNmIxZTg0ODZjZjIyZTMifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60",
+          "version": "repo-lines-v1:sha256:353a612cb21fd6af4dc72ab1ade04f40651e0f9d718192bef3c8b92c81b6213e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0N2UyNGUzNjE4YTZjNDkwYzYyYjAxZWE5Y2U0MWQ5YzE2NmRlMTE2ZTQ2MTViMDUxOGM5ZDRmNDBiM2JiODYifQ"
+        },
+        {
+          "resource": "repo://docs/aria2-interop-testing.md#L77-L154",
+          "version": "repo-lines-v1:sha256:71c1809eb62c017f4d540fbc816d2362cc92ac5b3fff259c092d1bd55db3cffd:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0MzhmMmU1OGJiZGYwMjdlZjMzODMxMTkwNjcyNmUzODIwOWU4ZWVjN2I5MzgzZTBlNDcyOGI2Yjc5M2QyMGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlN2VlMGI4YTBlMmEwMDRjYTgyYzRjN2Y3ZjAwMjNkNzA5YjFmMzc1NWFlMDM0MzM5OGVhMTEyZTAwYzVlY2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA3ZmJiN2Y5YmNlMjE3MzRkMmNlNzcwNTYxYjNiOGI4ZDdlMGY1OWFjNDFjYjkwNDZiYjg0ODJmMzhkZjU3MTQifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T10:20:09.270Z"
+    "at": "2026-10-04T10:39:31.763Z"
   }
 }

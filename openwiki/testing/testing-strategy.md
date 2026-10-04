@@ -4,12 +4,16 @@ title: Testing Strategy
 description: How limedl's Rust engine is tested — the test layout conventions, nextest process isolation, the mock-server integration corpus, byte-level corruption oracles and adversarial servers, BT and Aria2 harnesses, and the coverage gate.
 tags: [testing, nextest, integration-tests, corruption, coverage]
 sources:
+  - id: openwiki-source-06de9eea8068258882d65c0b
+    resource: repo://.github/workflows/aria2-oracle.yml
   - id: openwiki-source-164e2da859b5277df81c7d94
     resource: repo://.github/workflows/ci.yml
   - id: openwiki-source-c8ca1e3187dacc725ff333e9
     resource: repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs
   - id: openwiki-source-3659606b404344d4dd4d1487
     resource: repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs
+  - id: openwiki-source-cb3b278da9fc4917fdb881e9
+    resource: repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs
   - id: openwiki-source-1c0eea0988a8be3129ce2126
     resource: repo://crates/limedl-core/src/bt_backend/tests/alerts.rs
   - id: openwiki-source-8a802dd79d30f7920922a1e7
@@ -48,10 +52,10 @@ sources:
     resource: repo://crates/limedl-core/tests/logging_reload_repro.rs
   - id: openwiki-source-3fe9812b75a7522e89f74344
     resource: repo://docs/aria2-interop-testing.md
-generated: { by: "pi", at: "2026-10-04T10:20:09.270Z" }
+generated: { by: "pi", at: "2026-10-04T10:39:31.763Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T10:20:09.270Z
+    at: 2026-10-04T10:39:31.763Z
 ---
 
 # Testing Strategy
@@ -268,7 +272,30 @@ list of intentional deviations, live in `docs/aria2-interop-testing.md`.
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L1-L60`,
 `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L81-L214`,
-`repo://docs/aria2-interop-testing.md#L1-L120`.
+`repo://docs/aria2-interop-testing.md#L1-L76`.
+
+### Aria2 oracle (Tier 2, opt-in)
+
+`aria2_rpc/oracle_tests.rs` is the layer above the fixtures: it starts a real
+`aria2c --enable-rpc` beside limedl's server and reports how the same requests
+differ, which is the only way to catch "aria2 itself returns something else".
+
+The suite is **opt-in** via `ARIA2_ORACLE_BIN`. Unset, every test returns early,
+so the normal gate never needs a third-party binary; set but unusable, it panics,
+so a job cannot pass by accident. A separate nightly/manual workflow
+(`.github/workflows/aria2-oracle.yml`) sets it on Linux.
+
+Per the agreed rollout, differences are **reported, not asserted**: `GapReport`
+collects key/type/transport diffs and prints them (nextest needs
+`--success-output=final` to show captured output from passing tests). The job
+only fails when the oracle cannot start or a server stops answering. The
+`Aria2Oracle` guard handles the operational contract — free port, `--no-conf`,
+`--enable-dht=false`, a `TempDir`, a readiness poll and a `Drop` that kills the
+child.
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60`,
+`repo://.github/workflows/aria2-oracle.yml#L1-L45`,
+`repo://docs/aria2-interop-testing.md#L77-L154`.
 
 ### BT backend tests
 

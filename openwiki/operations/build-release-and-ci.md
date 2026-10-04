@@ -8,6 +8,8 @@ sources:
     resource: repo://.cargo/config.toml
   - id: openwiki-source-ca5b77738a5ec463872c3294
     resource: repo://.github/actions/fetch-misans/action.yml
+  - id: openwiki-source-06de9eea8068258882d65c0b
+    resource: repo://.github/workflows/aria2-oracle.yml
   - id: openwiki-source-164e2da859b5277df81c7d94
     resource: repo://.github/workflows/ci.yml
   - id: openwiki-source-4d1d392666be6dfdd7a91a2e
@@ -18,16 +20,18 @@ sources:
     resource: repo://AGENTS.md
   - id: openwiki-source-651d1fb6c9e49916a916ab51
     resource: repo://Cargo.toml
+  - id: openwiki-source-cb3b278da9fc4917fdb881e9
+    resource: repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs
   - id: openwiki-source-44d192e16032f18d847f0ff6
     resource: repo://xtask/src/bump_version.rs
   - id: openwiki-source-ca864fd40fa4107ed35f840f
     resource: repo://xtask/src/fetch_font.rs
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
-generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+generated: { by: "pi", at: "2026-10-04T10:39:31.763Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T10:20:09.270Z
+    at: 2026-10-04T10:39:31.763Z
 ---
 
 # Build, Tooling, CI and Release Operations
@@ -162,11 +166,22 @@ Evidence: `repo://AGENTS.md#L106-L125`.
 | `check-rust` | Linux | coverage (core + native lcov) → clippy → SonarCloud → native nextest |
 | `supply-chain` | Linux | `cargo deny check -W rejected bans licenses sources` + `cargo audit` |
 
+A separate `.github/workflows/aria2-oracle.yml` runs the Tier 2 aria2 oracle
+(`aria2_rpc/oracle_tests.rs`) on a nightly `schedule` and on `workflow_dispatch` —
+never on push or pull request. It is a standalone workflow rather than a `ci.yml`
+job on purpose: a `schedule` on `ci.yml` would run the whole Windows/macOS/Linux
+matrix nightly, and the oracle needs a third-party `aria2` binary whose output
+drifts with its release. It is a **reader** of the Linux `ci-debug` cache entry
+(`save-if: false`), so it reuses `check-rust`'s artifacts instead of a cold build.
+Most oracle tests report gaps rather than fail; a red run means the oracle could
+not start or a server stopped answering.
+
 Windows is split into three parallel jobs because its native job is the critical
 path and clippy cannot share build artifacts with test builds.
 
 Evidence: `repo://.github/workflows/ci.yml#L148-L336`,
-`repo://.github/workflows/ci.yml#L336-L560`.
+`repo://.github/workflows/ci.yml#L336-L560`,
+`repo://.github/workflows/aria2-oracle.yml#L1-L45`.
 
 ### Cache and RUSTFLAGS contract
 
