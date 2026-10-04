@@ -171,6 +171,15 @@ pub(super) async fn saving_aria2_clients_persists_hashes_not_plaintext() {
             "the plaintext token must never be persisted"
         );
     }
+
+    // Reopening the dialog must reconstruct the client row from settings.json.
+    ui.pump_until("the dialog to close", || !ui.window.get_show_settings())
+        .await;
+    ui.click("MainWindow::ta_set");
+    let rows = ui.window.get_aria2_clients();
+    assert_eq!(rows.row_count(), 1);
+    assert_eq!(rows.row_data(0).expect("row 0").name.as_str(), "Phone");
+    assert_eq!(rows.row_data(0).expect("row 0").token.as_str(), "");
 }
 
 /// A duplicate client name is rejected before the engine is asked, and the

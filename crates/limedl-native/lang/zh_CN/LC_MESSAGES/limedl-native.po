@@ -1847,3 +1847,6 @@ msgstr "仅显示一次。请立即粘贴到客户端；若丢失，请重新生
 
 msgid "Token configured (hidden). Regenerate to reveal a new one."
 msgstr "令牌已配置（隐藏）。点击重新生成以显示新令牌。"
+
+msgid "Click Save Settings below to apply client changes."
+msgstr "添加或修改客户端后，请点击下方「保存设置」生效。"

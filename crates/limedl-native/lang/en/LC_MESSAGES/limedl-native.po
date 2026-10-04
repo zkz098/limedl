@@ -1900,3 +1900,6 @@ msgstr "Shown only once. Paste it into the client now; if you lose it, regenerat
 
 msgid "Token configured (hidden). Regenerate to reveal a new one."
 msgstr "Token configured (hidden). Regenerate to reveal a new one."
+
+msgid "Click Save Settings below to apply client changes."
+msgstr "Click Save Settings below to apply client changes."

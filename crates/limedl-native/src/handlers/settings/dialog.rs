@@ -16,7 +16,8 @@ use limedl_core::error::DownloadError;
 use crate::bridge::TaskStore;
 use crate::bridge::{
     app_settings_to_setup_form, parse_aria2_clients, parse_disk_type_overrides,
-    parse_speed_limit_slots, update_app_settings_from_form,
+    parse_speed_limit_slots, update_app_settings_from_form, Aria2ClientText, DiskTypeOverrideText,
+    SpeedLimitSlotText,
 };
 use crate::context::AppContext;
 use crate::handlers::common::{read_ui, with_ui};
@@ -27,25 +28,32 @@ use crate::toast::{ToastQueue, push_toast};
 use crate::ui_sync::{read_aria2_client_rows, read_disk_override_rows, read_schedule_rows, refresh_settings_state};
 use crate::{MainWindow, POWER_GUARD, SettingsFormData};
 
+/// Pre-collected text state of all dialog table/list editors before crossing to
+/// the worker thread.
+#[derive(Debug, Clone, Default)]
+struct EditorRows {
+    schedule_rows: Vec<SpeedLimitSlotText>,
+    override_rows: Vec<DiskTypeOverrideText>,
+    client_rows: Vec<Aria2ClientText>,
+}
+
 /// Validation + persistence of the settings form. Everything that has to happen
 /// *after* a successful save (autostart, Aria2 RPC, UI update) lives in
 /// [`SettingsSync`], which the setup wizard shares.
 #[derive(Clone)]
 struct SaveCtx {
-    ui_weak: slint::Weak<MainWindow>,
     dispatcher: Arc<Dispatcher>,
     sync: SettingsSync,
 }
 
 /// Persist the dialog form and apply every side effect of the change.
-async fn save_settings(ctx: SaveCtx, form_data: SettingsFormData) {
+async fn save_settings(ctx: SaveCtx, form_data: SettingsFormData, rows: EditorRows) {
     let lang = ctx.sync.lang();
     let old_settings = ctx.dispatcher.get_settings_blocking().unwrap_or_default();
 
     // Speed limit schedule rows live in the UI model until Save, so validate
     // them here (a mistyped hour must not silently disable the schedule).
-    let schedule_rows = read_ui(&ctx.ui_weak, read_schedule_rows).unwrap_or_default();
-    let parsed_schedule = match parse_speed_limit_slots(&schedule_rows, lang) {
+    let parsed_schedule = match parse_speed_limit_slots(&rows.schedule_rows, lang) {
         Ok(slots) => slots,
         Err(msg) => {
             ctx.sync
@@ -57,8 +65,7 @@ async fn save_settings(ctx: SaveCtx, form_data: SettingsFormData) {
     // Media override rows live in the UI model for the same reason, so a
     // half-typed or relative path has to be caught here instead of being
     // persisted as a key that can never match a download destination.
-    let override_rows = read_ui(&ctx.ui_weak, read_disk_override_rows).unwrap_or_default();
-    let parsed_overrides = match parse_disk_type_overrides(&override_rows, lang) {
+    let parsed_overrides = match parse_disk_type_overrides(&rows.override_rows, lang) {
         Ok(overrides) => overrides,
         Err(msg) => {
             ctx.sync
@@ -70,8 +77,7 @@ async fn save_settings(ctx: SaveCtx, form_data: SettingsFormData) {
     // Aria2 per-client token rows also live in the UI model until Save. Names
     // must be usable and every row must carry a hash; the plaintext is never
     // persisted (the add/regenerate handler hashed it already).
-    let client_rows = read_ui(&ctx.ui_weak, read_aria2_client_rows).unwrap_or_default();
-    let parsed_clients = match parse_aria2_clients(&client_rows, lang) {
+    let parsed_clients = match parse_aria2_clients(&rows.client_rows, lang) {
         Ok(clients) => clients,
         Err(msg) => {
             ctx.sync
@@ -208,13 +214,22 @@ pub fn register(ctx: &AppContext) {
     // Save
     {
         let save_ctx = SaveCtx {
-            ui_weak: ui_weak.clone(),
             dispatcher: dispatcher.clone(),
             sync: sync.clone(),
         };
+        let ui_for_save = ui_weak.clone();
         ui.on_save_settings(move |form_data| {
+            // Collect the UI-bound editor rows on the UI thread before handing off
+            // to the background worker. `Weak::upgrade()` cannot cross threads in
+            // Slint, so reading them inside `tokio::spawn` would yield empty vectors.
+            let rows = read_ui(&ui_for_save, |ui| EditorRows {
+                schedule_rows: read_schedule_rows(ui),
+                override_rows: read_disk_override_rows(ui),
+                client_rows: read_aria2_client_rows(ui),
+            })
+            .unwrap_or_default();
             let ctx = save_ctx.clone();
-            tokio::spawn(async move { save_settings(ctx, form_data).await });
+            tokio::spawn(async move { save_settings(ctx, form_data, rows).await });
         });
     }
 

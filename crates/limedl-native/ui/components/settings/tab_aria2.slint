@@ -119,6 +119,13 @@ export component SettingsTabAria2 inherits ScrollView {
                 wrap: word-wrap;
             }
 
+            if root.aria2_clients.length > 0 : Text {
+                text: @tr("Click Save Settings below to apply client changes.");
+                color: Theme.ca3e635;
+                font-size: 11px;
+                wrap: word-wrap;
+            }
+
             for row[idx] in root.aria2_clients : ta_client_row := Rectangle {
                 background: Theme.c14171d;
                 border-color: Theme.c232832;

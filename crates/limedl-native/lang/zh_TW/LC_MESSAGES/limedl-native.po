@@ -1848,3 +1848,6 @@ msgstr "僅顯示一次。請立即貼到用戶端；若遺失，請重新產生
 
 msgid "Token configured (hidden). Regenerate to reveal a new one."
 msgstr "權杖已設定（隱藏）。點擊重新產生以顯示新權杖。"
+
+msgid "Click Save Settings below to apply client changes."
+msgstr "新增或修改用戶端後，請點擊下方「儲存設定」生效。"
