@@ -146,8 +146,9 @@ fn concurrent_load_chunks_while_saving() {
             ChunkManifest {
                 index: 0,
                 start: 0,
-                end: 500,
+                end: 499,
                 downloaded: 0,
+                durable_downloaded: 0,
                 completed: false,
                 claimed_by: None,
                 dirty: false,
@@ -155,8 +156,9 @@ fn concurrent_load_chunks_while_saving() {
             ChunkManifest {
                 index: 1,
                 start: 500,
-                end: 1000,
+                end: 999,
                 downloaded: 0,
+                durable_downloaded: 0,
                 completed: false,
                 claimed_by: None,
                 dirty: false,
@@ -175,8 +177,9 @@ fn concurrent_load_chunks_while_saving() {
                 ChunkManifest {
                     index: 0,
                     start: 0,
-                    end: 500,
+                    end: 499,
                     downloaded: progress.min(500),
+                    durable_downloaded: progress.min(500),
                     completed: progress >= 500,
                     claimed_by: None,
                     dirty: false,
@@ -184,8 +187,9 @@ fn concurrent_load_chunks_while_saving() {
                 ChunkManifest {
                     index: 1,
                     start: 500,
-                    end: 1000,
+                    end: 999,
                     downloaded: progress.saturating_sub(500),
+                    durable_downloaded: progress.saturating_sub(500),
                     completed: progress >= 1000,
                     claimed_by: None,
                     dirty: false,

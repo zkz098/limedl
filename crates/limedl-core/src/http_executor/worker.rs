@@ -4,7 +4,7 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 use reqwest::Response;
 
-use super::{Arc, BatchLimiter, CancellationToken, ChunkManifest, ChunkWorkerOutcome, Client, Database, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, JoinSet, ManagedDownload, ProgressThrottle, RateLimiter, Result, StatusCode, WORK_STEAL_MIN_SPLIT_SIZE, build_segment_request, cancellation_chunk_outcome, if_range_header, is_too_many_requests_error, now_ms, record_progress_on_managed, request_with_retry, validate_segment_response, write_all_at};
+use super::{Arc, BatchLimiter, CancellationToken, ChunkManifest, ChunkWorkerOutcome, Client, Database, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, JoinSet, ManagedDownload, ProgressThrottle, RateLimiter, RequestBudget, Result, StatusCode, WORK_STEAL_MIN_SPLIT_SIZE, build_segment_request, cancellation_chunk_outcome, if_range_header, is_too_many_requests_error, now_ms, record_durable_bytes, record_progress_on_managed, request_with_retry, validate_segment_response, write_all_at};
 
 // ── Free helper functions ─────────────────────────────────────────────────────
 
@@ -94,6 +94,7 @@ pub(super) fn steal_chunk(
         end: original_end,
         downloaded: 0,
         completed: false,
+        durable_downloaded: 0,
         claimed_by: Some(worker_id),
         dirty: true,
     };
@@ -199,6 +200,15 @@ enum SegmentBody {
     Stop(ChunkWorkerOutcome),
 }
 
+/// Upper bound on the number of separate segment requests one chunk may issue.
+///
+/// Each request may itself retry up to the configured `max_retries`, so a server
+/// that answers with a partial body and immediately closes the connection would
+/// otherwise drive [`ChunkWorkerCtx::run`] forever (one byte per request, each
+/// with a fresh per-request retry counter). Legitimate multi-response serving
+/// needs a handful of requests, never dozens, so the limit turns that loop into a
+/// reported failure instead of a silent livelock.
+const MAX_SEGMENT_FETCHES_PER_CHUNK: u32 = 24;
 impl ChunkWorkerCtx {
     /// Run this chunk to completion, a pause/cancel, or a restart request.
     async fn run(self) -> Result<ChunkWorkerOutcome> {
@@ -211,6 +221,7 @@ impl ChunkWorkerCtx {
 
         let mut throttle = ProgressThrottle::new();
         let mut batch = BatchLimiter::new();
+        let mut budget = RequestBudget::new(MAX_SEGMENT_FETCHES_PER_CHUNK);
         while current <= end {
             if self.token.is_cancelled() {
                 return Ok(self.pause_or_cancel());
@@ -219,6 +230,11 @@ impl ChunkWorkerCtx {
             // Check if tail sprint released our chunk claim
             if self.claim_released() {
                 return Ok(ChunkWorkerOutcome::Finished);
+            }
+
+            if let Err(error) = budget.charge(format_args!("chunk {}", self.chunk.index)) {
+                self.release();
+                return Err(error);
             }
 
             let response = match self.fetch_segment(current, end).await {
@@ -386,8 +402,11 @@ impl ChunkWorkerCtx {
     async fn write_bytes(&self, offset: u64, bytes: &Bytes) -> Result<()> {
         if let Some(ref buf) = self.write_buffer {
             if buf.buffer_chunk(offset, bytes.clone()).await.is_err() {
-                // Background flush failed — fall back to direct write.
+                // Background flush failed — fall back to direct write. The bytes
+                // are on the file as soon as `write_all_at` returns, so they are
+                // durable immediately; the buffer never got to report them.
                 write_all_at(&self.file, bytes, offset)?;
+                record_durable_bytes(&self.managed, &[(offset, bytes.len() as u64)]);
                 if self.disk_type == DiskType::Hdd {
                     let mut core = self.managed.lock_core();
                     core.snapshot.degraded = true;
@@ -395,6 +414,7 @@ impl ChunkWorkerCtx {
             }
         } else {
             write_all_at(&self.file, bytes, offset)?;
+            record_durable_bytes(&self.managed, &[(offset, bytes.len() as u64)]);
         }
         Ok(())
     }

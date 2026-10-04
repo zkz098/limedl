@@ -135,6 +135,7 @@ async fn run_multi_stream_ssd(
             4 * 1024 * 1024,
             file.clone(),
             worker.clone(),
+            None,
         ));
 
         drive_streams(&buffer, chunk, offsets, STREAMS).await;
@@ -249,6 +250,7 @@ fn bench_local_ssd(c: &mut Criterion) {
                         4 * 1024 * 1024,
                         file.clone(),
                         worker.clone(),
+                        None,
                     );
 
                     for i in 0..CHUNK_COUNT {

@@ -12,6 +12,7 @@ fn insert_and_get_download_roundtrip() {
         start: 0,
         end: 511,
         downloaded: 0,
+        durable_downloaded: 0,
         completed: false,
         claimed_by: None,
         dirty: false,
@@ -62,6 +63,7 @@ fn delete_download_cascades_to_chunks() {
             start: 0,
             end: 511,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: None,
             dirty: false,
@@ -71,6 +73,7 @@ fn delete_download_cascades_to_chunks() {
             start: 512,
             end: 1023,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: None,
             dirty: false,
@@ -126,8 +129,9 @@ fn insert_then_get_preserves_all_fields() {
     manifest.chunks = vec![ChunkManifest {
         index: 0,
         start: 0,
-        end: 500,
+        end: 499,
         downloaded: 500,
+        durable_downloaded: 500,
         completed: true,
         claimed_by: Some(1),
         dirty: false,
@@ -179,7 +183,7 @@ fn insert_then_get_preserves_all_fields() {
     assert_eq!(loaded.chunks.len(), 1);
     assert_eq!(loaded.chunks[0].index, 0);
     assert_eq!(loaded.chunks[0].start, 0);
-    assert_eq!(loaded.chunks[0].end, 500);
+    assert_eq!(loaded.chunks[0].end, 499);
     assert_eq!(loaded.chunks[0].downloaded, 500);
     assert!(loaded.chunks[0].completed);
     assert_eq!(loaded.chunks[0].claimed_by, Some(1));
@@ -204,6 +208,7 @@ fn update_download_modifies_all_fields() {
         start: 0,
         end: 499,
         downloaded: 0,
+        durable_downloaded: 0,
         completed: false,
         claimed_by: None,
         dirty: false,
@@ -219,6 +224,7 @@ fn update_download_modifies_all_fields() {
         start: 0,
         end: 499,
         downloaded: 500,
+        durable_downloaded: 500,
         completed: true,
         claimed_by: None,
         dirty: false,
@@ -248,6 +254,7 @@ fn update_download_progress_incremental() {
             start: 0,
             end: 499,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: None,
             dirty: false,
@@ -257,6 +264,7 @@ fn update_download_progress_incremental() {
             start: 500,
             end: 999,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: None,
             dirty: false,
@@ -269,6 +277,7 @@ fn update_download_progress_incremental() {
         start: 0,
         end: 499,
         downloaded: 250,
+        durable_downloaded: 250,
         completed: false,
         claimed_by: Some(0),
         dirty: true,

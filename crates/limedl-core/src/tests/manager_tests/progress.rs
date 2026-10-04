@@ -14,7 +14,10 @@ async fn record_progress_normal_update() {
     assert_eq!(core.manifest.downloaded_bytes, 1000);
     assert_eq!(core.manifest.chunks[0].downloaded, 1000);
     assert!(!core.manifest.chunks[0].completed);
-    assert!(core.manifest.chunks[0].dirty);
+    // Receiving bytes must not schedule a persist on its own: the row that the
+    // next start resumes from may only record what reached the file, and only the
+    // write buffer knows that (see `record_durable_bytes`).
+    assert!(!core.manifest.chunks[0].dirty);
     assert!(core.snapshot.updated_at_ms > 0);
 }
 

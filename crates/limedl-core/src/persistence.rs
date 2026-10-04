@@ -108,7 +108,15 @@ impl DownloadManager {
     /// Called on state transitions (start, pause, resume, etc.) and
     /// when a download finishes or fails.
     pub async fn persist(&self, managed: Arc<ManagedDownload>) -> Result<()> {
-        let manifest = managed.lock_core().manifest.clone();
+        // A full upsert writes the whole task row, so the received counter has to
+        // be replaced by the durable one here too. The chunks carry their own
+        // durable counter and are substituted inside `chunk_to_params`.
+        let manifest = {
+            let core = managed.lock_core();
+            let mut manifest = core.manifest.clone();
+            manifest.downloaded_bytes = core.durable_bytes.min(manifest.downloaded_bytes);
+            manifest
+        };
         let db = self.db.clone();
         tokio::task::spawn_blocking(move || db.insert_download(&manifest))
             .await
@@ -135,13 +143,19 @@ pub async fn persist_manifest_snapshot(
 ) -> Result<()> {
     let (id, downloaded_bytes, state_text, updated_at_ms, dirty_chunks) = {
         let mut core = managed.lock_core();
+        // The manifest's `downloaded_bytes` is the *received* counter; what goes to
+        // the database is the durable one (clamped, so a reset path that forgot to
+        // clear the counter cannot claim more than was received).
+        let durable_bytes = core.durable_bytes.min(core.manifest.downloaded_bytes);
         let manifest = &mut core.manifest;
         let state_text = database::download_state_to_text(&manifest.state);
 
         // Drain the dirty flag: collect dirty chunks and reset the flag so
-        // concurrent writes in the same 300 ms interval will re-dirty them.
+        // concurrent writes in the same 300 ms interval will re-dirty them.
         // Identify dirty chunk indices, reset their dirty flag, and
-        // collect a snapshot of their data for the DB write.
+        // collect a snapshot of their data for the DB write. The chunks are
+        // written through `chunk_to_params`, which stores each chunk's durable
+        // counter rather than its received one.
         let dirty_chunks: Vec<ChunkManifest> = manifest
             .chunks
             .iter_mut()
@@ -157,7 +171,7 @@ pub async fn persist_manifest_snapshot(
 
         (
             manifest.id.clone(),
-            manifest.downloaded_bytes,
+            durable_bytes,
             state_text,
             manifest.updated_at_ms,
             dirty_chunks,
@@ -218,6 +232,8 @@ pub async fn persist_manifest_snapshots_batch(
 
     for managed in managed_list {
         let mut core = managed.lock_core();
+        // Durable, not received — see `persist_manifest_snapshot`.
+        let durable_bytes = core.durable_bytes.min(core.manifest.downloaded_bytes);
         let manifest = &mut core.manifest;
         let state_text = database::download_state_to_text(&manifest.state);
 
@@ -239,7 +255,7 @@ pub async fn persist_manifest_snapshots_batch(
         // connection_count, or other metadata that needs to be persisted.
         entries.push(ProgressBatchEntry {
             id: manifest.id.clone(),
-            downloaded_bytes: manifest.downloaded_bytes,
+            downloaded_bytes: durable_bytes,
             dirty_chunks,
             state: state_text.to_string(),
             updated_at_ms: manifest.updated_at_ms,

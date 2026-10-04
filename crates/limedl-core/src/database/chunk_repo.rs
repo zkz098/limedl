@@ -25,13 +25,19 @@ pub struct ProgressBatchEntry {
 }
 
 pub(crate) fn chunk_to_params(download_id: &str, chunk: &ChunkManifest) -> Vec<Value> {
+    // Persist the *durable* progress, not the received progress: the two differ by
+    // whatever the write buffer still holds, and a chunk row is what the next
+    // start resumes from. `durable_bytes()` also clamps a stale counter to what
+    // was received, so a reset path that forgot to clear it cannot over-report.
+    let durable = chunk.durable_bytes();
+    let complete = durable >= chunk.byte_len();
     vec![
         Value::Text(download_id.to_owned()),
         Value::Integer(chunk.index as i64),
         Value::Integer(chunk.start as i64),
         Value::Integer(chunk.end as i64),
-        Value::Integer(chunk.downloaded as i64),
-        Value::Integer(bool_to_i64(chunk.completed)),
+        Value::Integer(durable as i64),
+        Value::Integer(bool_to_i64(complete)),
         match chunk.claimed_by {
             Some(n) => Value::Integer(n as i64),
             None => Value::Null,
@@ -40,12 +46,15 @@ pub(crate) fn chunk_to_params(download_id: &str, chunk: &ChunkManifest) -> Vec<V
 }
 
 pub(crate) fn row_to_chunk(row: &rusqlite::Row) -> RusqliteResult<ChunkManifest> {
+    let downloaded = row.get::<_, i64>(4)? as u64;
     Ok(ChunkManifest {
         index: row.get::<_, i64>(1)? as usize,
         start: row.get::<_, i64>(2)? as u64,
         end: row.get::<_, i64>(3)? as u64,
-        downloaded: row.get::<_, i64>(4)? as u64,
+        downloaded,
         completed: i64_to_bool(row.get::<_, i64>(5)?),
+        // At rest (a row that is not being written to) received == durable.
+        durable_downloaded: downloaded,
         claimed_by: row.get::<_, Option<i64>>(6)?.map(|v| v as usize),
         dirty: false,
     })

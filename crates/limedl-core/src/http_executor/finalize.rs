@@ -115,6 +115,7 @@ impl HttpExecutor {
                 return Ok(RunOutcome::Canceled);
             }
 
+            ensure_core_fully_durable(&core)?;
             finalize_temp_file(&temp_path, &destination_path)?;
 
             core.snapshot.state = DownloadState::Completed;
@@ -158,4 +159,32 @@ impl HttpExecutor {
 
         Ok(RunOutcome::Finished)
     }
+}
+
+/// Refuse to publish a file whose chunks are not all on disk.
+///
+/// The write buffer is flushed before finalize runs, so a shortfall here means a
+/// flush silently dropped data (a failed background flush, a dropped buffer).
+/// Publishing anyway would hand the user a truncated file that then reports — and
+/// resumes as — complete. Chunks are absent for a single-stream download and for a
+/// task whose rows were already terminal when it was loaded, and then there is
+/// nothing to check.
+///
+/// Takes the already-held core guard on purpose: calling `lock_core()` here would
+/// deadlock against the caller's own guard (`parking_lot` mutexes are not
+/// reentrant).
+pub(super) fn ensure_core_fully_durable(core: &crate::download::DownloadCore) -> Result<()> {
+    let shortfall: u64 = core
+        .manifest
+        .chunks
+        .iter()
+        .map(|chunk| chunk.byte_len().saturating_sub(chunk.durable_bytes()))
+        .sum();
+    if shortfall > 0 {
+        return Err(crate::error::DownloadError::Internal(format!(
+            "{shortfall} byte(s) never reached the file (write buffer flush failed); \
+             refusing to publish a truncated download"
+        )));
+    }
+    Ok(())
 }

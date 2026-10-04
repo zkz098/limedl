@@ -21,13 +21,23 @@ pub struct DownloadCore {
     pub snapshot: DownloadSnapshot,
     pub manifest: Manifest,
     pub speed_tracker: SpeedTracker,
+    /// Task-level bytes that provably reached the file.
+    ///
+    /// `manifest.downloaded_bytes` is the *received* counter (what the UI and the
+    /// scheduler follow); this is the durable one and is what the database stores.
+    /// It is seeded from the loaded manifest, because a manifest read back from
+    /// SQLite is by definition durable state. Advanced only through
+    /// [`record_durable_bytes`].
+    pub durable_bytes: u64,
 }
 impl DownloadCore {
     pub fn new(snapshot: DownloadSnapshot, manifest: Manifest) -> Self {
+        let durable_bytes = manifest.downloaded_bytes;
         Self {
             snapshot,
             manifest,
             speed_tracker: SpeedTracker::default(),
+            durable_bytes,
         }
     }
 
@@ -161,10 +171,50 @@ pub(crate) fn record_progress_on_managed(
         && let Some(chunk) = core.manifest.chunks.get_mut(index)
     {
         chunk.downloaded = chunk.downloaded.saturating_add(bytes);
-        chunk.dirty = true;
         if chunk.downloaded > chunk.end.saturating_sub(chunk.start) {
             chunk.completed = true;
             chunk.claimed_by = None;
+        }
+        // Deliberately no `dirty` flag here: this counter is the *received* one.
+        // The persisted row follows [`record_durable_bytes`], which runs once a
+        // flush has actually put the bytes on the file.
+    }
+}
+
+/// Advance the durable view of a task after bytes reached the file.
+///
+/// Called with the `(offset, len)` pairs a write-buffer flush just wrote, and
+/// directly by the paths that write without a buffer. It is the only writer of
+/// `DownloadCore::durable_bytes` / `ChunkManifest::durable_downloaded`, which are
+/// the numbers the database stores: keeping them behind the file is what stops a
+/// hard kill from leaving the next resume to start past data that never landed.
+///
+/// The pwrite boundary is the target: `write_all_at` returning is enough. An
+/// fsync per flush would be needed to survive a power loss, and that is a
+/// deliberate trade-off (see `docs/` troubleshooting); the HDD path already
+/// syncs periodically through `SyncMode::Adaptive`.
+pub(crate) fn record_durable_bytes(managed: &Arc<ManagedDownload>, entries: &[(u64, u64)]) {
+    if entries.is_empty() {
+        return;
+    }
+    let flushed: u64 = entries.iter().map(|(_, len)| *len).sum();
+    let mut core = managed.lock_core();
+    core.durable_bytes = core.durable_bytes.saturating_add(flushed);
+
+    for (offset, len) in entries {
+        let end = offset.saturating_add(*len); // exclusive
+        for chunk in &mut core.manifest.chunks {
+            if chunk.end < *offset || chunk.start >= end {
+                continue;
+            }
+            // A coalesced write can span a chunk boundary, so every overlapping
+            // chunk is credited with its own slice.
+            let covered_end = end.min(chunk.end.saturating_add(1));
+            let durable = covered_end.saturating_sub(chunk.start);
+            if durable > chunk.durable_downloaded {
+                chunk.durable_downloaded = durable;
+                chunk.dirty = true;
+            }
         }
     }
 }
@@ -178,5 +228,176 @@ pub(crate) fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> Chun
     match managed.lock_core().snapshot.state {
         DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
         _ => ChunkWorkerOutcome::Paused,
+    }
+}
+
+#[cfg(test)]
+impl ManagedDownload {
+    /// Test helper: wrap a manifest in a managed download with a matching
+    /// snapshot, as `DownloadManager` does when it creates or loads a task.
+    pub(crate) fn from_manifest(manifest: Manifest) -> Arc<Self> {
+        let snapshot = crate::manifest::snapshot_from_manifest(&manifest);
+        Arc::new(Self {
+            core: Mutex::new(DownloadCore::new(snapshot, manifest)),
+            runtime: Mutex::new(None),
+            aimd: Mutex::new(AimdState::initial(None, None)),
+            stop_notify: Notify::new(),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::{ChunkManifest, plan_chunks};
+
+    /// A minimal valid manifest; tests override the fields they care about with
+    /// struct-update syntax.
+    fn test_manifest() -> Manifest {
+        Manifest {
+            id: "durable-test".to_string(),
+            url: "https://example.com/file.bin".to_string(),
+            final_url: "https://example.com/file.bin".to_string(),
+            user_agent: crate::types::default_http_user_agent(),
+            extra_headers: Vec::new(),
+            destination_dir: "/tmp".to_string(),
+            file_name: "file.bin".to_string(),
+            file_name_locked: true,
+            destination_path: "/tmp/file.bin".to_string(),
+            temp_path: "/tmp/file.bin.part".to_string(),
+            total_bytes: Some(200),
+            downloaded_bytes: 0,
+            supports_ranges: true,
+            chunk_size: 100,
+            connection_count: 0,
+            thread_mode: crate::types::ThreadMode::Adaptive,
+            requested_thread_count: None,
+            desired_thread_count: None,
+            allocated_thread_count: None,
+            adaptive_profile_snapshot: None,
+            thread_note: None,
+            etag: None,
+            last_modified: None,
+            state: crate::types::DownloadState::Downloading,
+            cdn_accelerated: false,
+            cdn_node_ip: None,
+            checksum_mode: crate::types::ChecksumMode::None,
+            checksum: None,
+            expected_checksum: None,
+            error: None,
+            priority: crate::types::Priority::Normal,
+            created_at_ms: 1000,
+            updated_at_ms: 1000,
+            mirror_url: None,
+            mirror_urls: Vec::new(),
+            current_mirror_index: 0,
+            chunks: two_chunks(),
+        }
+    }
+
+    /// Two 100-byte chunks covering `[0, 200)`.
+    fn two_chunks() -> Vec<ChunkManifest> {
+        plan_chunks(Some(200), true, 100)
+    }
+
+    fn durable_of(managed: &Arc<ManagedDownload>, index: usize) -> u64 {
+        managed.lock_core().manifest.chunks[index].durable_bytes()
+    }
+
+    #[test]
+    fn received_progress_does_not_make_a_chunk_durable() {
+        let managed = ManagedDownload::from_manifest(Manifest {
+            chunks: two_chunks(),
+            ..test_manifest()
+        });
+
+        record_progress_on_managed(&managed, Some(0), 100);
+
+        let core = managed.lock_core();
+        assert_eq!(core.manifest.chunks[0].downloaded, 100, "received");
+        assert!(core.manifest.chunks[0].completed, "received-complete");
+        assert_eq!(core.manifest.downloaded_bytes, 100, "received total");
+        assert_eq!(
+            core.manifest.chunks[0].durable_bytes(),
+            0,
+            "nothing has been flushed yet"
+        );
+        assert_eq!(core.durable_bytes, 0);
+    }
+
+    #[test]
+    fn flushed_ranges_advance_the_durable_counters() {
+        let managed = ManagedDownload::from_manifest(Manifest {
+            chunks: two_chunks(),
+            ..test_manifest()
+        });
+        record_progress_on_managed(&managed, Some(0), 100);
+
+        record_durable_bytes(&managed, &[(0, 40)]);
+        assert_eq!(durable_of(&managed, 0), 40);
+        {
+            let core = managed.lock_core();
+            assert_eq!(core.durable_bytes, 40);
+            assert!(core.manifest.chunks[0].dirty, "durable progress is persisted");
+        }
+
+        // A second flush resumes from where the first stopped.
+        record_durable_bytes(&managed, &[(40, 60)]);
+        assert_eq!(durable_of(&managed, 0), 100);
+        assert!(managed.lock_core().manifest.chunks[0].durable_complete());
+        assert_eq!(managed.lock_core().durable_bytes, 100);
+    }
+
+    #[test]
+    fn a_coalesced_write_is_credited_to_every_chunk_it_overlaps() {
+        let managed = ManagedDownload::from_manifest(Manifest {
+            chunks: two_chunks(),
+            ..test_manifest()
+        });
+        // Both chunks fully received, then one vectored write spanning the
+        // boundary at offset 100.
+        record_progress_on_managed(&managed, Some(0), 100);
+        record_progress_on_managed(&managed, Some(1), 100);
+
+        record_durable_bytes(&managed, &[(90, 20)]);
+
+        assert_eq!(durable_of(&managed, 0), 100);
+        assert_eq!(durable_of(&managed, 1), 10);
+        assert_eq!(managed.lock_core().durable_bytes, 20);
+    }
+
+    #[test]
+    fn durable_bytes_never_exceeds_received_bytes() {
+        let mut chunks = two_chunks();
+        // A stale/over-eager counter (a reset path that forgot to clear it, a
+        // chunk re-planned on top of an old one).
+        chunks[0].durable_downloaded = 10_000;
+        chunks[0].downloaded = 30;
+        let managed =
+            ManagedDownload::from_manifest(Manifest { chunks, ..test_manifest() });
+
+        assert_eq!(durable_of(&managed, 0), 30, "clamped to what was received");
+        assert!(!managed.lock_core().manifest.chunks[0].durable_complete());
+    }
+
+    #[test]
+    fn a_loaded_manifest_starts_fully_durable() {
+        // A manifest read back from SQLite carries both counters (the row loader
+        // sets `durable_downloaded` from the stored value), so the durable view
+        // starts equal to the received one.
+        let mut chunks = two_chunks();
+        chunks[0].downloaded = 100;
+        chunks[0].completed = true;
+        chunks[0].durable_downloaded = 100;
+        let managed = ManagedDownload::from_manifest(Manifest {
+            chunks,
+            downloaded_bytes: 100,
+            ..test_manifest()
+        });
+
+        let core = managed.lock_core();
+        assert_eq!(core.durable_bytes, 100);
+        assert_eq!(core.manifest.chunks[0].durable_bytes(), 100);
+        assert!(core.manifest.chunks[0].durable_complete());
     }
 }

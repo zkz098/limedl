@@ -390,9 +390,13 @@ impl TaskLifecycle {
         core.snapshot.updated_at_ms = now;
         core.manifest.downloaded_bytes = 0;
         core.manifest.updated_at_ms = now;
+        // The file is about to be recreated from scratch, so nothing written before
+        // still counts as durable progress for this task.
+        core.durable_bytes = 0;
         for chunk in &mut core.manifest.chunks {
             chunk.downloaded = 0;
             chunk.completed = false;
+            chunk.durable_downloaded = 0;
             chunk.claimed_by = None;
             chunk.dirty = true;
         }

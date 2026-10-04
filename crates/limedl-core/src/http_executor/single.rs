@@ -3,7 +3,15 @@
 use bytes::Bytes;
 use futures_util::StreamExt;
 
-use super::{Arc, BatchLimiter, CancellationToken, Client, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, HttpExecutor, Instant, ManagedDownload, Path, PathBuf, ProgressThrottle, Result, RunOutcome, StatusCode, apply_extra_headers, build_write_buffer, cancellation_outcome, check_disk_space_periodically, contiguous_prefix_end, finish_buffer_flush, flush_write_buffer, fs, header, if_range_header, io_error_with_path, now_ms, open_download_file, request_with_retry, reset_download_file, wait_or_stop, write_all_at};
+use super::{Arc, BatchLimiter, CancellationToken, Client, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, HttpExecutor, Instant, ManagedDownload, Path, PathBuf, ProgressThrottle, RequestBudget, Result, RunOutcome, StatusCode, apply_extra_headers, build_write_buffer, cancellation_outcome, check_disk_space_periodically, contiguous_prefix_end, finish_buffer_flush, flush_write_buffer, fs, header, if_range_header, io_error_with_path, now_ms, open_download_file, record_durable_bytes, request_with_retry, reset_download_file, wait_or_stop, write_all_at};
+
+/// Upper bound on the number of responses one single-stream download may consume.
+///
+/// Each response may itself retry up to the configured `max_retries`, so this is
+/// what keeps a server that always ends the body early from producing an
+/// unbounded request loop. A response that makes no progress at all is exactly
+/// the case the limit exists for; a legitimate resumption needs at most a few.
+const MAX_SINGLE_STREAM_REQUESTS: u32 = 64;
 
 impl HttpExecutor {
     pub(super) async fn download_single(
@@ -20,11 +28,18 @@ impl HttpExecutor {
         let mut last_disk_check = Instant::now();
         let mut throttle = ProgressThrottle::new();
         let mut batch = BatchLimiter::new();
+        let mut budget = RequestBudget::new(MAX_SINGLE_STREAM_REQUESTS);
 
         loop {
             if let Some(outcome) = wait_or_stop(&dm, &managed, &token, &write_buffer).await {
                 return Ok(outcome);
             }
+
+            // The stream ends without `single_finished` whenever the server cuts
+            // the body short, and the loop resumes from the new offset. A server
+            // that always ends it immediately (zero bytes, so the offset never
+            // moves) would otherwise spin here forever, one request at a time.
+            budget.charge("single-stream download")?;
 
             let (url, user_agent, extra_headers, validator, state) = {
                 let core = managed.lock_core();
@@ -239,8 +254,11 @@ async fn write_chunk_bytes(
 ) -> Result<()> {
     if let Some(buf) = write_buffer {
         if buf.buffer_chunk(offset, chunk.clone()).await.is_err() {
-            // Background flush failed — fall back to direct write.
+            // Background flush failed — fall back to direct write. The bytes are
+            // on the file as soon as `write_all_at` returns, so they are durable
+            // immediately; the buffer never got to report them.
             write_all_at(file, chunk, offset)?;
+            record_durable_bytes(managed, &[(offset, chunk.len() as u64)]);
             if disk_type == DiskType::Hdd {
                 let mut core = managed.lock_core();
                 core.snapshot.degraded = true;
@@ -248,6 +266,7 @@ async fn write_chunk_bytes(
         }
     } else {
         write_all_at(file, chunk, offset)?;
+        record_durable_bytes(managed, &[(offset, chunk.len() as u64)]);
     }
     Ok(())
 }

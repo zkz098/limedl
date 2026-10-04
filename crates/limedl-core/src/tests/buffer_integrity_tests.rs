@@ -110,7 +110,7 @@ async fn ssd_pingpong_no_fault_byte_identical() -> TestResult {
     let dir = tempfile::tempdir()?;
     let file = preallocated_file(dir.path(), TOTAL)?;
     let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(HALF, file.clone(), worker);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(HALF, file.clone(), worker, None);
 
     let mut offset = 0u64;
     while offset < TOTAL {
@@ -142,7 +142,7 @@ async fn ssd_pingpong_flush_failure_surfaces_error_without_corruption() -> TestR
     let dir = tempfile::tempdir()?;
     let file = preallocated_file(dir.path(), TOTAL)?;
     let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(HALF, file.clone(), worker);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(HALF, file.clone(), worker, None);
     let ptr = Arc::as_ptr(&file) as usize;
 
     // Fail the 3rd background batch — a middle flush, with correct data before
@@ -205,7 +205,7 @@ async fn hdd_double_buffer_no_fault_byte_identical() -> TestResult {
     let pool = Arc::new(BufferPool::new(0, 0, 1, 1)); // min 64 KiB half
     let slot = pool.acquire_slot().await;
     let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_with_worker(pool, slot, file.clone(), worker);
+    let buf = DownloadBuffer::new_with_worker(pool, slot, file.clone(), worker, None);
 
     let mut offset = 0u64;
     while offset < TOTAL {
@@ -236,7 +236,7 @@ async fn hdd_double_buffer_flush_failure_surfaces_error_without_corruption() -> 
     let pool = Arc::new(BufferPool::new(0, 0, 1, 1)); // min 64 KiB half
     let slot = pool.acquire_slot().await;
     let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_with_worker(pool, slot, file.clone(), worker);
+    let buf = DownloadBuffer::new_with_worker(pool, slot, file.clone(), worker, None);
     let ptr = Arc::as_ptr(&file) as usize;
 
     let _inj = crate::buffer_pool::fault::injection_lock().await;

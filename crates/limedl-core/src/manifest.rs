@@ -74,14 +74,53 @@ pub struct ChunkManifest {
     pub index: usize,
     pub start: u64,
     pub end: u64,
+    /// Bytes received for this chunk in this session — what the scheduler, the
+    /// claim/unclaim logic and the UI follow. It can run ahead of the file by
+    /// whatever the write buffer still holds.
     pub downloaded: u64,
+    /// "The worker received the whole range", in the same received sense as
+    /// [`Self::downloaded`]. It is *not* a statement about the file.
     pub completed: bool,
+    /// Bytes of this chunk that provably reached the file: advanced only after a
+    /// write-buffer flush (or a direct write) returned successfully. This — not
+    /// [`Self::downloaded`] — is what gets persisted, so a hard kill can never
+    /// leave the database claiming bytes that were only in memory and make the
+    /// next resume skip over a hole. Always read it through [`Self::durable_bytes`].
+    ///
+    /// `serde(skip)`: internal bookkeeping, never part of a wire format.
+    #[serde(skip)]
+    pub durable_downloaded: u64,
     pub claimed_by: Option<usize>,
     /// Tracks whether this chunk changed since the last incremental DB persist.
     /// Reset to `false` after each `persist_manifest_snapshot` flush.
     /// Serialisation is skipped — this is an internal-only flag.
     #[serde(skip)]
     pub dirty: bool,
+}
+
+impl ChunkManifest {
+    /// Bytes this chunk covers.
+    ///
+    /// Named `byte_len` (not `len`) because a chunk is never empty: it always
+    /// spans at least one byte, so an `is_empty` companion would be a lie.
+    pub fn byte_len(&self) -> u64 {
+        self.end.saturating_sub(self.start).saturating_add(1)
+    }
+
+    /// Durable bytes for this chunk, clamped to what has actually been received.
+    ///
+    /// The clamp is what makes a stale counter harmless: a chunk re-planned on
+    /// top of an old one, or a counter that a reset path forgot to clear, can
+    /// only ever under-report, which costs a re-download — never the other
+    /// direction, which would resume past data that is not on disk.
+    pub fn durable_bytes(&self) -> u64 {
+        self.durable_downloaded.min(self.downloaded)
+    }
+
+    /// `true` when every byte of this chunk is on the file.
+    pub fn durable_complete(&self) -> bool {
+        self.durable_bytes() >= self.byte_len()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -124,6 +163,7 @@ pub fn plan_chunks(
             end,
             downloaded: 0,
             completed: false,
+            durable_downloaded: 0,
             claimed_by: None,
             dirty: false,
         });

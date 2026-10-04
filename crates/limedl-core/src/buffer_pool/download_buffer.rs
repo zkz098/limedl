@@ -27,6 +27,17 @@ impl<'a> Drop for FlipTokenGuard<'a> {
     }
 }
 
+/// Notified once a flush has actually written its byte ranges to the file.
+///
+/// Each element is `(offset, len)`. This is how the download engine learns which
+/// bytes are safe to persist: the write buffer is the only component that knows
+/// when buffered data left memory, so the manifest's durable counters are
+/// advanced from here and nowhere else.
+///
+/// Invoked on the flushing task (an `IoWorker` await or a blocking task) after the
+/// write returned successfully, never on failure.
+pub type FlushObserver = Arc<dyn Fn(&[(u64, u64)]) + Send + Sync>;
+
 /// Configuration for the shared ping-pong flip logic.
 struct PingPongCfg<'a> {
     /// Global buffer pool for HDD memory tracking. `None` for SSD (ping-pong) mode.
@@ -37,6 +48,8 @@ struct PingPongCfg<'a> {
     bg_fsync: bool,
     /// Label for tracing/error messages (e.g., "HDD" or "SSD ping-pong").
     label: &'static str,
+    /// Durable-progress notification for successful flushes.
+    observer: Option<&'a FlushObserver>,
 }
 
 /// Internal mode for `DownloadBuffer`.
@@ -80,6 +93,8 @@ pub(crate) enum BufferMode {
 pub struct DownloadBuffer {
     pub(crate) mode: BufferMode,
     io_worker: Option<IoWorker>,
+    /// Durable-progress notification, shared with every flush path.
+    flush_observer: Option<FlushObserver>,
 }
 
 impl DownloadBuffer {
@@ -89,6 +104,7 @@ impl DownloadBuffer {
         slot: SlotGuard,
         file: Arc<File>,
         worker: IoWorker,
+        flush_observer: Option<FlushObserver>,
     ) -> Self {
         let half_size = pool.half_size();
         Self {
@@ -108,6 +124,7 @@ impl DownloadBuffer {
                 file,
             },
             io_worker: Some(worker),
+            flush_observer,
         }
     }
 
@@ -136,6 +153,7 @@ impl DownloadBuffer {
                 file,
             },
             io_worker: None,
+            flush_observer: None,
         }
     }
 
@@ -143,7 +161,12 @@ impl DownloadBuffer {
     ///
     /// Uses the same double-buffer flip logic as HDD but without global
     /// pool/slot management. `half_size` is the size of each ping-pong half.
-    pub fn new_local_pingpong_with_worker(half_size: u64, file: Arc<File>, worker: IoWorker) -> Self {
+    pub fn new_local_pingpong_with_worker(
+        half_size: u64,
+        file: Arc<File>,
+        worker: IoWorker,
+        flush_observer: Option<FlushObserver>,
+    ) -> Self {
         Self {
             mode: BufferMode::LocalPingPong {
                 half_a: Arc::new(Mutex::new(BTreeMap::new())),
@@ -159,6 +182,7 @@ impl DownloadBuffer {
                 file,
             },
             io_worker: Some(worker),
+            flush_observer,
         }
     }
 
@@ -253,7 +277,7 @@ impl DownloadBuffer {
 
         // Single chunk larger than a half — write directly via spawn_blocking.
         if len > halves.half_size {
-            return write_oversized_direct(halves.file, data, offset).await;
+            return write_oversized_direct(halves.file, data, offset, cfg.observer).await;
         }
 
         loop {
@@ -357,6 +381,7 @@ impl DownloadBuffer {
             bg_sync: SyncMode::Adaptive,
             bg_fsync: false,
             label: "HDD",
+            observer: self.flush_observer.as_ref(),
         };
         self.buffer_chunk_pingpong_impl(cfg, halves, offset, data).await
     }
@@ -374,6 +399,7 @@ impl DownloadBuffer {
             bg_sync: SyncMode::None,
             bg_fsync: false,
             label: "SSD ping-pong",
+            observer: self.flush_observer.as_ref(),
         };
         self.buffer_chunk_pingpong_impl(cfg, halves, offset, data).await
     }
@@ -385,6 +411,7 @@ impl DownloadBuffer {
         usage: &AtomicU64,
         file: &Arc<File>,
         io_worker: Option<&IoWorker>,
+        observer: Option<&FlushObserver>,
     ) -> Result<(), DownloadError> {
         let entries: Vec<(u64, Bytes)> = {
             let mut map = half.lock();
@@ -393,6 +420,7 @@ impl DownloadBuffer {
             }
             std::mem::take(&mut *map).into_iter().collect()
         };
+        let ranges = entry_ranges(&entries);
         usage.store(0, Ordering::Release);
         if let Some(worker) = io_worker {
             worker.write_batch(file.clone(), entries, SyncMode::None).await?;
@@ -410,6 +438,7 @@ impl DownloadBuffer {
             .await
             .map_err(|e| DownloadError::Internal(format!("flush task failed: {e}")))??;
         }
+        notify_flushed(observer, &ranges);
         Ok(())
     }
 
@@ -455,10 +484,26 @@ impl DownloadBuffer {
                 };
 
                 // 3. Flush active half.
-                Self::flush_one_half(active, active_usage, file, pool, self.io_worker.as_ref()).await?;
+                Self::flush_one_half(
+                    active,
+                    active_usage,
+                    file,
+                    pool,
+                    self.io_worker.as_ref(),
+                    self.flush_observer.as_ref(),
+                )
+                .await?;
 
                 // 4. Flush inactive half (should be empty, but be safe).
-                Self::flush_one_half(inactive, inactive_usage, file, pool, self.io_worker.as_ref()).await?;
+                Self::flush_one_half(
+                    inactive,
+                    inactive_usage,
+                    file,
+                    pool,
+                    self.io_worker.as_ref(),
+                    self.flush_observer.as_ref(),
+                )
+                .await?;
 
                 // 5. Check error flag one more time.
                 if error_flag.load(Ordering::Acquire) {
@@ -500,10 +545,24 @@ impl DownloadBuffer {
                 };
 
                 // 3. Flush active half.
-                Self::flush_one_half_local(active, active_usage, file, self.io_worker.as_ref()).await?;
+                Self::flush_one_half_local(
+                    active,
+                    active_usage,
+                    file,
+                    self.io_worker.as_ref(),
+                    self.flush_observer.as_ref(),
+                )
+                .await?;
 
                 // 4. Flush inactive half (should be empty, but be safe).
-                Self::flush_one_half_local(inactive, inactive_usage, file, self.io_worker.as_ref()).await?;
+                Self::flush_one_half_local(
+                    inactive,
+                    inactive_usage,
+                    file,
+                    self.io_worker.as_ref(),
+                    self.flush_observer.as_ref(),
+                )
+                .await?;
 
                 // 5. Check error flag one more time.
                 if error_flag.load(Ordering::Acquire) {
@@ -525,6 +584,7 @@ impl DownloadBuffer {
         file: &Arc<File>,
         pool: &Arc<BufferPool>,
         io_worker: Option<&IoWorker>,
+        observer: Option<&FlushObserver>,
     ) -> Result<(), DownloadError> {
         let entries: Vec<(u64, Bytes)> = {
             let mut map = half.lock();
@@ -533,6 +593,7 @@ impl DownloadBuffer {
             }
             std::mem::take(&mut *map).into_iter().collect()
         };
+        let ranges = entry_ranges(&entries);
         let bytes: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
         usage.store(0, Ordering::Release);
         pool.sub_usage(bytes);
@@ -551,6 +612,7 @@ impl DownloadBuffer {
             .map_err(|e| DownloadError::Internal(format!("flush task failed: {e}")))??;
         }
 
+        notify_flushed(observer, &ranges);
         Ok(())
     }
 
@@ -700,12 +762,30 @@ async fn write_oversized_direct(
     file: &Arc<File>,
     data: Bytes,
     offset: u64,
+    observer: Option<&FlushObserver>,
 ) -> Result<(), DownloadError> {
+    let len = data.len() as u64;
     let f = file.clone();
     tokio::task::spawn_blocking(move || write_all_at(&f, &data, offset))
         .await
         .map_err(|e| DownloadError::Internal(format!("background write failed: {e}")))??;
+    notify_flushed(observer, &[(offset, len)]);
     Ok(())
+}
+
+/// The `(offset, len)` pairs of a flush batch, for the observer.
+fn entry_ranges(entries: &[(u64, Bytes)]) -> Vec<(u64, u64)> {
+    entries
+        .iter()
+        .map(|(offset, data)| (*offset, data.len() as u64))
+        .collect()
+}
+
+/// Report ranges as durable. Never called after a failed write.
+fn notify_flushed(observer: Option<&FlushObserver>, ranges: &[(u64, u64)]) {
+    if let Some(observer) = observer {
+        observer(ranges);
+    }
 }
 
 /// Fold (and account) leftovers of the previous inactive half, if any.
@@ -750,8 +830,8 @@ fn take_entries_with(
 /// Spawn the background flush for a half that was just rotated out.
 ///
 /// Prefers the dedicated `IoWorker`; otherwise falls back to `spawn_blocking`
-/// with a panic guard. Both paths set `error_flag` on failure and notify
-/// waiters when done.
+/// with a panic guard (unwind builds only — see the note in the body).
+/// Both paths set `error_flag` on failure and notify waiters when done.
 fn spawn_background_flush(
     io_worker: Option<&IoWorker>,
     cfg: &PingPongCfg<'_>,
@@ -766,18 +846,29 @@ fn spawn_background_flush(
     let bg_sync = cfg.bg_sync;
     let bg_fsync = cfg.bg_fsync;
     let label = cfg.label;
+    let bg_observer = cfg.observer.cloned();
+    let ranges = entry_ranges(&entries);
 
     if let Some(worker) = io_worker {
         let worker = worker.clone();
         tokio::spawn(async move {
-            if let Err(e) = worker.write_batch(bg_file, entries, bg_sync).await {
-                bg_error.store(true, Ordering::Release);
-                tracing::error!("background {label} buffer flush failed (IoWorker): {e}");
+            match worker.write_batch(bg_file, entries, bg_sync).await {
+                Ok(()) => notify_flushed(bg_observer.as_ref(), &ranges),
+                Err(e) => {
+                    bg_error.store(true, Ordering::Release);
+                    tracing::error!("background {label} buffer flush failed (IoWorker): {e}");
+                }
             }
             bg_notify.notify_waiters();
         })
     } else {
         tokio::task::spawn_blocking(move || {
+            // The panic guard is a development-build (and `test-utils`) safety
+            // net only. The shipping profile builds with `panic = "abort"`
+            // (workspace `Cargo.toml`), where `catch_unwind` cannot catch
+            // anything: a panic here takes the process down, and the only
+            // evidence is the native client's panic hook (`crash.rs`). Do not
+            // treat this arm as production error recovery.
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 write_all_entries(&bg_file, &entries)
             }));
@@ -787,6 +878,10 @@ fn spawn_background_flush(
                         bg_error.store(true, Ordering::Release);
                         tracing::error!("background {label} buffer flush fsync failed: {e}");
                     }
+                    // `sync_data` failing still means the bytes are in the file
+                    // (only the power-loss guarantee is missing), so the ranges
+                    // count as durable either way.
+                    notify_flushed(bg_observer.as_ref(), &ranges);
                 }
                 Ok(Err(e)) => {
                     bg_error.store(true, Ordering::Release);

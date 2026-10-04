@@ -360,6 +360,7 @@ async fn chunks_reloaded_for_non_terminal_downloads() -> TestResult {
             start: 0,
             end: 4 * 1024 * 1024 - 1,
             downloaded: 2 * 1024 * 1024, // half done
+            durable_downloaded: 2 * 1024 * 1024,
             completed: false,
             claimed_by: None,
             dirty: false,
@@ -369,6 +370,7 @@ async fn chunks_reloaded_for_non_terminal_downloads() -> TestResult {
             start: 4 * 1024 * 1024,
             end: 8 * 1024 * 1024 - 1,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: None,
             dirty: false,
@@ -441,6 +443,7 @@ async fn downloading_survives_restart_without_stale_claims() -> TestResult {
             start: 0,
             end: 4 * 1024 * 1024 - 1,
             downloaded: 3 * 1024 * 1024,
+            durable_downloaded: 3 * 1024 * 1024,
             completed: false,
             claimed_by: Some(2),
             dirty: false,
@@ -450,6 +453,7 @@ async fn downloading_survives_restart_without_stale_claims() -> TestResult {
             start: 4 * 1024 * 1024,
             end: 8 * 1024 * 1024 - 1,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: Some(3),
             dirty: false,
@@ -497,4 +501,83 @@ async fn downloading_survives_restart_without_stale_claims() -> TestResult {
 
     let _ = manager.remove("crash-downloading").await;
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Durable progress accounting
+// ---------------------------------------------------------------------------
+
+/// The persisted progress is the *durable* progress: what the write buffer has
+/// actually put on the file, not what a worker has received. Persisting the
+/// received counter would let a hard kill leave the database claiming bytes that
+/// were still in memory, so the next resume would skip over a hole.
+#[tokio::test]
+async fn persisted_progress_is_the_durable_progress() {
+    let (_tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+
+    let mut manifest = make_test_manifest("durable-persist", DownloadState::Downloading);
+    manifest.total_bytes = Some(200);
+    manifest.chunk_size = 100;
+    manifest.chunks = crate::manifest::plan_chunks(Some(200), true, 100);
+    let managed = crate::download::ManagedDownload::from_manifest(manifest);
+
+    // Chunk 0 received in full, of which only 40 bytes reached the file.
+    crate::download::record_progress_on_managed(&managed, Some(0), 100);
+    crate::download::record_durable_bytes(&managed, &[(0, 40)]);
+
+    dm.persist(managed.clone()).await.unwrap();
+
+    let loaded = dm
+        .db
+        .get_download("durable-persist")
+        .unwrap()
+        .expect("row must exist");
+    assert_eq!(
+        loaded.downloaded_bytes, 40,
+        "the task row must store the durable total"
+    );
+    assert_eq!(loaded.chunks[0].downloaded, 40);
+    assert!(
+        !loaded.chunks[0].completed,
+        "a chunk that is only half on the file must not be persisted as complete"
+    );
+    assert_eq!(
+        loaded.chunks[0].durable_bytes(),
+        loaded.chunks[0].downloaded,
+        "a row read back from the database is durable state"
+    );
+    assert_eq!(
+        loaded.chunks[1].downloaded, 0,
+        "chunk 1 has not been touched"
+    );
+}
+
+/// The incremental 300 ms cycle uses the same substitution as the full upsert.
+#[tokio::test]
+async fn incremental_persist_of_a_completed_but_unflushed_chunk_stays_incomplete() {
+    let (_tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+
+    let mut manifest = make_test_manifest("durable-cycle", DownloadState::Downloading);
+    manifest.total_bytes = Some(100);
+    manifest.chunk_size = 100;
+    manifest.chunks = crate::manifest::plan_chunks(Some(100), true, 100);
+    let managed = crate::download::ManagedDownload::from_manifest(manifest);
+    {
+        // Register the row so the incremental UPDATE has something to find.
+        let core = managed.lock_core();
+        dm.db.insert_download(&core.manifest).unwrap();
+    }
+
+    // The worker finished the chunk, but none of it has been flushed yet.
+    crate::download::record_progress_on_managed(&managed, Some(0), 100);
+    crate::download::record_durable_bytes(&managed, &[(0, 25)]);
+
+    crate::persistence::persist_manifest_snapshot(&dm.db, &managed)
+        .await
+        .unwrap();
+
+    let loaded = dm.db.get_download("durable-cycle").unwrap().expect("row");
+    assert_eq!(loaded.downloaded_bytes, 25);
+    assert_eq!(loaded.chunks[0].downloaded, 25);
+    assert!(!loaded.chunks[0].completed);
 }

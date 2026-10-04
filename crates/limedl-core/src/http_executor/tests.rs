@@ -1,4 +1,5 @@
 use super::worker::*;
+use super::RequestBudget;
 
 use crate::manifest::ChunkManifest;
 use crate::types::{ChecksumMode, DownloadState, Priority, ThreadMode};
@@ -53,6 +54,7 @@ fn test_claim_next_chunk_stripe_and_fallback() {
             start: 0,
             end: 999,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: None,
             dirty: false,
@@ -62,6 +64,7 @@ fn test_claim_next_chunk_stripe_and_fallback() {
             start: 1000,
             end: 1999,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: None,
             dirty: false,
@@ -92,6 +95,7 @@ fn test_steal_chunk_splits_largest_remaining() {
             start: 0,
             end: 9_999_999,
             downloaded: 2_000_000,
+            durable_downloaded: 2_000_000,
             completed: false,
             claimed_by: Some(0),
             dirty: false,
@@ -102,6 +106,7 @@ fn test_steal_chunk_splits_largest_remaining() {
             start: 10_000_000,
             end: 19_999_999,
             downloaded: 7_000_000,
+            durable_downloaded: 7_000_000,
             completed: false,
             claimed_by: Some(1),
             dirty: false,
@@ -143,6 +148,7 @@ fn test_steal_chunk_ignores_small_remaining() {
             start: 0,
             end: 1_000_000,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: Some(0),
             dirty: false,
@@ -166,6 +172,7 @@ fn test_claim_or_steal_chunk_prefers_unclaimed() {
             start: 0,
             end: 10_000_000,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: Some(0),
             dirty: false,
@@ -175,6 +182,7 @@ fn test_claim_or_steal_chunk_prefers_unclaimed() {
             start: 10_000_001,
             end: 20_000_000,
             downloaded: 0,
+            durable_downloaded: 0,
             completed: false,
             claimed_by: None,
             dirty: false,
@@ -188,4 +196,100 @@ fn test_claim_or_steal_chunk_prefers_unclaimed() {
     // Chunk 0 end should not be modified
     assert_eq!(manifest.chunks[0].end, 10_000_000);
     assert_eq!(manifest.chunks.len(), 2);
+}
+
+// ---------------------------------------------------------------------------
+// RequestBudget — bounds the request loop a truncating server can drive
+// ---------------------------------------------------------------------------
+
+#[test]
+fn request_budget_allows_exactly_max_requests() {
+    let mut budget = RequestBudget::new(3);
+    assert!(budget.charge("chunk 7").is_ok());
+    assert!(budget.charge("chunk 7").is_ok());
+    assert!(budget.charge("chunk 7").is_ok());
+}
+
+#[test]
+fn request_budget_fails_with_the_unit_of_work_in_the_message() {
+    let mut budget = RequestBudget::new(1);
+    assert!(budget.charge("chunk 7").is_ok());
+
+    let error = budget
+        .charge("chunk 7")
+        .expect_err("the second request must exceed a budget of one");
+    let message = error.to_string();
+    assert!(message.contains("chunk 7"), "unexpected message: {message}");
+    assert!(
+        message.contains("ending the response early"),
+        "unexpected message: {message}"
+    );
+    assert_eq!(error.kind(), "invalid_response");
+}
+
+#[test]
+fn request_budget_never_overflows_on_a_long_lived_loop() {
+    let mut budget = RequestBudget::new(u32::MAX);
+    for _ in 0..1000 {
+        assert!(budget.charge("chunk 0").is_ok());
+    }
+    assert_eq!(budget.used, 1000);
+}
+
+// ---------------------------------------------------------------------------
+// ensure_core_fully_durable — refuse to publish a truncated download
+// ---------------------------------------------------------------------------
+
+fn core_with_chunks(chunks: Vec<ChunkManifest>) -> crate::download::DownloadCore {
+    let manifest = make_test_manifest(chunks);
+    let snapshot = crate::manifest::snapshot_from_manifest(&manifest);
+    crate::download::DownloadCore::new(snapshot, manifest)
+}
+
+#[test]
+fn finalize_accepts_a_fully_durable_download() {
+    let core = core_with_chunks(vec![ChunkManifest {
+        index: 0,
+        start: 0,
+        end: 99,
+        downloaded: 100,
+        completed: true,
+        durable_downloaded: 100,
+        claimed_by: None,
+        dirty: false,
+    }]);
+
+    assert!(super::finalize::ensure_core_fully_durable(&core).is_ok());
+}
+
+#[test]
+fn finalize_accepts_a_single_stream_download_without_chunks() {
+    // No chunks to check: the single-stream path records progress against the
+    // task-level counter only.
+    let core = core_with_chunks(Vec::new());
+    assert!(super::finalize::ensure_core_fully_durable(&core).is_ok());
+}
+
+#[test]
+fn finalize_refuses_a_download_with_unflushed_bytes() {
+    // Received complete, but only 60 of the 100 bytes reached the file.
+    let core = core_with_chunks(vec![ChunkManifest {
+        index: 0,
+        start: 0,
+        end: 99,
+        downloaded: 100,
+        completed: true,
+        durable_downloaded: 60,
+        claimed_by: None,
+        dirty: false,
+    }]);
+
+    let error = super::finalize::ensure_core_fully_durable(&core)
+        .expect_err("a shortfall must not be published");
+    let message = error.to_string();
+    assert!(message.contains("40 byte(s)"), "unexpected message: {message}");
+    assert!(
+        message.contains("refusing to publish"),
+        "unexpected message: {message}"
+    );
 }

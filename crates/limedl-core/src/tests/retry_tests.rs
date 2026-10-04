@@ -29,7 +29,7 @@ use crate::aimd::AimdState;
 use crate::error::DownloadError;
 use crate::download::DownloadCore;
 use crate::manifest::Manifest;
-use crate::retry::{backoff_delay, request_with_retry};
+use crate::retry::{backoff_delay, jittered_backoff_delay, request_with_retry};
 use crate::test_harness::TestServer;
 use crate::types::{ChecksumMode, DownloadSnapshot, DownloadState, Priority, TaskKind, ThreadMode};
 
@@ -149,6 +149,7 @@ fn make_managed() -> Arc<crate::download::ManagedDownload> {
                 current_mirror_index: 0,
                 chunks: vec![],
             },
+            durable_bytes: 0,
             speed_tracker: Default::default(),
         }),
         runtime: ParkingMutex::new(None),
@@ -682,4 +683,37 @@ async fn retry_penalty_count_accumulates() -> TestResult {
     assert!(aimd.recent_penalty);
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// jittered_backoff_delay  —  the delay actually slept
+// ---------------------------------------------------------------------------
+
+#[test]
+fn jittered_backoff_never_shortens_the_base_delay() {
+    for attempt in 0..6 {
+        let base = backoff_delay(attempt);
+        for _ in 0..50 {
+            let delay = jittered_backoff_delay(attempt);
+            assert!(
+                delay >= base,
+                "jitter shortened attempt {attempt}: {delay:?} < {base:?}"
+            );
+            // The ceiling is base + 25%, rounded down to whole milliseconds.
+            let ceiling = base + Duration::from_millis(base.as_millis() as u64 * 25 / 100);
+            assert!(
+                delay <= ceiling,
+                "jitter exceeded the ceiling for attempt {attempt}: {delay:?} > {ceiling:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn jittered_backoff_is_not_in_lockstep() {
+    // Many chunks retry against the same host at the same time; the whole point
+    // of the jitter is that they do not all come back on the wire together.
+    let first = jittered_backoff_delay(4);
+    let spread = (0..200).any(|_| jittered_backoff_delay(4) != first);
+    assert!(spread, "200 samples of the same attempt were all identical");
 }

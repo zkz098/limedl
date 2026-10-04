@@ -344,6 +344,7 @@ fn split_tail_chunk(managed: &Arc<ManagedDownload>, last_idx: usize) {
                 end: old_end,
                 downloaded: 0,
                 completed: false,
+                durable_downloaded: 0,
                 claimed_by: None,
                 dirty: true,
             });

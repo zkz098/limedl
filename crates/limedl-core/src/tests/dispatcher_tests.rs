@@ -151,6 +151,7 @@ fn make_download(id: &str, state: DownloadState) -> Arc<ManagedDownload> {
                 current_mirror_index: 0,
                 chunks: vec![],
             },
+            durable_bytes: 0,
             speed_tracker: Default::default(),
         }),
         runtime: ParkingMutex::new(None),

@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
-pub use download_buffer::DownloadBuffer;
+pub use download_buffer::{DownloadBuffer, FlushObserver};
 #[allow(unused_imports)]
 pub use worker::{IoWorker, SyncMode};
 

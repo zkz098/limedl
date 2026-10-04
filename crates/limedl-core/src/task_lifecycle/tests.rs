@@ -103,6 +103,7 @@ fn make_managed(id: &str, state: DownloadState, created_at_ms: u64) -> ManagedDo
                 current_mirror_index: 0,
                 chunks: vec![],
             },
+            durable_bytes: 0,
             speed_tracker: SpeedTracker::default(),
         }),
         runtime: ParkingMutex::new(None),

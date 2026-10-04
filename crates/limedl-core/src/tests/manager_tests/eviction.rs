@@ -109,6 +109,7 @@ async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
                     current_mirror_index: 0,
                     chunks: vec![],
                 },
+                durable_bytes: 0,
                 speed_tracker: Default::default(),
             }),
             runtime: ParkingMutex::new(None),

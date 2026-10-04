@@ -21,7 +21,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     aimd::AimdState,
-    buffer_pool::DownloadBuffer,
+    buffer_pool::{DownloadBuffer, FlushObserver},
     calculate_checksum,
     database::Database,
     error::{DownloadError, Result, io_error_with_path},
@@ -38,8 +38,8 @@ use crate::{
     },
     download::{
         ChunkWorkerOutcome, ManagedDownload, PERSIST_INTERVAL, RunOutcome,
-        cancellation_chunk_outcome, cancellation_outcome, record_progress_on_managed,
-        supports_parallelism,
+        cancellation_chunk_outcome, cancellation_outcome, record_durable_bytes,
+        record_progress_on_managed, supports_parallelism,
     },
     manager::DownloadManager,
     manifest::{
@@ -76,6 +76,14 @@ async fn build_write_buffer(
     hdd_buffering: bool,
     ssd_write_combine_mb: u64,
 ) -> Arc<DownloadBuffer> {
+    // The buffer reports every byte a flush put on the file; that report is the
+    // only thing that advances the task's durable counters, and therefore the only
+    // thing the database is allowed to store. See `record_durable_bytes`.
+    let observer_managed = managed.clone();
+    let observer: FlushObserver = Arc::new(move |ranges: &[(u64, u64)]| {
+        crate::download::record_durable_bytes(&observer_managed, ranges);
+    });
+
     if disk_type == DiskType::Hdd && hdd_buffering {
         let slot = dm.buffer_pool.acquire_slot().await;
         return Arc::new(DownloadBuffer::new_with_worker(
@@ -83,6 +91,7 @@ async fn build_write_buffer(
             slot,
             file.clone(),
             dm.io_worker.clone(),
+            Some(observer),
         ));
     }
 
@@ -101,6 +110,7 @@ async fn build_write_buffer(
         ssd_half_size,
         file.clone(),
         dm.io_worker.clone(),
+        Some(observer),
     ))
 }
 
@@ -244,6 +254,41 @@ impl BatchLimiter {
             self.bytes = 0;
             self.chunks = 0;
         }
+    }
+}
+
+/// Bounds how many separate HTTP requests one unit of work (a chunk, a
+/// single-stream transfer) may issue.
+///
+/// A retry counter alone is not enough to bound the work: when a server ends a
+/// response early the caller simply re-requests from the new offset, and that
+/// request gets a *fresh* per-request retry counter. A server that stops making
+/// progress (always closing the body immediately, or after a single byte) then
+/// turns the caller's loop into a livelock that never fails and never finishes.
+/// Charging the budget once per request bounds the total work and turns the
+/// livelock into a reported error.
+struct RequestBudget {
+    used: u32,
+    max: u32,
+}
+
+impl RequestBudget {
+    fn new(max: u32) -> Self {
+        Self { used: 0, max }
+    }
+
+    /// Charge one request against the budget, failing once it is exhausted.
+    /// `what` names the unit of work for the error message.
+    fn charge(&mut self, what: impl std::fmt::Display) -> Result<()> {
+        self.used = self.used.saturating_add(1);
+        if self.used > self.max {
+            return Err(DownloadError::InvalidResponse(format!(
+                "{what} was re-requested {} times without completing; the server keeps ending \
+                 the response early",
+                self.used
+            )));
+        }
+        Ok(())
     }
 }
 

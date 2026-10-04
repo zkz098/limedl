@@ -347,6 +347,12 @@ fn apply_probe_to_manifest(
         manifest.desired_thread_count = Some(1);
     }
     core.sync_snapshot_from_manifest();
+    if plan.reset_progress {
+        // The caller recreates the temp file, so nothing written before this point
+        // still counts as durable progress. The fresh chunks above already carry a
+        // durable counter of zero; this clears the task-level one.
+        core.durable_bytes = 0;
+    }
     plan
 }
 
