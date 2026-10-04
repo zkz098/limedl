@@ -19,7 +19,7 @@ You can always head over to the official [Download Page](/en/download/), which a
 | :--- | :--- | :--- | :--- |
 | **Windows** | x86_64 (64-bit) | Windows 10 (1809+) or Windows 11 | Bundled standard C++ runtimes, no extra install |
 | **macOS** | Apple Silicon (aarch64) | macOS Monterey 12.0 or later | Native M1 / M2 / M3 / M4 support |
-| **Linux** | x86_64 (64-bit) | glibc ≥ 2.39 (e.g. Ubuntu 24.04+, Fedora 40+) | `xdg-desktop-portal` (Dialogs) · StatusNotifier host (Tray) |
+| **Linux** | x86_64 (64-bit) | glibc ≥ 2.17 (e.g. Debian 10+, Ubuntu 18.04+, CentOS 7+) | `xdg-desktop-portal` (Dialogs) · StatusNotifier host (Tray) |
 
 ---
 
@@ -72,7 +72,7 @@ Because community open-source releases use ad-hoc code signing without a paid Ap
 
 ## Linux Installation
 
-Targeted at modern Linux distributions running glibc ≥ 2.39 (Ubuntu 24.04+, Fedora, Arch Linux, Debian 13).
+Targeted at Linux distributions running glibc ≥ 2.17 (Debian 10+, Ubuntu 18.04+, CentOS 7+, Fedora, Arch Linux).
 
 ### 1. AppImage Standalone (Recommended)
 Self-contained and distribution-agnostic:

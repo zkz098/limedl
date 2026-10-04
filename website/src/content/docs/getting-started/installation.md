@@ -19,7 +19,7 @@ limedl 为主流桌面操作系统提供了原生编译的发布版本。所有�
 | :--- | :--- | :--- | :--- |
 | **Windows** | x86_64 (64位) | Windows 10 (1809+) 或 Windows 11 | 系统默认自带 C++ 运行时，无需额外依赖 |
 | **macOS** | Apple Silicon (aarch64) | macOS Monterey 12.0 或更高版本 | 原生支持 M1 / M2 / M3 / M4 系列芯片 |
-| **Linux** | x86_64 (64位) | glibc ≥ 2.39 (如 Ubuntu 24.04+, Fedora 40+) | `xdg-desktop-portal` (文件对话框) · StatusNotifier 宿主 (托盘) |
+| **Linux** | x86_64 (64位) | glibc ≥ 2.17 (如 Debian 10+, Ubuntu 18.04+, CentOS 7+) | `xdg-desktop-portal` (文件对话框) · StatusNotifier 宿主 (托盘) |
 
 ---
 
@@ -73,7 +73,7 @@ Windows 平台提供三种分发格式，满足不同场景的使用偏好：
 
 ## Linux 安装说明
 
-适用于 Ubuntu 24.04+、Fedora、Arch Linux、Debian 13 等采用现代 glibc（≥ 2.39）的 Linux 发行版。
+适用于 Debian 10+、Ubuntu 18.04+、CentOS 7+、Fedora、Arch Linux 等使用 glibc ≥ 2.17 的 Linux 发行版。
 
 ### 1. AppImage 独立免安装包（推荐）
 免除跨发行版依赖冲突，包含完整的运行时组件：

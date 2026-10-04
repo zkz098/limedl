@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:d555df682cca4949df5f61f09eef9a9691ed51ad0ad75cd9536a22506b00fd4d",
+  "pageVersion": "sha256:d807176d07da7d10bf9ae6a5d8d5843ed8464359d58fecc1bab5474aa036da63",
   "claims": [
     {
       "id": "claim_50e14f0840f8483a9aa585a5b612f644",
@@ -132,11 +132,11 @@
     },
     {
       "id": "claim_4daf2489daca449ca616429d372db48f",
-      "statement": "Every target in .cargo/config.toml carries --cfg reqwest_unstable, required by reqwest's HTTP/3 feature, and desktop x86_64 targets set target-cpu=x86-64-v3.",
+      "statement": "Every target in .cargo/config.toml carries --cfg reqwest_unstable, required by reqwest's HTTP/3 feature; desktop x86_64 targets set target-cpu=x86-64-v3, the NAS musl entries use x86-64-v2 or no CPU flag, and the desktop Linux release reuses the gnu entry via cargo zigbuild --target x86_64-unknown-linux-gnu.2.17.",
       "evidence": [
         {
-          "resource": "repo://.cargo/config.toml#L1-L45",
-          "version": "repo-lines-v1:sha256:547bff2791793fb7ca70071ea5088755a9b8b49746c23d0db0d23d77b2398ca8:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTg0MWEyNzUyMWVhODgyNjVmYzYxZmIyNzE4ZjM4NDVjMjM5YWYzZjY5MWM5OWYxYTZjYjNlZmUzMzFjYmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkOGI4ZGJkY2RlNWZlYmEyNGMxNzNhNDBjOGU2ZGZkYjQ2NTYyNDYwN2MxMDA2NWIxNTU1MDExMjhjMzM1MmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYyNjkwY2M4ZmNjNjYwMGIyNGM3OTQ2Mjg5NGVjMjY1NDdlMDA2MzgwMGE3MmI2ZDk5NjhkMTRiZjc2M2UzYjUifQ"
+          "resource": "repo://.cargo/config.toml#L1-L96",
+          "version": "repo-lines-v1:sha256:f37bc13c05791a063f60cecfa140ccae30bf2702a84683867fab8a8a5e995c40:eyJzZWxlY3RlZExpbmVDb3VudCI6OTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTg0MWEyNzUyMWVhODgyNjVmYzYxZmIyNzE4ZjM4NDVjMjM5YWYzZjY5MWM5OWYxYTZjYjNlZmUzMzFjYmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5NDE2ZTA5Zjc4YmEzMTZjMDMyNTY4MjEzYjg1NWVlNzU2ZTQxNTY1ZDkxOGYwOTUxOWM4MWZkNjIwZjQwNjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
@@ -187,14 +187,28 @@
       "statement": ".cargo/config.toml defines x86_64 and aarch64 musl targets for the headless server, with the x86_64 entry lowered to target-cpu=x86-64-v2 for older NAS CPUs.",
       "evidence": [
         {
-          "resource": "repo://.cargo/config.toml#L28-L38",
+          "resource": "repo://.cargo/config.toml#L35-L45",
           "version": "repo-lines-v1:sha256:942834ffb5f7a5b2f10969742580b438f224f93d0cd3d0f9bb3b0aee2ec38663:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNlOTFlMWQzZjMwN2VhMDE4NDFjNjM4ODRmYjBiZGViYzM3ZjNlZTY0OGRmNWFjZWYxN2FlMWY1OWI3MmRiYmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZiYTNhNzM3YjRjZjUzZjE1MGUzMTFlZjY1ODZlMDdjZGU5ZDEzYmJmNjUyYTFkMzExMDQ2ZjNiN2U1NDI4YTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ3MGE4NTRmZDc1NjkxYmEzOTI1ZThkNzg1MDQ3ZTBhNTAxMjA4NDI4ZTBiMTMxMzk1NjlmOGJjMmY0MjllYzcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_41f41be5e5e14708a8dcf4e2ce174fe4",
+      "statement": "The Linux desktop release is built with cargo zigbuild --target x86_64-unknown-linux-gnu.2.17, which keeps the dynamic system libraries while lowering the binary's own glibc symbol floor to 2.17.",
+      "evidence": [
+        {
+          "resource": "repo://.cargo/config.toml#L25-L34",
+          "version": "repo-lines-v1:sha256:82017e3ba65bbcb2741dbad1db9c6586d72b821bb6073a86653c13d48a1a1ae7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3MTUzN2Y3NGUzZDg4NTkzOWVlYjQwMzczNjJmNGY5YjI0MzliYzkxNjc4ZWUxZjc5NTRiYWM3Y2UyZWQ2MjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcwOTBkZmY2ZGY2ZDI3YmZhNDgzOWQxYWY5NWIyOGE1MWM3MGUwMGM5ZWEwNDBlNWQwZGRkNjQ2MGZmYzg3N2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ0NTdmOTBlNWZkNjkzYjU5MDk0ZmE3ZjUzYWJhYzA5NWQ5NjYyMzEwYmM5YzcyMjIzYzQyMjk3YjBmNzA3YjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2NjJjMTBhM2RhZjJkMTc1NzViN2FmYjlmMTFhZGFjN2U0NTE3ZWU1YmUzNzAzYjU1NTg4NGE3YjU5YTRkMjcifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/release.yml#L396-L480",
+          "version": "repo-lines-v1:sha256:2cf73d6a5391f4302dda780a19f1cdb02bbcc8de94a343d158f59b07c2fabbda:eyJzZWxlY3RlZExpbmVDb3VudCI6ODUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0YzZkN2NmZDEzN2EwYTUwOWE3NTA5ZjY1MjkwYWZkN2ZmYzQzMzYxYWIzMGYyYWM4MzE5YTA3MmQxNDVkNjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIyOGY2YmYwMTI2MjVmMzg1ZTZlMzIyYWJhNzAxYWZhZWVkNjVkYmQ1YjcwMmViYjZmNjcxY2I1OWNhMzlhNTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU3MWM3NTRhN2ZlNGFhNzY4MTQ3YTI3NmJjNGQ4MmJhN2E0ZmRmZWU5ZDc1NTg3YTBmZGE4NjIwMzZkOWI2NmIifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T12:36:56.946Z"
+    "at": "2026-10-04T13:24:31.562Z"
   }
 }

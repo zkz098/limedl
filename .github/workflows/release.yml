@@ -397,11 +397,16 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   # Desktop (Slint) — Linux: plain binary in a tar.gz.
   #
-  # `x86_64-unknown-linux-gnu`, not musl: the Slint build already links
-  # system libraries (GL/X11/Wayland via the winit backend), so a static musl
-  # build would not buy portability. The trade-off is the usual glibc floor —
-  # the runner is `ubuntu-latest`, so the binary needs glibc >= 2.39
-  # (Ubuntu 24.04+).
+  # `x86_64-unknown-linux-gnu.2.17` (the cargo-zigbuild glibc-version target),
+  # not musl: the Slint build links system libraries (fontconfig is a direct
+  # DT_NEEDED; X11/Wayland/GL are loaded at runtime) and cannot be a static musl
+  # binary — a static binary has no dynamic loader to open the distro's GPU
+  # drivers. glibc-version targeting keeps the dynamic system libraries while
+  # making the linker resolve the binary's *own* libc references against glibc
+  # 2.17, which is Rust's minimum for the gnu target. That lowers the floor from
+  # the runner's glibc (Ubuntu 24.04 = 2.39) to 2.17, so the build runs on
+  # Debian 10 / Ubuntu 18.04 / CentOS 7 and similar. The `check-glibc-floor`
+  # step fails the release if a dependency ever drags the floor back up.
   #
   # No GTK headers at build time and no GTK at runtime: the tray uses
   # tray-icon's `ksni` backend (pure-Rust StatusNotifierItem over D-Bus) and
@@ -446,28 +451,54 @@ jobs:
         with:
           mode: verify
 
-      - name: Build limedl-native
+      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+        with:
+          tool: cargo-zigbuild
+
+      # zig ships in the PyPI `ziglang` wheel. The wheel has no `zig` console
+      # script, so symlink the packaged binary onto PATH for cargo-zigbuild.
+      - name: Install zig
         shell: bash
-        run: cargo build --locked --release -p limedl-native
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user --break-system-packages ziglang
+          ZIG_DIR="$(python3 -c 'import os, ziglang; print(os.path.dirname(ziglang.__file__))')"
+          mkdir -p "$HOME/.local/bin"
+          ln -sf "$ZIG_DIR/zig" "$HOME/.local/bin/zig"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/zig" version
+
+      - name: Build limedl-native (glibc 2.17 floor)
+        shell: bash
+        run: |
+          cargo zigbuild --locked --release \
+            --target x86_64-unknown-linux-gnu.2.17 \
+            -p limedl-native
+
+      - name: Verify the glibc symbol floor
+        shell: bash
+        run: bash scripts/check-glibc-floor.sh --binary target/x86_64-unknown-linux-gnu/release/limedl-native --max 2.17
 
       - name: Package Linux artifacts
         shell: bash
         run: |
+          BINARY=target/x86_64-unknown-linux-gnu/release/limedl-native
+
           bash scripts/package-linux.sh \
             --version "${{ steps.version.outputs.VERSION }}" \
-            --binary target/release/limedl-native \
+            --binary "$BINARY" \
             --out-dir dist \
             --arch x86_64
 
           bash scripts/package-deb.sh \
             --version "${{ steps.version.outputs.VERSION }}" \
-            --binary target/release/limedl-native \
+            --binary "$BINARY" \
             --out-dir dist \
             --arch x86_64
 
           bash scripts/package-appimage.sh \
             --version "${{ steps.version.outputs.VERSION }}" \
-            --binary target/release/limedl-native \
+            --binary "$BINARY" \
             --out-dir dist \
             --arch x86_64
 

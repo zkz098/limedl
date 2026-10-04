@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:e4ea07e606f9191c16ce27f9af20f558cf970ac018538ceb12ce0dc79c97c1d6",
+  "pageVersion": "sha256:c4f03afc4b4038be539694c11ef419637df14a0a2e0f6c8aaf26a2a36cae8c10",
   "claims": [
     {
       "id": "claim_ebf902f2ec634cfda5a0a6f0ae54d147",
@@ -14,11 +14,11 @@
     },
     {
       "id": "claim_fbaa3a45678c4b348988efa336a2a721",
-      "statement": ".cargo/config.toml is the single source of target flags: it sets target-cpu=x86-64-v3 for desktop targets, x86-64-v2 for NAS musl targets, and adds --cfg reqwest_unstable for every target, all of which a new target must carry.",
+      "statement": ".cargo/config.toml is the single source of target flags: target-cpu=x86-64-v3 for desktop targets, x86-64-v2 for NAS musl targets, and --cfg reqwest_unstable for every target; the Linux desktop release reuses the gnu entry via cargo zigbuild --target x86_64-unknown-linux-gnu.2.17, which needs no separate entry.",
       "evidence": [
         {
-          "resource": "repo://.cargo/config.toml#L1-L45",
-          "version": "repo-lines-v1:sha256:547bff2791793fb7ca70071ea5088755a9b8b49746c23d0db0d23d77b2398ca8:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTg0MWEyNzUyMWVhODgyNjVmYzYxZmIyNzE4ZjM4NDVjMjM5YWYzZjY5MWM5OWYxYTZjYjNlZmUzMzFjYmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkOGI4ZGJkY2RlNWZlYmEyNGMxNzNhNDBjOGU2ZGZkYjQ2NTYyNDYwN2MxMDA2NWIxNTU1MDExMjhjMzM1MmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYyNjkwY2M4ZmNjNjYwMGIyNGM3OTQ2Mjg5NGVjMjY1NDdlMDA2MzgwMGE3MmI2ZDk5NjhkMTRiZjc2M2UzYjUifQ"
+          "resource": "repo://.cargo/config.toml#L1-L96",
+          "version": "repo-lines-v1:sha256:f37bc13c05791a063f60cecfa140ccae30bf2702a84683867fab8a8a5e995c40:eyJzZWxlY3RlZExpbmVDb3VudCI6OTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTg0MWEyNzUyMWVhODgyNjVmYzYxZmIyNzE4ZjM4NDVjMjM5YWYzZjY5MWM5OWYxYTZjYjNlZmUzMzFjYmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5NDE2ZTA5Zjc4YmEzMTZjMDMyNTY4MjEzYjg1NWVlNzU2ZTQxNTY1ZDkxOGYwOTUxOWM4MWZkNjIwZjQwNjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
@@ -75,7 +75,7 @@
       "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native; limedl-server) with CARGO_BUILD_WARNINGS=deny, not RUSTFLAGS, so .cargo/config.toml's flags stay authoritative.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L101-L114",
+          "resource": "repo://AGENTS.md#L105-L118",
           "version": "repo-lines-v1:sha256:fe54dc780e70e89b17ccbed15bc279a7d8b9a1900b91da62b308774803ce975a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5YjEyNGMxOThmZWVmNzUxZjNmOTcwNGU1NThhOWI0MDMyOGU2MmU0ODllZWM0NWFmM2IzNjQ0OWRkNTdjNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5MjJjYTRkOTg2ODU3MTFjODY2ZjMyOGFjYWQ1ZTYyYTYyM2IzMjM2MThjOTEyNGUyZTNjMDVhZWQwMWRmNTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg5ZjhjMjI1N2MzOGYwNWYzYjdmZjQ0MGZhNjBiMWE3NmY1NGQ0MTU1MmU4MTBiMjlhYTQyMzgzY2NlMDYzOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMzYzhmZGMwYmIzMzhiZDY3OTRmMWU1YTI2Y2VkNGU2Mjc3YjY5YzYyYWMwNmVhZWQ2MDY2YzA2NTc5ODllYWMifQ"
         }
       ]
@@ -95,7 +95,7 @@
       "statement": "On a Windows host the gate never compiles cfg(not(windows)) code, so non-Windows-only unused imports, Windows-only build.rs dependencies, missing dependency features and missing -dev packages can only be caught by the first tagged release; the project mitigates this by preferring #[cfg] over runtime target checks.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L116-L135",
+          "resource": "repo://AGENTS.md#L120-L139",
           "version": "repo-lines-v1:sha256:bfe2bd0cccc2c1d00dac3f446b5f00cbb488b8bdb8d69d5cadb8d676359f4635:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMTUzYjFlNTAzZDMyMDhlOTc3NGMxZmYzNGRjNDIyYzg1ZjM4MDY5YjFkNTdmYjQ5ZGZmYzg1N2JiMTJjYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExMTdlYjgxOTRhZTAyNWFjYWM5ZWE1YzE1ZDNlNTM1NjU3YjM2ZTAyMDVhMjUwYmJjZDMzMzZmZmY0ZWQ2MzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ5NDgxZjg1MzFkOWUyZTc2OGU3NmFlMmZjYzExZGRjM2UyZjk2OGEwMDU0NTdlODcyMzdlZDgwNzAwY2VkMjUifQ"
         }
       ]
@@ -133,15 +133,15 @@
           "version": "repo-lines-v1:sha256:8fa480337946ae15abd285511de7073b89f7e1493e9af9ab2fef02be97c361ae:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZWVmOTAzMGQwYzcwMjkwMTBjNDYzNTY4OWY1ODMyOGQxMDllNmE4NWVkMWE5MjQ1YjIwZjM5NTViN2RiMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5ZWNlZGMxOGVjYWYxZGFmOWU3YmVmYjlmZDc5ZTJjM2NmMTU1OTllNTNlNzljZGJkOTAxZWU2ZTJjOTc5ZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5YTBjOGM1NTM1MTczOGM0Y2FjMTdiMTIzMzVkY2NjMWVkY2YzZDJkNjBlYWJlMGExMDljMTA0NDA1Y2Q2YTkifQ"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L517-L592",
+          "resource": "repo://.github/workflows/release.yml#L548-L623",
           "version": "repo-lines-v1:sha256:b44891a0413c5efb3881b0fcea5984026a7bb9777e90df2c620c231899059712:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMDc4NDhhNDM2NjY1NmIyYmE2MTk3YmUwMmI5MjA4MTQ1NDZmOWQ5YWQwYjUzMzllNGMyNmEyYzk0NjUxMTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNGE2ZTUyMTE5NWZiMzYxM2I0NDFlZGU1OTE4OGY4YTU2MjI3NmI3MzBjNDU4NTc4OGQ5NjM3YWZjNDc0ODMifQ"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L608-L693",
+          "resource": "repo://.github/workflows/release.yml#L639-L724",
           "version": "repo-lines-v1:sha256:950e77a405bc00709580e25bf807eae694b595144efa2300b5e99daf62921e78:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmOGNiODk0Yzc3YzQyNWZjY2Q1OGVhZjJlZGY1MjcwZmFiMjljOGQ5NmFkZjExNmEwNTIyN2I0ZWUxMGM3OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNzAzNzQ5NGU0ZTdmMTM4Mzg1OGYzYzgwOTc5ZTg3OWVlMjBjZWJhYmQ0OGNmYjJhY2UwNGU0MmFiNTdhZTQifQ"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L703-L840",
+          "resource": "repo://.github/workflows/release.yml#L734-L871",
           "version": "repo-lines-v1:sha256:9690c3e2a0f7dd13c62b9597dc013742a3fcfa571ed3799ee72ca87786c16dc4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTM4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI2NDdjYjZjOTRkOTZlMzY4OGRjNWI5MTM0OTAwNTIwNDhhMTdiNmJkYjE1YzExMjdiMjc5OTA4YjY5MzdhYzA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI5MmQ2MWVkMDc4NzM0ZTMzNmRiMmFlOWIyMmE2OGYzZjk2ZTRlMTE0NzAxN2JkMWQ2ZTc4OTQwMDk2MGM3NzkwIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJkYzBmYmZhM2NlNDk3YjY2ZmQzMDYyZjg3M2NmZjk1YzQwOTI2NjNjN2VhMzI3OGYxYWQ2MTYwNTUyZmU1NzY0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
         },
         {
@@ -165,7 +165,7 @@
       "statement": "Lockfile changes after cargo update/add/remove must be committed, and irontide is pinned exactly to =1.7.0 because the BT backend depends on a wide engine API and upstream's git repository was removed, making crates.io the only source of truth.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L136-L143",
+          "resource": "repo://AGENTS.md#L140-L147",
           "version": "repo-lines-v1:sha256:859c481a159eaa7d362fd4cfad8c752a6977f2baa88167530e2af59af7e7aa80:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTNjYzRhNzEwYmYzMWEyN2Q3MTk2MDRmYTdkYTEyZWJhNGY5MTY4ZTZjYzRkOWY4NmQ4YjJjOTE5NTYzYzRjZCJ9"
         },
         {
@@ -213,7 +213,7 @@
       "statement": "The build-server release job cross-compiles limedl-server for x86_64 and aarch64 musl with cargo zigbuild, bundles the systemd unit and env example into the tarballs, and uploads plain release assets that are not signed and not part of the update manifest.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L517-L592",
+          "resource": "repo://.github/workflows/release.yml#L548-L623",
           "version": "repo-lines-v1:sha256:b44891a0413c5efb3881b0fcea5984026a7bb9777e90df2c620c231899059712:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMDc4NDhhNDM2NjY1NmIyYmE2MTk3YmUwMmI5MjA4MTQ1NDZmOWQ5YWQwYjUzMzllNGMyNmEyYzk0NjUxMTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNGE2ZTUyMTE5NWZiMzYxM2I0NDFlZGU1OTE4OGY4YTU2MjI3NmI3MzBjNDU4NTc4OGQ5NjM3YWZjNDc0ODMifQ"
         }
       ]
@@ -223,14 +223,34 @@
       "statement": "The server-image job assembles the prebuilt static musl binaries into a thin Alpine image, pushes per-architecture images, and merges them into a multi-arch ghcr.io/zkz098/limedl-server manifest, skipping the latest tag for a prerelease.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L608-L693",
+          "resource": "repo://.github/workflows/release.yml#L639-L724",
           "version": "repo-lines-v1:sha256:950e77a405bc00709580e25bf807eae694b595144efa2300b5e99daf62921e78:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmOGNiODk0Yzc3YzQyNWZjY2Q1OGVhZjJlZGY1MjcwZmFiMjljOGQ5NmFkZjExNmEwNTIyN2I0ZWUxMGM3OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNzAzNzQ5NGU0ZTdmMTM4Mzg1OGYzYzgwOTc5ZTg3OWVlMjBjZWJhYmQ0OGNmYjJhY2UwNGU0MmFiNTdhZTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6dcb0b07ce004119a5f0a83264c73979",
+      "statement": "The build-native-linux release leg builds with cargo zigbuild --target x86_64-unknown-linux-gnu.2.17 and then runs scripts/check-glibc-floor.sh with --max 2.17.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L471-L480",
+          "version": "repo-lines-v1:sha256:d8e0bd537c9160b393e73ac517bb2fc22ecd23477dc92a07bbd442029aed935c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc2MjdiNTc0MjIxMmMzOTA3ZDQ4MTUxNTQzNWU2YzA5MzNjN2E1ZDdkMWViMzUxYjA0ZWYxZmY4NGEzMWE4ZTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0YzZkN2NmZDEzN2EwYTUwOWE3NTA5ZjY1MjkwYWZkN2ZmYzQzMzYxYWIzMGYyYWM4MzE5YTA3MmQxNDVkNjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUyZjA5NzIyZmQwODVhYTNkNjZhMTI3YWQ4Mjc2MjUzNGI3NjNiYmIyZTRlZTJjZDg0MjgyMTIxMDUyNjkyZDMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU3MWM3NTRhN2ZlNGFhNzY4MTQ3YTI3NmJjNGQ4MmJhN2E0ZmRmZWU5ZDc1NTg3YTBmZGE4NjIwMzZkOWI2NmIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5729abb4c6ad47878b541ea08d2366d4",
+      "statement": "check-glibc-floor.sh reads the ELF's GLIBC_* dynamic symbol versions with objdump and exits non-zero when the newest required version exceeds the requested floor, printing the symbol-version grep that locates the offender.",
+      "evidence": [
+        {
+          "resource": "repo://scripts/check-glibc-floor.sh#L1-L60",
+          "version": "repo-lines-v1:sha256:c1c833bed7ec3e09039a1464f34242888fa483ebcfefb6e1bb563cf6fe3a6948:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFkOTVmYzA0YTgwYzk1MmY0OWNlNDE4ODYyN2M1M2IwZmJlOGM0NDA0MWI5NTJkNTkyYWNkMWRlOTk4NjE0NjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI4NGVlZjYyYmQ2YWM5YTY3Y2I3ZTMxNzRlYjI3NzEwNTc0NmE0NTFhOTRlMjc3YWUzNDhlZDA5N2NmZWVlN2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T12:58:25.182Z"
+    "at": "2026-10-04T13:24:31.562Z"
   }
 }

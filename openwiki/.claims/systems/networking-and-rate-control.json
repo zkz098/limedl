@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:e18c3963257f8ff035ad26cb726b9e9128426aab9b1994ce561ae9b8623eb716",
+  "pageVersion": "sha256:c83d4cb7aab684dd32983a9c5b16bf708afd6951a62be6187be8e080acbf3b5b",
   "claims": [
     {
       "id": "claim_85e73356ae5d402eac4df4fc97598b30",
@@ -47,8 +47,8 @@
       "statement": "reqwest's http3 feature is enabled and every target carries --cfg reqwest_unstable, but no call site sets Version::HTTP_3, so h3 is per-request opt-in and currently unused by the client factory.",
       "evidence": [
         {
-          "resource": "repo://.cargo/config.toml#L1-L45",
-          "version": "repo-lines-v1:sha256:547bff2791793fb7ca70071ea5088755a9b8b49746c23d0db0d23d77b2398ca8:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTg0MWEyNzUyMWVhODgyNjVmYzYxZmIyNzE4ZjM4NDVjMjM5YWYzZjY5MWM5OWYxYTZjYjNlZmUzMzFjYmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkOGI4ZGJkY2RlNWZlYmEyNGMxNzNhNDBjOGU2ZGZkYjQ2NTYyNDYwN2MxMDA2NWIxNTU1MDExMjhjMzM1MmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYyNjkwY2M4ZmNjNjYwMGIyNGM3OTQ2Mjg5NGVjMjY1NDdlMDA2MzgwMGE3MmI2ZDk5NjhkMTRiZjc2M2UzYjUifQ"
+          "resource": "repo://.cargo/config.toml#L1-L96",
+          "version": "repo-lines-v1:sha256:f37bc13c05791a063f60cecfa140ccae30bf2702a84683867fab8a8a5e995c40:eyJzZWxlY3RlZExpbmVDb3VudCI6OTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTg0MWEyNzUyMWVhODgyNjVmYzYxZmIyNzE4ZjM4NDVjMjM5YWYzZjY5MWM5OWYxYTZjYjNlZmUzMzFjYmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5NDE2ZTA5Zjc4YmEzMTZjMDMyNTY4MjEzYjg1NWVlNzU2ZTQxNTY1ZDkxOGYwOTUxOWM4MWZkNjIwZjQwNjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         },
         {
           "resource": "repo://Cargo.toml#L18-L34",
@@ -175,6 +175,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T11:10:17.271Z"
+    "at": "2026-10-04T13:24:31.562Z"
   }
 }

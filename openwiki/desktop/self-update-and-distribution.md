@@ -3,9 +3,6 @@ type: desktop
 title: Self-Update and Distribution Channels
 description: How the limedl desktop client detects its install channel, verifies and installs signed updates across portable/NSIS/MSIX/macOS/Linux channels, and how the release pipeline signs artifacts and builds the single latest-native.json manifest.
 tags: [self-update, release, minisign, distribution, packaging]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T12:58:25.182Z
 sources:
   - id: openwiki-source-4d1d392666be6dfdd7a91a2e
     resource: repo://.github/workflows/release.yml
@@ -15,13 +12,20 @@ sources:
     resource: repo://crates/limedl-native/src/handlers/updater.rs
   - id: openwiki-source-531d47474acaff10ab445eeb
     resource: repo://crates/limedl-native/src/update/mod.rs
+  - id: openwiki-source-46a21b26289c6917924c2c22
+    resource: repo://docs/desktop-build-and-packaging.md
   - id: openwiki-source-f3f2dba31f6d00a54b1bb695
     resource: repo://packaging/msix/AppxManifest.xml
+  - id: openwiki-source-6824d268ea5edfcd81cb1a8b
+    resource: repo://scripts/check-glibc-floor.sh
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
   - id: openwiki-source-c74f60d1c3f2961e83a2a521
     resource: repo://xtask/src/manifest.rs
-generated: { by: "pi", at: "2026-10-04T12:58:25.182Z" }
+generated: { by: "pi", at: "2026-10-04T13:24:31.562Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T13:24:31.562Z
 ---
 
 # Self-Update and Distribution Channels
@@ -177,7 +181,10 @@ Evidence: `repo://xtask/src/main.rs#L1-L22`,
   Commits between the previous tag and the released tag.
 - `build-native` (Windows) produces the portable zip, NSIS setup exe and MSIX.
 - `build-native-macos` produces the ad-hoc-signed `.app` tar.gz.
-- `build-native-linux` produces the portable tar.gz, `.deb` and AppImage.
+- `build-native-linux` builds with `cargo zigbuild --target
+  x86_64-unknown-linux-gnu.2.17` and produces the portable tar.gz, `.deb` and
+  AppImage; a `check-glibc-floor.sh` step fails the leg if the binary's glibc
+  symbol floor rises above 2.17.
 - `build-server` cross-compiles the headless `limedl-server` for
   `x86_64-unknown-linux-musl` and `aarch64-unknown-linux-musl` with
   `cargo zigbuild` (zig supplies the musl C toolchain `aws-lc-sys` needs) and
@@ -225,8 +232,11 @@ Evidence: `repo://xtask/src/manifest.rs#L132-L175`.
   carries `com.apple.quarantine` and needs right-click → Open once. Adding a
   Developer ID later means setting `SIGN_IDENTITY` in `scripts/package-macos.sh`
   plus a notarytool step; no client change is needed.
-- **Linux** targets `x86_64-unknown-linux-gnu` with `target-cpu=x86-64-v3`, so it
-  needs glibc ≥ 2.39 (Ubuntu 24.04+) and a 2013+ CPU.
+- **Linux** targets `x86_64-unknown-linux-gnu.2.17` with `target-cpu=x86-64-v3`,
+  so it needs glibc ≥ 2.17 (Debian 10 / Ubuntu 18.04 / CentOS 7) and a 2013+ CPU.
+  The `.2.17` suffix is cargo-zigbuild's glibc-version target: the binary still
+  links the distro's fontconfig and `dlopen`s X11/Wayland/GL, but its own libc
+  references resolve against 2.17 instead of the runner's 2.39.
 - **MSIX autostart** cannot carry `--hidden` (the manifest's `startupTask` takes no
   arguments), so the client infers a login launch by comparing process creation
   time against the shell's within a 150 s window when package identity is present

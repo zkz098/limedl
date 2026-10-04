@@ -22,6 +22,8 @@ sources:
     resource: repo://Cargo.toml
   - id: openwiki-source-cb3b278da9fc4917fdb881e9
     resource: repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs
+  - id: openwiki-source-6824d268ea5edfcd81cb1a8b
+    resource: repo://scripts/check-glibc-floor.sh
   - id: openwiki-source-feafbe9db788653e845840b8
     resource: repo://sonar-project.properties
   - id: openwiki-source-44d192e16032f18d847f0ff6
@@ -30,10 +32,10 @@ sources:
     resource: repo://xtask/src/fetch_font.rs
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
-generated: { by: "pi", at: "2026-10-04T12:58:25.182Z" }
+generated: { by: "pi", at: "2026-10-04T13:24:31.562Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T12:58:25.182Z
+    at: 2026-10-04T13:24:31.562Z
 ---
 
 # Build, Tooling, CI and Release Operations
@@ -50,9 +52,12 @@ verified:
 `.cargo/config.toml` is the single source of truth for target flags: every
 `[target.*]` sets `target-cpu=x86-64-v3` for desktop targets (x86-64-v2 for the
 NAS musl targets) and adds `--cfg reqwest_unstable`, which reqwest's HTTP/3
-feature requires at compile time. Add both when introducing a new target.
+feature requires at compile time. Add both when introducing a new target. The
+Linux desktop release reuses `[target.x86_64-unknown-linux-gnu]` through
+`cargo zigbuild --target x86_64-unknown-linux-gnu.2.17`, so the suffixed
+cargo-zigbuild target needs no separate entry.
 
-Evidence: `repo://AGENTS.md#L3-L21`, `repo://.cargo/config.toml#L1-L45`.
+Evidence: `repo://AGENTS.md#L3-L21`, `repo://.cargo/config.toml#L1-L96`.
 
 ## xtask tooling
 
@@ -231,8 +236,12 @@ Pushing a `v*` tag triggers `.github/workflows/release.yml`:
    `chore:`, `build:` and `style:` are omitted from the notes;
    `feat:`/`fix:`/`perf:`/`refactor:`/`docs:` are grouped. Keep commit subjects
    Conventional so notes stay readable.
-3. `build-native` (Windows), `build-native-macos` and `build-native-linux` each
-   build and package their artifacts and upload them to the release.
+3. `build-native` (Windows) and `build-native-macos` build and package their
+   artifacts. `build-native-linux` builds with
+   `cargo zigbuild --target x86_64-unknown-linux-gnu.2.17` and runs
+   `scripts/check-glibc-floor.sh`, so the portable/deb/AppImage keep a glibc 2.17
+   floor instead of the runner's 2.39 while still linking the distro's dynamic
+   system libraries. All three legs upload to the release.
 4. `build-server` cross-compiles the headless `limedl-server` for
    `x86_64-unknown-linux-musl` and `aarch64-unknown-linux-musl` with
    `cargo zigbuild` (zig bundles the musl C toolchain `aws-lc-sys` needs, so no
@@ -264,6 +273,20 @@ The `Signing check` workflow is the manual counterpart: it signs a throwaway fil
 and runs `guard` without publishing, so a key rotation can be validated on demand.
 
 Evidence: `repo://.github/workflows/sign-check.yml#L1-L47`.
+
+### The Linux glibc floor
+
+Lowering the desktop Linux floor is a release concern of its own, because the
+Slint build cannot be static (it links `libfontconfig.so.1` and `dlopen`s
+X11/Wayland/GL), so musl is not an option. `cargo zigbuild --target
+x86_64-unknown-linux-gnu.2.17` keeps the binary dynamically linked but makes the
+linker resolve its *own* libc references against glibc 2.17 — Rust's minimum for
+the gnu target. `scripts/check-glibc-floor.sh` reads the ELF's `GLIBC_*` symbol
+versions with `objdump` and fails the release if any exceeds 2.17, so a future
+dependency cannot silently raise the floor again.
+
+Evidence: `repo://.github/workflows/release.yml#L471-L480`,
+`repo://scripts/check-glibc-floor.sh#L1-L60`,
 
 ## Dependency discipline
 

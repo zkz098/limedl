@@ -46,7 +46,11 @@ with a meaningful `scope:`. `native-manifest` is the sole writer of
 ships static musl binaries of `limedl-server` for `x86_64` and `aarch64` only, built
 with `cargo zigbuild`; they are plain release assets and are not part of the update
 manifest. `server-image` assembles those binaries into a multi-arch
-`ghcr.io/zkz098/limedl-server` container image.
+`ghcr.io/zkz098/limedl-server` container image. The Linux desktop leg uses the same
+`cargo zigbuild` with `--target x86_64-unknown-linux-gnu.2.17`, which keeps the
+binary dynamically linked to the system libraries but lowers its glibc floor from
+the `ubuntu-latest` host's 2.39 to 2.17; `scripts/check-glibc-floor.sh` fails the
+release if a dependency raises it again.
 
 ## Conventions
 

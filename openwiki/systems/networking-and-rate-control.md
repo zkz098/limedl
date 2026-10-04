@@ -32,10 +32,10 @@ sources:
     resource: repo://crates/limedl-core/src/types/settings.rs
   - id: openwiki-source-191c52d830a19ec45ce7e929
     resource: repo://crates/limedl-core/src/url_rewrite/mod.rs
-generated: { by: "pi", at: "2026-10-04T11:10:17.271Z" }
+generated: { by: "pi", at: "2026-10-04T13:24:31.562Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T11:10:17.271Z
+    at: 2026-10-04T13:24:31.562Z
 ---
 
 # Networking, HTTP Clients and Rate Control
@@ -112,7 +112,7 @@ no Alt-Svc auto-upgrade and no h3→h1/h2 fallback, and the h3 connector does no
 pass through the proxy connector — so enabling it in production requires handling
 the "configured proxy must not leak over h3" case first.
 
-Evidence: `repo://Cargo.toml#L18-L34`, `repo://.cargo/config.toml#L1-L45`.
+Evidence: `repo://Cargo.toml#L18-L34`, `repo://.cargo/config.toml#L1-L96`.
 
 ### Response compression (gzip / brotli / zstd)
 

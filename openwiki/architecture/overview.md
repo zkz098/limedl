@@ -5,10 +5,12 @@ description: Repository layout and runtime topology of limedl — the core engin
 tags: [architecture, workspace, crates, routing, event-bus, conventions]
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T12:36:56.946Z
+    at: 2026-10-04T13:24:31.562Z
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
     resource: repo://.cargo/config.toml
+  - id: openwiki-source-4d1d392666be6dfdd7a91a2e
+    resource: repo://.github/workflows/release.yml
   - id: openwiki-source-651d1fb6c9e49916a916ab51
     resource: repo://Cargo.toml
   - id: openwiki-source-e13f09c0428e593de7772c03
@@ -41,7 +43,7 @@ sources:
     resource: repo://crates/limedl-server/Cargo.toml
   - id: openwiki-source-2d1753b77bfe7d551752205e
     resource: repo://crates/limedl-server/src/lib.rs
-generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
+generated: { by: "pi", at: "2026-10-04T13:24:31.562Z" }
 ---
 
 # Workspace and System Architecture
@@ -180,8 +182,10 @@ Evidence: `repo://crates/limedl-native/src/main.rs#L176-L179`,
   and `--cfg reqwest_unstable` for every target; the HTTP/3 feature in reqwest
   hard-fails to compile without that cfg. New targets must carry both. The two
   musl entries (`x86_64`, `aarch64`) are the headless server's, with the x86_64
-  one lowered to `x86-64-v2` for older NAS CPUs.
-  Evidence: `repo://.cargo/config.toml#L1-L40`.
+  one lowered to `x86-64-v2` for older NAS CPUs. The desktop Linux release reuses
+  the `x86_64-unknown-linux-gnu` entry through `cargo zigbuild --target
+  x86_64-unknown-linux-gnu.2.17`, which needs no separate `[target.*]` entry.
+  Evidence: `repo://.cargo/config.toml#L1-L96`.
 - **Release profile**: the workspace release profile optimizes for size, but
   `limedl-native` is overridden to `opt-level = 3` because rendering is CPU/GPU
   heavy rather than I/O bound.

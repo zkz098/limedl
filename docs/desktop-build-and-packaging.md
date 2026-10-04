@@ -58,11 +58,18 @@ depends on `glib ^0.18`).
 
 ## Linux desktop release
 
-- Target: `x86_64-unknown-linux-gnu` (`.cargo/config.toml` sets `x86-64-v3`,
-  matching the Windows desktop, so a 2013+ CPU is required). gnu rather than musl
-  because Slint already links system libraries (GL/X11/Wayland) and static musl
-  buys no portability; the cost is a glibc floor — the build host is
-  `ubuntu-latest`, so the binary needs glibc >= 2.39 (Ubuntu 24.04+).
+- Target: `x86_64-unknown-linux-gnu.2.17` via `cargo zigbuild`
+  (`.cargo/config.toml` sets `x86-64-v3`, matching the Windows desktop, so a
+  2013+ CPU is required). gnu rather than musl because Slint links system
+  libraries — `libfontconfig.so.1` is a direct `DT_NEEDED`, and X11/Wayland/GL are
+  `dlopen`ed at runtime — and a static musl binary has no dynamic loader to open
+  the distro's GPU drivers (a musl build also fails earlier, in
+  `yeslogic-fontconfig-sys`, for lack of a musl sysroot). glibc-version targeting
+  keeps those dynamic dependencies while making the linker resolve the binary's
+  *own* libc references against glibc 2.17 (Rust's minimum for the gnu target),
+  so the floor drops from the `ubuntu-latest` host's 2.39 to 2.17 — Debian 10 /
+  Ubuntu 18.04 / CentOS 7 and newer. `scripts/check-glibc-floor.sh` asserts the
+  bound in the release job and fails if a dependency raises it.
 - Artifacts:
   - `limedl-native-v{V}-linux-x86_64-portable.tar.gz` — `scripts/package-linux.sh`,
     one top-level `limedl-native/` directory (binary + README), unpack and run.
