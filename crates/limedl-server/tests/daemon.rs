@@ -22,19 +22,29 @@ async fn free_port() -> u16 {
     port
 }
 
-async fn rpc(client: &reqwest::Client, url: &str, method: &str, params: Value) -> Value {
+/// Send one JSON-RPC request, tolerating the connection-refused state that is
+/// expected until the daemon's engine has bootstrapped and bound its port.
+/// `None` means "not ready yet", not "failed".
+async fn rpc_try(client: &reqwest::Client, url: &str, method: &str, params: Value) -> Option<Value> {
     let body = json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params});
-    client
+    let text = client
         .post(url)
         .header("Content-Type", "application/json")
-        .body(serde_json::to_string(&body).expect("serialize request"))
+        .body(serde_json::to_string(&body).ok()?)
         .send()
         .await
-        .expect("send RPC request")
+        .ok()?
         .text()
         .await
-        .map(|text| serde_json::from_str(&text).expect("decode RPC response"))
-        .expect("read RPC response body")
+        .ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+/// Send one JSON-RPC request once the daemon is known to be up.
+async fn rpc(client: &reqwest::Client, url: &str, method: &str, params: Value) -> Value {
+    rpc_try(client, url, method, params)
+        .await
+        .expect("RPC request must succeed once the daemon is ready")
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -67,18 +77,22 @@ async fn daemon_serves_rpc_and_stops_on_aria2_shutdown() {
     let mut ready = false;
     let mut last = String::new();
     for _ in 0..200 {
-        let response = rpc(
+        // A refused connection just means the engine is still bootstrapping;
+        // poll until it answers instead of failing on the first attempt.
+        if let Some(response) = rpc_try(
             &client,
             &url,
             "aria2.getVersion",
             json!([format!("token:{SECRET}")]),
         )
-        .await;
-        if response["result"]["version"].is_string() {
-            ready = true;
-            break;
+        .await
+        {
+            if response["result"]["version"].is_string() {
+                ready = true;
+                break;
+            }
+            last = response.to_string();
         }
-        last = response.to_string();
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     assert!(ready, "the daemon never answered getVersion: {last}");
