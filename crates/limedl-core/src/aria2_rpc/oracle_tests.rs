@@ -76,7 +76,7 @@ impl Aria2Oracle {
             .spawn()
             .unwrap_or_else(|error| panic!("failed to spawn ARIA2_ORACLE_BIN={bin}: {error}"));
 
-        let oracle = Self {
+        let mut oracle = Self {
             child,
             url: format!("http://127.0.0.1:{port}/jsonrpc"),
             _dir: dir,
@@ -86,23 +86,33 @@ impl Aria2Oracle {
     }
 
     /// Poll `aria2.getVersion` until the RPC endpoint answers.
-    async fn wait_ready(&self) {
+    ///
+    /// Uses [`rpc_try`], not `rpc_call`: a connection-refused error is the
+    /// *expected* state until `aria2c` binds its port, and `rpc_call` unwraps
+    /// transport errors. The child is also checked so an immediate exit (bad
+    /// arguments, port stolen) fails with the real reason instead of a timeout.
+    async fn wait_ready(&mut self) {
         let client = oracle_client();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
         loop {
-            let resp = rpc_call(
+            if let Ok(Some(status)) = self.child.try_wait() {
+                panic!("aria2c exited before becoming ready: {status}");
+            }
+            if let Some(resp) = rpc_try(
                 &client,
                 &self.url,
                 "aria2.getVersion",
                 json!([format!("token:{SECRET}")]),
             )
-            .await;
-            if resp["result"]["version"].is_string() {
+            .await
+                && resp["result"]["version"].is_string()
+            {
                 return;
             }
             assert!(
                 std::time::Instant::now() < deadline,
-                "aria2c oracle never became ready: {resp}"
+                "aria2c oracle never became ready on {}",
+                self.url
             );
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
@@ -127,6 +137,34 @@ fn oracle_client() -> reqwest::Client {
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .expect("oracle http client")
+}
+
+/// Like `rpc_call`, but returns `None` on a transport or parse error instead of
+/// panicking. The readiness poll needs this: connection-refused is expected
+/// until `aria2c` binds its port.
+async fn rpc_try(
+    client: &reqwest::Client,
+    url: &str,
+    method: &str,
+    params: Value,
+) -> Option<Value> {
+    let body = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": method,
+        "params": params,
+    });
+    let text = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .body(body.to_string())
+        .send()
+        .await
+        .ok()?
+        .text()
+        .await
+        .ok()?;
+    serde_json::from_str(&text).ok()
 }
 
 /// A request to limedl's server, with the shared token prepended.
