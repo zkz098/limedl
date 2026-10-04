@@ -4,7 +4,7 @@ okf_version: "0.2"
 
 # Files
 
-- [limedl Wiki Quickstart](quickstart.md) - Entry point and task-routing map for the limedl wiki — where to start for building, understanding the engine, adding a backend, debugging downloads, testing and shipping a release, plus the repository's load-bearing invariants.
+- [limedl Wiki Quickstart](quickstart.md) - Entry point and task-routing map for the limedl wiki — where to start for building, understanding the engine, adding a backend, debugging downloads, running the headless daemon, testing and shipping a release, plus the repository's load-bearing invariants.
 
 # Directories
 

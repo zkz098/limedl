@@ -72,6 +72,9 @@ fn test_aria2_auth_mode_backward_compat_and_round_trip() {
                 created_at_ms: 42,
             }],
             cors_allowed_origins: vec!["http://localhost".into()],
+            listen_address: "127.0.0.1".into(),
+            allow_any_origin: false,
+            exit_on_shutdown: false,
         },
         ..AppSettings::default()
     };

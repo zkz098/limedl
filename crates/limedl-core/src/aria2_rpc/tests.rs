@@ -815,6 +815,8 @@ fn make_ctx_with(registry: Arc<BackendRegistry>, event_bus: Arc<EventBus>) -> Rp
         event_bus,
         gid_cache: Mutex::new(HashMap::default()),
         session_id: "test-session".to_string(),
+        exit_on_shutdown: false,
+        shutdown_notify: Arc::new(Notify::new()),
     }
 }
 
@@ -822,6 +824,29 @@ fn make_ctx_with(registry: Arc<BackendRegistry>, event_bus: Arc<EventBus>) -> Rp
 /// transport and for cache-hit GID resolution.
 fn make_ctx() -> RpcContext {
     make_ctx_with(Arc::new(BackendRegistry::new()), Arc::new(EventBus::new(64)))
+}
+
+/// `aria2.shutdown` is a no-op handshake for the desktop (a managed subsystem)
+/// but must wake the headless daemon when `exit_on_shutdown` is set.
+#[tokio::test]
+#[timeout(10_000)]
+async fn shutdown_notifies_only_when_exit_on_shutdown_is_set() {
+    let mut ctx = make_ctx();
+    let notify = ctx.shutdown_notify.clone();
+
+    handle_shutdown(&ctx).await.expect("the handshake must answer");
+    assert!(
+        tokio::time::timeout(Duration::from_millis(50), notify.notified())
+            .await
+            .is_err(),
+        "the desktop path must not request an exit"
+    );
+
+    ctx.exit_on_shutdown = true;
+    handle_shutdown(&ctx).await.expect("the handshake must still answer");
+    tokio::time::timeout(Duration::from_millis(50), notify.notified())
+        .await
+        .expect("exit_on_shutdown must wake the waiter");
 }
 
 /// `process_jsonrpc_message` is the WebSocket transport path: parse errors,
@@ -877,6 +902,8 @@ async fn resolve_gid_scans_backends_and_remove_clears_the_cache() {
         event_bus,
         gid_cache: Mutex::new(HashMap::default()),
         session_id: "test-session".to_string(),
+        exit_on_shutdown: false,
+        shutdown_notify: Arc::new(Notify::new()),
     };
 
     let gid = internal_id_to_gid(&id);

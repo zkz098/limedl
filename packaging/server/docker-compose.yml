@@ -1,0 +1,26 @@
+# Example deployment for the headless daemon.
+#
+# The daemon refuses to start on a non-loopback bind without authentication, so
+# LIMEDL_RPC_SECRET is required. Generate one with:
+#   head -c 32 /dev/urandom | base64
+#
+#   docker compose -f packaging/server/docker-compose.yml up -d
+services:
+  limedl-server:
+    image: ghcr.io/zkz098/limedl-server:latest
+    # Build from source instead of pulling the published image:
+    # build:
+    #   context: ../..
+    #   dockerfile: packaging/server/Dockerfile
+    container_name: limedl-server
+    restart: unless-stopped
+    environment:
+      LIMEDL_RPC_SECRET: "change-me"
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "UTC"
+    ports:
+      - "6800:6800"
+    volumes:
+      - ./data:/var/lib/limedl
+      - ./downloads:/downloads

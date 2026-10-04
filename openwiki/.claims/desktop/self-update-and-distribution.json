@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:d13d924b438824c45f80afa0e1080e4b35dba50fb65478ddab17191d3e3dada5",
+  "pageVersion": "sha256:91065bfbb4159bf6216728e5883a132699fbafbcab86f61bb313d93193e092d0",
   "claims": [
     {
       "id": "claim_b8bf90043cdf4155b5827e79a2b03cd5",
@@ -125,7 +125,7 @@
           "version": "repo-lines-v1:sha256:2b07135c9a2c63a35af26be2d6974d42810371a47c2d1404712831ceb048e0f9:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZmZDkyZmM3OTllN2ZmMzhiYzMzYWZlZDk2MGQxODZkYjllMDJlZjg1MDQ3NGYyM2NiZGE5YTY4ZjEwNDZmNzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjNTUxZTljMzBmMjgwYTk0MDNjYjlkZmRjOTlhNTViMzIwNjQ0ODhiODQxYjc2MzZkYTg0YjY4MTU2YzIxYzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFiNGQ0NGIzYjE4ZGRmYTBmZDYxOTYzNDU2YjhhMTIxOTc4Zjc1YzBjMWIwYmM1ZjRkY2E5ZTA1NjQ3ZjdkZTAifQ"
         },
         {
-          "resource": "repo://xtask/src/main.rs#L401-L441",
+          "resource": "repo://xtask/src/main.rs#L411-L451",
           "version": "repo-lines-v1:sha256:ab486dd5045edc8ba74ba299ee90faeb160752c5be1e0a187681970aa05edc49:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4Mjc4ZjBmMzU1ZWM1MjE5MWQ2MGVmMDM3NDZhOWU5OTE1ZDAxMjA5MjY2MDIzMTc1MmI0YzVhMDliNDk4MGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgyZjYxMjI2MWQ4NjY0ZjY4NDE0ZjBiZDZiODZhZWQzNWRkZGMxNmMxZmM3ZGQ2MjNlOWUzMmQwYjVmNDRlZTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBjOWM4MDQ0MDM3OTE0NjFkZThmOTkyMTBmNzZkMDhhYmY1ZjRhYWEyNjNiNzEwMTk0M2EzNDU4MjdjZWRlZTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBiMTIyZGY3ZWE3OGIwNGJhMzFmNWVkYjNjNWUwNjkwMTdlMDI2YTQ0MjI5MTc2MmI4MDYyZDVmMTFhMTU0YzQifQ"
         }
       ]
@@ -135,8 +135,8 @@
       "statement": "The native-manifest job is the sole writer of latest-native.json, runs with if: always(), builds the asset map only from successfully built platform legs, signs artifacts and the manifest, and then runs cargo xtask guard.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L502-L620",
-          "version": "repo-lines-v1:sha256:31a271efe22889fb2efcc49c36182fc00a8151242bb58bf5fed55b8e69d25b14:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE5LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmZjhjYjg5NGM3N2M0MjVmY2NkNThlYWYyZWRmNTI3MGZhYjI5YzhkOTZhZGYxMTZhMDUyMjdiNGVlMTBjNzk5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJjZTYyZjAyOWQwYjUyY2JlNTYzZTBlMTM3OTg4OWQ3MTI3YzBkNGI5N2NjYzgzMThjMGRkZTMzMTQ5ODZhNjhhIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI0ZGYzYjI1OTI3OGEzMTZiYjFkN2YzMDk1NDY3N2Y0MmRiYmFiMWU2MDZiZmFjYWY5NGRlMWE1MThmNmI1MDhhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlYjdkNjZiNTdmN2E0NTkxZWM0MGIzNmMyODNlMzU3NmMwOTgwMzZiMGUzOTkwNTFhNzQ5OGQ2ZDA3NjYzZTYzIn0"
+          "resource": "repo://.github/workflows/release.yml#L703-L840",
+          "version": "repo-lines-v1:sha256:9690c3e2a0f7dd13c62b9597dc013742a3fcfa571ed3799ee72ca87786c16dc4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTM4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI2NDdjYjZjOTRkOTZlMzY4OGRjNWI5MTM0OTAwNTIwNDhhMTdiNmJkYjE1YzExMjdiMjc5OTA4YjY5MzdhYzA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI5MmQ2MWVkMDc4NzM0ZTMzNmRiMmFlOWIyMmE2OGYzZjk2ZTRlMTE0NzAxN2JkMWQ2ZTc4OTQwMDk2MGM3NzkwIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJkYzBmYmZhM2NlNDk3YjY2ZmQzMDYyZjg3M2NmZjk1YzQwOTI2NjNjN2VhMzI3OGYxYWQ2MTYwNTUyZmU1NzY0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
         }
       ]
     },
@@ -173,10 +173,40 @@
           "version": "repo-lines-v1:sha256:781b1a5ae7334e8301bfa50e472392283fbecd35df58e4a8c69603a2ee4ac26a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxNTk5NzlkNDQwYjYzZGU4YTk0MWVmMjY0MzJmZGRhNzU2YTYxZDg3MjFkZGUwNTQzZDJiYjQ3ZWFjYmQyOGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ3YmRmNTg0NDFkMTU5ODBhOGM3YjNiOTYzMmFkM2VjMjNhZmY4MjRhNWMxNTMzMmE5NjU4M2YyNWYxN2Y1MDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIyMzU5MTUwZDQyNGIyNDRlZTczODJjZjViZWI0NWRmOWQxNjcyYmMwNGEwYzExMTNhYzM4YmVmMzY4YmIyNDUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdlYjUxNWQ0MzQ1ZGY0ZTg1Nzk3NjA4NTRkMzk1MTZhMDUzYmJiYmZlYjQ4N2Q0YzkwMDU4YjIzYTg0MzMwMmUifQ"
         }
       ]
+    },
+    {
+      "id": "claim_787f00a3df9e42f0beec3a972249edf9",
+      "statement": "The build-server release job cross-compiles limedl-server for the two musl Linux targets with cargo zigbuild, bundles the systemd unit and env example into the tarballs, and uploads them as plain release assets that are never signed or added to latest-native.json.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L517-L592",
+          "version": "repo-lines-v1:sha256:b44891a0413c5efb3881b0fcea5984026a7bb9777e90df2c620c231899059712:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMDc4NDhhNDM2NjY1NmIyYmE2MTk3YmUwMmI5MjA4MTQ1NDZmOWQ5YWQwYjUzMzllNGMyNmEyYzk0NjUxMTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNGE2ZTUyMTE5NWZiMzYxM2I0NDFlZGU1OTE4OGY4YTU2MjI3NmI3MzBjNDU4NTc4OGQ5NjM3YWZjNDc0ODMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_413af0de06bf42b7aed6b7bf7f9677e6",
+      "statement": "native-manifest lists build-server in its needs so the prerelease flag is flipped to false last, after the server leg has finished uploading.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L703-L706",
+          "version": "repo-lines-v1:sha256:5cfb52c890319b42af38846ba5bd4a0a88c49b8ee7ea2573da583b0b2a30d1ef:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjQ3Y2I2Yzk0ZDk2ZTM2ODhkYzViOTEzNDkwMDUyMDQ4YTE3YjZiZGIxNWMxMTI3YjI3OTkwOGI2OTM3YWMwNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZGI3MzRiZmNiNDhjYjVjYjRhZDdiMzJmZTI4YWZkZTc3MDZmNjgzYzViYzM3MzFjMTk4Nzg4NjkwYjVmY2NlNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGMwZmJmYTNjZTQ5N2I2NmZkMzA2MmY4NzNjZmY5NWM0MDkyNjYzYzdlYTMyNzhmMWFkNjE2MDU1MmZlNTc2NCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTEzOWQ4NjEyNzMyYmZkZTE0NjY2MGJkNWM1YTVkMmRkNGQ2NDExYmIyNWZmZGUzZjQxYWIzYTEyOTU1ZjlkOCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_aad691c00b704bafa7690d436f742ed7",
+      "statement": "The server-image job assembles the prebuilt static musl binaries into per-architecture Alpine images, pushes them to ghcr.io/zkz098/limedl-server, and merges them into a multi-arch manifest, skipping the latest tag for an alpha/beta/rc release.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L608-L693",
+          "version": "repo-lines-v1:sha256:950e77a405bc00709580e25bf807eae694b595144efa2300b5e99daf62921e78:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmOGNiODk0Yzc3YzQyNWZjY2Q1OGVhZjJlZGY1MjcwZmFiMjljOGQ5NmFkZjExNmEwNTIyN2I0ZWUxMGM3OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNzAzNzQ5NGU0ZTdmMTM4Mzg1OGYzYzgwOTc5ZTg3OWVlMjBjZWJhYmQ0OGNmYjJhY2UwNGU0MmFiNTdhZTQifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T03:21:09.297Z"
+    "at": "2026-10-04T12:58:25.182Z"
   }
 }

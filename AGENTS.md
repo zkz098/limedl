@@ -27,6 +27,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 limedl/
 ├── crates/limedl-core/   # Pure download engine (lib: limedl_core)
 ├── crates/limedl-native/ # Lightweight native desktop UI based on Slint
+├── crates/limedl-server/ # Headless daemon: Aria2 JSON-RPC over the engine (NAS/server)
 └── xtask/                # Repo tooling: minisign keygen/sign/guard, font fetch, version bump, theme, icons
 ```
 
@@ -41,7 +42,11 @@ All Rust crates use edition 2024.
 A `v*` tag triggers `.github/workflows/release.yml`. The release body is generated
 by **git-cliff** from Conventional Commits, so keep commit subjects Conventional
 with a meaningful `scope:`. `native-manifest` is the sole writer of
-`latest-native.json` (the signed self-update manifest).
+`latest-native.json` (the signed self-update manifest). `build-server` additionally
+ships static musl binaries of `limedl-server` for `x86_64` and `aarch64` only, built
+with `cargo zigbuild`; they are plain release assets and are not part of the update
+manifest. `server-image` assembles those binaries into a multi-arch
+`ghcr.io/zkz098/limedl-server` container image.
 
 ## Conventions
 
@@ -78,6 +83,7 @@ otherwise drift from the code just changed.
 | Known issues & accepted warnings | `docs/troubleshooting.md` |
 | Linux desktop build & packaging | `docs/desktop-build-and-packaging.md` |
 | Manual smoke testing / MCP | `docs/manual-smoke-testing.md` |
+| Headless server daemon (NAS / 软路由) | `docs/server-daemon.md` |
 | Aria2 RPC interop testing | `docs/aria2-interop-testing.md` |
 | Checksum algorithms, async file I/O | `docs/engine-dev-notes.md` |
 | Regressions the test suite caught | `docs/test-regression-notes.md` |
@@ -101,6 +107,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
 cargo nextest run --manifest-path xtask/Cargo.toml
 cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
+cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
 ```
 
 See `docs/ci-operations.md` for the cache/RUSTFLAGS contract, the coverage gate

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:ec45f5284ac81e88b526d661a948975768ffd65029bf5b0269bc74b62d41d7d4",
+  "claims": [
+    {
+      "id": "claim_24c465519c404fbabca57aaa31be9867",
+      "statement": "The systemd unit runs limedl as a dedicated user, binds 0.0.0.0, reads LIMEDL_RPC_SECRET from /etc/limedl-server.env, and confines writes to the data and download directories via ReadWritePaths plus ProtectSystem/ProtectHome/PrivateTmp.",
+      "evidence": [
+        {
+          "resource": "repo://packaging/server/systemd/limedl-server.env.example#L1-L13",
+          "version": "repo-lines-v1:sha256:102bb532ebb296f4fe00981b06d9d03844866928734139b08df46ac4eefe4e83:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4ZDg4ZmY2ZGEyMDc4ZDQ2ZDc3OWVkNWRkMTQ2ZTU3YWFhM2Q0OGY3YzI0MzFmOWNjNjRkZjBmNTliZmNlYjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlNTZmNWQ1ZDZiMDgzZjk4NmE5MmFmNDFkZWI2ODAzNTk5ZGI3YTYwZjU5ODdmZjBjYWUxZThlYWZlNWM4NmEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhNzllYjE2NWEwZDU3MDRkZjE4ZTZjMjQ3ZmIzOTdiOThmZjBlZGJmMTBmNzY0NDVhYTM3NTRjM2RhYzU4MzUifQ"
+        },
+        {
+          "resource": "repo://packaging/server/systemd/limedl-server.service#L1-L38",
+          "version": "repo-lines-v1:sha256:c371323756e5f8a4539f6ff64c7ef39b167bc41431a63d14a20cedf5b40cee94:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlNmM2M2NmZjMzYmNmYTNiNmEyZDZkMGM5ZGQxOTUyMWRlZGFhMzUxMTQ2YjFhNjQyZDJiZmM5Y2Y1YTFlMWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1ODBiYTBmYThmNjhkODllMGRkNjc0YTcxMWJiYmVlYTA3ZjkzNDc2NmZjZjEwN2IyZjZmNThhZTJjYjYzMDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhhMzQzNTc1ZWQ2MDNlNjFjOTg0MzkwMjA5NzliNmQ2ZDRiMTQ3MmUyN2E1NDljZWVmYjZiY2U4NzhmYmE4YzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b484b6ad51f8429eb3dfc476a4c57968",
+      "statement": "The container entrypoint chowns /var/lib/limedl and /downloads to PUID:PGID and drops privileges with su-exec when started as root, and otherwise execs the daemon directly.",
+      "evidence": [
+        {
+          "resource": "repo://packaging/server/docker-entrypoint.sh#L1-L19",
+          "version": "repo-lines-v1:sha256:bde8fb2f03dac81b114e29ee236f9e887d087b589bb90d4909506361079e4364:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4MDc2ZDNkMjhkMjFlMDIwMTJiMjBlYWY3ZGJmNzU0MDlhNjI3NzEzNDQzOTAyNWYyODJlMzY4ZTMzMDVhYmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVkZGU4YjE2Yzc2MzY0ODFiMTc1YTk3ZTVhOGQ2MjJiMDkyMzVjNjgxODkzMmExMThmMzAxMmQ2ZmI3M2QyNGQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6913cbc4977448afaa8152384281d67d",
+      "statement": "The from-source Dockerfile builds on rust:1-alpine with the C toolchain aws-lc-sys needs, maps BuildKit TARGETARCH to the matching musl triple for cargo --target, and runs the daemon on an Alpine runtime with ca-certificates and su-exec.",
+      "evidence": [
+        {
+          "resource": "repo://packaging/server/Dockerfile#L1-L42",
+          "version": "repo-lines-v1:sha256:e4968bfea860a4e622a7d3f626df3c352339f113fdf57e88d853597d1810fd56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjQ4YmQ3NThhMDRiMjU4MGM2MDIxYTg2ZGZiY2UyMTFmMDE1YTFkZDVjYzRmMzljMTNiNmVjZmUxNTcyOTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2ZTI3MjY1MjQ5MmEzZWVhMTQ4YWFmODdmZGE0NTQwNjFkMWRlNjAzNDZlNzRlZmFlMmU4YWVjZjQ0ODc0ZmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2YzhlNTYxYjI0MjlkYTg5YTJlZTc0YjZkNzM2ODEyYTQ5Zjk0ZmI1NzU2YTFhODkxMWE0Zjg5NWI1YjcyN2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_02fe4ddb98d24774bcfe306a9a091da4",
+      "statement": "Dockerfile.release builds the runtime image from a prebuilt static musl binary passed as the BINARY build argument, so the CI image build never runs the Rust toolchain.",
+      "evidence": [
+        {
+          "resource": "repo://packaging/server/Dockerfile.release#L1-L27",
+          "version": "repo-lines-v1:sha256:0fb27c98f985cf69499e14945e3bb542961946c45bec3720105909fc7a75867e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjQ4YmQ3NThhMDRiMjU4MGM2MDIxYTg2ZGZiY2UyMTFmMDE1YTFkZDVjYzRmMzljMTNiNmVjZmUxNTcyOTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJlMjUyYTYyNjBhZjdhYjE1OTM2NDY0NTk4MTNkMDI3ZDVmMjhlZGZiNjczYWM2ODZhYjJmMTVmZThkOWJkMTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2YzhlNTYxYjI0MjlkYTg5YTJlZTc0YjZkNzM2ODEyYTQ5Zjk0ZmI1NzU2YTFhODkxMWE0Zjg5NWI1YjcyN2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_59f145f289054285b9fc8d810689bcf0",
+      "statement": "The compose example uses the published ghcr.io/zkz098/limedl-server:latest image, requires LIMEDL_RPC_SECRET, maps port 6800 and bind-mounts /var/lib/limedl and /downloads.",
+      "evidence": [
+        {
+          "resource": "repo://packaging/server/docker-compose.yml#L1-L25",
+          "version": "repo-lines-v1:sha256:233b1382f49c7f34c6fbc5234969f5c7c491be18151f41b6498bebc3bee7fb48:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJkYzI0ZjhiY2RkNDQ0NjZkMzY2NTkwMTI2NGYxMTQ4N2IzODBlMzI2MTNjYzk1MDM0ODgyMmM0ZWJkOTI3Y2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5NDIzN2ViYmNlNTMzYTM3M2Q3YWUwYzU4YmMzZmMzMGEwYTg0ZmE3NjJmYmQzNjViMjgwZmNmYmQ4YTcxNTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzODZjYmExN2I3NTA1YjBlYmE2OGE0MDc3YmIyMmU5NGI4ODNkMGI1YTc5NzAxZTMzNzExNGU3MDAxODMzYWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7ae850817c3d44e98300881777fa6ff7",
+      "statement": "The build-server job bundles the systemd unit and env example into each server tarball, and server-image assembles the same binaries into the multi-arch GHCR image with Dockerfile.release.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L517-L592",
+          "version": "repo-lines-v1:sha256:b44891a0413c5efb3881b0fcea5984026a7bb9777e90df2c620c231899059712:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMDc4NDhhNDM2NjY1NmIyYmE2MTk3YmUwMmI5MjA4MTQ1NDZmOWQ5YWQwYjUzMzllNGMyNmEyYzk0NjUxMTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNGE2ZTUyMTE5NWZiMzYxM2I0NDFlZGU1OTE4OGY4YTU2MjI3NmI3MzBjNDU4NTc4OGQ5NjM3YWZjNDc0ODMifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/release.yml#L608-L693",
+          "version": "repo-lines-v1:sha256:950e77a405bc00709580e25bf807eae694b595144efa2300b5e99daf62921e78:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmOGNiODk0Yzc3YzQyNWZjY2Q1OGVhZjJlZGY1MjcwZmFiMjljOGQ5NmFkZjExNmEwNTIyN2I0ZWUxMGM3OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNzAzNzQ5NGU0ZTdmMTM4Mzg1OGYzYzgwOTc5ZTg3OWVlMjBjZWJhYmQ0OGNmYjJhY2UwNGU0MmFiNTdhZTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6fcdc9283cd842269389eaa54559f77f",
+      "statement": "The root .dockerignore excludes target/.git/node_modules/openwiki/website and the font while retaining dist/ because Dockerfile.release reads the prebuilt binary from it.",
+      "evidence": [
+        {
+          "resource": "repo://.dockerignore#L1-L10",
+          "version": "repo-lines-v1:sha256:5af1635dbcfeade7d4443c24f89a1a64d332a39661f930889fe846bf9c5ca861:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNjNGVjNzRjNjlkYzNiMDk2NTFjOTZmYzZjMjA2NjQyNjQzY2RkMjI0NTlhM2FlNmNlMGI2ZDQxYjE5OTYyMTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI3NGEwYzA4ZjA3ZDU3OGJhYjQwMDk5ZGNkZjFmOGFhNDhiOGUzMDMxYTAwOWYxYmFlZTY0ODQ2ODY4NzVkYjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQzYmU2MWZmZGQxMDE2MWYzZWJhMTU4MjkzY2Y1MGQ0YzRhYzkwYWY1YmM3YmI1NGQwYTU0MjI1MjI2ZWEwNjEifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T12:58:25.182Z"
+  }
+}

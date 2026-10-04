@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:5987b9c8d31877a79daa9742b399061111e3a50048b3f967f704069550491143",
+  "pageVersion": "sha256:d555df682cca4949df5f61f09eef9a9691ed51ad0ad75cd9536a22506b00fd4d",
   "claims": [
     {
       "id": "claim_50e14f0840f8483a9aa585a5b612f644",
-      "statement": "The workspace has exactly three members — crates/limedl-core, crates/limedl-native and xtask — inherits version 0.4.6 from the root manifest, and uses Rust edition 2024 in every crate.",
+      "statement": "The workspace has exactly four members — crates/limedl-core, crates/limedl-native, crates/limedl-server and xtask — inherits version 0.4.6 from the root manifest, and uses Rust edition 2024 in every crate.",
       "evidence": [
         {
           "resource": "repo://Cargo.toml#L1-L11",
-          "version": "repo-lines-v1:sha256:8ebc320192cb4703b769d6628266c9befda0c904264d93d05a7809fcf77bbac9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
+          "version": "repo-lines-v1:sha256:fdb7d7d0bda8364cc420b0fbf76206e26d8bb07041b7bee975ad55e921180ee5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
         }
       ]
     },
@@ -97,7 +97,7 @@
           "version": "repo-lines-v1:sha256:cb32a07af25909f8e3f79d302f13d493613d624c307a19b049c60a6bba86710f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYyMmNlMjI1MDQzODc5ZmZkYzQ0Y2Q0NDJhMTJiOGFhODQ4NzU2OTY2MTk2OTM4MGRlY2JhZTc2NTBiMGU4NDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImExN2U3OGViNmYzYWI2NTJmYjYxOTI3ZDgyMWNlYjk3MzExYjM1NzY5YjRhMTRiODU4MGFjNjFiN2YwZTBlY2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNiOTY0ZGYxOGE3NDUwMjNlMjA2YWU1ZGNjMjk1NmI3ODc2YTNiZDU5YzI3ZmMwMWVlZDY0NDFkZmEwNTVkMzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ3Y2E3YjNiM2YwZTQwNGJhZWEzYTE3MjY1OGUwYTI4NDM5NzY2MDJhMTFkMjRkY2ZiZmZkOGY3YzIxNzIxN2EifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L215-L218",
+          "resource": "repo://crates/limedl-native/src/main.rs#L214-L217",
           "version": "repo-lines-v1:sha256:c94d8208c449d01351fc147a6a5a7a13fbf511d6a16acac9de89100767f9877c:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2VlNGU4OTNlMDljN2Q2OTM0YjljODQ1YTQ3ZjM0NjJmYTgyMzM0NWQ4OTA5NTBmNmQ0YjczYjdmNDcyNDNlMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjNlYTk4ODM0NmFkMjc2NzgyOTVkZWQxYThhNmRkZjI3MmVjMDE5ZTJlY2Q5MDliNThmNzI5YjhmNWY5YzA0OCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTc1NzcyOThhNWIyNzFkY2NlMDM3ZTMxMGI5MDFlYTc4ZWY2NGY5MzJhYjdkZTcyZDg4NmIxMzVmNTc0ZWExNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzBkM2IwY2RmNjAyNjg4ODlhYmFmMGVmMDQwODhhOWRhOWQ2OGIxY2ZmN2VkZjNmOTkwZjMzNjk1OGY2YjM2NSJ9"
         }
       ]
@@ -167,10 +167,34 @@
           "version": "repo-lines-v1:sha256:e03bc14575e11fbd52bf90f00da81a8cf98c49ef75e49516bf88155f2b2df5e1:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YWUwMzUzZmZjZjI1YTIyNzE2OTdiY2E3NjM5ZGI1NmUyYmNjNzc5NjUzZjU1ZjljMjQ4MjIwMWIxM2Y2MTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZiMWRiYjM2NzQwNTZmYmRiZTczZDAyNzEzYzYzMDU4ZmE5NzEwMzIwMzAwNjI4ZTFhZTc0NGU2NTFhOTAzMmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjYmU3NTgwZGJiM2E3ZGI3ODViMWE1NTU5NDQyYWE5OGEzOWZmMTYzY2VlNjVjMzQ0MmQ3NzJiMmUwYWUzODIifQ"
         }
       ]
+    },
+    {
+      "id": "claim_457fa19bad2e47029a00aceff14c3538",
+      "statement": "limedl-server is a GUI-free daemon crate that depends on limedl-core with the aria2-rpc feature plus clap/anyhow/tracing, which lets it ship as a single static binary.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/Cargo.toml#L1-L22",
+          "version": "repo-lines-v1:sha256:fa2c49f49f04826a4330805544af43d5c842f1c0c949311ddac90e09297d6de6:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhM2NkNWE4MWIzZjlhNjIxYWE0OTNkOTBjNDVmNDJhYjU3MWQ0ZTQyYjhhZTVhZmYzNTFjYjBhMDJkMDZkODIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5NGMyY2FkNGZmMmRmZDI5M2ZkZjRlNzNhMDQxNmM2Njg1MjMwZTVlOTgwNmM5ZTAxMGJiNDM1NWY3MGU0NzEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4YjU1NzEyNTM5OTkxYTY1NmRiZDdjM2M3ODZiNGUyYjhiMTNmNmQ3MzQ5OGRlN2ZiNzkyNWMxMDMxYTY1ZTgifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L1-L10",
+          "version": "repo-lines-v1:sha256:b20b65c5e7880d84a4eb2549ff358f42f5afad00d4073a1b811d4669c12f9fa2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3YmI5OTNmYTkwYzQ2NmJmOTI2YTA2OTdmODJiNTQ3Zjg2ODEwN2VkYTE3NDVkZmQzMmUzZWY2NGY3ODg5ZDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxOTI2MGZjNmUwYjNkNmI2NTkxM2JkYWI0NWE5OGFlNjk2MGJiNTJmNzY0ODg3ZTJiN2Y3N2FiMTg3N2Y4MTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU5NzE0NDk0NGUwZTNhZDE1YzFjYTIwZTcyYmFjZjE2NWQ2NGI5NGY4YzRlOWEwMzE1NTUwZGQyMTc0NGI1MzIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_db77cc055a8b45bc96594e2e7077a823",
+      "statement": ".cargo/config.toml defines x86_64 and aarch64 musl targets for the headless server, with the x86_64 entry lowered to target-cpu=x86-64-v2 for older NAS CPUs.",
+      "evidence": [
+        {
+          "resource": "repo://.cargo/config.toml#L28-L38",
+          "version": "repo-lines-v1:sha256:942834ffb5f7a5b2f10969742580b438f224f93d0cd3d0f9bb3b0aee2ec38663:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNlOTFlMWQzZjMwN2VhMDE4NDFjNjM4ODRmYjBiZGViYzM3ZjNlZTY0OGRmNWFjZWYxN2FlMWY1OWI3MmRiYmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZiYTNhNzM3YjRjZjUzZjE1MGUzMTFlZjY1ODZlMDdjZGU5ZDEzYmJmNjUyYTFkMzExMDQ2ZjNiN2U1NDI4YTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ3MGE4NTRmZDc1NjkxYmEzOTI1ZThkNzg1MDQ3ZTBhNTAxMjA4NDI4ZTBiMTMxMzk1NjlmOGJjMmY0MjllYzcifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T11:10:17.271Z"
+    "at": "2026-10-04T12:36:56.946Z"
   }
 }

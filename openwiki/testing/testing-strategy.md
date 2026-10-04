@@ -1,8 +1,11 @@
 ---
 type: testing
 title: Testing Strategy
-description: How limedl's Rust engine is tested — the test layout conventions, nextest process isolation, the mock-server integration corpus, byte-level corruption oracles and adversarial servers, BT and Aria2 harnesses, and the coverage gate.
+description: How limedl is tested — the test layout conventions, nextest process isolation, the mock-server integration corpus, byte-level corruption oracles and adversarial servers, BT and Aria2 harnesses, the headless daemon end-to-end test, and the coverage gate.
 tags: [testing, nextest, integration-tests, corruption, coverage]
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T12:36:56.946Z
 sources:
   - id: openwiki-source-06de9eea8068258882d65c0b
     resource: repo://.github/workflows/aria2-oracle.yml
@@ -52,12 +55,13 @@ sources:
     resource: repo://crates/limedl-core/src/tests/resume_corruption_tests.rs
   - id: openwiki-source-1a1d4b50d244dfdbcf190f3a
     resource: repo://crates/limedl-core/tests/logging_reload_repro.rs
+  - id: openwiki-source-12b12baa98b75281cf2fd260
+    resource: repo://crates/limedl-server/tests/daemon.rs
   - id: openwiki-source-3fe9812b75a7522e89f74344
     resource: repo://docs/aria2-interop-testing.md
-generated: { by: "pi", at: "2026-10-04T11:42:48.469Z" }
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T11:42:48.469Z
+  - id: openwiki-source-feafbe9db788653e845840b8
+    resource: repo://sonar-project.properties
+generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
 ---
 
 # Testing Strategy
@@ -65,7 +69,8 @@ verified:
 limedl's engine tests live beside the code (unit tests) or in
 `crates/limedl-core/src/tests/` (cross-module integration), with two dedicated
 integration binaries under `crates/limedl-core/tests/`. The UI layer has its own
-in-process suite, documented on [Slint UI Testing](../testing/slint-ui-testing.md).
+in-process suite, documented on [Slint UI Testing](slint-ui-testing.md); the
+headless daemon has an end-to-end test in its own crate (below).
 
 ## Test layout conventions
 
@@ -259,10 +264,14 @@ Evidence: `repo://crates/limedl-core/src/tests/dispatcher_tests.rs#L1-L12`,
 `aria2_rpc/e2e_tests.rs` boots a real `Aria2RpcServer` over a live
 `bootstrap()` `CoreSystems` on a random port and drives it with real HTTP POST
 requests: the handler matrix, `system.multicall` response shape, secret gating on
-every method, CORS fallback, magnet-to-BT routing, `changeOption` matrices, `keys`
-filtering, `getUris`, and the terminal-task eviction scenario.
+every method, CORS fallback **and wildcard**, magnet-to-BT routing,
+`changeOption` matrices, `keys` filtering, `getUris`, and the terminal-task
+eviction scenario. Because the CORS test now covers `allow_any_origin`, it also
+asserts that a wildcard origin is never paired with
+`Access-Control-Allow-Credentials`.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L1-L20`.
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L1-L20`,
+`repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L1211-L1315`.
 
 ### Aria2 interoperability fixtures (Tier 1)
 
@@ -340,6 +349,33 @@ hashes, since parsing only needs structure). Any test that goes through
 Evidence: `repo://crates/limedl-core/src/bt_backend/tests/mod.rs#L158-L180`,
 `repo://crates/limedl-core/src/bt_backend/tests/mod.rs#L243-L290`.
 
+## Headless server daemon
+
+The `limedl-server` crate adds two layers:
+
+- **Unit tests** for the parts that need no engine: CLI parsing, the
+  `LogLevelArg` → `LogLevel` mapping, config precedence/trimming, absolute-path
+  validation for `--download-dir`, the explicit data-dir override, and the
+  instance lock's exclusivity (a second lock on the same directory fails, and the
+  lock is reusable after release).
+- **One end-to-end test** (`tests/daemon.rs`) that starts a real daemon against a
+  temp data directory on a reserved port and proves the wiring the core's
+  `aria2_rpc` tests cannot: `bootstrap` → force-enabled RPC → token enforcement
+  (a request without `token:` is `Unauthorized`) → `aria2.shutdown` →
+  `registry.shutdown_all()` → the daemon task exits cleanly within a timeout. The
+  shutdown future is injected (`std::future::pending()`), so the only way the
+  process may stop is the JSON-RPC call the test sends.
+
+It runs in the Linux `check-rust` job only. The Windows/macOS legs compile the
+crate (including the `cfg(not(unix))` Ctrl+C path) through `cargo clippy
+--workspace --all-targets` but do not execute the port-binding test, because the
+daemon targets musl Linux and a bootstrapped engine on those runners would add
+flake for no signal.
+
+Evidence: `repo://crates/limedl-server/tests/daemon.rs#L42-L109`,
+`repo://crates/limedl-server/src/lib.rs#L194-L213`,
+`repo://.github/workflows/ci.yml#L507-L514`.
+
 ## Coverage
 
 `check-rust` runs `cargo llvm-cov nextest` for `limedl-core` with
@@ -347,9 +383,14 @@ Evidence: `repo://crates/limedl-core/src/bt_backend/tests/mod.rs#L158-L180`,
 `limedl-native`. cargo-llvm-cov ignores `tests/` directories and
 `tests.rs`/`*_tests.rs` files by default, so the metric counts **product code
 only**. A `cargo test --doc` step would be needed if a doctest is ever added.
+`limedl-server` has no lcov report and is listed in Sonar's
+`sonar.coverage.exclusions`, so its lines are not counted as 0% — its value is in
+the end-to-end test, not per-line coverage.
 
-Evidence: `repo://.github/workflows/ci.yml#L451-L472`.
+Evidence: `repo://.github/workflows/ci.yml#L451-L472`,
+`repo://sonar-project.properties#L76`.
 
 Related pages: [Slint UI Testing](slint-ui-testing.md),
+[Headless Server Daemon](../integrations/headless-server-daemon.md),
 [Build, Tooling, CI and Release Operations](../operations/build-release-and-ci.md),
 [HTTP Download Lifecycle](../workflows/http-download-lifecycle.md).

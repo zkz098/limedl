@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:032cd51535a616a27a254ab712e626cab390c070e8725d8d90330df1fa24c84e",
+  "claims": [
+    {
+      "id": "claim_af10e01b4e884401808d8b3bee48e762",
+      "statement": "crates/limedl-server is a GUI-free daemon crate whose binary main() is a thin wrapper around the library; the library is the testable part and the only frontend is the Aria2 RPC server.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L1-L10",
+          "version": "repo-lines-v1:sha256:b20b65c5e7880d84a4eb2549ff358f42f5afad00d4073a1b811d4669c12f9fa2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3YmI5OTNmYTkwYzQ2NmJmOTI2YTA2OTdmODJiNTQ3Zjg2ODEwN2VkYTE3NDVkZmQzMmUzZWY2NGY3ODg5ZDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxOTI2MGZjNmUwYjNkNmI2NTkxM2JkYWI0NWE5OGFlNjk2MGJiNTJmNzY0ODg3ZTJiN2Y3N2FiMTg3N2Y4MTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU5NzE0NDk0NGUwZTNhZDE1YzFjYTIwZTcyYmFjZjE2NWQ2NGI5NGY4YzRlOWEwMzE1NTUwZGQyMTc0NGI1MzIifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-server/src/main.rs#L1-L7",
+          "version": "repo-lines-v1:sha256:5b0c109d32dc3f011dfc4de91f8aa20b2d6cbae289ce416a3270686101d38c84:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2QyNGE4MjRiMGNkYTY3NjRiODMxZGJmMmQ0NzBkNmVjZjc4MDkzYzcwNzMxNGQyMGJhYWQxNWMyYWE3YzFjNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_70ed86891a51445d8e19d658e92662a5",
+      "statement": "run_with creates the state directory, installs logging, takes the instance lock, bootstraps the engine, persists an optional --download-dir, forces the daemon RPC overrides, serves, and finally calls registry.shutdown_all().",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L38-L143",
+          "version": "repo-lines-v1:sha256:d014762c5b27d51ee0323ed9a6133de42259b9c8241eafcb57cb37640941598c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA2LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIxZTRjZDljNmVkZjAyOTM5Y2EyMTFkZGRiNjIxMTFlZDA5YzdmM2ZkNGY0YWM1ODgwYWNjZmFkODliMzY1MzlmIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIyYmNlZGIyMDZmNDE5YjZiZjBiZmYxNTY4Mjg4MjY2NWU3Y2I2MGVhZmNlODJhOWFjYjNhZmMzOTU4YjczODY4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJjOTg3YzE0MmVlMWYzZmY2YjA3NDE5OThjMDU0YWU3Y2RlY2QzOWE3OTgxZDU5ZWE1ZGRmMDM3NDEwN2QwMmIyIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_1f659abb448345829e5b267776bf3fb8",
+      "statement": "The daemon resolves its data directory as --data-dir, then $LIMEDL_DATA_DIR, then the platform local data dir, then a temp fallback, and always sets state_dir to <data_dir>/downloads.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/config.rs#L41-L99",
+          "version": "repo-lines-v1:sha256:ea4cfba9b1fbb9fac1c3267e05bc99f07e0a7aeda7cde676960285b430975989:eyJzZWxlY3RlZExpbmVDb3VudCI6NTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRhZTAwZWRjNjFkMjlkODUzOTczMWU1ZDc2NTU4MWMzMTM2ZWUyMWRmOTcwNDJlOTU1NjNlMWM2ZjYyNzg4OTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI4YmJhYTExODhjYTIwYzdjOWY3ZTlhYmQzYzcyYjMxNDc1ODk5ZjA1NTg2ZmVlYmQ3NmEyMGRmODEzNmU3NzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0NTRjMTUwNTcwZmI5OGJkNzdlZGFjM2ZlNmExMmI0MWY3MDQ2MjRmZGMyYjIzYzFjY2NhNDVmZDlkN2Q0NDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a54902729c2341b492e6f3695ee3f08d",
+      "statement": "The daemon forces aria2_rpc.enabled = true and exit_on_shutdown = true, because the RPC endpoint is its only interface and aria2.shutdown must stop the process.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L83-L104",
+          "version": "repo-lines-v1:sha256:c7d5f3d2772b4fa84fed476878024fa8d1c0cc19f882da314ff38f6907ac5642:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3OTgxZjY2MGJmNDgwYjQ1ZjUzNjQwYmQ1ZDlmMjBjNTBkYTAxNDRkNWIyNGFlMWVmZTQ0ZDRiNjFkMGI5YTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0ZWU3ZDJlNmQ2ZmM3MTU5YWZmNDZmOGJiNzI4MDQzNThmZjU4YWVmM2NlZDA4NWYxOGQwN2E4NmMyMzllNTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZmNTk3MGVjNGU5M2ViZjE5YTdmNDQ3OTQ0YmIyNDllZmM0MjEyMDhjYWQxODY0ZDFhNzdlODQzNjhmYjJkYjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFlOGMxYThhYzk4N2NkODQ2OTQwOTA3ZmE5OGZiNDdmMGMyNWUzZjI2YWVjNGIxMzFjNzJmODAyYjUxNGVlNjEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_46b96ca4de66457fa09bd73ae9d0b133",
+      "statement": "acquire_instance_lock takes an exclusive advisory lock on <data_dir>/limedl-server.lock so a second daemon cannot start on the same data directory, and the lock is reusable after release.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L148-L165",
+          "version": "repo-lines-v1:sha256:50608d54b79a9c59d3bed9dce8d3e281ab74c1c7779d9ec424cb4f50fadcba9f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjliOGY5NmVhZmYyZTIzYmU4OTdhNzNkYTQwMGVlN2UyMDNhMGUwNThkMmE2OTRmZjA0ODRiYjJiMWYxNTQzZGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYxYzA5OGZhMDM5YTVjNTRkNDE3NDYwZjE5YTZjMzFlMWQ0YjlmMjNjZmFkMTJhMDY4NDRhMWNhNjM1YTQxMTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU5ZmQ0Mjg2MTg2YjllYjExNjFlMzA5MmM5MTc3NmFjNWQxMDkwODU1NjMxNmNmOWYzZjExMWU2YjNlMDVhNmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBkNWE2YjBkNmM0YTIxMDdhMWRmZGZkYTEwZWRkOTZhYmY5ZGExMzkxNTA5ZjkyZWY2MDU0NjBjMGRkNWQ2MDQifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L194-L213",
+          "version": "repo-lines-v1:sha256:fc33082d15291b1d2a550654ff8dc96fe36536cd0a96c0c9eceedfcf9afc6ecd:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlMGFmM2ZkNGE0YzNhMWQ0N2M3ZjQ3MGVkMGQ4NmQ5MGQ5ZGUyMTBhNWViMTQ1NWZiZDk0NDgyYTQ3NjViNzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE1MjE2MDRiMzVmYzQwYWYwMGNiYTRlZWEyZmQ1ZTJjM2FmMTg2M2IzOTExODVkN2JmNGJiMDllNzJkMGM4YjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7285a9b9dec84cd6b9cbaeca07dea287",
+      "statement": "run_with selects on the injected shutdown future, the aria2.shutdown Notify and the serve task, then awaits the serve task before shutting the engine down.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L106-L143",
+          "version": "repo-lines-v1:sha256:e3f0b186b1540d5f947dd404769ac43ccff49011d37af07c95d645706185b51c:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdmNGJiMmU1OTA2N2NlY2NjZWMyNGFmODIyZjQ4MzU5ZGE3ZDJjOGU3NTkyYjFkMGYyYThmN2FjMWYwZjEwMDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkNDVhNjY3N2IxMWNhOTc4N2YyNWQ4ZDcxMGQ0NjdmMDU5NDQwZTdlMzA1ZDE4MWZhYjI3NWViMWIxMmE4OTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM5ODdjMTQyZWUxZjNmZjZiMDc0MTk5OGMwNTRhZTdjZGVjZDM5YTc5ODFkNTllYTVkZGYwMzc0MTA3ZDAyYjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2c6645b966644a5291d9ff0438fc2fc2",
+      "statement": "shutdown_signal waits for SIGTERM or SIGINT on Unix and for Ctrl+C on non-Unix.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L166-L192",
+          "version": "repo-lines-v1:sha256:a8f6e0e031b03247ed4b53e07b0d6ba51741d078985a0370cc7d4185c88d16a2:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlYzM1MGMxNzcxMzdhNWIxYzI5NzhmZGQ5OTA5OTQxYjA3YTBhZTA1Yjk1MTY1MTcxZDIzM2M3N2M1ZjYxNGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQxMzYwZTc4OTM3Mjc0OTA3NjlhYzM4ZTYxMjRhNzZhMGIyOGZkZGJiZjFlYTM1ZDJiOTk4MDYzMjNiMWZjODUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3d5759df106b4e91848869ae06f5250b",
+      "statement": "The end-to-end daemon test boots a real daemon, rejects a request without the token, then calls aria2.shutdown and awaits a clean process exit.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/tests/daemon.rs#L42-L109",
+          "version": "repo-lines-v1:sha256:71d8a75183678d209224394c4117e63379c49365e9e58de859795b1c850323df:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5MzcwNmU2ZTg2ZWM0NmU4YmUxYmU1MTkyOTY3M2M5Mjc0NGQwYjI4YjhkNmQwYTM2MGNhZDQ3MGQ3M2E5MGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYwMWVhNTUyYmIwMDZjZGU3ZDVjNTFkNjhkMjg4NjFmYWYxMGRkMmZhYjMxYWE1ZTZmZTRlZjJjZTE5ZjBjNTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e9241149c7d2484085a3d5eec5487731",
+      "statement": "The release pipeline cross-compiles limedl-server for x86_64 and aarch64 musl with cargo zigbuild, bundles the systemd unit and env example into the tarballs, and uploads them as plain release assets.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L517-L592",
+          "version": "repo-lines-v1:sha256:b44891a0413c5efb3881b0fcea5984026a7bb9777e90df2c620c231899059712:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMDc4NDhhNDM2NjY1NmIyYmE2MTk3YmUwMmI5MjA4MTQ1NDZmOWQ5YWQwYjUzMzllNGMyNmEyYzk0NjUxMTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNGE2ZTUyMTE5NWZiMzYxM2I0NDFlZGU1OTE4OGY4YTU2MjI3NmI3MzBjNDU4NTc4OGQ5NjM3YWZjNDc0ODMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_65d1683c616247d68ce2193cd22c9dcc",
+      "statement": "The limedl-server test suite runs in the Linux check-rust job, while the Windows/macOS legs only compile it through the workspace clippy.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L507-L514",
+          "version": "repo-lines-v1:sha256:7c488ac9a3bb089f539c081b07d8818547cfb5f9f8c56021af63ae6cdc4e7fbe:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZGUyMDNiOTU1N2VhNjVjYzE3ZGI4NGZlZjkwZTEzNzdkNjRkMzhiOWQyOWUwOGNjY2UyOWViNjNkZWQ1MzYyYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTc5NjA0OTdkZjZmNTdkN2ZmODIzYzgxOWI4ZWJlYTkyYTg3ZWEzYTc1OWNmMzMwMjEzOGFlYzg5MTIyMzFjZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmU0MzJlNTRmNDc1MzkyYjhhNjA1YmM1ZTVhNGQ1Mjc3NGU1YmE0NjYwYjhhYTlhODFkYTgxMzE3ZGMwMjkzZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzc3ODIwZTUwNDMxYzljYWE0Y2NiYjU4ZWFlMDZjMjg4NjZjNTk3OWYyMjliNDNmNTA1Mzk4NDYyODEwNzk1ZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d35bffbd9b1c4a1b806bbde655767b3f",
+      "statement": "The server-image job assembles the prebuilt static musl binaries into a multi-arch ghcr.io/zkz098/limedl-server image.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L608-L693",
+          "version": "repo-lines-v1:sha256:950e77a405bc00709580e25bf807eae694b595144efa2300b5e99daf62921e78:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmOGNiODk0Yzc3YzQyNWZjY2Q1OGVhZjJlZGY1MjcwZmFiMjljOGQ5NmFkZjExNmEwNTIyN2I0ZWUxMGM3OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNzAzNzQ5NGU0ZTdmMTM4Mzg1OGYzYzgwOTc5ZTg3OWVlMjBjZWJhYmQ0OGNmYjJhY2UwNGU0MmFiNTdhZTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_47383299dd0349c5878903aa76359e3e",
+      "statement": "Deployment assets are committed under packaging/server: a hardened systemd unit, an env-file example, a container entrypoint, a from-source Dockerfile, a prebuilt-binary Dockerfile.release and a compose example.",
+      "evidence": [
+        {
+          "resource": "repo://packaging/server/Dockerfile#L1-L42",
+          "version": "repo-lines-v1:sha256:e4968bfea860a4e622a7d3f626df3c352339f113fdf57e88d853597d1810fd56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjQ4YmQ3NThhMDRiMjU4MGM2MDIxYTg2ZGZiY2UyMTFmMDE1YTFkZDVjYzRmMzljMTNiNmVjZmUxNTcyOTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2ZTI3MjY1MjQ5MmEzZWVhMTQ4YWFmODdmZGE0NTQwNjFkMWRlNjAzNDZlNzRlZmFlMmU4YWVjZjQ0ODc0ZmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2YzhlNTYxYjI0MjlkYTg5YTJlZTc0YjZkNzM2ODEyYTQ5Zjk0ZmI1NzU2YTFhODkxMWE0Zjg5NWI1YjcyN2EifQ"
+        },
+        {
+          "resource": "repo://packaging/server/docker-compose.yml#L1-L25",
+          "version": "repo-lines-v1:sha256:233b1382f49c7f34c6fbc5234969f5c7c491be18151f41b6498bebc3bee7fb48:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJkYzI0ZjhiY2RkNDQ0NjZkMzY2NTkwMTI2NGYxMTQ4N2IzODBlMzI2MTNjYzk1MDM0ODgyMmM0ZWJkOTI3Y2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5NDIzN2ViYmNlNTMzYTM3M2Q3YWUwYzU4YmMzZmMzMGEwYTg0ZmE3NjJmYmQzNjViMjgwZmNmYmQ4YTcxNTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzODZjYmExN2I3NTA1YjBlYmE2OGE0MDc3YmIyMmU5NGI4ODNkMGI1YTc5NzAxZTMzNzExNGU3MDAxODMzYWMifQ"
+        },
+        {
+          "resource": "repo://packaging/server/systemd/limedl-server.service#L1-L38",
+          "version": "repo-lines-v1:sha256:c371323756e5f8a4539f6ff64c7ef39b167bc41431a63d14a20cedf5b40cee94:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlNmM2M2NmZjMzYmNmYTNiNmEyZDZkMGM5ZGQxOTUyMWRlZGFhMzUxMTQ2YjFhNjQyZDJiZmM5Y2Y1YTFlMWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1ODBiYTBmYThmNjhkODllMGRkNjc0YTcxMWJiYmVlYTA3ZjkzNDc2NmZjZjEwN2IyZjZmNThhZTJjYjYzMDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhhMzQzNTc1ZWQ2MDNlNjFjOTg0MzkwMjA5NzliNmQ2ZDRiMTQ3MmUyN2E1NDljZWVmYjZiY2U4NzhmYmE4YzYifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.0",
+    "at": "2026-10-04T12:58:25.182Z"
+  }
+}

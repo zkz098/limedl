@@ -146,6 +146,9 @@ mod tests {
                 auth_mode: Aria2AuthMode::PerClient,
                 clients,
                 cors_allowed_origins: vec![],
+                listen_address: "127.0.0.1".into(),
+                allow_any_origin: false,
+                exit_on_shutdown: false,
             },
             ..AppSettings::default()
         }

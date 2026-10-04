@@ -1,0 +1,39 @@
+[Unit]
+Description=limedl download daemon (Aria2 JSON-RPC)
+Documentation=https://github.com/zkz098/limedl/blob/main/docs/server-daemon.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Dedicated unprivileged account. Create it once:
+#   useradd --system --home-dir /var/lib/limedl --shell /usr/sbin/nologin limedl
+User=limedl
+Group=limedl
+
+# Secrets live here (mode 0600, owned by root). The daemon reads
+# LIMEDL_RPC_SECRET and refuses to start on a non-loopback bind without it.
+EnvironmentFile=/etc/limedl-server.env
+
+# --rpc-listen 0.0.0.0 exposes the LAN; switch to 127.0.0.1 when a reverse
+# proxy on this host terminates TLS for AriaNg.
+ExecStart=/usr/local/bin/limedl-server \
+    --rpc-listen 0.0.0.0 \
+    --data-dir /var/lib/limedl \
+    --download-dir /srv/downloads
+Restart=on-failure
+RestartSec=5
+
+# Hardening. ReadWritePaths must list every path the daemon writes: the data
+# directory, the download directory, and the BT output directory (which lives
+# under <data-dir>/downloads/bt_files by default). ProtectHome=true means a
+# --download-dir under /home will not work; move it under /srv instead.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/var/lib/limedl /srv/downloads
+
+[Install]
+WantedBy=multi-user.target

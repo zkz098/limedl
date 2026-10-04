@@ -1,6 +1,6 @@
 //! Shared RPC context: token checks, gid resolution and event broadcast.
 
-use super::{Arc, Aria2AuthMode, Aria2RpcSettings, BackendRegistry, ClientToken, Dispatcher, DownloadEvent, DownloadManager, EventBus, HashMap, JsonRpcError, LazyBtBackend, Mutex, PathBuf, PerClientAuth, TaskId, Value, constant_time_eq, make_error};
+use super::{Arc, Aria2AuthMode, Aria2RpcSettings, BackendRegistry, ClientToken, Dispatcher, DownloadEvent, DownloadManager, EventBus, HashMap, JsonRpcError, LazyBtBackend, Mutex, Notify, PathBuf, PerClientAuth, TaskId, Value, constant_time_eq, make_error};
 
 /// Authentication scheme derived from [`Aria2RpcSettings`] at server start.
 ///
@@ -48,6 +48,12 @@ pub(crate) struct RpcContext {
     pub(crate) event_bus: Arc<EventBus>,
     pub(crate) gid_cache: Mutex<HashMap<String, TaskId>>,
     pub(crate) session_id: String,
+    /// When true, `aria2.shutdown` signals [`RpcContext::shutdown_notify`] so a
+    /// headless daemon can terminate. The desktop leaves it false.
+    pub(crate) exit_on_shutdown: bool,
+    /// Fired by `aria2.shutdown` when `exit_on_shutdown` is set. Owned by the
+    /// server and cloned out via `Aria2RpcServer::shutdown_notify`.
+    pub(crate) shutdown_notify: Arc<Notify>,
 }
 
 impl RpcContext {

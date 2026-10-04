@@ -132,7 +132,41 @@ fn normalize_aria2_rpc_settings(mut rpc: Aria2RpcSettings) -> Aria2RpcSettings {
         client.name = client.name.trim().to_string();
         client.token_hash = client.token_hash.trim().to_string();
     }
+    // A hand-edited (or legacy) settings file may have no address, an empty
+    // one, or a value that can never be a host (`host:port`, a URL). Fall back
+    // to loopback rather than failing to bind on a value that is not an address.
+    let listen = rpc.listen_address.trim();
+    rpc.listen_address = if is_plausible_bind_host(listen) {
+        listen.to_string()
+    } else {
+        "127.0.0.1".to_string()
+    };
+    rpc.cors_allowed_origins = rpc
+        .cors_allowed_origins
+        .into_iter()
+        .map(|origin| origin.trim().to_string())
+        .filter(|origin| !origin.is_empty())
+        .collect();
     rpc
+}
+
+/// Whether `host` can plausibly be handed to `TcpListener::bind`: an IPv4/IPv6
+/// literal (optionally bracketed) or a bare hostname label. A `host:port`, a
+/// URL or whitespace is not an address, and `format_bind_addr` would silently
+/// append a second port to it.
+fn is_plausible_bind_host(host: &str) -> bool {
+    let host = host.trim();
+    if host.is_empty() || host.contains('/') || host.contains(char::is_whitespace) {
+        return false;
+    }
+    let bare = host.trim_start_matches('[').trim_end_matches(']');
+    if bare.parse::<std::net::IpAddr>().is_ok() {
+        return true;
+    }
+    !bare.contains(':')
+        && bare
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
 }
 
 fn normalize_min_threads(raw: usize, max_per_task: usize) -> usize {

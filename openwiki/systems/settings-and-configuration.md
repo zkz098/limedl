@@ -1,8 +1,11 @@
 ---
 type: system
 title: Settings and Configuration
-description: limedl's configuration single source of truth — the AppSettings shape, SettingsService serialization and atomic persistence, normalize_settings validation, the save fan-out to every backend, and special cases such as disk overrides and Aria2 auth mode.
+description: limedl's configuration single source of truth — the AppSettings shape, SettingsService serialization and atomic persistence, normalize_settings validation, the save fan-out to every backend, and special cases such as disk overrides and the Aria2 RPC bind/auth/CORS settings.
 tags: [settings, configuration, persistence, validation, hot-reload]
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T12:36:56.946Z
 sources:
   - id: openwiki-source-fd061a9c15d2a04bc703746d
     resource: repo://crates/limedl-core/src/context.rs
@@ -18,10 +21,9 @@ sources:
     resource: repo://crates/limedl-native/src/context.rs
   - id: openwiki-source-711bab97935422a9dd5fabf4
     resource: repo://crates/limedl-native/src/paths.rs
-generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T05:35:23.596Z
+  - id: openwiki-source-9f796a37ea60bc20889db159
+    resource: repo://crates/limedl-server/src/config.rs
+generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
 ---
 
 # Settings and Configuration
@@ -59,10 +61,14 @@ The desktop resolves the base data directory in `paths::dirs_or_temp_dir`:
 
 `settings.json` sits in that base directory and the SQLite DB/torrent state live
 in `<base>/downloads`. `SystemContext::with_components` derives the settings path
-as the **parent** of `state_dir` joined with `settings.json`.
+as the **parent** of `state_dir` joined with `settings.json`. The headless
+`limedl-server` daemon resolves the same base directory (with `--data-dir` as an
+additional highest-precedence override) through its own `resolve_data_dir`, so a
+daemon can read a desktop profile's settings and vice versa.
 
 Evidence: `repo://crates/limedl-native/src/paths.rs#L1-L35`,
-`repo://crates/limedl-core/src/context.rs#L47-L56`.
+`repo://crates/limedl-core/src/context.rs#L47-L56`,
+`repo://crates/limedl-server/src/config.rs#L89-L99`.
 
 ## SettingsService: serialized read-modify-write
 
@@ -130,22 +136,26 @@ key validation point:
 - **BT**: tracker list and tracker-list URL validated (http/https/udp schemes),
   sorted and de-duplicated.
 - **Aria2 RPC**: `normalize_aria2_rpc_settings` drops clients whose `token_hash`
-  is empty (they can never verify, so they would only be dead UI rows) and trims
-  names/hashes.
+  is empty (they can never verify, so they would only be dead UI rows), trims
+  names/hashes, falls `listen_address` back to `127.0.0.1` unless
+  `is_plausible_bind_host` accepts it (an IP literal or hostname; a `host:port`,
+  URL or whitespace is rejected so `format_bind_addr` cannot append a second
+  port), and trims/drops blank CORS origins.
 - **URL rewrite**: rules with an empty pattern are dropped, targets with an empty
   template are dropped, and `order` is reassigned to the filtered positions.
 - `max_in_memory_downloads` is 0 (unlimited) or clamped to 10..=10000.
 
 Evidence: `repo://crates/limedl-core/src/settings/mod.rs#L19-L125`,
-`repo://crates/limedl-core/src/settings/mod.rs#L127-L146`,
+`repo://crates/limedl-core/src/settings/mod.rs#L128-L170`,
 `repo://crates/limedl-core/src/settings/mod.rs#L330-L378`.
 
-## Aria2 RPC authentication settings
+## Aria2 RPC authentication and bind settings
 
-`Aria2RpcSettings` has `enabled` (**default `false`**), `port` (default 6800), an
-optional `secret`, `auth_mode`, `clients` and `cors_allowed_origins`.
-`Aria2AuthMode` is `single` (the default, preserving the historical shared secret)
-or `per_client`.
+`Aria2RpcSettings` has `enabled` (**default `false`**), `port` (default 6800),
+`listen_address` (default `127.0.0.1`), an optional `secret`, `auth_mode`,
+`clients`, `cors_allowed_origins`, `allow_any_origin` (default `false`) and
+`exit_on_shutdown` (default `false`). `Aria2AuthMode` is `single` (the default,
+preserving the historical shared secret) or `per_client`.
 
 The `enabled` default flipped from `true` to `false`: with an empty `secret` the
 endpoint answers anonymously, so a fresh install must not expose it until the user
@@ -153,14 +163,22 @@ opts in. A `settings.json` that already says `"enabled": true` is honoured, and 
 no secret is configured while the server is on, the server logs a warning and the
 settings UI carries a note next to the toggle.
 
+`listen_address` is what lets the headless daemon serve a LAN. It is not a pure
+preference: a non-loopback value only starts together with authentication,
+enforced by `public_bind_rejection` in the server. `allow_any_origin` emits a CORS
+wildcard and `exit_on_shutdown` lets `aria2.shutdown` stop the process; both
+default to the desktop's safe behavior (no wildcard, no exit) and the daemon
+overrides them.
+
 `Aria2Client` carries `id`, `name`, `token_hash` and `created_at_ms`. `token_hash`
 is an **Argon2id PHC string** — the plaintext token is generated once in the UI,
 shown once, and never persisted. The settings editor only writes `token_hash` on
 save; `parse_aria2_clients` validates name uniqueness and non-empty hash without
 running Argon2.
 
-Evidence: `repo://crates/limedl-core/src/types/settings.rs#L330-L392`,
-`repo://crates/limedl-core/src/settings/mod.rs#L127-L136`.
+Evidence: `repo://crates/limedl-core/src/types/settings.rs#L330-L422`,
+`repo://crates/limedl-core/src/settings/mod.rs#L128-L170`,
+`repo://crates/limedl-core/src/aria2_rpc/server.rs#L51-L59`.
 
 ## Save fan-out
 
@@ -179,14 +197,15 @@ frontends:
 5. Buffer-pool limits are pushed directly into `DiskIoService` as a fallback.
 
 `save_settings` is a wrapper that replaces the whole struct; `factory_reset` saves
-defaults.
+defaults. The daemon uses this path once at startup to persist a `--download-dir`
+override.
 
-Evidence: `repo://crates/limedl-core/src/dispatcher.rs#L281-L348`.
+Evidence: `repo://crates/limedl-core/src/dispatcher.rs#L281-L348`,
+`repo://crates/limedl-server/src/lib.rs#L64-L76`.
 
 The desktop adds UI-specific side effects in `settings_sync` (autostart sync,
 Aria2 RPC restart, language/tray/appearance push) — see
-<!-- openwiki: broken internal link [/openwiki/desktop/native-ui-architecture.md] link "/openwiki/desktop/native-ui-architecture.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Native Desktop UI](/openwiki/desktop/native-ui-architecture.md).
+[Native Desktop UI](../desktop/native-ui-architecture.md).
 
 ## The no-shadow-copy rule
 
@@ -197,11 +216,8 @@ write-back points; that was removed because it drifted from the persisted value.
 
 Evidence: `repo://crates/limedl-native/src/context.rs#L37-L51`.
 
-<!-- openwiki: broken internal link [/openwiki/architecture/bootstrap-and-services.md] link "/openwiki/architecture/bootstrap-and-services.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Bootstrap, SystemContext and Shared Services](/openwiki/architecture/bootstrap-and-services.md),
-<!-- openwiki: broken internal link [/openwiki/systems/networking-and-rate-control.md] link "/openwiki/systems/networking-and-rate-control.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Networking, HTTP Clients and Rate Control](/openwiki/systems/networking-and-rate-control.md),
-<!-- openwiki: broken internal link [/openwiki/integrations/aria2-rpc-server.md] link "/openwiki/integrations/aria2-rpc-server.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Aria2 JSON-RPC Compatibility Server](/openwiki/integrations/aria2-rpc-server.md),
-<!-- openwiki: broken internal link [/openwiki/desktop/native-ui-architecture.md] link "/openwiki/desktop/native-ui-architecture.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Native Desktop UI (Slint)](/openwiki/desktop/native-ui-architecture.md).
+Related pages: [Bootstrap, SystemContext and Shared Services](../architecture/bootstrap-and-services.md),
+[Networking, HTTP Clients and Rate Control](networking-and-rate-control.md),
+[Aria2 JSON-RPC Compatibility Server](../integrations/aria2-rpc-server.md),
+[Headless Server Daemon](../integrations/headless-server-daemon.md),
+[Native Desktop UI (Slint)](../desktop/native-ui-architecture.md).

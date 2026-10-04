@@ -1,0 +1,33 @@
+[package]
+name = "limedl-server"
+version.workspace = true
+description = "Headless limedl daemon exposing the Aria2 JSON-RPC API (NAS / server builds)"
+license.workspace = true
+edition = "2024"
+
+[lib]
+name = "limedl_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "limedl-server"
+path = "src/main.rs"
+
+[dependencies]
+# `aria2-rpc` pulls the axum server and, through the core default features, the
+# BitTorrent engine — the daemon serves both protocols.
+limedl-core = { path = "../limedl-core", features = ["aria2-rpc"] }
+# `signal` is what turns SIGTERM/SIGINT into a clean engine shutdown; `fs` is
+# used for the data-directory lock, `sync` for the RPC shutdown watch channel.
+tokio = { workspace = true, features = ["signal", "macros", "rt-multi-thread"] }
+anyhow = { workspace = true }
+clap = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+serde_json = { workspace = true }
+# Hands a real JSON-RPC request to the daemon over TCP; already in the
+# workspace graph as a core dependency.
+reqwest = { workspace = true }
+ntest = { workspace = true }

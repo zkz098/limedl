@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:085611fbe16384abdbdfad358ad322581da08e5f87493f2e29624a484bc48af8",
+  "pageVersion": "sha256:106455f92fd557afc03cfdcdb5f81f62b9eab09f63e7528695698a2b5a71ac6e",
   "claims": [
     {
       "id": "claim_65bbce20cdb64f53960b988322db9037",
@@ -269,10 +269,50 @@
           "version": "repo-lines-v1:sha256:66710e83e6c99b5219a1aaf31a20a2c61109aae6802f71307f4c9c85ec696e8b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmOTU4ZDNlYTIxYWRjNTNiOWExOTJiNTNmMDdmOGYxNTNkNTQzMDgxZjdmZmNjY2M2OTA4ZDg0ZDAxMjA4OWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUzZDgwYzhjYTJlMTljOGIxNjg0ZTM3MzYzYjI4NTVlYjJlY2E0Yjg5NDM5ZTQwODc0YjU4ZDA5YjM0NTQyYjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI2ZGVkYWQyMWQ3MmVlNDNmMzhmZGI3MTEyNDA0ZWRmNTUwY2YwZWRjMWMzZjE2NGU1MTU4ZWU1ZTE5ZmFhMDMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFjMDA5OTc1Mzc4NTM0Nzg3NzNhMzY3NDc0MDU1ZWE0MzcxNjE3ZDE0NGRmZTE2YTQ4ZWVjNjNlODQyOWNkMmQifQ"
         }
       ]
+    },
+    {
+      "id": "claim_fe08cb6285b54ea29c185063cbbc1d4f",
+      "statement": "The limedl-server end-to-end test boots a real daemon with an injected pending shutdown future, asserts a request without the token is Unauthorized, then calls aria2.shutdown and awaits a clean process exit within a timeout.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/tests/daemon.rs#L42-L109",
+          "version": "repo-lines-v1:sha256:71d8a75183678d209224394c4117e63379c49365e9e58de859795b1c850323df:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5MzcwNmU2ZTg2ZWM0NmU4YmUxYmU1MTkyOTY3M2M5Mjc0NGQwYjI4YjhkNmQwYTM2MGNhZDQ3MGQ3M2E5MGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYwMWVhNTUyYmIwMDZjZGU3ZDVjNTFkNjhkMjg4NjFmYWYxMGRkMmZhYjMxYWE1ZTZmZTRlZjJjZTE5ZjBjNTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b4c333cbe78f4d6dabb3adf227a9201b",
+      "statement": "limedl-server tests run only in the Linux check-rust job; the Windows/macOS legs compile the crate (including the cfg(not(unix)) Ctrl+C path) through the workspace clippy but do not execute the port-binding test.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L507-L514",
+          "version": "repo-lines-v1:sha256:7c488ac9a3bb089f539c081b07d8818547cfb5f9f8c56021af63ae6cdc4e7fbe:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZGUyMDNiOTU1N2VhNjVjYzE3ZGI4NGZlZjkwZTEzNzdkNjRkMzhiOWQyOWUwOGNjY2UyOWViNjNkZWQ1MzYyYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTc5NjA0OTdkZjZmNTdkN2ZmODIzYzgxOWI4ZWJlYTkyYTg3ZWEzYTc1OWNmMzMwMjEzOGFlYzg5MTIyMzFjZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmU0MzJlNTRmNDc1MzkyYjhhNjA1YmM1ZTVhNGQ1Mjc3NGU1YmE0NjYwYjhhYTlhODFkYTgxMzE3ZGMwMjkzZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzc3ODIwZTUwNDMxYzljYWE0Y2NiYjU4ZWFlMDZjMjg4NjZjNTk3OWYyMjliNDNmNTA1Mzk4NDYyODEwNzk1ZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_6494fb505f114c01963d8a0aefd334c8",
+      "statement": "limedl-server is listed in sonar.coverage.exclusions so its lines are not counted as 0% while it has no lcov report.",
+      "evidence": [
+        {
+          "resource": "repo://sonar-project.properties#L76-L76",
+          "version": "repo-lines-v1:sha256:15e2cc1b81b5003ff639a2bef022d99949f0f6111ce1705ec202c6991855a1c3:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTVlMmNjMWI4MWI1MDAzZmY2MzlhMmJlZjAyMmQ5OTk0OWYwZjYxMTFjZTE3MDVlYzIwMmM2OTkxODU1YTFjMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMTVlMmNjMWI4MWI1MDAzZmY2MzlhMmJlZjAyMmQ5OTk0OWYwZjYxMTFjZTE3MDVlYzIwMmM2OTkxODU1YTFjMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTBiYTE4YzNiY2RiOWNlY2NhZTVjZTVkMWM4MjRiNDhhYTk2NTZiZWJhY2UyODY1OGQ2ZWQyNWY3MWZhYzllMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_19753878337e4e98bd5d6f54a4908f92",
+      "statement": "The Aria2 RPC end-to-end CORS test also covers allow_any_origin and asserts a wildcard origin is never paired with Access-Control-Allow-Credentials.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L1211-L1315",
+          "version": "repo-lines-v1:sha256:afdae785d599c9d6309fed5e2729e18530c6a71f42fe0d150a484198bd25dafc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5ZDQwYTVhMGU4ODkxYjZkZWQxNmI0MmFjNzkzNTM4MWU1M2QyN2I0NTM1MDE3MGUwNzRjN2RkNGJlOWQzZWI2IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMjQ1Y2VkYWJmZTlhNGYyZmI5MDc2MmU1ZjBlN2JjODZhZDliMzdmNzFiYTc0Mjk0NWFkNDgyNzc3NWU5MWEyIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI2NjM5NTkyYTAzNmY5MzM5ODY5M2JhODk0NjM1M2IxZDE4NWYzMDAwN2U3NWM0NGZlNDA2NmYyYjkxMDExNjMyIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI1MDRhMzQ3NDQ4NGIzOWU0ZjIwYWNmNGE2YzViOWI4OTIzYjRlNjU1OTNjZTk0YTZjYmE1NDMzNTdhOThhZDRjIn0"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T11:42:48.469Z"
+    "at": "2026-10-04T12:36:56.946Z"
   }
 }

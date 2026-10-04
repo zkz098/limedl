@@ -36,7 +36,7 @@ async fn start_ws_server() -> (String, tokio::sync::watch::Sender<bool>, TempDir
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     tokio::spawn(async move {
-        let _ = rpc.serve(shutdown_rx, settings.cors_allowed_origins).await;
+        let _ = rpc.serve(shutdown_rx).await;
     });
 
     // Poll until the server is ready to accept connections.
@@ -434,7 +434,7 @@ async fn the_replacement_server_waits_out_the_predecessor_and_wins_the_port() {
     let rpc = Aria2RpcServer::new(core.registry.clone(), &settings, core.event_bus.clone());
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     tokio::spawn(async move {
-        let _ = rpc.serve(shutdown_rx, settings.cors_allowed_origins).await;
+        let _ = rpc.serve(shutdown_rx).await;
     });
 
     // The replacement has already tried (and must have failed) to bind by now.

@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1
+#
+# CI-only variant: assemble the runtime image from a prebuilt static musl
+# binary instead of rebuilding the engine. The release pipeline's `build-server`
+# matrix produces those binaries with `cargo zigbuild`; `server-image` extracts
+# them to dist/img/<arch>/limedl-server and passes the path as BINARY.
+#
+#   docker buildx build -f packaging/server/Dockerfile.release \
+#     --build-arg BINARY=dist/img/amd64/limedl-server -t limedl-server .
+#
+# Building from source is the committed Dockerfile; this one exists so a
+# multi-arch release does not have to run the C toolchain under emulation.
+
+ARG BINARY=dist/img/limedl-server
+
+FROM alpine:3.20
+ARG BINARY
+RUN apk add --no-cache ca-certificates su-exec tzdata \
+    && addgroup -g 1000 -S limedl \
+    && adduser -u 1000 -S -G limedl -h /var/lib/limedl -s /sbin/nologin limedl
+COPY packaging/server/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY ${BINARY} /usr/local/bin/limedl-server
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/limedl-server
+
+VOLUME ["/var/lib/limedl", "/downloads"]
+EXPOSE 6800
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["--rpc-listen", "0.0.0.0", "--data-dir", "/var/lib/limedl", "--download-dir", "/downloads"]

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:0a3714aab2be6e456b3cbc04f41243d9e2c3e0765f54801d367be7a2f7354d1d",
+  "pageVersion": "sha256:e4ea07e606f9191c16ce27f9af20f558cf970ac018538ceb12ce0dc79c97c1d6",
   "claims": [
     {
       "id": "claim_ebf902f2ec634cfda5a0a6f0ae54d147",
@@ -72,11 +72,11 @@
     },
     {
       "id": "claim_2cbffe8bbb1e483cb9d93a094115255f",
-      "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native) with CARGO_BUILD_WARNINGS=deny, not RUSTFLAGS, so .cargo/config.toml's flags stay authoritative.",
+      "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native; limedl-server) with CARGO_BUILD_WARNINGS=deny, not RUSTFLAGS, so .cargo/config.toml's flags stay authoritative.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L85-L108",
-          "version": "repo-lines-v1:sha256:5d4f549bd5dc82df6a611968c30b269861506c87a47edc512fbb6a16ad2f8a00:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwOGE2Y2Y2OWI1N2E0NjQ0MWJkOGEwMGEyODg5ZmJhMmI4ZjMyMDNhNmVhMjFiZmUzNjI4N2JlMWNhZWM2NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUxNjgwODAxNmY5MjgzZTRlMmE1ZjQ0OTZhMWVhMjkzYjA2YjAwZTNlZTJjMjdjOGE3MmI2ZDY3NjNlZDFjY2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlYTQ1Y2ViNGQyY2UzOTU5MzAxMjRlMzI2ZmQ0NTAwYTFiYjIxNzllNWRhNTI3ZTA3ZWM4YzEwZTM2ZmE0MzAifQ"
+          "resource": "repo://AGENTS.md#L101-L114",
+          "version": "repo-lines-v1:sha256:fe54dc780e70e89b17ccbed15bc279a7d8b9a1900b91da62b308774803ce975a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5YjEyNGMxOThmZWVmNzUxZjNmOTcwNGU1NThhOWI0MDMyOGU2MmU0ODllZWM0NWFmM2IzNjQ0OWRkNTdjNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5MjJjYTRkOTg2ODU3MTFjODY2ZjMyOGFjYWQ1ZTYyYTYyM2IzMjM2MThjOTEyNGUyZTNjMDVhZWQwMWRmNTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg5ZjhjMjI1N2MzOGYwNWYzYjdmZjQ0MGZhNjBiMWE3NmY1NGQ0MTU1MmU4MTBiMjlhYTQyMzgzY2NlMDYzOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMzYzhmZGMwYmIzMzhiZDY3OTRmMWU1YTI2Y2VkNGU2Mjc3YjY5YzYyYWMwNmVhZWQ2MDY2YzA2NTc5ODllYWMifQ"
         }
       ]
     },
@@ -95,22 +95,22 @@
       "statement": "On a Windows host the gate never compiles cfg(not(windows)) code, so non-Windows-only unused imports, Windows-only build.rs dependencies, missing dependency features and missing -dev packages can only be caught by the first tagged release; the project mitigates this by preferring #[cfg] over runtime target checks.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L109-L128",
+          "resource": "repo://AGENTS.md#L116-L135",
           "version": "repo-lines-v1:sha256:bfe2bd0cccc2c1d00dac3f446b5f00cbb488b8bdb8d69d5cadb8d676359f4635:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMTUzYjFlNTAzZDMyMDhlOTc3NGMxZmYzNGRjNDIyYzg1ZjM4MDY5YjFkNTdmYjQ5ZGZmYzg1N2JiMTJjYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExMTdlYjgxOTRhZTAyNWFjYWM5ZWE1YzE1ZDNlNTM1NjU3YjM2ZTAyMDVhMjUwYmJjZDMzMzZmZmY0ZWQ2MzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ5NDgxZjg1MzFkOWUyZTc2OGU3NmFlMmZjYzExZGRjM2UyZjk2OGEwMDU0NTdlODcyMzdlZDgwNzAwY2VkMjUifQ"
         }
       ]
     },
     {
       "id": "claim_354ade28d9f84834a0c80762a564fe87",
-      "statement": "CI runs font, check-windows (clippy), test-windows-core (core + xtask nextest), test-windows-native, check-macos (clippy + core + native nextest), check-rust (coverage, clippy, SonarCloud, native nextest) and supply-chain (cargo deny check -W rejected bans licenses sources plus cargo audit).",
+      "statement": "CI runs font, check-windows (clippy), test-windows-core (core + xtask nextest), test-windows-native, check-macos (clippy + core + native nextest), check-rust (coverage, clippy, SonarCloud, native nextest + limedl-server nextest) and supply-chain (cargo deny check -W rejected bans licenses sources plus cargo audit).",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/ci.yml#L108-L287",
-          "version": "repo-lines-v1:sha256:3f7f263fa340bc5ecbef3c3d6e656d68cbeefb2a2f574248feecbc566c012aef:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzM2I3NmI1YjY3NDgyYWI5MWQxYjRkM2RhNTlkMTlhYTljN2MyZDAwNjM1OGE5OWY3ODM5NjhlZWRjYmM5MjEwIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIxODBjNzk4ZTgyYjA3NjNlOWNjY2YzYTExMGQ0Mjk4Y2U1NDg4MDU5OGRkNjdlZmE2ZDcyZjQyZDJjZDMwODU1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlZWU2Nzk2OTRkYWRlMzQzYzRlZDI5N2U0NjA1ZGZlYzJiOThjMmFiYjQyOWNhYzBmMzA0YmEzMTcwNjQ1YTAxIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJiMWM3Zjk4YmI1OWM0NjlhY2NkY2E5ZWU1NmVjOGU5NzczNWU3YmU4NjIwMTc0ODJkNTI2OTYzMDRiM2JhNzI2In0"
+          "resource": "repo://.github/workflows/ci.yml#L148-L336",
+          "version": "repo-lines-v1:sha256:1ae236edaf251ae462bfd4cb2481476a83542aa5c1e3046116774f96edd31f38:eyJzZWxlY3RlZExpbmVDb3VudCI6MTg5LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjNWMzYjQzM2VhYzFlZmZiYmUyZGFhMzkxYjUyOGFlMzhiOTFiZTA3MzZkNDIyOTljMDQ0MDhlODU5ZmIwMTU2IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJlMGE5Yjc3NzAzMWJjYzEzYjY1ZDU1OTE5YjY1Yjg3M2ZjMDAzODkwNmJlYmRiZmIzODgzMTZlNGRiNWVkYzhhIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI3NjliYjI4YjM1ZTQ2ZmRjYzBkNjBkOTY4YTE3NWFhYjdiNmE2YWJiYTg2MDVkOTk2YTI5MTZjOWZmNjRjOTQyIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlYzM0MjgxMWQyYjg4NmJhYTc3ODk0ZjBkM2ZhOTA2YjU1ZDRiZjA4YTNmMzBmODMyMzNmMWNkNTVkM2E5YTkwIn0"
         },
         {
-          "resource": "repo://.github/workflows/ci.yml#L336-L543",
-          "version": "repo-lines-v1:sha256:8bb726786a43a3fac7b13b9bf1d904fa5db5d0121aa89415cf0406a1046af4b3:eyJzZWxlY3RlZExpbmVDb3VudCI6MjA4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMGE5Yjc3NzAzMWJjYzEzYjY1ZDU1OTE5YjY1Yjg3M2ZjMDAzODkwNmJlYmRiZmIzODgzMTZlNGRiNWVkYzhhIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MDc5OGUyODUwNzNiYmMwMzBlOGQ3N2U5MWY1NGY4Y2QxMGUxMDgyNjAxYTNjMmFhNWU0ZTcwYWY4ZTViNzg0IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwOGQ3YjczODQzMGRkODAzZDRjMmQ5NjI5MWZlODU5ZWRhMDE0OTY3MjA2MDEwZjU1OTZkNWQxOTA2YmQ2Njg4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+          "resource": "repo://.github/workflows/ci.yml#L336-L522",
+          "version": "repo-lines-v1:sha256:05e264c0836413f1432b1f3ebbc3fa550324a6225e83bf27acdb20bc0dcab1c5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTg3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMGE5Yjc3NzAzMWJjYzEzYjY1ZDU1OTE5YjY1Yjg3M2ZjMDAzODkwNmJlYmRiZmIzODgzMTZlNGRiNWVkYzhhIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwYjQ5NDA2MjQxYzVlMWFkMmUxNWYyNjkxODM1MDI5NGZiZjFjMGMxYWIzNzQyYjdlNzllN2MzOGVjMTQxMjY3IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwOGQ3YjczODQzMGRkODAzZDRjMmQ5NjI5MWZlODU5ZWRhMDE0OTY3MjA2MDEwZjU1OTZkNWQxOTA2YmQ2Njg4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJmYWIwZDIzZDViOTQ0NjBhMzM3MDU1YjNhNjI1OThiYjQ5ZDQ3NjA4OTZhMzNhYzliYWRhNTY1MTg3NjkxMjk4In0"
         }
       ]
     },
@@ -126,15 +126,23 @@
     },
     {
       "id": "claim_c9c800411f5f4eba8eb475683cf575c1",
-      "statement": "A v* tag triggers the release: font fetches once, changelog generates the body with git-cliff from Conventional Commits, three platform jobs build and upload artifacts, and native-manifest is the sole writer of latest-native.json, running with if: always() and merging only succeeded platforms before signing and guarding.",
+      "statement": "A v* tag triggers the release: font fetches once, changelog generates the body with git-cliff from Conventional Commits, three desktop platform jobs build and upload artifacts, build-server cross-compiles static musl limedl-server tarballs with cargo zigbuild, server-image publishes a multi-arch GHCR image from those binaries, and native-manifest is the sole writer of latest-native.json, running with if: always() and merging only succeeded platforms before signing and guarding.",
       "evidence": [
         {
           "resource": "repo://.github/workflows/release.yml#L1-L37",
           "version": "repo-lines-v1:sha256:8fa480337946ae15abd285511de7073b89f7e1493e9af9ab2fef02be97c361ae:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZWVmOTAzMGQwYzcwMjkwMTBjNDYzNTY4OWY1ODMyOGQxMDllNmE4NWVkMWE5MjQ1YjIwZjM5NTViN2RiMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5ZWNlZGMxOGVjYWYxZGFmOWU3YmVmYjlmZDc5ZTJjM2NmMTU1OTllNTNlNzljZGJkOTAxZWU2ZTJjOTc5ZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5YTBjOGM1NTM1MTczOGM0Y2FjMTdiMTIzMzVkY2NjMWVkY2YzZDJkNjBlYWJlMGExMDljMTA0NDA1Y2Q2YTkifQ"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L512-L640",
-          "version": "repo-lines-v1:sha256:b58971fc8a85c4a67335dac75ec7743e10c20b629c1efcb992dc92764cc3471b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTI5LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI2NDdjYjZjOTRkOTZlMzY4OGRjNWI5MTM0OTAwNTIwNDhhMTdiNmJkYjE1YzExMjdiMjc5OTA4YjY5MzdhYzA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJmMTRhNTAzMGUxMzU4YmNmNGE3ZjdjN2FkZjRiZjI1ZmVjNGFlNWZjYWUzMDMzMTc1YTYzMDc0NTVmY2MwMWM4IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxMTc4MmNiYTY4MzJlNGVmNWU3NDEzNjIwNTZjNmE3NTI4NWM3NjhjMWY3OTNiNWZkZTJlNjdmMjIxYTFlODk2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI2OTY0MDhkZGM5YzU3MmQ0N2RiOWU3Y2QwMjhmNTBjNDg2OTM4MTAzYTcwNmQ0NzIyYWM1YWNlMWM2NDMyMzIxIn0"
+          "resource": "repo://.github/workflows/release.yml#L517-L592",
+          "version": "repo-lines-v1:sha256:b44891a0413c5efb3881b0fcea5984026a7bb9777e90df2c620c231899059712:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMDc4NDhhNDM2NjY1NmIyYmE2MTk3YmUwMmI5MjA4MTQ1NDZmOWQ5YWQwYjUzMzllNGMyNmEyYzk0NjUxMTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNGE2ZTUyMTE5NWZiMzYxM2I0NDFlZGU1OTE4OGY4YTU2MjI3NmI3MzBjNDU4NTc4OGQ5NjM3YWZjNDc0ODMifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/release.yml#L608-L693",
+          "version": "repo-lines-v1:sha256:950e77a405bc00709580e25bf807eae694b595144efa2300b5e99daf62921e78:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmOGNiODk0Yzc3YzQyNWZjY2Q1OGVhZjJlZGY1MjcwZmFiMjljOGQ5NmFkZjExNmEwNTIyN2I0ZWUxMGM3OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNzAzNzQ5NGU0ZTdmMTM4Mzg1OGYzYzgwOTc5ZTg3OWVlMjBjZWJhYmQ0OGNmYjJhY2UwNGU0MmFiNTdhZTQifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/release.yml#L703-L840",
+          "version": "repo-lines-v1:sha256:9690c3e2a0f7dd13c62b9597dc013742a3fcfa571ed3799ee72ca87786c16dc4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTM4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI2NDdjYjZjOTRkOTZlMzY4OGRjNWI5MTM0OTAwNTIwNDhhMTdiNmJkYjE1YzExMjdiMjc5OTA4YjY5MzdhYzA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI5MmQ2MWVkMDc4NzM0ZTMzNmRiMmFlOWIyMmE2OGYzZjk2ZTRlMTE0NzAxN2JkMWQ2ZTc4OTQwMDk2MGM3NzkwIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJkYzBmYmZhM2NlNDk3YjY2ZmQzMDYyZjg3M2NmZjk1YzQwOTI2NjNjN2VhMzI3OGYxYWQ2MTYwNTUyZmU1NzY0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
         },
         {
           "resource": "repo://.github/workflows/release.yml#L77-L128",
@@ -157,11 +165,11 @@
       "statement": "Lockfile changes after cargo update/add/remove must be committed, and irontide is pinned exactly to =1.7.0 because the BT backend depends on a wide engine API and upstream's git repository was removed, making crates.io the only source of truth.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L129-L136",
+          "resource": "repo://AGENTS.md#L136-L143",
           "version": "repo-lines-v1:sha256:859c481a159eaa7d362fd4cfad8c752a6977f2baa88167530e2af59af7e7aa80:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTNjYzRhNzEwYmYzMWEyN2Q3MTk2MDRmYTdkYTEyZWJhNGY5MTY4ZTZjYzRkOWY4NmQ4YjJjOTE5NTYzYzRjZCJ9"
         },
         {
-          "resource": "repo://Cargo.toml#L70-L74",
+          "resource": "repo://Cargo.toml#L79-L83",
           "version": "repo-lines-v1:sha256:8358413bd2c4e67dc79bd275d785bd5868db516eac386f621badb76124b61982:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzgzMzlhNmY4NmZiZTMxMDZmNGZjMTFiNGYyNmRjY2I2MGRhZTUzZTZjMTFkMDQyMjA0ZDdiMzBiNGRlYzkzMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDc5NGJhNzljZTJhNTFlODAwYmZlNDM3OGYzZjM1ZDhmZjQxZmFkZWE4OTMzMWM0YjViYzQ0NGE0NDE5NWIzZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDE3NjMyZGNkY2QzMTUyNWE1MDUzYWRkY2JiMmI3MzZmZjFhZDc3Y2EzOTgwYWE1OTY1NWMwM2ZhNjdjOTA2YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2IwNGUwMjlhNTkyOGI1NDI2Yzk2ZmYwNGQ2NTJhN2VlZjcxY2U4OWNmZjI3MmJiZGFmYjk5OGY1NWRlZDM0ZSJ9"
         }
       ]
@@ -179,10 +187,50 @@
           "version": "repo-lines-v1:sha256:353a612cb21fd6af4dc72ab1ade04f40651e0f9d718192bef3c8b92c81b6213e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0N2UyNGUzNjE4YTZjNDkwYzYyYjAxZWE5Y2U0MWQ5YzE2NmRlMTE2ZTQ2MTViMDUxOGM5ZDRmNDBiM2JiODYifQ"
         }
       ]
+    },
+    {
+      "id": "claim_d78d9bfe67674a09aaad5e8984f28008",
+      "statement": "The limedl-server test suite runs only in the Linux check-rust job; the Windows and macOS legs compile it through cargo clippy --all-targets but never execute its port-binding end-to-end test.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L507-L514",
+          "version": "repo-lines-v1:sha256:7c488ac9a3bb089f539c081b07d8818547cfb5f9f8c56021af63ae6cdc4e7fbe:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZGUyMDNiOTU1N2VhNjVjYzE3ZGI4NGZlZjkwZTEzNzdkNjRkMzhiOWQyOWUwOGNjY2UyOWViNjNkZWQ1MzYyYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTc5NjA0OTdkZjZmNTdkN2ZmODIzYzgxOWI4ZWJlYTkyYTg3ZWEzYTc1OWNmMzMwMjEzOGFlYzg5MTIyMzFjZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmU0MzJlNTRmNDc1MzkyYjhhNjA1YmM1ZTVhNGQ1Mjc3NGU1YmE0NjYwYjhhYTlhODFkYTgxMzE3ZGMwMjkzZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzc3ODIwZTUwNDMxYzljYWE0Y2NiYjU4ZWFlMDZjMjg4NjZjNTk3OWYyMjliNDNmNTA1Mzk4NDYyODEwNzk1ZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_5b5bf03dae594ea1b26638e955f94ca3",
+      "statement": "limedl-server is excluded from the Sonar coverage metric because no lcov report is generated for it.",
+      "evidence": [
+        {
+          "resource": "repo://sonar-project.properties#L76-L76",
+          "version": "repo-lines-v1:sha256:15e2cc1b81b5003ff639a2bef022d99949f0f6111ce1705ec202c6991855a1c3:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTVlMmNjMWI4MWI1MDAzZmY2MzlhMmJlZjAyMmQ5OTk0OWYwZjYxMTFjZTE3MDVlYzIwMmM2OTkxODU1YTFjMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMTVlMmNjMWI4MWI1MDAzZmY2MzlhMmJlZjAyMmQ5OTk0OWYwZjYxMTFjZTE3MDVlYzIwMmM2OTkxODU1YTFjMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTBiYTE4YzNiY2RiOWNlY2NhZTVjZTVkMWM4MjRiNDhhYTk2NTZiZWJhY2UyODY1OGQ2ZWQyNWY3MWZhYzllMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_10b59a4963144349aff72b9e42f38ac3",
+      "statement": "The build-server release job cross-compiles limedl-server for x86_64 and aarch64 musl with cargo zigbuild, bundles the systemd unit and env example into the tarballs, and uploads plain release assets that are not signed and not part of the update manifest.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L517-L592",
+          "version": "repo-lines-v1:sha256:b44891a0413c5efb3881b0fcea5984026a7bb9777e90df2c620c231899059712:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMDc4NDhhNDM2NjY1NmIyYmE2MTk3YmUwMmI5MjA4MTQ1NDZmOWQ5YWQwYjUzMzllNGMyNmEyYzk0NjUxMTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNGE2ZTUyMTE5NWZiMzYxM2I0NDFlZGU1OTE4OGY4YTU2MjI3NmI3MzBjNDU4NTc4OGQ5NjM3YWZjNDc0ODMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_919045ff570245d79260808c2a56b197",
+      "statement": "The server-image job assembles the prebuilt static musl binaries into a thin Alpine image, pushes per-architecture images, and merges them into a multi-arch ghcr.io/zkz098/limedl-server manifest, skipping the latest tag for a prerelease.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/release.yml#L608-L693",
+          "version": "repo-lines-v1:sha256:950e77a405bc00709580e25bf807eae694b595144efa2300b5e99daf62921e78:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmOGNiODk0Yzc3YzQyNWZjY2Q1OGVhZjJlZGY1MjcwZmFiMjljOGQ5NmFkZjExNmEwNTIyN2I0ZWUxMGM3OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNzAzNzQ5NGU0ZTdmMTM4Mzg1OGYzYzgwOTc5ZTg3OWVlMjBjZWJhYmQ0OGNmYjJhY2UwNGU0MmFiNTdhZTQifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T10:39:31.763Z"
+    "at": "2026-10-04T12:58:25.182Z"
   }
 }

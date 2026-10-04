@@ -1,11 +1,11 @@
 ---
 type: architecture
 title: Workspace and System Architecture
-description: Repository layout and runtime topology of limedl — the core engine and Slint desktop crates, protocol routing by TaskId, the typed EventBus fan-out, and the cross-cutting serialization and build conventions.
+description: Repository layout and runtime topology of limedl — the core engine, Slint desktop and headless server crates, protocol routing by TaskId, the typed EventBus fan-out, and the cross-cutting serialization and build conventions.
 tags: [architecture, workspace, crates, routing, event-bus, conventions]
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T11:10:17.271Z
+    at: 2026-10-04T12:36:56.946Z
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
     resource: repo://.cargo/config.toml
@@ -37,16 +37,21 @@ sources:
     resource: repo://crates/limedl-native/src/main.rs
   - id: openwiki-source-d94bdd15f85e5a65c6c7399a
     resource: repo://crates/limedl-native/src/renderer.rs
-generated: { by: "pi", at: "2026-10-04T11:10:17.271Z" }
+  - id: openwiki-source-d276c8311d32ca61eb9edb7d
+    resource: repo://crates/limedl-server/Cargo.toml
+  - id: openwiki-source-2d1753b77bfe7d551752205e
+    resource: repo://crates/limedl-server/src/lib.rs
+generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
 ---
 
 # Workspace and System Architecture
 
-limedl is a Cargo workspace with three members: `crates/limedl-core` (the pure
+limedl is a Cargo workspace with four members: `crates/limedl-core` (the pure
 download engine, lib name `limedl_core`), `crates/limedl-native` (the Slint desktop
-client binary), and `xtask` (repository tooling for version bumps, font fetching
-and release signing). All crates use Rust edition 2024 and the workspace version
-(`0.4.6`) is inherited from the root manifest.
+client binary), `crates/limedl-server` (the headless daemon binary that serves the
+Aria2 JSON-RPC API), and `xtask` (repository tooling for version bumps, font
+fetching and release signing). All crates use Rust edition 2024 and the workspace
+version (`0.4.6`) is inherited from the root manifest.
 
 Evidence: `repo://Cargo.toml#L1-L11`.
 
@@ -55,8 +60,8 @@ Evidence: `repo://Cargo.toml#L1-L11`.
 The defining split is that the engine knows nothing about the UI. `limedl-core`
 declares its public modules (manager, http_executor, scheduler, bt_backend, cdn,
 aria2_rpc, database, settings, …) and depends on no GUI crate; the desktop client
-is only one possible frontend. Historically a NAS/server target also called the
-same `bootstrap()`, which is why the core maintains this boundary.
+and the headless server are both frontends over it. Both call the same
+`bootstrap(state_dir)`, which is why the core maintains this boundary.
 
 Evidence: `repo://crates/limedl-core/src/lib.rs#L3-L34`,
 `repo://crates/limedl-core/Cargo.toml#L1-L10`.
@@ -73,6 +78,15 @@ enables tokio's `signal` feature for the `cfg(unix)` SIGTERM/SIGINT watcher in
 Evidence: `repo://crates/limedl-native/Cargo.toml#L13-L31`,
 `repo://crates/limedl-native/Cargo.toml#L33-L36`,
 `repo://crates/limedl-native/src/renderer.rs#L1-L31`.
+
+`limedl-server` depends on the same `limedl-core` with `aria2-rpc`, plus `clap`
+for its CLI and `anyhow`/`tracing`. It has no Slint, tray or dialog dependency,
+which is what lets the release pipeline ship it as a single static musl binary for
+NAS and soft-router targets. See
+[the headless server daemon page](../integrations/headless-server-daemon.md).
+
+Evidence: `repo://crates/limedl-server/Cargo.toml#L1-L22`,
+`repo://crates/limedl-server/src/lib.rs#L1-L10`.
 
 The client owns the concerns that are meaningless inside the engine — crash
 reporting (`crash.rs`), the single-instance claim and its activation channel
@@ -135,8 +149,9 @@ Frontend emission lives in each adapter, not in `publish`:
 
 - The desktop subscribes once in `main()` and forwards into
   `event_stream::bus`, which updates the Slint model and repaints.
-- The Aria2 WebSocket adapter subscribes independently and forwards only
-  `Aria2Notification` to connected clients.
+- The Aria2 WebSocket adapter (served by both the desktop and the daemon)
+  subscribes independently and forwards only `Aria2Notification` to connected
+  clients.
 
 Both adapters must handle `RecvError::Lagged` explicitly: a `while let Ok(...)`
 loop would exit permanently on lag. The desktop resynchronizes by calling
@@ -163,12 +178,14 @@ Evidence: `repo://crates/limedl-native/src/main.rs#L176-L179`,
   `repo://crates/limedl-core/src/lib.rs#L36-L48`.
 - **Target flags**: `.cargo/config.toml` adds `target-cpu=x86-64-v3` (desktop)
   and `--cfg reqwest_unstable` for every target; the HTTP/3 feature in reqwest
-  hard-fails to compile without that cfg. New targets must carry both.
-  Evidence: `repo://.cargo/config.toml#L1-L45`.
+  hard-fails to compile without that cfg. New targets must carry both. The two
+  musl entries (`x86_64`, `aarch64`) are the headless server's, with the x86_64
+  one lowered to `x86-64-v2` for older NAS CPUs.
+  Evidence: `repo://.cargo/config.toml#L1-L40`.
 - **Release profile**: the workspace release profile optimizes for size, but
   `limedl-native` is overridden to `opt-level = 3` because rendering is CPU/GPU
   heavy rather than I/O bound.
-  Evidence: `repo://Cargo.toml#L85-L108`.
+  Evidence: `repo://Cargo.toml#L88-L111`.
 
 ## Runtime topology
 
@@ -180,12 +197,17 @@ Slint desktop (limedl-native)
 Aria2 RPC (optional, local port)
   AriaNg / Motrix -> JSON-RPC / WebSocket -> Aria2RpcServer -> Dispatcher -> same backends
     -> EventBus -> desktop subscriber (UI stays in sync)
+
+limedl-server (headless daemon)
+  AriaNg / Motrix -> JSON-RPC / WebSocket -> Aria2RpcServer -> Dispatcher -> same backends
+    (no UI subscriber; the RPC endpoint is the only frontend)
 ```
 
-Both arrows terminate at the same `Dispatcher`, which is why the two frontends see
-identical state and neither re-implements lifecycle or settings logic. The next
-pages cover the initialization sequence and the facade in depth.
+All three arrows terminate at the same `Dispatcher`, which is why the frontends see
+identical state and none re-implements lifecycle or settings logic. The next pages
+cover the initialization sequence and the facade in depth.
 
 Related pages: [Bootstrap, SystemContext and Shared Services](bootstrap-and-services.md),
 [Protocol Routing and the Dispatcher Facade](protocol-routing-and-dispatcher.md),
+[Headless Server Daemon](../integrations/headless-server-daemon.md),
 [Native Desktop UI (Slint)](../desktop/native-ui-architecture.md).

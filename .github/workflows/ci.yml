@@ -504,6 +504,14 @@ jobs:
       # (test-windows-native, ~1012 s), so a separate leg would only add
       # scheduling overhead — see the Windows section above.
       - run: cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
+      # limedl-server is the headless daemon. Its suite includes one end-to-end
+      # test that binds a real port and bootstraps the engine, so it exercises
+      # the bootstrap → forced-enabled RPC → `aria2.shutdown` → engine-shutdown
+      # wiring that the core's `aria2_rpc` tests never run. It is Linux-only on
+      # purpose: the daemon targets musl Linux, so the Windows/macOS legs only
+      # need to *compile* it — which the workspace clippy step already does via
+      # `--all-targets`.
+      - run: cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

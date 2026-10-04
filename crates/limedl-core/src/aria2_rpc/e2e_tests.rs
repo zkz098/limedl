@@ -81,7 +81,7 @@ async fn spawn_rpc_server_with_settings(
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     tokio::spawn(async move {
-        let _ = rpc.serve(shutdown_rx, settings.cors_allowed_origins).await;
+        let _ = rpc.serve(shutdown_rx).await;
     });
 
     // Poll until the server is ready to accept connections.
@@ -1274,6 +1274,41 @@ async fn aria2_server_cors_follows_configured_origins() {
         "the fallback must still refuse foreign origins"
     );
     let _ = shutdown_tx.send(true);
+
+    // `allow_any_origin` (the LAN / AriaNg-on-another-host case) emits a
+    // wildcard, and must not pair it with credentials — browsers reject that
+    // combination outright.
+    let tmp = TempDir::new().unwrap();
+    let core = crate::bootstrap::bootstrap(tmp.path().join("downloads"))
+        .await
+        .unwrap();
+    let settings = Aria2RpcSettings {
+        enabled: true,
+        allow_any_origin: true,
+        ..Aria2RpcSettings::default()
+    };
+    let (rpc_url, shutdown_tx) = spawn_rpc_server_with_settings(&core, settings).await;
+    let resp = client
+        .request(reqwest::Method::OPTIONS, &rpc_url)
+        .header("Origin", "http://anywhere.example")
+        .header("Access-Control-Request-Method", "POST")
+        .send()
+        .await
+        .expect("preflight request");
+    assert_eq!(
+        resp.headers()
+            .get("access-control-allow-origin")
+            .and_then(|v| v.to_str().ok()),
+        Some("*"),
+        "allow_any_origin must emit a wildcard"
+    );
+    assert!(
+        resp.headers()
+            .get("access-control-allow-credentials")
+            .is_none(),
+        "a wildcard origin must not be paired with credentials"
+    );
+    let _ = shutdown_tx.send(true);
 }
 
 /// A port conflict must surface as an error from `serve` instead of a silent
@@ -1300,7 +1335,7 @@ async fn aria2_server_reports_a_port_conflict() {
     );
     let (_tx, rx) = tokio::sync::watch::channel(false);
 
-    let result = server.serve(rx, vec![]).await;
+    let result = server.serve(rx).await;
     assert!(
         result.is_err(),
         "binding an occupied port must be reported as an error"

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:35b82e873a89cc4c30b5f13c7d7804bb04bc8bd4782a5508f0a0c98b38b64fa0",
+  "pageVersion": "sha256:b0b3c995936be102c71f88a15e066485f43056aa3c7a991f1ec1a6c17605525f",
   "claims": [
     {
       "id": "claim_fa16f0d8eef64f5b81e8ac9e6883ecbb",
@@ -83,7 +83,7 @@
           "version": "repo-lines-v1:sha256:8d78fd6d4bd26f055a6343eb1ebeb29164ace5a508064686bfe9082c8817f50a:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmUwZWIyYjA1YjI4YTVkYWE4ZTUwY2UwNDExMTllYWI4ZDIwMjRiNGM0YzE0YzBjYjExYTRmZTNlMGQzZDkyMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWZkODY4OTI4MjE2ZDhmM2U1ZDEzNTZjZDUwZjE2MWUzZDRhMTQ1Mzk0NDIxNzBiZjcyM2U2MjY5ZTI1YThmNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjk2YzM4YTA3ODYzNmFiMDdmZTA5MmRjM2M1N2I4NGQzZjg5MDBlMDM1YWMyOGUyYjgyMGZhNDM2Y2MwYmEyNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYThlMTU2YjYwODllYTFhNDRkMDE5YTZkOGRlNGEyNzdmYzk0NWJkM2JmZjU2MjRlYTQzM2IyZmNmNjRhZjUxNSJ9"
         },
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L86-L103",
+          "resource": "repo://crates/limedl-native/src/main.rs#L118-L135",
           "version": "repo-lines-v1:sha256:f64ffa0a75f404b233b08ec0755216f12ecd81f7da860a76b31cdfd693301c4d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM2NzFjZGYwM2I1N2E2ODdjZGY1NmRiYmNkOWIzMjAxMTlmYTZiNzIzMWI0NDI5YzNkMzU3NmI4NGMwOTFlMzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyMGVmMzY4YjIxOWVkYmY0YzVmOTVmMzExOGMyMTMyNzEyMjdjYTIxZGFjNzU1MTc1YTA1MzNjYzRiMGIyMWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEwODU3N2MwOGM3ZTJlODcyOGQ5NjAxMThiM2UyOTYwNmI2ZjVmNzA1NGVkMmQzZjZmZWEzMTYxZWViMDcwN2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5YzQxZTlhMGJlNjlhMjEyNjRlOGYwYmUxZDE2MDNjOTZmOGNlM2UzZDE2NDlkMjg5NTA3MGQzYzU2Njk2MjIifQ"
         }
       ]
@@ -121,7 +121,7 @@
       "statement": "DiskIoService::resolve_disk_type checks disk_type_overrides first, then on Unix a per-device cache keyed by st_dev, then OS detection; apply_overrides forwards overrides to the DiskDeviceManager so device write queues are rebuilt.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/services/disk_io.rs#L62-L103",
+          "resource": "repo://crates/limedl-core/src/services/disk_io.rs#L64-L105",
           "version": "repo-lines-v1:sha256:6db64ed5c8c9eb012c9cdeaa2e76859a901549908ee3bab77cff7d906d60210f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk3NDBhMmE2Mjk1ZDE0MWRmYzljNDFiZjIxYmI3ZmI5NWRjM2RkZWVkODU4ZmE0NDM1NTM5ZjUyNDcxYzE0NDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4ODg5MTBiMWM3ZDE5NmVkNzQ3ZTJkMWM3M2UyMGI4Y2RhZDc2MjFhYjQ2ZDVhM2Y0MzlkYjY0MWQ2YTkxN2QifQ"
         }
       ]
@@ -145,10 +145,44 @@
           "version": "repo-lines-v1:sha256:6be2939700e395ee8fd3b5ea5ef8d1c30e92bc2af80047263d0e0ce46c13ad66:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzZmQ3Yzk5MTQ2YzljYTVjM2NlOWYxMWJiZGM3Nzg3ZDA3NzM0ZTdkZjNmZWI1NDQyMDdiYzE0YjI1NmEwZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNiZTljNmQ2ZTdkMWNmMTAyYzQ0ZWE0YjU3MmZkNDI4OGMzNDhiODEyNzIyNjQ4ZjczZGQ1YjcyZTQyODhmMDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjljMTk4NTQ1NmFhZTIxMzRlZDc0ZTUwNDBkMTFkMWJjMWRkYjIyMmIyZTVlNzA2M2ZhODdjNTljZGFkYTM3NTEifQ"
         }
       ]
+    },
+    {
+      "id": "claim_b41a187f155c44a88a42891b3b06387d",
+      "statement": "The headless daemon force-enables the Aria2 RPC server and sets exit_on_shutdown, whereas the desktop client starts it only when settings.aria2_rpc.enabled is true.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/main.rs#L131-L145",
+          "version": "repo-lines-v1:sha256:2810f49c601c6bd92abaa4cbeb2e2b15f70f11217459c3d52300648cdd2168e1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFhMjgwM2UwZDBlZDliMTA1YTE5ZjcxMjQ1ZjU2NGM5OThmNDA4NGY2OWIzNTI5NDhkNWFmYTQ1NDBkYmUxMDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk2ZTEwZWU2NDgzNDA2YWI1NmY5ZWY5ZGJmN2QwMDdiZmQwZDg3YzBkNzA1ZDU2ZjBiMjYwNTU2MTk2ZTUzODEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVhMjE5OTFiZjZhNzEyZjNlZjM0MWNhMGUwNjVmYTNkNGQ3MmQ0YWVlNTlhNWNjNDFjZDY2OWNlOTZjNGM2YTIifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L83-L104",
+          "version": "repo-lines-v1:sha256:c7d5f3d2772b4fa84fed476878024fa8d1c0cc19f882da314ff38f6907ac5642:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3OTgxZjY2MGJmNDgwYjQ1ZjUzNjQwYmQ1ZDlmMjBjNTBkYTAxNDRkNWIyNGFlMWVmZTQ0ZDRiNjFkMGI5YTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0ZWU3ZDJlNmQ2ZmM3MTU5YWZmNDZmOGJiNzI4MDQzNThmZjU4YWVmM2NlZDA4NWYxOGQwN2E4NmMyMzllNTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZmNTk3MGVjNGU5M2ViZjE5YTdmNDQ3OTQ0YmIyNDllZmM0MjEyMDhjYWQxODY0ZDFhNzdlODQzNjhmYjJkYjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFlOGMxYThhYzk4N2NkODQ2OTQwOTA3ZmE5OGZiNDdmMGMyNWUzZjI2YWVjNGIxMzFjNzJmODAyYjUxNGVlNjEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e698cdef5fa24221b66828388012a2de",
+      "statement": "On startup the daemon persists --download-dir through Dispatcher::save_settings_with so a headless first run has a usable download directory.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L64-L76",
+          "version": "repo-lines-v1:sha256:fd49825b093fbda427e1526a6e8c0ed810554187f4a9d46d6d965d88cf32d636:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4Y2NkYjc1NTUzNTMxYjM2ZDdkYzdhYjVkMzE1YTdkYWFhNDFhNmY0NmE2YTRmODdiYmEwOGViN2M0NzI3MjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk4YzE1MTZkZjNkOTIxYWI0MTBjZmFiN2VhNjkwYmQ3ODBlMzNmZTFhZWFkYjg0MzQ2YWQyYzA3NjMzODQwM2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjExZTNhMTkxNzY3NzIzNTg1ZTA3NmYyZjE5ODQzZjAxOGFjMTNhOTFhZGZiZDQxNmVjMDQ1OTVjMGYxNGI5YjMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4159a5ee362f414dbda47bc1a60b23d5",
+      "statement": "The daemon shuts down by selecting on a signal future, the RPC serve task and the aria2.shutdown Notify, then calling registry.shutdown_all().",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L106-L139",
+          "version": "repo-lines-v1:sha256:3e435c9153398dd80c4825063c3871ad3d09360c144b387ddc1667350d7f9ece:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdmNGJiMmU1OTA2N2NlY2NjZWMyNGFmODIyZjQ4MzU5ZGE3ZDJjOGU3NTkyYjFkMGYyYThmN2FjMWYwZjEwMDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjExNDExZTEyYmI4ODY5ZmRmY2IxYzVjNzMzMDljZjFiMjMyMDBjMTM4NWYyOTc5NjBkNmE2NjBhMDBjODE0MWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkNDVhNjY3N2IxMWNhOTc4N2YyNWQ4ZDcxMGQ0NjdmMDU5NDQwZTdlMzA1ZDE4MWZhYjI3NWViMWIxMmE4OTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4OTBhMjA3MzNjYTc1NWE5OTVmYzI5MWZmYzY4OGQ4MmRmNzY4MjEwNGQ5MmQ3YzU0ZDViMWY2MzczNGZjNTEifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T01:52:48.489Z"
+    "at": "2026-10-04T12:36:56.946Z"
   }
 }

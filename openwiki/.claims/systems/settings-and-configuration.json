@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:ce085e1fd3b018631d5297efb8e31fe785425229e0a71ebe95605b4e00de88c1",
+  "pageVersion": "sha256:199f99ef22fe766777ae2c91413da934a5f072d20d4f7ffb1b546e1292dcbd61",
   "claims": [
     {
       "id": "claim_ef85384a1c6b443ea075af4fe3460741",
       "statement": "AppSettings is a flat struct of serde-default sub-settings (appearance, proxy, scheduler, download, bt, logging, aria2_rpc, cdn_acceleration, url_rewrite, io_baseline and more), so a partial or hand-edited settings.json still loads and unknown keys are ignored.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L380-L428",
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L414-L462",
           "version": "repo-lines-v1:sha256:9b4fc75c7f289ddba9e3c4530ef6e39a0d75a94da8233beaf31ae0f0f8511f79:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgxYWZkZTVlNTQ2MWJlOTdhYWMyZWE3NGVlNjdmYjNlNzYyODBmYTQ2NWU2YzZlMDA1OWZhNmM3M2Q4ZWMwM2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU4Y2JhZDExNDAxZTRlMGI2ZTFiOTM1ZThlZjA1ZTMzMzY1MTBkYWFjYTYwY2YxNzVhMzg0NWY0ODNiNzI0MjIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFmYjM2ZTViOGJlMGVkMTljY2YzMGU5MzliNjFlZWRjN2ZlZGY0MWE3NGZkYThiNjhkMjM5N2UxMGQwMjNiOWMifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/types/settings.rs#L419-L460",
+          "resource": "repo://crates/limedl-core/src/types/settings.rs#L446-L487",
           "version": "repo-lines-v1:sha256:53fb9452d13cb9c1b727fe217b50968fc9ba8712e18a18ae7fe5277d422df793:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyY2M3ZjVlOGQ4OWU3MzA1NzRhOGMyMWIzNDJiMTQwYzYzYWYyODA5Y2Q2ZTA2YTg1YTk5ZTY5Mjk1NzU4MWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBlNzBkOTAyYjg2Mjc2NTA2ZjdmNDEzYjUxZDRlMjg3MjgwZWUyMDU4NzJkYzY1MTIxZTdhYmQ0Y2E0ODhhYzMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
@@ -51,7 +51,7 @@
       "statement": "persist_settings writes settings.json.tmp, flushes and sync_all's it before renaming it over settings.json, and snapshots the outgoing file to settings.json.bak (best effort), so neither a crash nor a power loss can leave a truncated or empty settings file.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L452-L490",
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L486-L524",
           "version": "repo-lines-v1:sha256:87c8d881048452ef0deebfa4c77eb62db68f0fb0f639513d5c7a17ac75a712e8:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzNDZiMTQyMTcxNzBlYmM1ODZiODQ0MTE3NjhiN2FhODFjOGE2MzFhNWQ5MjJhMzQ0ZTJiZTExMjY0NGNkYmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1Y2Y1ZmMyM2YyYTZkMjNjM2VhNTFlNzJmNWU4OTZjNzU1NWZiYWEwNWNkNWIxZWExODJiZjk2MThhOGU4MWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI5ZjA3MjNhZGFkNDkxNzU2MDNiYzQ0ZWM3NzMxY2Y0MTUwZGExZjUwMjRjY2NiNGY1OTZjZDM0YTg0YjNjM2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg5MmZlMDkyYjc3OTM2NWY3YzYxZTRjYzA5OTNlOTBiMWU2ZWFjZWE1M2M3M2ZlZjFmZjFhNjA2ZjU2Yzk5NmUifQ"
         }
       ]
@@ -68,11 +68,11 @@
     },
     {
       "id": "claim_d112220c33bc4e5b84e637f8c7827bf1",
-      "statement": "normalize_aria2_rpc_settings drops clients whose token_hash is empty (they could never verify) and trims names and hashes.",
+      "statement": "normalize_aria2_rpc_settings drops clients whose token_hash is empty (they could never verify), trims names and hashes, falls listen_address back to 127.0.0.1 unless is_plausible_bind_host accepts it, and trims/drops blank CORS origins.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L128-L137",
-          "version": "repo-lines-v1:sha256:a818b949fa6d234f9e528207139ca81286e1fad6cd31651c13faef2d461195d1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1ZmQ3ZmM2NzYyMzQ2NWYxMGU1NzkzNjhiZWY5ZDgxNTJiYjliZmNlN2JlNmQ4NmI5MWQzYzlmYTBiMDcwYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE1NzJiMzczN2VhNmJmYWRiOWU0NTQ0Y2JjNDAxODEwNzM3NDVkNWQyMzUyNDRkNDc5MjQzZjM5NWI5NTI5NGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxYWExYzIyOWFmYTFiMzVhOGVmZGUxZDkyNTM2ZDFkZjE4NWU5MDdiMGUwMGU0ZTE1N2Y2ZDYxOTg1NWU2NGUifQ"
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L128-L155",
+          "version": "repo-lines-v1:sha256:e60ffc2b0b6333a4ed78de11be0641b08fb836a2e8633f160897bc0087a888dd:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1ZmQ3ZmM2NzYyMzQ2NWYxMGU1NzkzNjhiZWY5ZDgxNTJiYjliZmNlN2JlNmQ4NmI5MWQzYzlmYTBiMDcwYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5MTRlZDU4M2YxNTg2ZGYyNGFkYjRkNTNlYTQ3OWI3ZGI2OWVjNDkxOTU3Y2QxYTE0OTg2MjkwMjQwY2JmYjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE1NzJiMzczN2VhNmJmYWRiOWU0NTQ0Y2JjNDAxODEwNzM3NDVkNWQyMzUyNDRkNDc5MjQzZjM5NWI5NTI5NGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM2M2MxYjFlNTk5Y2EyNTMwY2JkYzI4OTVjMDZhZjljMTU1MWYyZDI5M2UwNGEwN2RhMzY2YzU2ZjhlMmMyNGUifQ"
         }
       ]
     },
@@ -81,18 +81,18 @@
       "statement": "normalize_url_rewrite_settings drops rules with an empty pattern and targets with an empty template, and reassigns rule and target order to the filtered positions.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L331-L379",
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L365-L413",
           "version": "repo-lines-v1:sha256:e6ce8860f6747512c13b81f4771cfa6af2bfd9e6023354c3e105fc5f17156bce:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhZTczOTk0Zjg4NjhiMzM2YmViYWEwNmZkMTNkN2Y4NjViMWNlYjFhMjdiZDY5NDIwZDA2ZmQxZDcyMzc4NjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRiMjY4NTc5ZTYxODI3Yzk4NGQwMDY1YTkzNWQ2MDZhMDRjNDkxNjRlODhmOGQxZGI3ZGJkOWFkYTg0OWM5NWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlMTkxZDI1YmVkNjZlODI3NjZiMDcyMTBkN2ExMzVjMTlkOGRkM2YyMmQyMWU1NWNkZjdlNmIxY2U4YTc3MDMifQ"
         }
       ]
     },
     {
       "id": "claim_0b328415e76643afbfd9f3a5ebc7de34",
-      "statement": "Aria2RpcSettings carries enabled (default false), port (default 6800), an optional secret, auth_mode, clients and cors_allowed_origins; Aria2AuthMode defaults to single and Aria2Client stores an Argon2id token_hash, never the plaintext token.",
+      "statement": "Aria2RpcSettings carries enabled (default false), port (default 6800), listen_address (default 127.0.0.1), an optional secret, auth_mode, clients, cors_allowed_origins, allow_any_origin (default false) and exit_on_shutdown (default false); Aria2AuthMode defaults to single and Aria2Client stores an Argon2id token_hash, never the plaintext token.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/types/settings.rs#L359-L397",
-          "version": "repo-lines-v1:sha256:ac771ffe3c6d7e0c8c591dcb6ba8a9f91df19c13271a0f0318fa77b6dccf95f2:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlNjAyZDI1N2M2YzgwMDYwMTE0NjMyMWQ1NzIyYWZmM2VmNzZhODI4ZWE4NjVjOTY3MjMzMDExMzFmMzVlN2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIxN2YxZWViZmYzMTZlODZlMWQzMDAzOTI1ZGJjMDRjMTRkZGE2YTJkZWJhZTVlZDA5N2RhYmU4NmU1OThjNTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhhZDhlNWVlMjZkNDc1NTExOWQ1M2QxMjE1Y2M2M2Q3NzdjZGY3NzUwNDU3ZDg3Nzc1ZTEzYzc5ZDExNjZiNDIifQ"
+          "resource": "repo://crates/limedl-core/src/types/settings.rs#L366-L422",
+          "version": "repo-lines-v1:sha256:d005c94a928ae28f5ab9b1179544be51399fd8c0dff96477e10f07ffa4a394a1:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlNjAyZDI1N2M2YzgwMDYwMTE0NjMyMWQ1NzIyYWZmM2VmNzZhODI4ZWE4NjVjOTY3MjMzMDExMzFmMzVlN2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIxN2YxZWViZmYzMTZlODZlMWQzMDAzOTI1ZGJjMDRjMTRkZGE2YTJkZWJhZTVlZDA5N2RhYmU4NmU1OThjNTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRlOTAxMTI1MzZjYTIyNDY3M2RlNDBmODgyNjNlYmU5MTFhOGY4MjY4NDIyNmRiODNlODRhMDM4MGM3ZTdhMTkifQ"
         }
       ]
     },
@@ -121,14 +121,34 @@
       "statement": "An unreadable settings.json does not block startup: load_settings quarantines the file as settings.json.corrupt, tries settings.json.bak, and falls back to AppSettings::default() (logging an error either way), while a missing file returns defaults and an I/O read error still propagates.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L380-L450",
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L414-L484",
           "version": "repo-lines-v1:sha256:0260d79eeafaed6bb24a22badcf7cb6ffcad9fcd581bd17cfd67a8425d0f5b9f:eyJzZWxlY3RlZExpbmVDb3VudCI6NzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgxYWZkZTVlNTQ2MWJlOTdhYWMyZWE3NGVlNjdmYjNlNzYyODBmYTQ2NWU2YzZlMDA1OWZhNmM3M2Q4ZWMwM2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE0Mzc5NjcyN2JlMzEyNmZmMWUwYzZiYzkxZGIxMzNmYzc2NzMzMzEwZGE1OWEyOWY5OTY2Njk3NTkyMTVhNTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_aa810a7dd0fb441d8dbc09785f4e94a4",
+      "statement": "is_plausible_bind_host accepts an IP literal (optionally bracketed) or a bare hostname and rejects a host:port, a URL or whitespace, so an un-bindable listen_address normalizes back to 127.0.0.1.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/settings/mod.rs#L157-L170",
+          "version": "repo-lines-v1:sha256:d84282e3b8ea4678161fd7f8bf8624813c1145c1c210b1b1333abacb57686cf0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhZjA1MTViZmZhYmFlMTVkN2VjMThjMDllMmYxOTkzOGU2Nzg3NDY5YTg5ZGI4YmEyY2RhMWUxNmI2ZjEyZTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEzMmNlNzFhMzYzYmVhOWVjMWIyNjQ0Y2VmNTc2YWFmYjRhNjM0YzRmNTAxMDY3NDY0ODhhOTg0MjNkYTFlM2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMxM2Y3YjQyNzhkZjU4M2NmNGY2N2QzOWM5ZGIwMTQ0Yzg5NDM5Y2NmYTY2ZjFmNzNkMTc3ZTgyZDY5YzFlYTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_bb7f735618ce40d6b97cf63253e5f148",
+      "statement": "The headless daemon resolves the same base data directory as the desktop (--data-dir, then $LIMEDL_DATA_DIR, then the platform dir), so it can read a desktop profile's settings.json.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/config.rs#L89-L99",
+          "version": "repo-lines-v1:sha256:75e87f686a661a941ae51ff23297d243f0076efd4aff90bd8cc658b9a4f0ec8e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMyNjVmYjM2OWVmZGE4N2JjNTdkYTMyMDhhYzBlYzlkODA0NTdjMmZkMjJjNjk0M2I5YzQ4NTMxNTVlNTJmZDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNiZGNiYzNjZWUzZjdmNGJjMzg4MWQ3ZGJlZTc2NGNhNThiYWNiYWRlNWMxNzdjZjYzMTgwNDcyMzcyZjA2NzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0NTRjMTUwNTcwZmI5OGJkNzdlZGFjM2ZlNmExMmI0MWY3MDQ2MjRmZGMyYjIzYzFjY2NhNDVmZDlkN2Q0NDEifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T05:35:23.596Z"
+    "at": "2026-10-04T12:36:56.946Z"
   }
 }

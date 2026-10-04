@@ -1,11 +1,16 @@
 ---
 type: integration
 title: Aria2 JSON-RPC Compatibility Server
-description: The aria2-compatible HTTP and WebSocket server of limedl — method routing, GID derivation and caching, three auth modes with Argon2 token storage, type-driven request parsing and aria2 option translation, the fuller tellStatus/getServers/changeUri/changePosition surface, notification ownership, and the graceful hot-reload port handoff.
+description: The aria2-compatible HTTP and WebSocket server of limedl — method routing, GID derivation and caching, three auth modes with Argon2 token storage, the configurable bind address with a fail-closed auth gate, CORS wildcard mode, type-driven request parsing and aria2 option translation, the tellStatus/getServers/changeUri/changePosition surface, notification ownership, exit_on_shutdown and the graceful hot-reload port handoff.
 tags: [aria2, rpc, integration, authentication, json-rpc, websocket]
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T12:36:56.946Z
 sources:
   - id: openwiki-source-06de9eea8068258882d65c0b
     resource: repo://.github/workflows/aria2-oracle.yml
+  - id: openwiki-source-574430b2d80ebfee1870b543
+    resource: repo://crates/limedl-core/src/aria2_rpc/bind.rs
   - id: openwiki-source-8ec1f0436491ce5daa75720b
     resource: repo://crates/limedl-core/src/aria2_rpc/context.rs
   - id: openwiki-source-a126aed2e5b28c6cc1b7781c
@@ -36,10 +41,7 @@ sources:
     resource: repo://crates/limedl-core/src/types/settings.rs
   - id: openwiki-source-3fe9812b75a7522e89f74344
     resource: repo://docs/aria2-interop-testing.md
-generated: { by: "pi", at: "2026-10-04T11:10:17.271Z" }
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T11:10:17.271Z
+generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
 ---
 
 # Aria2 JSON-RPC Compatibility Server
@@ -47,37 +49,97 @@ verified:
 `crates/limedl-core/src/aria2_rpc/` implements an aria2-compatible JSON-RPC 2.0
 server over HTTP and WebSocket so clients such as AriaNg and Motrix can drive
 limedl. It is behind the optional `aria2-rpc` feature (enabled by the desktop
-crate and available for server builds). Internal downloads are mapped to aria2
-GIDs.
+crate and by the headless `limedl-server` daemon). Internal downloads are mapped
+to aria2 GIDs.
 
-The server is the second frontend over the same `Dispatcher` used by the Slint
-desktop, so both stay in sync through the `EventBus`.
+The server drives the same `Dispatcher` as the Slint desktop, so the desktop UI
+and an RPC client stay in sync through the `EventBus`. For the daemon the RPC
+endpoint is the only frontend; see
+[Headless Server Daemon](headless-server-daemon.md).
 
 ## Server assembly and lifecycle
 
 `Aria2RpcServer::new(registry, &settings, event_bus)` builds an `RpcContext` with
-the registry, an `AuthConfig` derived from settings, a GID cache and a fresh
-session id, and binds `127.0.0.1:{settings.port}`. `serve(shutdown, cors)`
-assembles an axum `Router` with `POST /jsonrpc` (HTTP JSON-RPC) and
-`GET /jsonrpc` (WebSocket upgrade), applies a CORS layer, and runs
-`axum::serve(...).with_graceful_shutdown(...)` driven by a `watch` receiver.
+the registry, an `AuthConfig` derived from settings, a GID cache, a fresh session
+id, the `exit_on_shutdown` flag and an `Arc<Notify>` shutdown handle. It resolves
+the bind address as `format_bind_addr(settings.listen_address, settings.port)` —
+`listen_address` defaults to `127.0.0.1`, and `bind.rs` brackets an IPv6 literal
+so `::1` becomes `[::1]:6800` instead of the malformed `::1:6800` — and stores the
+CORS configuration for `serve`.
 
-CORS defaults to `http://localhost` / `http://127.0.0.1`; configured origins that
-all fail to parse fall back to localhost with a warning.
+`serve(shutdown)` first enforces the security gate below, then assembles an axum
+`Router` with `POST /jsonrpc` (HTTP JSON-RPC) and `GET /jsonrpc` (WebSocket
+upgrade), applies the CORS layer built from the settings captured in `new`, and
+runs `axum::serve(...).with_graceful_shutdown(...)` driven by the `watch`
+receiver. (CORS used to be passed to `serve` separately from the settings given
+to `new`; it now lives on the server so the two cannot disagree.)
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L113-L199`,
+`repo://crates/limedl-core/src/aria2_rpc/bind.rs#L20-L40`.
+
+### Bind address and the fail-closed authentication gate
+
+`Aria2RpcSettings::listen_address` makes the listener configurable, which is what
+lets the daemon serve a LAN. A **non-loopback** address is accepted only together
+with authentication: `public_bind_rejection` returns a reason when the host is not
+loopback and `AuthConfig::is_enabled` is false, and `serve` refuses to start with
+that reason. `is_loopback_bind_address` accepts `127.0.0.1`, `::1` and
+`localhost`; anything that does not parse as an IP (including a hostname it
+cannot recognize) counts as public, so the gate fails closed rather than open.
+
+The refusal is not cosmetic. The aria2 `dir` option is not confined to a download
+root — it only has to be an absolute path without `..` — so an anonymous
+network-reachable endpoint would let anyone who can reach the port write files
+anywhere the process can.
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L51-L59`,
+`repo://crates/limedl-core/src/aria2_rpc/bind.rs#L20-L40`.
+
+### CORS
+
+`build_cors_layer(allowed, allow_any)`:
+
+- `allow_any_origin = true` emits `Access-Control-Allow-Origin: *` and
+  deliberately omits `Access-Control-Allow-Credentials` (browsers reject `*`
+  paired with credentials). This is the mode the daemon uses when AriaNg is
+  served from a different origin.
+- Otherwise the parsed `cors_allowed_origins` are echoed; with none configured
+  the default is `http://localhost` / `http://127.0.0.1`; configured origins that
+  all fail to parse fall back to localhost with a warning.
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L66-L100`.
+
+### exit_on_shutdown and the shutdown notify
+
+`aria2.shutdown` / `aria2.forceShutdown` always publishes a `Warning` event and
+returns the acknowledgement string, but it only calls
+`RpcContext::shutdown_notify.notify_one()` when `exit_on_shutdown` is set. The
+desktop leaves that off (it is a managed subsystem and the UI owns exit); the
+daemon sets it and awaits `Aria2RpcServer::shutdown_notify()` before calling
+`registry.shutdown_all()`. `notify_one` rather than `notify_waiters` is
+deliberate: it leaves a permit if the client's shutdown arrives before the daemon
+starts awaiting, so the signal is not lost.
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/system.rs#L38-L56`,
+`repo://crates/limedl-core/src/aria2_rpc/server.rs#L155-L157`,
+`repo://crates/limedl-core/src/aria2_rpc/context.rs#L44-L57`.
 
 **The service is disabled by default.** `Aria2RpcSettings::default()` has
 `enabled = false`, because with an empty `secret` the endpoint answers
 anonymously and loopback-only binding still lets any local process — and any page
 the default CORS policy admits — drive downloads and read destination paths.
 Enabling it is an explicit Settings action; an existing `settings.json` with
-`"enabled": true` keeps working. When the server does come up with
-`AuthConfig::Disabled`, `serve` logs a warning naming the address and pointing at
-the secret/per-client options. That check reads `AuthConfig::is_enabled` *before*
-the context is moved into the router, which is why the method is `pub(crate)`.
+`"enabled": true` keeps working. The headless daemon overrides `enabled` to
+`true` (the RPC endpoint is its interface) and consequently must satisfy the
+authentication gate whenever it binds non-loopback. When the server does come up
+with `AuthConfig::Disabled` on loopback, `serve` logs a warning naming the address
+and pointing at the secret/per-client options. That check reads
+`AuthConfig::is_enabled` *before* the context is moved into the router, which is
+why the method is `pub(crate)`.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L71-L150`,
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L113-L180`,
 `repo://crates/limedl-core/src/aria2_rpc/context.rs#L39-L41`,
-`repo://crates/limedl-core/src/types/settings.rs#L380-L400`.
+`repo://crates/limedl-core/src/types/settings.rs#L404-L422`.
 
 ### Hot-reload port handoff
 
@@ -87,7 +149,7 @@ retries `AddrInUse` for a 5 s window at 25 ms intervals and returns any other
 error immediately; a port genuinely held by another process still fails after
 the window. This is why a settings save does not silently lose the RPC endpoint.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L1-L40`.
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L14-L48`.
 
 ## Authentication
 
@@ -95,7 +157,8 @@ Evidence: `repo://crates/limedl-core/src/aria2_rpc/server.rs#L1-L40`.
 
 - `Disabled` — `single` mode with an empty `secret`; every request passes. It is
   reachable in practice only through the legacy `"enabled": true` +
-  `"secret": null` combination, since a fresh install starts disabled.
+  `"secret": null` combination, since a fresh install starts disabled, and a
+  non-loopback bind refuses to start in this state.
 - `Shared { secret }` — the legacy single shared secret, compared with
   `subtle::ConstantTimeEq`.
 - `PerClient(PerClientAuth)` — each configured client has its own Argon2id
@@ -145,7 +208,7 @@ Three methods are exempt from the **outer** check, mirroring aria2:
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/dispatch.rs#L14-L42`,
 `repo://crates/limedl-core/src/aria2_rpc/system.rs#L51-L90`,
-`repo://crates/limedl-core/src/aria2_rpc/context.rs#L70-L110`.
+`repo://crates/limedl-core/src/aria2_rpc/context.rs#L89-L131`.
 
 ## GIDs: stable identity across restarts
 
@@ -195,7 +258,7 @@ calls are authenticated individually (see centralized validation), and the
 Tier 1 test `interop_ariang_multicall_shape` sends them with only per-call
 tokens, as aria2 clients do.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/system.rs#L51-L90`.
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/system.rs#L58-L90`.
 
 ## URI classification and addUri options
 
@@ -221,7 +284,10 @@ aria2 request options into a `StartDownloadRequest`:
 | `pause` | start the task paused (also accepts the string `"true"`) |
 
 A non-terminal HTTP download with the same URL is deduplicated: its existing GID
-is returned and cached instead of starting a second task.
+is returned and cached instead of starting a second task. `dir` must be absolute
+and without `..` components, but it is not confined to a download root — which is
+why the bind gate above insists on authentication for a network-reachable
+listener.
 
 Trailing arguments are read **by JSON type**, not position (`split_aria2_tail`
 in `options.rs`). aria2's signatures are `addUri(uris[, options[, position]])`
@@ -237,7 +303,8 @@ honour `out`/`select-file` at start (see deviations).
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/download.rs#L13-L19`,
 `repo://crates/limedl-core/src/aria2_rpc/download.rs#L21-L135`,
-`repo://crates/limedl-core/src/aria2_rpc/options.rs#L89-L142`.
+`repo://crates/limedl-core/src/aria2_rpc/options.rs#L89-L142`,
+`repo://crates/limedl-core/src/manager.rs#L402-L444`.
 
 ## Runtime option changes
 
@@ -301,11 +368,13 @@ Evidence: `repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L146-L245`,
   positions among more than three same-priority tasks cannot be represented; this
   is an intentional, documented limitation.
 - `aria2.forceShutdown` routes to the same handler as `aria2.shutdown`, which
-  acknowledges and warns the UI instead of exiting: limedl runs as a managed
-  subsystem and the application UI owns exit.
+  acknowledges and warns. It signals the daemon to stop when
+  `exit_on_shutdown` is set, but the desktop leaves that off because it runs as a
+  managed subsystem and the application UI owns exit.
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/query.rs#L427-L490`,
 `repo://crates/limedl-core/src/aria2_rpc/download.rs#L462-L606`,
+`repo://crates/limedl-core/src/aria2_rpc/system.rs#L38-L56`,
 `repo://crates/limedl-core/src/manager.rs#L845-L935`.
 
 ## Known, intentional deviations
@@ -326,8 +395,10 @@ These are documented choices, not bugs, and are tracked alongside the Tier 1/Tie
   `Metalink`/`SFTP`/`XML-RPC`/`Firefox3 Cookie`. `interop_get_version_is_truthful`
   locks the set, and `http-accept-gzip` reports `true` because the engine now
   negotiates compression on the single-stream GET.
-- GID prefix matching is not supported (exact GID only); HTTPS RPC, HTTP Basic
-  auth and `--rpc-listen-all` are not served.
+- GID prefix matching is not supported (exact GID only); HTTPS RPC and HTTP Basic
+  auth are not served, so a LAN deployment needs a reverse proxy for TLS. A
+  configurable bind address (aria2's `--rpc-listen-all`) *is* supported, but a
+  non-loopback bind requires authentication.
 
 ## Tier 2 oracle (live `aria2c`)
 
@@ -389,8 +460,9 @@ protocol-specific (`getOption` reads the HTTP manifest, `tellStatus.files` asks
 the BT engine), so those downcasts are centralized; new handlers must use these
 accessors rather than calling `get_typed` directly.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/context.rs#L46-L68`.
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/context.rs#L62-L75`.
 
 Related pages: [Protocol Routing and the Dispatcher Facade](../architecture/protocol-routing-and-dispatcher.md),
+[Headless Server Daemon](headless-server-daemon.md),
 [Settings and Configuration](../systems/settings-and-configuration.md),
 [BitTorrent Backend](../workflows/bit-torrent-backend.md).

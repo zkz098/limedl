@@ -1,7 +1,7 @@
 ---
 type: operations
 title: Build, Tooling, CI and Release Operations
-description: The operational surface of limedl — build prerequisites and rustflags, the xtask tooling, the mandatory pre-commit gate and its Windows blind spot, the CI job graph with nextest/coverage/sonar/supply-chain, and the tag-driven release pipeline.
+description: The operational surface of limedl — build prerequisites and rustflags, the xtask tooling, the mandatory pre-commit gate and its Windows blind spot, the CI job graph with nextest/coverage/sonar/supply-chain, and the tag-driven release pipeline including the static musl server artifacts.
 tags: [operations, build, ci, release, xtask, tooling]
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
@@ -22,16 +22,18 @@ sources:
     resource: repo://Cargo.toml
   - id: openwiki-source-cb3b278da9fc4917fdb881e9
     resource: repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs
+  - id: openwiki-source-feafbe9db788653e845840b8
+    resource: repo://sonar-project.properties
   - id: openwiki-source-44d192e16032f18d847f0ff6
     resource: repo://xtask/src/bump_version.rs
   - id: openwiki-source-ca864fd40fa4107ed35f840f
     resource: repo://xtask/src/fetch_font.rs
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
-generated: { by: "pi", at: "2026-10-04T10:39:31.763Z" }
+generated: { by: "pi", at: "2026-10-04T12:58:25.182Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T10:39:31.763Z
+    at: 2026-10-04T12:58:25.182Z
 ---
 
 # Build, Tooling, CI and Release Operations
@@ -46,9 +48,9 @@ verified:
 | All | `cargo-nextest` pinned to the version CI installs |
 
 `.cargo/config.toml` is the single source of truth for target flags: every
-`[target.*]` sets `target-cpu=x86-64-v3` for desktop targets (x86-64-v2 for NAS
-musl targets) and adds `--cfg reqwest_unstable`, which reqwest's HTTP/3 feature
-requires at compile time. Add both when introducing a new target.
+`[target.*]` sets `target-cpu=x86-64-v3` for desktop targets (x86-64-v2 for the
+NAS musl targets) and adds `--cfg reqwest_unstable`, which reqwest's HTTP/3
+feature requires at compile time. Add both when introducing a new target.
 
 Evidence: `repo://AGENTS.md#L3-L21`, `repo://.cargo/config.toml#L1-L45`.
 
@@ -88,7 +90,8 @@ In CI the `font` job fetches it once and publishes the `misans-vf` artifact;
 every job that compiles the UI crate restores that artifact and runs
 `fetch-font --verify` instead of hitting the CDN. This exists because a cold
 cache previously meant four runners downloading from Xiaomi simultaneously, so a
-CDN hiccup read as four unrelated failures.
+CDN hiccup read as four unrelated failures. The headless server needs no font —
+its release job deliberately skips the artifact.
 
 Evidence: `repo://xtask/src/fetch_font.rs#L44-L57`,
 `repo://.github/actions/fetch-misans/action.yml#L1-L46`,
@@ -107,6 +110,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
 cargo nextest run --manifest-path xtask/Cargo.toml
 cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
+cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
 ```
 
 Notes that matter:
@@ -115,9 +119,10 @@ Notes that matter:
   `build.warnings`, orthogonal to RUSTFLAGS) plus clippy's `-- -D warnings`.
   Deliberately **not** `RUSTFLAGS="-D warnings"`, which would override
   `.cargo/config.toml`'s per-target flags.
-- Tests run per crate, not `--workspace`: only `limedl-core`'s tests need the
-  `test-utils,aria2-rpc` features, and `xtask` is in the gate because it owns the
-  release-guard tests.
+- Tests run per crate, not `--workspace`: `limedl-core`'s tests need the
+  `test-utils,aria2-rpc` features, `xtask` is in the gate because it owns the
+  release-guard tests, and `limedl-server`'s suite carries the daemon's
+  end-to-end test.
 - `cargo nextest run` does not execute doctests; the workspace has none, and
   adding one requires a matching `cargo test --doc` step in the gate and CI.
 
@@ -129,10 +134,12 @@ clean `cargo llvm-cov clean` with the pinned tool. `cargo-llvm-cov` ignores
 code. A second lcov is generated for `limedl-native` with
 `--ignore-filename-regex 'crates.limedl-core'` and `--no-cfg-coverage` (the latter
 because `tiny-xlib` turns `cfg(coverage)` into a nightly-only feature under
-stable).
+stable). `limedl-server` has no lcov report and is excluded from the Sonar
+coverage metric instead of being counted as 0%.
 
-Evidence: `repo://AGENTS.md#L82-L105`,
-`repo://.github/workflows/ci.yml#L451-L472`.
+Evidence: `repo://AGENTS.md#L99-L112`,
+`repo://.github/workflows/ci.yml#L451-L472`,
+`repo://sonar-project.properties#L60-L61`.
 
 ### The gate cannot see non-Windows code from Windows
 
@@ -150,7 +157,7 @@ platform check; re-read platform-gated modules asking "what does this look like
 with `cfg(windows)` false?". The `sign-check` workflow and macOS-only linker note
 exemption are covered in the release page.
 
-Evidence: `repo://AGENTS.md#L106-L125`.
+Evidence: `repo://AGENTS.md#L113-L131`.
 
 ## CI job graph
 
@@ -163,8 +170,14 @@ Evidence: `repo://AGENTS.md#L106-L125`.
 | `test-windows-core` | Windows | nextest for `limedl-core` (with features) and `xtask` |
 | `test-windows-native` | Windows | nextest for `limedl-native` |
 | `check-macos` | macOS | clippy → core nextest → native nextest |
-| `check-rust` | Linux | coverage (core + native lcov) → clippy → SonarCloud → native nextest |
+| `check-rust` | Linux | coverage (core + native lcov) → clippy → SonarCloud → native nextest → `limedl-server` nextest |
 | `supply-chain` | Linux | `cargo deny check -W rejected bans licenses sources` + `cargo audit` |
+
+`limedl-server` is exercised **only** on the Linux leg. Its end-to-end test binds
+a real port and bootstraps the engine, so running it on the Windows/macOS legs
+would add flake for a daemon that targets musl Linux; those legs still *compile*
+it (including the `cfg(not(unix))` Ctrl+C path) through `cargo clippy
+--workspace --all-targets`.
 
 A separate `.github/workflows/aria2-oracle.yml` runs the Tier 2 aria2 oracle
 (`aria2_rpc/oracle_tests.rs`) on a nightly `schedule` and on `workflow_dispatch` —
@@ -180,7 +193,7 @@ Windows is split into three parallel jobs because its native job is the critical
 path and clippy cannot share build artifacts with test builds.
 
 Evidence: `repo://.github/workflows/ci.yml#L148-L336`,
-`repo://.github/workflows/ci.yml#L336-L560`,
+`repo://.github/workflows/ci.yml#L336-L522`,
 `repo://.github/workflows/aria2-oracle.yml#L1-L45`.
 
 ### Cache and RUSTFLAGS contract
@@ -220,18 +233,32 @@ Pushing a `v*` tag triggers `.github/workflows/release.yml`:
    Conventional so notes stay readable.
 3. `build-native` (Windows), `build-native-macos` and `build-native-linux` each
    build and package their artifacts and upload them to the release.
-4. `native-manifest` is the **sole writer** of `latest-native.json`: it runs with
+4. `build-server` cross-compiles the headless `limedl-server` for
+   `x86_64-unknown-linux-musl` and `aarch64-unknown-linux-musl` with
+   `cargo zigbuild` (zig bundles the musl C toolchain `aws-lc-sys` needs, so no
+   Docker image is required) and uploads tarballs that also contain the systemd
+   unit and env example. They are not signed, not guarded and not part of
+   `latest-native.json`.
+5. `server-image` assembles those same prebuilt static binaries into a thin
+   Alpine image (no engine rebuild), pushes one image per architecture, and
+   merges them into a multi-arch `ghcr.io/zkz098/limedl-server` manifest. The
+   `latest` tag is skipped for an alpha/beta/rc release. QEMU is used only for
+   the image's Alpine `apk add` layer.
+6. `native-manifest` is the **sole writer** of `latest-native.json`: it runs with
    `if: always()`, merges only the platform legs that succeeded, signs every
    artifact, generates and signs the manifest, and runs `cargo xtask guard`. A
    missing platform key is handled by the client as "no update" instead of an
-   error.
+   error. It lists `build-server` in `needs` only so it flips the release's
+   `prerelease` flag to `false` last.
 
 The signing key never appears in the tree; `cargo xtask guard` fails the release
 if the CI secret's derived public key does not match the client's `PUBKEY_B64`.
 
 Evidence: `repo://.github/workflows/release.yml#L1-L37`,
 `repo://.github/workflows/release.yml#L77-L128`,
-`repo://.github/workflows/release.yml#L512-L640`.
+`repo://.github/workflows/release.yml#L517-L592`,
+`repo://.github/workflows/release.yml#L608-L693`,
+`repo://.github/workflows/release.yml#L703-L840`.
 
 The `Signing check` workflow is the manual counterpart: it signs a throwaway file
 and runs `guard` without publishing, so a key rotation can be validated on demand.
@@ -249,8 +276,10 @@ is `=1.7.0` because the BT backend depends on a wide slice of the engine API and
 upstream's git repository was removed, so crates.io is the only source of truth.
 Moving off it is a migration, not a version bump.
 
-Evidence: `repo://AGENTS.md#L126-L133`, `repo://Cargo.toml#L70-L74`.
+Evidence: `repo://AGENTS.md#L132-L139`, `repo://Cargo.toml#L70-L74`.
 
 Related pages: [Self-Update and Distribution Channels](../desktop/self-update-and-distribution.md),
+[Headless Server Daemon](../integrations/headless-server-daemon.md),
+[Server Deployment and Packaging](server-deployment-and-packaging.md),
 [Testing Strategy](../testing/testing-strategy.md),
 [limedl Wiki Quickstart](../quickstart.md).

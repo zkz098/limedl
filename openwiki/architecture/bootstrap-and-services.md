@@ -1,11 +1,11 @@
 ---
 type: architecture
 title: Bootstrap, SystemContext and Shared Services
-description: The single canonical initialization sequence that builds SystemContext, DownloadManager, the lazy BT backend, the BackendRegistry, CDN service and Dispatcher, plus the shared services that own global runtime state.
+description: The single canonical initialization sequence that builds SystemContext, DownloadManager, the lazy BT backend, the BackendRegistry, CDN service and Dispatcher, plus the shared services that own global runtime state and the two frontends that consume them.
 tags: [bootstrap, systemcontext, services, initialization, dependency-injection]
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
+    at: 2026-10-04T12:36:56.946Z
 sources:
   - id: openwiki-source-2262be0eb4e0dcf867247c95
     resource: repo://crates/limedl-core/src/backend_registry/mod.rs
@@ -25,16 +25,20 @@ sources:
     resource: repo://crates/limedl-core/src/slot_guard.rs
   - id: openwiki-source-fb048d5fb7a13a8f9b8fad76
     resource: repo://crates/limedl-native/src/main.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+  - id: openwiki-source-2d1753b77bfe7d551752205e
+    resource: repo://crates/limedl-server/src/lib.rs
+generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
 ---
 
 # Bootstrap, SystemContext and Shared Services
 
-Every frontend of limedl (the Slint desktop client, and any server target) starts
-from one function: `bootstrap(state_dir)` in `crates/limedl-core/src/bootstrap.rs`.
-It is deliberately the *only* place that constructs the core subsystems, so the
-initialization order and the Arc-sharing rules below apply uniformly and a new
-subsystem is added in exactly one place.
+Every frontend of limedl starts from one function: `bootstrap(state_dir)` in
+`crates/limedl-core/src/bootstrap.rs`. There are two frontends: the Slint desktop
+client (`crates/limedl-native/`) and the headless `limedl-server` daemon
+(`crates/limedl-server/`). `bootstrap` is deliberately the *only* place that
+constructs the core subsystems, so the initialization order and the Arc-sharing
+rules below apply uniformly and a new subsystem is added in exactly one place —
+the daemon inherits the whole engine graph for free.
 
 ## CoreSystems: the returned handle bundle
 
@@ -51,7 +55,7 @@ settings snapshot):
 | `event_bus`, `rate_limiter`, `cdn_service`, `settings_service`, `disk_io_service`, `concurrency` | shared services re-exported for callers |
 | `settings: AppSettings` | the startup snapshot read from `SettingsService` |
 
-Evidence: `repo://crates/limedl-core/src/bootstrap.rs#L20-L34`.
+Evidence: `repo://crates/limedl-core/src/bootstrap.rs#L21-L34`.
 
 ## SystemContext: where global state is created
 
@@ -105,7 +109,7 @@ Evidence: `repo://crates/limedl-core/src/context.rs#L16-L100`.
 7. `Dispatcher::full(...)` with the registry, event bus, settings service, disk
    I/O, concurrency, CDN service and that HTTP client.
 
-Evidence: `repo://crates/limedl-core/src/bootstrap.rs#L40-L123`.
+Evidence: `repo://crates/limedl-core/src/bootstrap.rs#L40-L145`.
 
 ## Arc identity is load-bearing
 
@@ -124,11 +128,19 @@ Evidence: `repo://crates/limedl-core/src/backend_registry/mod.rs#L42-L60`,
 
 `Aria2RpcServer` is **not** part of `bootstrap`. The RPC server is optional and
 feature-gated (`aria2-rpc`), and it needs a shutdown channel the owner controls.
-The desktop client constructs it after `bootstrap` returns, only when
-`settings.aria2_rpc.enabled` is true, and spawns it with a `watch` shutdown sender
-kept in the UI context for later hot-reload.
+Each frontend constructs it after `bootstrap` returns, from `core.registry`,
+`core.event_bus` and its own `Aria2RpcSettings`:
 
-Evidence: `repo://crates/limedl-native/src/main.rs#L86-L103`,
+- the **desktop** starts it only when `settings.aria2_rpc.enabled` is true, binds
+  the configured address (loopback by default), and keeps the `watch` shutdown
+  sender in the UI context so a settings save can hot-reload it;
+- the **daemon** force-enables it (`enabled = true`) because the RPC endpoint *is*
+  its interface, forces `exit_on_shutdown = true` so `aria2.shutdown` stops the
+  process, and selects on the signal/shutdown handles before calling
+  `core.registry.shutdown_all()`.
+
+Evidence: `repo://crates/limedl-native/src/main.rs#L131-L145`,
+`repo://crates/limedl-server/src/lib.rs#L83-L139`,
 `repo://crates/limedl-core/src/lib.rs#L69-L74`.
 
 ## Shared services
@@ -190,21 +202,26 @@ frontends. It calls `SettingsService::update_with`, then:
 
 `save_settings` is just `save_settings_with` with a closure that replaces the
 whole struct. `factory_reset` saves `AppSettings::default()` through the same
-path.
+path. The daemon uses this path once at startup to persist `--download-dir` when
+it is given.
 
-Evidence: `repo://crates/limedl-core/src/dispatcher.rs#L281-L348`.
+Evidence: `repo://crates/limedl-core/src/dispatcher.rs#L281-L348`,
+`repo://crates/limedl-server/src/lib.rs#L64-L76`.
 
 ## Lifecycle and shutdown
 
 `SystemContext` carries a `CancellationToken` for cooperative cancellation of
 background work. Frontends shut the engine down through
-`registry.shutdown_all()`, which awaits each backend's `shutdown()`; the desktop
+`registry.shutdown_all()`, which awaits each backend's `shutdown()`. The desktop
 additionally flips the RPC `watch` channel and saves window geometry before
-calling it.
+calling it; the daemon reaches the same call through a `tokio::select!` on the
+SIGTERM/SIGINT future, the RPC server task, and the shutdown `Notify` that
+`aria2.shutdown` fires.
 
 Evidence: `repo://crates/limedl-core/src/context.rs#L27-L30`,
 `repo://crates/limedl-core/src/backend_registry/mod.rs#L120-L125`,
-`repo://crates/limedl-native/src/main.rs#L255-L268`.
+`repo://crates/limedl-native/src/main.rs#L287-L300`,
+`repo://crates/limedl-server/src/lib.rs#L106-L139`.
 
 ## Extension seams
 
@@ -216,12 +233,12 @@ Evidence: `repo://crates/limedl-core/src/context.rs#L27-L30`,
 - A new shared service should be exposed on `Dispatcher` for frontends rather
   than reaching into `SystemContext`, keeping the facade the single integration
   point.
+- A new frontend should call `bootstrap`, construct its own transport over
+  `registry`/`event_bus`, and own shutdown; it does not add construction logic to
+  the core.
 
-<!-- openwiki: broken internal link [/openwiki/architecture/overview.md] link "/openwiki/architecture/overview.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Workspace and System Architecture](/openwiki/architecture/overview.md),
-<!-- openwiki: broken internal link [/openwiki/architecture/protocol-routing-and-dispatcher.md] link "/openwiki/architecture/protocol-routing-and-dispatcher.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Protocol Routing and the Dispatcher Facade](/openwiki/architecture/protocol-routing-and-dispatcher.md),
-<!-- openwiki: broken internal link [/openwiki/systems/settings-and-configuration.md] link "/openwiki/systems/settings-and-configuration.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Settings and Configuration](/openwiki/systems/settings-and-configuration.md),
-<!-- openwiki: broken internal link [/openwiki/systems/disk-io-and-storage.md] link "/openwiki/systems/disk-io-and-storage.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Disk I/O, Buffer Pool and Storage Detection](/openwiki/systems/disk-io-and-storage.md).
+Related pages: [Workspace and System Architecture](overview.md),
+[Protocol Routing and the Dispatcher Facade](protocol-routing-and-dispatcher.md),
+[Settings and Configuration](../systems/settings-and-configuration.md),
+[Headless Server Daemon](../integrations/headless-server-daemon.md),
+[Disk I/O, Buffer Pool and Storage Detection](../systems/disk-io-and-storage.md).

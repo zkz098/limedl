@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:baf2d7ddac076e9e87f4797fc47b8a2d8bbdf48076ab6e419258f5d7737f3715",
+  "pageVersion": "sha256:1f401a1df7a0f7b82a325ce1e29d22e0d04b901c12227f180bd95153f9aad70f",
   "claims": [
     {
       "id": "claim_9069efa9e70847f4afdb9194ea98ad55",
-      "statement": "Aria2RpcServer::serve binds 127.0.0.1:{port} with POST and GET /jsonrpc (HTTP and WebSocket), applies CORS defaulting to localhost, runs axum gracefully shut down by a watch receiver, and logs a warning naming the address when it starts with AuthConfig::Disabled.",
+      "statement": "Aria2RpcServer::serve refuses to start when the configured listen_address is non-loopback and authentication is disabled, then assembles a Router with POST and GET /jsonrpc (HTTP and WebSocket), applies the CORS layer captured by new(), and runs axum gracefully shut down by a watch receiver; on loopback with AuthConfig::Disabled it starts but logs a warning naming the address.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/server.rs#L71-L150",
-          "version": "repo-lines-v1:sha256:eedc0e2a2a34acdcdaaf9d3aceb8c6f764ab1484c9deb788bd7bbb7090cbdbda:eyJzZWxlY3RlZExpbmVDb3VudCI6ODAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmNGMxMjIwMWYzOGRkOGM0ZmUxMzgxNGVhNjhlMjlmOWViNTljM2ZlZjNjNzliY2FlMzlmNjdkM2E3ZTI0ODUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM3NTRlYmJmZDhlZmVhNGQ0OWVjNWM3YTM4Yjg3MTYwNWNlNGYzMGM5NTY3NmQ2ZTU5MTBmYzQ4ZjUwMzQ1MTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4MDgxYjZjMzA1ZDc1NzcwNjg1ODM5NjMxMDIzNzIwOTYxYzVkYjg3YmVmMGZhNDc4NWIwZWFlYWEwNDUwMjIifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/server.rs#L113-L199",
+          "version": "repo-lines-v1:sha256:84a9baaa024c155832565e5d17986e5bc09862769825f2819247e2e7b20339a2:eyJzZWxlY3RlZExpbmVDb3VudCI6ODcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMyZDBmZjNiZjdlNGRlYjliYTE3NTE2YzEwZjczY2E3ZmIwNzczYWEyZTQ1ZDViOGUyZjgzYzE2OGU1MTU0NzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5N2M0N2Q2YmE4YzQ5NGMwMjI5ZGU4MGYwNDkwN2UxZjgwZjgzYjkxOGYwMjMzOTAzMzUxNjllN2VkMDEyNTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiYzk4ZDZiMGRjNDkyYzUwMTZkZjEwODA1YTNhNTRlYjljMTg0YTVhNjEzN2U3ZjRiZWNmYTBjMjIwNTUwZDAifQ"
         }
       ]
     },
@@ -17,8 +17,8 @@
       "statement": "bind_with_retry retries AddrInUse for a 5-second window at 25 ms intervals to survive the settings hot-reload handoff, while any other bind error is returned immediately.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/server.rs#L1-L40",
-          "version": "repo-lines-v1:sha256:95e04de495e49fe62818ba143bf60cbbfc2ab74a8b2147ff3c78f16954128c70:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEwNjlhZDA2ODkzZDcxNjNlM2NmMDYwZjI0YWFmZTdiZGFkOGYyZTI3YWZmOGM3NTQzNGI4ZDI2NjQ4MTBjMWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJjNjg0ZGExMGRjZWI3Y2FkMmZiZTgxYzA4M2Q4NGY2NjAyYWVkZTgxYzc1ZDI5ZmMyNWUxMmVkYTIwZDhhMTcifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/server.rs#L14-L48",
+          "version": "repo-lines-v1:sha256:43a25e1252f19938080bd973ffc2f38021b723acf540c40db1fc7a94cdcc3e4c:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxMWU4YjYyZTMzYmM0ODQxYzg2YTUyYmJmZDQyNGFlNDFlMGJiZWE4MjQyMmQxMGUwZDIwYjlmMzA1ZmI0MGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0Nzg4MDYxMDM4OTJkYmFiOGVjNTk3ZWE0YzQxMmVhOWVmOWYyNzY4ZjgxZmE5ZGIwNmY4NmZlYTJkM2QwYzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE5MzU4MDdlY2E4ZjIxYjA4MWZmNzc1MjZjOGEzNDNmMDgwYmJjMzljMjUyMTc2ZTcyNDY4YmViZjA1ZTMxYTQifQ"
         }
       ]
     },
@@ -37,7 +37,7 @@
       "statement": "check_token accepts only a token:-prefixed first parameter, uses constant-time comparison for the shared secret and Argon2 verification for per-client tokens; dispatch_method calls it for every routed method except the anonymous system.listMethods/listNotifications and the outer multicall call.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L76-L110",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L82-L116",
           "version": "repo-lines-v1:sha256:b82e5433964553b297678729cda7b12a847a5448382e30b00c574af2c99f94b7:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM3NDBiZjM1YjdhYTBhZTc4MDI4OGUyNjI4NmY0Mjc1N2ExMDVhYjRkOGFlNjA0NzU4NzMyZTk5YjkwNDkwZjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgwNGZmNDYxOTc4N2Y1N2QzZDQ5NzFlYWJjYmRjMmRiYmEyMzc5MTczN2ZlZmMxMjgxOGNkMDUzYTliNWMzYjMifQ"
         }
       ]
@@ -51,7 +51,7 @@
           "version": "repo-lines-v1:sha256:a68e4496d8c26bb9dac2dc6019865e4f195cae392ca217e735152dd1d2234469:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ODllZmU0MzBiMmY0Y2FlY2I3MDAwYmIwOTAwMGQ4YjIzNjk4YTFlNDBjNjE2MjM0ZGZmYmJlY2RjZjUxNGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg1ZTViOGNmMmFjOTc4YzU1YzkzNDM4ZjRiY2NmOTQ2OTIyMGM0NWY4NDM0YjVhODZjNDBmYWI4NDc1ODIwZjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFkN2U5ODM5YTA0NDBmZjlkZGZkMDE1ZGE5MWFlYTM2MjRiNjRjMjdiZTEwNTM0YzBhMzJlOTIyMDYyY2RkMDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFiNmQwZTk1MDUxYmUxN2ZmOGJiMDExZjNkNzE5MTVmZWNjYzJmMTA2MmJlODk4MjY1MDY3YjQ1OWIxOTU5NWEifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/system.rs#L51-L90",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/system.rs#L58-L97",
           "version": "repo-lines-v1:sha256:35cc3e4fb4c294035925aef61cefb26ed2211709562d9e21390637b2c5ae7989:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxY2Q4OGUwNmRlYmUzYzk0ODhhYjA5MjIxM2JhZjFhMDY1NmUxZWNjNWJmYzQ3MmRmNGFjNGFlNzhlMjNlOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzZTlkYWU1NDA4YzZhYWZjM2IzMGFjNzUwMGFjY2QzOTIxYTVhZmM4MjMyZWI3OWI2ZDY0MWNjOTBlODRmOTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
@@ -117,7 +117,7 @@
       "statement": "system.multicall dispatches each nested call through dispatch_method (so it is authenticated on its own) and wraps each result in a single-element array ([value] or [{\"code\",\"message\"}]) because AriaNg/Motrix read element 0.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/system.rs#L51-L90",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/system.rs#L58-L97",
           "version": "repo-lines-v1:sha256:35cc3e4fb4c294035925aef61cefb26ed2211709562d9e21390637b2c5ae7989:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxY2Q4OGUwNmRlYmUzYzk0ODhhYjA5MjIxM2JhZjFhMDY1NmUxZWNjNWJmYzQ3MmRmNGFjNGFlNzhlMjNlOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzZTlkYWU1NDA4YzZhYWZjM2IzMGFjNzUwMGFjY2QzOTIxYTVhZmM4MjMyZWI3OWI2ZDY0MWNjOTBlODRmOTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
@@ -207,8 +207,8 @@
       "statement": "RpcContext::http() and RpcContext::bt() are the only sanctioned protocol-specific get_typed downcasts in the aria2 layer, and the RPC surface is inherently protocol-specific so those accesses are centralized there.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L46-L68",
-          "version": "repo-lines-v1:sha256:1e4ba79a87e017c454898b10eabf6b2cc1fd6c4436db0bc5730594c2fd56081f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRlMzBkNjdmZGFjM2MxZDhjOGJjNzBjZjUzZjE5YjExYzc1ZTVlNTMwZGM2MDlmMjM0YTE3NWFmNmQxNTljOWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgxOGRkYzRhZTFkNzc0Y2RkYmExMGVkNGFkNmIyMDEzZWRmNDUzMjY4YjIwOTY4NzI0Y2ZmMzVkYTVmZDU4NDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2NjQ0MzcyMTNjNzMwM2M4MWI3MjI1M2Q5NDg2YWJjMjIxNTEyY2QxM2RmNTMzMTg1YTY1NzU4ZjE3N2ZjZGQifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L62-L75",
+          "version": "repo-lines-v1:sha256:ffc7a092b485375c069b83babd8c92f5e198918e15ce9b2b109307423d32e93b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjliZGU3YTQ3ZGI0MjNlYzNjNjFmMzBiOGJkZjJlYmFmMjNjNDE0N2RlNGYyNjMyMmQwYTM0MmNlMWEyNGQ2MDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM5MmQ4NTIxNmUzYWY1MDJjNTBjYmY2N2UwOTA0NjA4ZTljZmFkNzU0ZjFhYWI4YmE1OTdhZWM2MzJhOTk0MjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAwZDVhMTAyY2EwY2FiZmI1YTZlZjExM2MxNjQzOGY0YzRkYWQwNjg5Y2YyOTU5NWU5ODIxNWVlYTQ3MWYyMzEifQ"
         }
       ]
     },
@@ -221,8 +221,8 @@
           "version": "repo-lines-v1:sha256:02a392ee7b5338665d2356c7c078c68b978f24a5982b5066eef13a76fdabbe55:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5MTljMTIyNTZmYTY2OTlmZDljMDY3YzcxN2U4MjBlNjVhZjk4ZWE1OTI0OGQ0N2VhYzZiMGZkYmRkN2U1MWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQxYjZjY2EzNmQ0ZDg5ZmRkMDY0ZGE0MjQ4ZjdmODljOGY1YTZjZDJmN2IxZWFjYzczMGQxZDYzMTQ5ZWZkMjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyMjA0MjM3ZTc1YjY4MDAzMjVlMDNiODZmMDdmMzRiYzIxMDJhNTBlNjk1Y2RkODY3OGY2ODg5YjU4NGQwMWUifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/types/settings.rs#L380-L397",
-          "version": "repo-lines-v1:sha256:f56f48914c11d8f98c2a5652531cadb6e999a43ddbc9a017388bf8b677974358:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkNDczMDg3MTFmNjU5ZDhmOTkxMzJjNmMxYmE3YzI5NGU4MzRmNGIwMzViNGFmY2NlNjg5MzJmZGY1MzIyZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwZjU0ZGVjOWNiMGNjMDEwYWY3NzhmZTQ4NTBmYzU2Y2Y0ZjFiMTBhNGZiYzBhYTg2YmFhYzk2ZmM0YjU0NzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhhZDhlNWVlMjZkNDc1NTExOWQ1M2QxMjE1Y2M2M2Q3NzdjZGY3NzUwNDU3ZDg3Nzc1ZTEzYzc5ZDExNjZiNDIifQ"
+          "resource": "repo://crates/limedl-core/src/types/settings.rs#L404-L422",
+          "version": "repo-lines-v1:sha256:b5c184f5833a0bca493d980a0a0311dde5b14ecf22eb0d1028daeb14acd5636b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkNDczMDg3MTFmNjU5ZDhmOTkxMzJjNmMxYmE3YzI5NGU4MzRmNGIwMzViNGFmY2NlNjg5MzJmZGY1MzIyZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMzMmM3YTM1OGQ2YWEzMjgwMzNjMTBkZmQ1MDliNzRkNGNlYjU1MjZiMmNlYmRiMjRhM2I1MjMzZjhlNjRlNjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRlOTAxMTI1MzZjYTIyNDY3M2RlNDBmODgyNjNlYmU5MTFhOGY4MjY4NDIyNmRiODNlODRhMDM4MGM3ZTdhMTkifQ"
         }
       ]
     },
@@ -303,10 +303,54 @@
           "version": "repo-lines-v1:sha256:4df9187c28f906ccf4c3d6cdbd6bb4278addc2bb3ac6702bad92f3a2a198d2ce:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwM2FmYjBjNWU4M2RmNDUyYWIxZTViZjBiMDk3M2Q5ZDQ2YmRlYTk3YTNlOTk1Y2YxYjhjOTU4OTgyNjE0NGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1NGE2ZWM0ZmUyMGFkM2M4YTNiMTZmYzMwN2E0Y2MwNjM0YTdhMmI1NTBiMjNhMGNhNTgyNWQzYmU1NjQwNTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM0OGQ5YWZkZjdlNjhmODEyOWRhODE3MTRmMDI0YWVjNjYwMjhhM2E4NzNjNzA0ZjE1OGQ2ZGM2N2Y5NWYwZDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAyMmE0ODVjNTQ5ZmZjNjliOGYwNDJhZDk4NTBlZjkzNDIwYTZhNzE5MDc2ODIzMTE2OTZlOTJiZjUzZDRlNzQifQ"
         }
       ]
+    },
+    {
+      "id": "claim_495d8296febd499ca46d599eb6124f50",
+      "statement": "is_loopback_bind_address treats 127.0.0.1, ::1 and the localhost hostname as loopback and everything that does not parse as an IP as public, so the bind gate fails closed for an unrecognized host.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/bind.rs#L14-L29",
+          "version": "repo-lines-v1:sha256:aea805fd1aff1f61893ba35cceb3329011f3947cfef655e2329a5f6551c4aaba:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJiMjJlMzIwZTRkZGJlYWU2Yjg4NTcwNmIxMmU4NWIyOGQ1OTVlYjFkMGY4YjEzMjUzZWY1Yjg5YTA4OWJjNTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQxNDU4MjBhMGFhMTk0MzFjYjJhMjY4NGQxNGFmZGY3MWMyMWJmZDg1NWZmYmRmM2RhYmU4ZTBlNGUzN2U0YzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRkMDRhYzRjZDFlN2NjZjk1Y2I2NTUyMjkzYWEwMDU0MDM3Y2FiN2RjNzQyNTAwZDEyZTE5ZGY5NzU4OTI0YjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_decac24c5c5545c898fcc584133f5bb5",
+      "statement": "format_bind_addr brackets an IPv6 literal so ::1 is rendered as [::1]:<port> instead of the malformed ::1:<port>.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/bind.rs#L31-L40",
+          "version": "repo-lines-v1:sha256:3788917870be1a4d6dfda83d559bba6eff328811df071274bd191eecbaa7df38:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVmNjU4NDljMDkxNzVjZDcwMGQzMzI3OWM5YThiZDNlYjY5MzA0MzY2YTcwYWUwNGMyZmRkMzliYjQwMmVhOGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJiZjA0ODExZDYyOTkwOTgwODMxNDQ3M2NiNzcxMzU0ZTAwMmJlYmQzNWRhNTk5ZTllZWFjM2E5NTI5Nzc1NzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI3NzQ4YWIxZmRhZTEzYTlkOGM3MTE4MmQwOWNmYzdkMjc1ZGFhY2FlNDcxYWM2NzYyODg2ZmI2NDJkMDNhM2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzZDRiMzgzNzhlYTViMjdkZDRkMmJhZDBkODdjZWM4ZDhjYmZhMDE5NTcwNTkzMzRmZWJlNmM0Mjc4ZmZlYWQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_733ff3a498ac4341bac8eb2f310acfc7",
+      "statement": "build_cors_layer emits Access-Control-Allow-Origin: * and omits Access-Control-Allow-Credentials when allow_any_origin is set, echoes configured origins otherwise, and falls back to localhost with a warning when every configured origin fails to parse.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/server.rs#L66-L100",
+          "version": "repo-lines-v1:sha256:4773be1e7862950b14290c62f4acba92e6fabf6fe3a2ea8f13d1e3383c9ef7ac:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQzYTJmZTllMGZjYWFiZGJmZWRiODkyM2Y3ZTkyZGMyNGJhZGQwOWNiMDUzNzRhN2E3OGEyNmVkYTAzZTE0MTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJmN2ZlOGJmMTcxYzllZDgwYzYwZjY0NjMwNDhmNTg0MDgxYTZiY2FjZTYwNDE1MDQ1OTZiNTBmMjZjZmI3N2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2MmU0YTM3NzkwN2FlOGUyMTNiODY0Nzg1MjZiNWM1ZWM1Y2Y3NTZjMTcwYjc0ZjcyMzU3OGRjOWUyZjMyYTcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f62d36014e0c41de808b485b3a87a7e2",
+      "statement": "aria2.shutdown publishes a warning and acknowledges in all modes but calls RpcContext::shutdown_notify.notify_one() only when exit_on_shutdown is set; the desktop leaves it false and the headless daemon sets it true.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L44-L57",
+          "version": "repo-lines-v1:sha256:41aae002b16dc2b73f15c1d2569b484bf36f5548aea4e144321c3faf9a08dbb1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4ZDdlNTFmZTM0MWFlZTY3ZTExZmIwY2VhZTFhZDZkYTgzNzRiY2E2YjQ1MTNiNzc1MzU1OTc0N2Y4ZjQ3M2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU5YjAyMjAwNzkxODdkZmIyNmExY2UxOGVjYzBiMTIzMTM1MzJmN2E1MTc5ZjY5YmFjOGNhMzY5YjNlY2VmODMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFhMTdlM2IxYWJmN2JkZWFjYTFiYmJlOWM3Yjc5Mjk1NDZmN2EwNWI4Y2I2NmEyMjc5YzhkNGIzY2U3ODlmYzYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/system.rs#L38-L56",
+          "version": "repo-lines-v1:sha256:07bd5c501dc68c80906d59aefe79af21bd416faa97222892278c80971ac0bff6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFjMmI5OGZmNzc3OTI0MTI1YWYyYmRjMTkxMWY2ZjMyZjBiYTgxYmYxODA2MDBiMjU0MTI4ZTE3N2RhNjRmNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4NWNjYzdmNTQxNDg2NDg5MzY2OWE3YjZmNjU3MjA5OTJhMDIwNzQ3NzdhOTVjMzdkMDVjOGY0MjE5MDQ2ZGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJkYTA1MGYxODg1YjhiMzdjYTk4NmMxNTUxMGRlMmQ0MmM2OGVhMTA2OTYzZWY2NWJjYTcyMjkyNWE2MjE3NjcifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T11:10:17.271Z"
+    "at": "2026-10-04T12:36:56.946Z"
   }
 }

@@ -36,9 +36,16 @@ pub fn cleanup_old_aria2_temp_files() {
     }
 }
 pub(crate) async fn handle_shutdown(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
-    tracing::info!(
-        "aria2.shutdown requested from aria2 client — limedl runs as a managed subsystem; use the application UI to exit"
-    );
+    if ctx.exit_on_shutdown {
+        tracing::info!(
+            "aria2.shutdown requested — exit_on_shutdown is set, signalling the daemon to stop"
+        );
+        ctx.shutdown_notify.notify_one();
+    } else {
+        tracing::info!(
+            "aria2.shutdown requested from aria2 client — limedl runs as a managed subsystem; use the application UI to exit"
+        );
+    }
     ctx.event_bus.publish(DownloadEvent::Warning {
         id: "system".into(),
         message: "Aria2 client 请求关闭程序。请使用应用界面退出。".into(),

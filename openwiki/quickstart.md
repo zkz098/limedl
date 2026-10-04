@@ -1,7 +1,7 @@
 ---
 type: guide
 title: limedl Wiki Quickstart
-description: Entry point and task-routing map for the limedl wiki — where to start for building, understanding the engine, adding a backend, debugging downloads, testing and shipping a release, plus the repository's load-bearing invariants.
+description: Entry point and task-routing map for the limedl wiki — where to start for building, understanding the engine, adding a backend, debugging downloads, running the headless daemon, testing and shipping a release, plus the repository's load-bearing invariants.
 tags: [quickstart, navigation, onboarding, build, workflow]
 sources:
   - id: openwiki-source-06de9eea8068258882d65c0b
@@ -18,6 +18,8 @@ sources:
     resource: repo://crates/limedl-core/src/aria2_rpc/options.rs
   - id: openwiki-source-cb3b278da9fc4917fdb881e9
     resource: repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs
+  - id: openwiki-source-18347dd81d612fba86839f34
+    resource: repo://crates/limedl-core/src/aria2_rpc/server.rs
   - id: openwiki-source-2262be0eb4e0dcf867247c95
     resource: repo://crates/limedl-core/src/backend_registry/mod.rs
   - id: openwiki-source-093388d09b520118fa26ce32
@@ -40,22 +42,35 @@ sources:
     resource: repo://crates/limedl-native/src/i18n/mod.rs
   - id: openwiki-source-d4153d1b0168cae501e8c53a
     resource: repo://crates/limedl-native/src/ui_tests/mod.rs
+  - id: openwiki-source-cc281d0872e580aa89866924
+    resource: repo://crates/limedl-server/src/cli.rs
+  - id: openwiki-source-2d1753b77bfe7d551752205e
+    resource: repo://crates/limedl-server/src/lib.rs
+  - id: openwiki-source-600bf3367c4599b56dc1a044
+    resource: repo://docs/server-daemon.md
+  - id: openwiki-source-7ae9f72a70d7b68c2986edb0
+    resource: repo://packaging/server/docker-compose.yml
+  - id: openwiki-source-7003b6883ff44b1304d949e8
+    resource: repo://packaging/server/Dockerfile
+  - id: openwiki-source-816a10881eb55b69eaf93236
+    resource: repo://packaging/server/systemd/limedl-server.service
   - id: openwiki-source-23775c3de52f3ab95a13cb8b
     resource: repo://README.md
   - id: openwiki-source-ca864fd40fa4107ed35f840f
     resource: repo://xtask/src/fetch_font.rs
-generated: { by: "pi", at: "2026-10-04T10:39:31.763Z" }
+generated: { by: "pi", at: "2026-10-04T12:58:25.182Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T10:39:31.763Z
+    at: 2026-10-04T12:58:25.182Z
 ---
 
 # limedl Wiki Quickstart
 
 limedl is a multi-protocol download manager (HTTP, BitTorrent, CDN acceleration)
-with a Rust engine and a Slint desktop client. The workspace has three members:
-`crates/limedl-core` (engine, lib `limedl_core`), `crates/limedl-native` (Slint
-desktop binary) and `xtask` (repository tooling).
+with a Rust engine and two frontends: a Slint desktop client and a headless
+Aria2-RPC server. The workspace has four members: `crates/limedl-core` (engine,
+lib `limedl_core`), `crates/limedl-native` (Slint desktop binary),
+`crates/limedl-server` (headless daemon binary) and `xtask` (repository tooling).
 
 Evidence: `repo://Cargo.toml#L1-L11`, `repo://crates/limedl-core/src/lib.rs#L1-L34`.
 
@@ -75,6 +90,8 @@ Evidence: `repo://Cargo.toml#L1-L11`, `repo://crates/limedl-core/src/lib.rs#L1-L
 | Work on disk I/O / buffers | [Disk I/O, Buffer Pool and Storage Detection](systems/disk-io-and-storage.md) | `crates/limedl-core/src/buffer_pool/`, `file_ops/` |
 | Change networking / proxy / UA | [Networking, HTTP Clients and Rate Control](systems/networking-and-rate-control.md) | `crates/limedl-core/src/http_client_factory/mod.rs` |
 | Work on the Aria2 RPC API | [Aria2 JSON-RPC Compatibility Server](integrations/aria2-rpc-server.md) | `crates/limedl-core/src/aria2_rpc/`; interop fixtures in `aria2_rpc/interop_tests.rs`, Tier 2 `aria2c` oracle in `aria2_rpc/oracle_tests.rs`, runbook `docs/aria2-interop-testing.md` |
+| Run the headless daemon (NAS / 软路由) | [Headless Server Daemon](integrations/headless-server-daemon.md) | `crates/limedl-server/`; deployment runbook `docs/server-daemon.md` |
+| Deploy the daemon (systemd / Docker) | [Server Deployment and Packaging](operations/server-deployment-and-packaging.md) | `packaging/server/`; image `ghcr.io/zkz098/limedl-server` |
 | Work on the desktop UI | [Native Desktop UI (Slint)](desktop/native-ui-architecture.md) | `crates/limedl-native/src/main.rs`, `ui_boot.rs`, `handlers/` |
 | Change the updater / packaging | [Self-Update and Distribution Channels](desktop/self-update-and-distribution.md) | `crates/limedl-native/src/update/mod.rs` |
 | Build / CI / release | [Build, Tooling, CI and Release Operations](operations/build-release-and-ci.md) | `.github/workflows/`, `xtask/` |
@@ -89,12 +106,23 @@ cargo xtask fetch-font
 
 # Desktop client (Windows needs MSVC initialized first)
 cargo run -p limedl-native
+
+# Headless daemon, LAN reachable (a non-loopback bind requires a secret)
+cargo run -p limedl-server -- --rpc-listen 0.0.0.0 --rpc-secret "$LIMEDL_RPC_SECRET"
+
+# Or run the published container image
+docker run -d --name limedl-server -p 6800:6800 \
+  -e LIMEDL_RPC_SECRET="$LIMEDL_RPC_SECRET" \
+  -v ./data:/var/lib/limedl -v ./downloads:/downloads \
+  ghcr.io/zkz098/limedl-server:latest
 ```
 
-Linux also needs `libfontconfig1-dev`; the app keeps its data under the OS local
-data directory and honours `LIMEDL_DATA_DIR` as an override.
+Linux also needs `libfontconfig1-dev` for the desktop client (the daemon does
+not); both keep their data under the OS local data directory and honour
+`LIMEDL_DATA_DIR` as an override.
 
-Evidence: `repo://README.md#L70-L96`, `repo://AGENTS.md#L3-L21`.
+Evidence: `repo://README.md#L70-L96`, `repo://AGENTS.md#L3-L21`,
+`repo://crates/limedl-server/src/cli.rs#L25-L61`.
 
 ## The mandatory pre-commit gate
 
@@ -108,13 +136,14 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
 cargo nextest run --manifest-path xtask/Cargo.toml
 cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
+cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
 ```
 
 Coverage is a hard CI gate at 85 % lines for `limedl-core`. The full contract and
 its Windows blind spot are on
 [Build, Tooling, CI and Release Operations](operations/build-release-and-ci.md).
 
-Evidence: `repo://AGENTS.md#L82-L125`.
+Evidence: `repo://AGENTS.md#L99-L131`.
 
 ## Load-bearing invariants (read before refactoring)
 
@@ -138,6 +167,10 @@ Evidence: `repo://AGENTS.md#L82-L125`.
   the real client's request shape.
   `repo://crates/limedl-core/src/aria2_rpc/options.rs#L89-L142`,
   `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L1-L60`
+- **A non-loopback Aria2 RPC bind must carry authentication**; the server refuses
+  to start otherwise, because the RPC `dir` option can write outside a download
+  root.
+  `repo://crates/limedl-core/src/aria2_rpc/server.rs#L51-L59`
 - **Never guess a filesystem from a size or an unrelated error**; single-file
   limits are only decided in `reservation_error`.
   `repo://crates/limedl-core/src/file_ops/mod.rs#L586-L618`
@@ -163,7 +196,7 @@ Evidence: `repo://AGENTS.md#L82-L125`.
 - Commit subjects stay Conventional (`feat:`, `fix:`, …) because release notes are
   generated by git-cliff. `repo://.github/workflows/release.yml#L77-L128`
 - After dependency changes, commit the updated `Cargo.lock`.
-  `repo://AGENTS.md#L126-L133`
+  `repo://AGENTS.md#L132-L139`
 
 ## Suggested reading order
 
@@ -172,4 +205,7 @@ Evidence: `repo://AGENTS.md#L82-L125`.
 3. [Protocol Routing and the Dispatcher Facade](architecture/protocol-routing-and-dispatcher.md)
 4. [HTTP Download Lifecycle](workflows/http-download-lifecycle.md)
 5. [Scheduler, AIMD and Concurrency Control](workflows/scheduler-and-concurrency.md)
-6. [Testing Strategy](testing/testing-strategy.md)
+6. [Aria2 JSON-RPC Compatibility Server](integrations/aria2-rpc-server.md)
+7. [Headless Server Daemon](integrations/headless-server-daemon.md)
+8. [Server Deployment and Packaging](operations/server-deployment-and-packaging.md)
+9. [Testing Strategy](testing/testing-strategy.md)

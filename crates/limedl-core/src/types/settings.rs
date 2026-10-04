@@ -324,6 +324,13 @@ fn default_aria2_port() -> u16 {
     6800
 }
 
+/// Loopback-only by default. A headless daemon passes `0.0.0.0` explicitly
+/// (usually via `limedl-server --rpc-listen`), which then requires
+/// authentication — see `Aria2RpcServer::serve`.
+fn default_aria2_listen_address() -> String {
+    "127.0.0.1".to_string()
+}
+
 /// How the Aria2 RPC endpoint authenticates its clients.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -361,6 +368,12 @@ pub struct Aria2RpcSettings {
     pub enabled: bool,
     #[serde(default = "default_aria2_port")]
     pub port: u16,
+    /// Interface to bind the JSON-RPC listener to. Defaults to `127.0.0.1`.
+    /// Set to `0.0.0.0` (or a specific LAN address) to reach it from another
+    /// machine; a non-loopback address is only accepted together with
+    /// authentication, otherwise the server refuses to start.
+    #[serde(default = "default_aria2_listen_address")]
+    pub listen_address: String,
     #[serde(default)]
     pub secret: Option<String>,
     /// Which authentication scheme is active. Defaults to the shared-secret
@@ -372,9 +385,20 @@ pub struct Aria2RpcSettings {
     pub clients: Vec<Aria2Client>,
     /// Allowed CORS origins for the Aria2 RPC HTTP endpoint.
     /// If empty, defaults to ["http://localhost", "http://127.0.0.1"].
-    /// If empty AND allow_any_origin is true, allows all origins (insecure).
     #[serde(default)]
     pub cors_allowed_origins: Vec<String>,
+    /// Allow every origin (`Access-Control-Allow-Origin: *`). Needed when the
+    /// AriaNg page is served from a host other than the RPC server. Insecure:
+    /// any page in the browser can reach the endpoint, so it still requires a
+    /// token. When set, credentials are not allowed (browsers reject `*` with
+    /// `Access-Control-Allow-Credentials`).
+    #[serde(default)]
+    pub allow_any_origin: bool,
+    /// Let `aria2.shutdown` / `aria2.forceShutdown` terminate the process.
+    /// The desktop client leaves this off (it is a managed subsystem and the
+    /// UI owns exit); the headless `limedl-server` daemon turns it on.
+    #[serde(default)]
+    pub exit_on_shutdown: bool,
 }
 
 impl Default for Aria2RpcSettings {
@@ -388,10 +412,13 @@ impl Default for Aria2RpcSettings {
             // existing `settings.json` that says `"enabled": true` is honoured.
             enabled: false,
             port: 6800,
+            listen_address: default_aria2_listen_address(),
             secret: None,
             auth_mode: Aria2AuthMode::Single,
             clients: Vec::new(),
             cors_allowed_origins: Vec::new(),
+            allow_any_origin: false,
+            exit_on_shutdown: false,
         }
     }
 }

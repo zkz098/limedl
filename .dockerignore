@@ -1,0 +1,11 @@
+# Keep the Docker build context to source + packaging only. `target/` is the
+# multi-GB one; the rest are noise (or, for the font, a 20 MB file the server
+# never compiles). `dist/` is deliberately NOT excluded: the release image job
+# passes a prebuilt binary from dist/img/ to Dockerfile.release.
+target
+.git
+.gitignore
+node_modules
+openwiki
+website
+crates/limedl-native/assets/fonts

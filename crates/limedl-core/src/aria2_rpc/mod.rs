@@ -16,7 +16,7 @@ use axum::{
 use irontide::core::Id20;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify};
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
@@ -33,6 +33,7 @@ use crate::{
     },
 };
 
+mod bind;
 mod context;
 mod dispatch;
 mod download;
@@ -44,6 +45,7 @@ mod system;
 mod token;
 mod transport;
 
+pub use bind::{format_bind_addr, is_loopback_bind_address};
 pub(crate) use context::*;
 pub(crate) use dispatch::*;
 pub(crate) use download::*;

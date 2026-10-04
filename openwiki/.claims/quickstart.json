@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:aadae3a4b434ee886084ee8f89b80086a03916bde51e9ed3af03e4ca214d99dc",
+  "pageVersion": "sha256:44ac8590b168fd27e9b912aebf3bbe421c90206956f33df8952148d8578d19cf",
   "claims": [
     {
       "id": "claim_6719a8b6ce264d6fa5e8103236b5336c",
-      "statement": "limedl is a three-member Cargo workspace: crates/limedl-core (engine library limedl_core), crates/limedl-native (Slint desktop binary) and xtask (repository tooling).",
+      "statement": "limedl is a four-member Cargo workspace: crates/limedl-core (engine library limedl_core), crates/limedl-native (Slint desktop binary), crates/limedl-server (headless daemon binary) and xtask (repository tooling).",
       "evidence": [
         {
           "resource": "repo://Cargo.toml#L1-L11",
-          "version": "repo-lines-v1:sha256:8ebc320192cb4703b769d6628266c9befda0c904264d93d05a7809fcf77bbac9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
+          "version": "repo-lines-v1:sha256:fdb7d7d0bda8364cc420b0fbf76206e26d8bb07041b7bee975ad55e921180ee5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/lib.rs#L1-L34",
@@ -21,7 +21,7 @@
       "statement": "The documented build requires a one-time cargo xtask fetch-font before cargo run -p limedl-native, because the MiSans VF font is embedded at compile time and is not committed.",
       "evidence": [
         {
-          "resource": "repo://README.md#L70-L96",
+          "resource": "repo://README.md#L76-L102",
           "version": "repo-lines-v1:sha256:54a95fa8b9f1359117e28d1fa040f3ee07ae4e719641cda314e259e016908352:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwY2RjNDBhNWU0ZjU5YzZhNDgwYWY4OWYzYzNjYWZmODYzZWVlM2E4MTc3YWNkMTBiMzVjMTc2YmRhNjUyNjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRjY2I3ZjIzNmJlZmViMTljNDE3M2YyMWVlZjEwY2Y3NWZjMGQ4Y2YzOTlkODc2YzNkYzdlMWU1OGNlMmY3MmEifQ"
         }
       ]
@@ -35,18 +35,18 @@
           "version": "repo-lines-v1:sha256:3066aaa82b67f709bae5b739cf6c505a4b759771e820ba92c05fa152833bfd02:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMjBiMDcxOGVkMDQwNmVmMzc2OWViMzRjN2E4NjNkNzNmMzlmOWE5N2JmYWRhZTE4NjRhMzdjY2RmMDgxZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ1NGRhNWZhYzhjNTkwOTA4YzQxMWQxYzk3ZjJjMTE5NjY3M2U1NjlkZWY3MjE4YTNjZTMwZDBmYzU4NDA5YTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZlZTkwMTNjZDY0YjRmN2VmMzVlNTY1ZTU0MjI0ZjEwZTJmMDAxZTFlMzM1MzA3YWJlNTI1YzQzNGJiOTAxNTIifQ"
         },
         {
-          "resource": "repo://README.md#L56-L72",
+          "resource": "repo://README.md#L62-L78",
           "version": "repo-lines-v1:sha256:cd1783a8f1cb86ce90a2150e9a505210f040662dc2c4392e4e518a5d470bd0f6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImExZTQ0YWEzMmUzZTRlMGYwZGEzOGFkNzUyODk1NDA4OTYyMmQ3MTk5YzU1NmNjYmQyOWUwMDQxM2VmZDQzODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA1MDViZTFhODFiYzdkZTI1ZTA4Y2RmOWNjYmRiNmU2NzhlYTlhYmE2OGZlMzBlZjMyNGUzMDgzOTMwYmUyYzgifQ"
         }
       ]
     },
     {
       "id": "claim_ca07130e51474161ab507466672b13b5",
-      "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native) under CARGO_BUILD_WARNINGS=deny, and it cannot compile non-Windows code from a Windows host.",
+      "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native; limedl-server) under CARGO_BUILD_WARNINGS=deny, and it cannot compile non-Windows code from a Windows host.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L85-L128",
-          "version": "repo-lines-v1:sha256:4c5ac37cbd5d7e11d6341eba32311a34adb245d7e270c13704e63dbbd2133125:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwOGE2Y2Y2OWI1N2E0NjQ0MWJkOGEwMGEyODg5ZmJhMmI4ZjMyMDNhNmVhMjFiZmUzNjI4N2JlMWNhZWM2NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUxNjgwODAxNmY5MjgzZTRlMmE1ZjQ0OTZhMWVhMjkzYjA2YjAwZTNlZTJjMjdjOGE3MmI2ZDY3NjNlZDFjY2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ5NDgxZjg1MzFkOWUyZTc2OGU3NmFlMmZjYzExZGRjM2UyZjk2OGEwMDU0NTdlODcyMzdlZDgwNzAwY2VkMjUifQ"
+          "resource": "repo://AGENTS.md#L101-L133",
+          "version": "repo-lines-v1:sha256:198b24932e772845e2aa0c4bfc9953598faa535c19bead2dff7788577827b162:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5YjEyNGMxOThmZWVmNzUxZjNmOTcwNGU1NThhOWI0MDMyOGU2MmU0ODllZWM0NWFmM2IzNjQ0OWRkNTdjNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNmZjVkZTBkNjc5ZjEyYzE0NzM4YWRjZGFkNjM2ODA3YTA3MjU3NTg4NWMxYjgwN2NiM2E3NDFmYzMyN2ExY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg5ZjhjMjI1N2MzOGYwNWYzYjdmZjQ0MGZhNjBiMWE3NmY1NGQ0MTU1MmU4MTBiMjlhYTQyMzgzY2NlMDYzOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYwODViMDMwMTMyYzRmODcxZDEyNDE1YWI5YTU5MzkyMDFjZGQ5NTQwN2FmZDQ4MjhiN2Y1YjZiNDZiNWU5NWEifQ"
         }
       ]
     },
@@ -145,7 +145,7 @@
       "statement": "irontide is pinned to exactly =1.7.0 because upstream's git repository was removed and the BT backend depends on a wide engine API, so upgrading is a migration.",
       "evidence": [
         {
-          "resource": "repo://Cargo.toml#L70-L74",
+          "resource": "repo://Cargo.toml#L79-L83",
           "version": "repo-lines-v1:sha256:8358413bd2c4e67dc79bd275d785bd5868db516eac386f621badb76124b61982:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzgzMzlhNmY4NmZiZTMxMDZmNGZjMTFiNGYyNmRjY2I2MGRhZTUzZTZjMTFkMDQyMjA0ZDdiMzBiNGRlYzkzMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDc5NGJhNzljZTJhNTFlODAwYmZlNDM3OGYzZjM1ZDhmZjQxZmFkZWE4OTMzMWM0YjViYzQ0NGE0NDE5NWIzZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDE3NjMyZGNkY2QzMTUyNWE1MDUzYWRkY2JiMmI3MzZmZjFhZDc3Y2EzOTgwYWE1OTY1NWMwM2ZhNjdjOTA2YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2IwNGUwMjlhNTkyOGI1NDI2Yzk2ZmYwNGQ2NTJhN2VlZjcxY2U4OWNmZjI3MmJiZGFmYjk5OGY1NWRlZDM0ZSJ9"
         }
       ]
@@ -179,7 +179,7 @@
       "statement": "Dependency changes must have their Cargo.lock updates committed, or CI cache misses and stale dependency resolution follow.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L129-L136",
+          "resource": "repo://AGENTS.md#L136-L143",
           "version": "repo-lines-v1:sha256:859c481a159eaa7d362fd4cfad8c752a6977f2baa88167530e2af59af7e7aa80:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTNjYzRhNzEwYmYzMWEyN2Q3MTk2MDRmYTdkYTEyZWJhNGY5MTY4ZTZjYzRkOWY4NmQ4YjJjOTE5NTYzYzRjZCJ9"
         }
       ]
@@ -211,10 +211,62 @@
           "version": "repo-lines-v1:sha256:353a612cb21fd6af4dc72ab1ade04f40651e0f9d718192bef3c8b92c81b6213e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0N2UyNGUzNjE4YTZjNDkwYzYyYjAxZWE5Y2U0MWQ5YzE2NmRlMTE2ZTQ2MTViMDUxOGM5ZDRmNDBiM2JiODYifQ"
         }
       ]
+    },
+    {
+      "id": "claim_f2c26dbc42c74a388bde61d3924791cc",
+      "statement": "The quickstart routes headless/NAS users to the limedl-server page and shows a LAN launch that passes --rpc-listen 0.0.0.0 with a secret, because a non-loopback bind requires authentication.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/cli.rs#L25-L61",
+          "version": "repo-lines-v1:sha256:ff793378643e02fb5f366260d3937855ce553da9e3e5c46de78dedf83c1394ee:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2YzA3MTkwZjZjODYxNTk4N2Y3NWM3Y2E0NGUyMTFiYjUyZDExZTVlNTE4ZjA3Yzk0ODc5YWE0NGRiMTA2ZmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3NWJhMDU1NjFhMjg5OGZlY2M0MDg1ZGI1ZGZiMzY2Y2ZmOTA2NDJmOTJkYjhhNGUwMjZiYWMxOGNhNGU2NWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlkOWY5NGJkYWM1OTg3MzI2ZmU3NDRjMzVjMTUzZDhlYTA2ZDUxYzRmNTg1Y2M3YTRhNTZjZTc5YWExOTMzZDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNiMTE3YjE1NTczZGY2YzYyOWQwZDg1MWZkZDRmZjM3OWYxOTRmYjA3Y2E2ZTg1ZDc0YTA0Y2I3N2EzZTg4NmIifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L1-L10",
+          "version": "repo-lines-v1:sha256:b20b65c5e7880d84a4eb2549ff358f42f5afad00d4073a1b811d4669c12f9fa2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3YmI5OTNmYTkwYzQ2NmJmOTI2YTA2OTdmODJiNTQ3Zjg2ODEwN2VkYTE3NDVkZmQzMmUzZWY2NGY3ODg5ZDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxOTI2MGZjNmUwYjNkNmI2NTkxM2JkYWI0NWE5OGFlNjk2MGJiNTJmNzY0ODg3ZTJiN2Y3N2FiMTg3N2Y4MTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU5NzE0NDk0NGUwZTNhZDE1YzFjYTIwZTcyYmFjZjE2NWQ2NGI5NGY4YzRlOWEwMzE1NTUwZGQyMTc0NGI1MzIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_27da404b8fa84985ada8f927c54a29f8",
+      "statement": "The invariants list records that a non-loopback Aria2 RPC bind must carry authentication because the RPC dir option can write outside a download root.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/server.rs#L51-L59",
+          "version": "repo-lines-v1:sha256:4dcb94efde92d3fb6206630defbc25d3761ab7d9110efc1798f94e981df2ef4b:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTUyN2NiNDU2MTZmMjA5MzcwZmE1NTZhMmQ4NDcyM2Y0YzRkNTM2N2FlMDRiMzFjYjhkODU1MDZiNDZkZWJmZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWFmOWIyMjZiZDRlY2JhOGQ0MWMzODBjOTViM2FhNmRkMzhhZWFiZjc2MjUzMTI5NWUyN2JmYzYzOWZmMjRkOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjZhNWRjYWI1ZWUyNGI2MGZkYmNjMzgyMjEyNGEwNzk2ZjEzZTlmMDYwYTI0MzQzOTk5YjQwYTI0NzIyMGVkZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_b555a2cc4e1345dcb8b4a4ac4e17d2f6",
+      "statement": "The headless daemon is deployable both as a local process requiring --rpc-listen 0.0.0.0 plus a secret and as the ghcr.io/zkz098/limedl-server container image with the secret and volume mounts, as documented in the deployment runbook.",
+      "evidence": [
+        {
+          "resource": "repo://docs/server-daemon.md",
+          "version": "repo-file-v1:sha256:ff9821292079243809774cc1c70a23937d1424eaf52b38b8d380820d9aedda0c"
+        },
+        {
+          "resource": "repo://packaging/server/docker-compose.yml#L1-L25",
+          "version": "repo-lines-v1:sha256:233b1382f49c7f34c6fbc5234969f5c7c491be18151f41b6498bebc3bee7fb48:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJkYzI0ZjhiY2RkNDQ0NjZkMzY2NTkwMTI2NGYxMTQ4N2IzODBlMzI2MTNjYzk1MDM0ODgyMmM0ZWJkOTI3Y2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5NDIzN2ViYmNlNTMzYTM3M2Q3YWUwYzU4YmMzZmMzMGEwYTg0ZmE3NjJmYmQzNjViMjgwZmNmYmQ4YTcxNTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzODZjYmExN2I3NTA1YjBlYmE2OGE0MDc3YmIyMmU5NGI4ODNkMGI1YTc5NzAxZTMzNzExNGU3MDAxODMzYWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9fb480b812c1435682f465dc533cf70f",
+      "statement": "Deployment assets for the daemon are committed under packaging/server for both systemd and container deployments.",
+      "evidence": [
+        {
+          "resource": "repo://packaging/server/Dockerfile#L1-L42",
+          "version": "repo-lines-v1:sha256:e4968bfea860a4e622a7d3f626df3c352339f113fdf57e88d853597d1810fd56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjQ4YmQ3NThhMDRiMjU4MGM2MDIxYTg2ZGZiY2UyMTFmMDE1YTFkZDVjYzRmMzljMTNiNmVjZmUxNTcyOTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2ZTI3MjY1MjQ5MmEzZWVhMTQ4YWFmODdmZGE0NTQwNjFkMWRlNjAzNDZlNzRlZmFlMmU4YWVjZjQ0ODc0ZmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2YzhlNTYxYjI0MjlkYTg5YTJlZTc0YjZkNzM2ODEyYTQ5Zjk0ZmI1NzU2YTFhODkxMWE0Zjg5NWI1YjcyN2EifQ"
+        },
+        {
+          "resource": "repo://packaging/server/systemd/limedl-server.service#L1-L38",
+          "version": "repo-lines-v1:sha256:c371323756e5f8a4539f6ff64c7ef39b167bc41431a63d14a20cedf5b40cee94:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlNmM2M2NmZjMzYmNmYTNiNmEyZDZkMGM5ZGQxOTUyMWRlZGFhMzUxMTQ2YjFhNjQyZDJiZmM5Y2Y1YTFlMWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1ODBiYTBmYThmNjhkODllMGRkNjc0YTcxMWJiYmVlYTA3ZjkzNDc2NmZjZjEwN2IyZjZmNThhZTJjYjYzMDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhhMzQzNTc1ZWQ2MDNlNjFjOTg0MzkwMjA5NzliNmQ2ZDRiMTQ3MmUyN2E1NDljZWVmYjZiY2U4NzhmYmE4YzYifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T10:39:31.763Z"
+    "at": "2026-10-04T12:58:25.182Z"
   }
 }

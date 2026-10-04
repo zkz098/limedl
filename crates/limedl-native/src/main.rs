@@ -136,9 +136,8 @@ async fn run() -> anyhow::Result<()> {
             &initial_settings.aria2_rpc,
             core.event_bus.clone(),
         );
-        let cors = initial_settings.aria2_rpc.cors_allowed_origins.clone();
         tokio::spawn(async move {
-            if let Err(e) = rpc_server.serve(rx, cors).await {
+            if let Err(e) = rpc_server.serve(rx).await {
                 tracing::error!("Aria2 RPC server stopped: {e:#}");
             }
         });

@@ -835,3 +835,63 @@ fn test_bt_lightweight_mode_round_trips() {
     let restored: BtSettings = serde_json::from_str(&json).unwrap();
     assert!(restored.lightweight_mode);
 }
+
+// -----------------------------------------------------------------------
+// Aria2 RPC bind / CORS / shutdown settings
+// -----------------------------------------------------------------------
+
+/// A `settings.json` written before `listenAddress` / `allowAnyOrigin` /
+/// `exitOnShutdown` existed must still load, with the safe defaults: loopback,
+/// no wildcard origin, and no process exit on `aria2.shutdown`.
+#[test]
+fn aria2_legacy_json_defaults_the_new_bind_fields() {
+    let rpc: crate::types::Aria2RpcSettings = serde_json::from_value(serde_json::json!({
+        "enabled": true,
+        "port": 6800
+    }))
+    .expect("legacy aria2 settings must deserialize");
+
+    assert_eq!(rpc.listen_address, "127.0.0.1");
+    assert!(!rpc.allow_any_origin);
+    assert!(!rpc.exit_on_shutdown);
+}
+
+/// A hand-edited address that can never be a host must be replaced by loopback
+/// instead of failing the bind later; a real LAN address survives.
+#[test]
+fn normalize_aria2_listen_address_falls_back_to_loopback() {
+    for invalid in ["   ", "http://0.0.0.0", "0.0.0.0:6800"] {
+        let mut settings = AppSettings::default();
+        settings.aria2_rpc.listen_address = invalid.to_string();
+        assert_eq!(
+            normalize_settings(settings).unwrap().aria2_rpc.listen_address,
+            "127.0.0.1",
+            "{invalid:?} must fall back to loopback"
+        );
+    }
+
+    // A valid address survives, including surrounding whitespace from a
+    // hand-edit (a trailing newline in a JSON string, for example).
+    for valid in [" 0.0.0.0 ", "0.0.0.0\n", "::1", "nas.lan"] {
+        let mut settings = AppSettings::default();
+        settings.aria2_rpc.listen_address = valid.to_string();
+        assert_eq!(
+            normalize_settings(settings).unwrap().aria2_rpc.listen_address,
+            valid.trim(),
+            "{valid:?} must survive normalization"
+        );
+    }
+}
+
+/// Empty CORS entries are dropped so the server does not warn about a blank
+/// origin that a hand-edit left behind.
+#[test]
+fn normalize_aria2_cors_origins_trims_and_drops_blanks() {
+    let mut settings = AppSettings::default();
+    settings.aria2_rpc.cors_allowed_origins =
+        vec!["  http://app.example  ".into(), "   ".into()];
+    assert_eq!(
+        normalize_settings(settings).unwrap().aria2_rpc.cors_allowed_origins,
+        vec!["http://app.example".to_string()]
+    );
+}

@@ -42,6 +42,12 @@ deliberately — the engine is frozen, so those options stay open rather than de
 The download engine (`limedl-core`) is pure Rust with zero UI dependencies. Releases ship the
 Slint desktop client for all three platforms.
 
+For NAS / soft-router / headless use, the workspace also builds **`limedl-server`** — a
+daemon with no GUI that exposes the same Aria2 JSON-RPC API, so AriaNg and other clients
+can drive it remotely. Releases publish static musl binaries for `x86_64` and `aarch64`
+(plus a systemd unit and a multi-arch `ghcr.io/zkz098/limedl-server` image); see
+[`docs/server-daemon.md`](docs/server-daemon.md).
+
 ## Quick Start
 
 ### Desktop (Slint)

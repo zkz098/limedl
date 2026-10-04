@@ -127,10 +127,9 @@ impl SettingsSync {
             &saved.aria2_rpc,
             self.dispatcher.event_bus().clone(),
         );
-        let cors = saved.aria2_rpc.cors_allowed_origins.clone();
         let port = saved.aria2_rpc.port;
         tokio::spawn(async move {
-            if let Err(err) = rpc_server.serve(rx, cors).await {
+            if let Err(err) = rpc_server.serve(rx).await {
                 tracing::error!("Aria2 RPC server stopped: {err:#}");
             }
         });

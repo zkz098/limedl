@@ -3,6 +3,9 @@ type: desktop
 title: Self-Update and Distribution Channels
 description: How the limedl desktop client detects its install channel, verifies and installs signed updates across portable/NSIS/MSIX/macOS/Linux channels, and how the release pipeline signs artifacts and builds the single latest-native.json manifest.
 tags: [self-update, release, minisign, distribution, packaging]
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T12:58:25.182Z
 sources:
   - id: openwiki-source-4d1d392666be6dfdd7a91a2e
     resource: repo://.github/workflows/release.yml
@@ -18,10 +21,7 @@ sources:
     resource: repo://xtask/src/main.rs
   - id: openwiki-source-c74f60d1c3f2961e83a2a521
     resource: repo://xtask/src/manifest.rs
-generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T03:21:09.297Z
+generated: { by: "pi", at: "2026-10-04T12:58:25.182Z" }
 ---
 
 # Self-Update and Distribution Channels
@@ -169,16 +169,26 @@ Evidence: `repo://xtask/src/main.rs#L1-L22`,
 
 ## The release pipeline
 
-`.github/workflows/release.yml` is tag-triggered (`v*`) and has these desktop
-jobs:
+`.github/workflows/release.yml` is tag-triggered (`v*`) and has these jobs:
 
-- `font` fetches the MiSans VF font once and hands it to every build leg as the
-  `misans-vf` artifact.
+- `font` fetches the MiSans VF font once and hands it to every desktop build leg
+  as the `misans-vf` artifact.
 - `changelog` generates the release body with git-cliff from Conventional
   Commits between the previous tag and the released tag.
 - `build-native` (Windows) produces the portable zip, NSIS setup exe and MSIX.
 - `build-native-macos` produces the ad-hoc-signed `.app` tar.gz.
 - `build-native-linux` produces the portable tar.gz, `.deb` and AppImage.
+- `build-server` cross-compiles the headless `limedl-server` for
+  `x86_64-unknown-linux-musl` and `aarch64-unknown-linux-musl` with
+  `cargo zigbuild` (zig supplies the musl C toolchain `aws-lc-sys` needs) and
+  uploads tarballs that also contain the systemd unit and env example. These are
+  **plain release assets**: they are not signed or guarded and never enter
+  `latest-native.json`, because the daemon has no self-updater.
+- `server-image` assembles those prebuilt static binaries into a thin Alpine
+  image, pushes one image per architecture, and merges them into a multi-arch
+  `ghcr.io/zkz098/limedl-server` manifest (the `latest` tag is skipped for an
+  alpha/beta/rc). It does not rebuild the engine; QEMU only runs the image's
+  Alpine `apk add` layer.
 
 `native-manifest` is the **sole writer** of `latest-native.json`. It runs on
 `windows-latest` with `if: always()`, downloads only the artifacts whose platform
@@ -190,9 +200,17 @@ still updates the platforms that did build. `/P /R` NSIS flags and the
 `SilentInstall normal` directive keep the installer usable silently and
 interactively.
 
+`native-manifest` also lists `build-server` in its `needs`. That is a sequencing
+constraint rather than a dependency: every job uploads to the same GitHub release
+with the same computed `prerelease` flag, and `native-manifest` deliberately
+flips it to `false` last, so a still-running server leg could otherwise reset the
+flag from its own upload.
+
 Evidence: `repo://.github/workflows/release.yml#L1-L31`,
 `repo://.github/workflows/release.yml#L77-L121`,
-`repo://.github/workflows/release.yml#L502-L620`.
+`repo://.github/workflows/release.yml#L517-L592`,
+`repo://.github/workflows/release.yml#L608-L693`,
+`repo://.github/workflows/release.yml#L703-L840`.
 
 The manifest generator is platform-agnostic: it accepts an `--assets-json` map of
 `key → { kind, path }`, validates the kind and that each signature exists, and
@@ -221,5 +239,6 @@ Evidence: `repo://crates/limedl-native/src/autostart.rs#L1-L10`,
 `repo://crates/limedl-native/src/update/mod.rs#L627-L640`.
 
 Related pages: [Native Desktop UI (Slint)](native-ui-architecture.md),
+[Headless Server Daemon](../integrations/headless-server-daemon.md),
 [Build, Tooling, CI and Release Operations](../operations/build-release-and-ci.md),
 [Networking, HTTP Clients and Rate Control](../systems/networking-and-rate-control.md).
