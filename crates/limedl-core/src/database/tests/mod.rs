@@ -2,8 +2,8 @@ use ntest::timeout;
 use rusqlite::{Connection, params};
 use std::sync::Arc;
 
-use super::connection::Database;
-use super::schema::{CREATE_TABLES_SQL, Migration, table_has_column};
+use super::connection::{Database, is_lock_contention, is_unusable_database};
+use super::schema::{CREATE_TABLES_SQL, Migration, add_column_if_missing, table_has_column};
 use crate::error::DownloadError;
 use crate::manifest::{CHUNK_SIZE, ChunkManifest, Manifest};
 use crate::types::{

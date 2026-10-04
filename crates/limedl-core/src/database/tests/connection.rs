@@ -132,3 +132,97 @@ fn delete_persists_across_reopens() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Integrity check / quarantine
+// ---------------------------------------------------------------------------
+
+/// Every `.corrupt-*` file left in `dir`.
+fn quarantined_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    std::fs::read_dir(dir)
+        .unwrap()
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.contains(".corrupt-"))
+        })
+        .collect()
+}
+
+#[timeout(30_000)]
+#[test]
+fn a_healthy_database_is_left_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("test.db");
+
+    {
+        let db = Database::open(&path).unwrap();
+        db.insert_download(&new_test_manifest("keep", "https://example.com/keep", "k.bin"))
+            .unwrap();
+    }
+
+    // Reopening must not quarantine a database that passes its integrity check.
+    let db = Database::open(&path).unwrap();
+    assert_eq!(db.count_downloads().unwrap(), 1);
+    assert!(
+        quarantined_files(dir.path()).is_empty(),
+        "a healthy database must not be quarantined"
+    );
+}
+
+#[timeout(30_000)]
+#[test]
+fn an_unreadable_database_is_quarantined_and_recreated() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("test.db");
+    std::fs::write(&path, b"this is not a sqlite database at all").unwrap();
+
+    let db = Database::open(&path).expect("a corrupt database must not block startup");
+    assert_eq!(
+        db.count_downloads().unwrap(),
+        0,
+        "the replacement database must be empty"
+    );
+    drop(db);
+
+    let quarantined = quarantined_files(dir.path());
+    assert_eq!(quarantined.len(), 1, "expected exactly one quarantined file");
+    assert_eq!(
+        std::fs::read(&quarantined[0]).unwrap(),
+        b"this is not a sqlite database at all",
+        "the original bytes must be preserved for inspection"
+    );
+    assert!(path.exists(), "a usable database must exist at the original path");
+}
+
+#[timeout(30_000)]
+#[test]
+fn sqlite_reports_a_non_database_file_as_unusable() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("garbage.db");
+    std::fs::write(&path, b"not a sqlite file at all").unwrap();
+
+    let conn = Connection::open(&path).unwrap();
+    let error = conn
+        .pragma_query_value(None, "quick_check", |row| row.get::<_, String>(0))
+        .expect_err("reading a non-database must fail");
+
+    assert!(
+        is_unusable_database(&error),
+        "a non-database must be classified as unusable: {error}"
+    );
+}
+
+#[timeout(30_000)]
+#[test]
+fn lock_contention_is_never_mistaken_for_corruption() {
+    // A second writer holding the file is contention, not corruption: treating
+    // it as corruption would silently destroy the user's task history.
+    assert!(is_lock_contention("database is locked"));
+    assert!(is_lock_contention("SQLITE_BUSY: database is busy"));
+    assert!(is_lock_contention("Database Is Locked"));
+    assert!(!is_lock_contention("database disk image is malformed"));
+    assert!(!is_lock_contention("file is not a database"));
+}

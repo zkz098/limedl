@@ -5,9 +5,14 @@ use anyhow::{Context, Result};
 use parking_lot::Mutex;
 use rusqlite::Connection;
 
-use super::schema::{table_has_column, MIGRATIONS};
+use super::schema::{MIGRATIONS, table_has_column};
 #[cfg(test)]
 use crate::error::DownloadError;
+
+/// Databases above this size skip the startup integrity probe: `quick_check`
+/// reads every page, so a very large history file would add seconds of startup
+/// I/O for a condition SQLite already reports per-statement when it matters.
+const MAX_INTEGRITY_CHECK_BYTES: u64 = 128 * 1024 * 1024;
 
 pub struct Database {
     pub(crate) write_conn: Arc<Mutex<Connection>>,
@@ -20,7 +25,13 @@ impl Database {
     /// Enables WAL mode, foreign keys, and performance PRAGMAs,
     /// then runs schema migrations.
     pub fn open(path: &Path) -> Result<Self> {
-        let write_conn = Connection::open(path)
+        // Pre-flight: a corrupt file is moved aside here, before any statement
+        // touches it. Otherwise the first real query fails with an opaque
+        // "database disk image is malformed" and the app is unusable with no way
+        // forward for the user.
+        quarantine_if_corrupt(path)?;
+
+        let mut write_conn = Connection::open(path)
             .with_context(|| format!("failed to open database at {}", path.display()))?;
 
         // ── PRAGMA configuration ─────────────────────────────────
@@ -54,16 +65,26 @@ impl Database {
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .context("failed to read schema version")?;
 
-        // Compatibility: detect columns already backfilled by the old let _ = code
-        // (which never set user_version), so existing databases don't fail migrations.
+        // Compatibility: detect columns already backfilled by the old code that
+        // added columns without setting `user_version`, so existing databases
+        // don't fail migrations.
+        //
+        // The detected version only ever moves forward: a database whose
+        // `user_version` is already correct must not be rewound by the probe.
         if current_version < 4 {
+            let mut detected = current_version;
             if table_has_column(&write_conn, "downloads", "chunk_size")? {
-                write_conn.pragma_update(None, "user_version", 2)?;
-                current_version = 2;
+                detected = detected.max(2);
             }
             if table_has_column(&write_conn, "downloads", "mirror_urls")? {
-                write_conn.pragma_update(None, "user_version", 3)?;
-                current_version = 3;
+                detected = detected.max(3);
+            }
+            if detected > current_version {
+                tracing::info!(
+                    "legacy database without user_version detected; assuming schema v{detected}"
+                );
+                write_conn.pragma_update(None, "user_version", detected)?;
+                current_version = detected;
             }
         }
 
@@ -74,17 +95,41 @@ impl Database {
                 migration.version,
                 migration.name
             );
-            (migration.up)(&write_conn).with_context(|| {
+            // The whole migration — every DDL statement *and* the `user_version`
+            // bump — commits as one transaction. Without it a failure midway
+            // (disk full, I/O error, kill) leaves the schema half-migrated while
+            // `user_version` still names the old version; the next start would
+            // replay the same migration and hit "duplicate column name", which
+            // permanently bricks the database. Idempotent migration bodies
+            // (`add_column_if_missing`) make an already-applied body a no-op as
+            // well, which covers databases written by the pre-transaction code.
+            let tx = write_conn
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .with_context(|| {
+                    format!(
+                        "failed to begin transaction for migration v{} ({})",
+                        migration.version, migration.name
+                    )
+                })?;
+            (migration.up)(&tx).with_context(|| {
                 format!(
                     "migration v{} ({}) failed",
                     migration.version, migration.name
                 )
             })?;
-            write_conn
-                .pragma_update(None, "user_version", migration.version)
+            tx.pragma_update(None, "user_version", migration.version)
                 .with_context(|| {
-                    format!("failed to update schema version to {}", migration.version)
+                    format!(
+                        "failed to update schema version to {}",
+                        migration.version
+                    )
                 })?;
+            tx.commit().with_context(|| {
+                format!(
+                    "failed to commit migration v{} ({})",
+                    migration.version, migration.name
+                )
+            })?;
             migrations_ran = true;
         }
 
@@ -177,4 +222,155 @@ impl Database {
         }
         Ok(())
     }
+}
+
+/// Append `suffix` to a path's file name without touching its extension.
+///
+/// SQLite's sidecars are named by appending `-wal` / `-shm` to the *whole* path,
+/// not by replacing the extension, so `Path::with_extension` cannot be used.
+fn with_suffix(path: &Path, suffix: &str) -> std::path::PathBuf {
+    let mut name = path.as_os_str().to_os_string();
+    name.push(suffix);
+    std::path::PathBuf::from(name)
+}
+
+/// Where a corrupt database is preserved.
+fn quarantine_path(path: &Path) -> std::path::PathBuf {
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_millis())
+        .unwrap_or(0);
+    with_suffix(path, &format!(".corrupt-{stamp}"))
+}
+
+/// Move a database and its WAL sidecars out of the way.
+///
+/// The sidecars have to travel with it: leaving a stale `-wal` next to the freshly
+/// created database would replay the old (possibly corrupt) frames into it.
+fn quarantine_database(path: &Path) -> Result<std::path::PathBuf> {
+    let destination = quarantine_path(path);
+    std::fs::rename(path, &destination).with_context(|| {
+        format!(
+            "failed to move the corrupt database {} to {}",
+            path.display(),
+            destination.display()
+        )
+    })?;
+    for suffix in ["-wal", "-shm"] {
+        let from = with_suffix(path, suffix);
+        if from.exists() {
+            let _ = std::fs::rename(&from, with_suffix(&destination, suffix));
+        }
+    }
+    Ok(destination)
+}
+
+/// `true` when an error message means "someone else is using it" rather than "it
+/// is broken". Contention must never be treated as corruption.
+pub(crate) fn is_lock_contention(message: &str) -> bool {
+    let lowered = message.to_ascii_lowercase();
+    lowered.contains("locked") || lowered.contains("busy")
+}
+
+/// `true` when SQLite itself says the bytes are not a database, or that its
+/// pages are damaged — as opposed to a transient or environmental failure.
+pub(crate) fn is_unusable_database(error: &rusqlite::Error) -> bool {
+    matches!(
+        error,
+        rusqlite::Error::SqliteFailure(code, _)
+            if matches!(
+                code.code,
+                rusqlite::ErrorCode::NotADatabase | rusqlite::ErrorCode::DatabaseCorrupt
+            )
+    )
+}
+
+/// Run `PRAGMA quick_check`, returning the first problem SQLite reports.
+///
+/// `None` also covers "no verdict": a locked database (another writer, or a lock
+/// a crash left behind) must not be read as corruption, and an unreadable file is
+/// reported by the normal open path anyway.
+fn quick_check(conn: &Connection) -> Option<String> {
+    match conn.pragma_query_value(None, "quick_check", |row| row.get::<_, String>(0)) {
+        Ok(result) if result.eq_ignore_ascii_case("ok") => None,
+        Ok(result) => Some(result),
+        Err(error) if is_unusable_database(&error) => Some(error.to_string()),
+        Err(error) => {
+            tracing::warn!("skipping the database integrity check: {error}");
+            None
+        }
+    }
+}
+
+/// Quarantine `path` when it is not a usable SQLite database.
+///
+/// Called before anything else opens it. A locked or busy database is *not*
+/// corruption (another process or an interrupted shutdown) and is left alone —
+/// only a file SQLite cannot read, or one that fails `quick_check`, is moved
+/// aside so a fresh database can be created and the app stays usable. The
+/// download files themselves are never touched.
+fn quarantine_if_corrupt(path: &Path) -> Result<()> {
+    let size = match std::fs::metadata(path) {
+        Ok(metadata) => metadata.len(),
+        // Missing (first run) or unreadable: let the normal open path report it.
+        Err(_) => return Ok(()),
+    };
+    if size == 0 {
+        return Ok(());
+    }
+    if size > MAX_INTEGRITY_CHECK_BYTES {
+        tracing::info!(
+            "skipping the database integrity check: {} is {} bytes (limit {})",
+            path.display(),
+            size,
+            MAX_INTEGRITY_CHECK_BYTES
+        );
+        return Ok(());
+    }
+
+    let probe = match Connection::open(path) {
+        Ok(probe) => probe,
+        Err(error) => {
+            let message = error.to_string();
+            if is_lock_contention(&message) {
+                // Another instance (or a crash left the lock behind): a real
+                // error, but not something to quarantine.
+                return Err(error).with_context(|| {
+                    format!("failed to open database at {}", path.display())
+                });
+            }
+            tracing::error!(
+                "database at {} cannot be opened ({message}); moving it aside",
+                path.display()
+            );
+            let destination = quarantine_database(path)?;
+            tracing::error!(
+                "the unreadable database was preserved at {}",
+                destination.display()
+            );
+            return Ok(());
+        }
+    };
+    // Match the writer's patience so a transient lock is waited out rather than
+    // reported as an unreadable file.
+    let _ = probe.execute_batch("PRAGMA busy_timeout = 5000;");
+
+    let problem = quick_check(&probe);
+    drop(probe);
+
+    let Some(problem) = problem else {
+        return Ok(());
+    };
+
+    tracing::error!(
+        "database at {} failed its integrity check ({problem}); moving it aside",
+        path.display()
+    );
+    let destination = quarantine_database(path)?;
+    tracing::error!(
+        "the corrupt database was preserved at {} — download task history was reset, \
+         files on disk are untouched",
+        destination.display()
+    );
+    Ok(())
 }

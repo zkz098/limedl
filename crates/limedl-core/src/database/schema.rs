@@ -18,6 +18,36 @@ pub(crate) fn table_has_column(conn: &Connection, table: &str, column: &str) -> 
     Ok(exists)
 }
 
+/// Add a column only if it is not already present.
+///
+/// Migration bodies must be idempotent: a crash, a power loss or an I/O error can
+/// interrupt a migration after some of its statements have committed while
+/// `user_version` still points at the old version. Because each migration runs in
+/// its own transaction (see `Database::open`) SQLite rolls the whole body back,
+/// but a database written by an older limedl build — or one whose `user_version`
+/// was bumped by the pre-transaction code path — can legitimately already have the
+/// column. A bare `ALTER TABLE ... ADD COLUMN` would then fail with
+/// "duplicate column name" on every subsequent start, permanently bricking the
+/// database, so every `ADD COLUMN` goes through this helper.
+///
+pub(crate) fn add_column_if_missing(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    definition: &str,
+) -> Result<()> {
+    if table_has_column(conn, table, column)? {
+        tracing::debug!("column {table}.{column} already present; skipping ADD COLUMN");
+        return Ok(());
+    }
+    conn.execute(
+        &format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"),
+        [],
+    )
+    .with_context(|| format!("failed to add {table}.{column}"))?;
+    Ok(())
+}
+
 pub(crate) const CREATE_TABLES_SQL: &str = "
 CREATE TABLE IF NOT EXISTS downloads (
     id TEXT PRIMARY KEY,
@@ -82,31 +112,31 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 2,
         name: "add_chunk_size",
         up: |conn| {
-            conn.execute(
-                "ALTER TABLE downloads ADD COLUMN chunk_size INTEGER NOT NULL DEFAULT 4194304",
-                [],
+            add_column_if_missing(
+                conn,
+                "downloads",
+                "chunk_size",
+                "INTEGER NOT NULL DEFAULT 4194304",
             )
-            .context("failed to add chunk_size column")?;
-            Ok(())
         },
     },
     Migration {
         version: 3,
         name: "add_mirror_columns",
         up: |conn| {
-            conn.execute("ALTER TABLE downloads ADD COLUMN mirror_url TEXT", [])
-                .context("failed to add mirror_url column")?;
-            conn.execute(
-                "ALTER TABLE downloads ADD COLUMN mirror_urls TEXT NOT NULL DEFAULT '[]'",
-                [],
+            add_column_if_missing(conn, "downloads", "mirror_url", "TEXT")?;
+            add_column_if_missing(
+                conn,
+                "downloads",
+                "mirror_urls",
+                "TEXT NOT NULL DEFAULT '[]'",
+            )?;
+            add_column_if_missing(
+                conn,
+                "downloads",
+                "current_mirror_index",
+                "INTEGER NOT NULL DEFAULT 0",
             )
-            .context("failed to add mirror_urls column")?;
-            conn.execute(
-                "ALTER TABLE downloads ADD COLUMN current_mirror_index INTEGER NOT NULL DEFAULT 0",
-                [],
-            )
-            .context("failed to add current_mirror_index column")?;
-            Ok(())
         },
     },
     Migration {
@@ -143,49 +173,35 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 6,
         name: "add_priority",
         up: |conn| {
-            conn.execute(
-                "ALTER TABLE downloads ADD COLUMN priority INTEGER NOT NULL DEFAULT 1",
-                [],
+            add_column_if_missing(
+                conn,
+                "downloads",
+                "priority",
+                "INTEGER NOT NULL DEFAULT 1",
             )
-            .context("failed to add priority column")?;
-            Ok(())
         },
     },
     Migration {
         version: 7,
         name: "add_cdn_accelerated",
         up: |conn| {
-            conn.execute(
-                "ALTER TABLE downloads ADD COLUMN cdn_accelerated INTEGER NOT NULL DEFAULT 0",
-                [],
+            add_column_if_missing(
+                conn,
+                "downloads",
+                "cdn_accelerated",
+                "INTEGER NOT NULL DEFAULT 0",
             )
-            .context("failed to add cdn_accelerated column")?;
-            Ok(())
         },
     },
     Migration {
         version: 8,
         name: "add_cdn_node_ip",
-        up: |conn| {
-            conn.execute(
-                "ALTER TABLE downloads ADD COLUMN cdn_node_ip TEXT",
-                [],
-            )
-            .context("failed to add cdn_node_ip column")?;
-            Ok(())
-        },
+        up: |conn| add_column_if_missing(conn, "downloads", "cdn_node_ip", "TEXT"),
     },
     Migration {
         version: 9,
         name: "add_expected_checksum",
-        up: |conn| {
-            conn.execute(
-                "ALTER TABLE downloads ADD COLUMN expected_checksum TEXT",
-                [],
-            )
-            .context("failed to add expected_checksum column")?;
-            Ok(())
-        },
+        up: |conn| add_column_if_missing(conn, "downloads", "expected_checksum", "TEXT"),
     },
     Migration {
         version: 10,
