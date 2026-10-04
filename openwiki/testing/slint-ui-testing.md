@@ -18,14 +18,16 @@ sources:
     resource: repo://crates/limedl-native/src/ui_tests/mod.rs
   - id: openwiki-source-cb1d26941bd1e33067df4677
     resource: repo://crates/limedl-native/src/ui_tests/recording.rs
+  - id: openwiki-source-4c401762f2250ca52aba8325
+    resource: repo://crates/limedl-native/src/ui_tests/toast.rs
   - id: openwiki-source-031df146f1a4c52e00c3f83b
     resource: repo://crates/limedl-native/src/ui_tests/updater.rs
   - id: openwiki-source-f1911c421777843811200186
     resource: repo://docs/manual-smoke-testing.md
-generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+generated: { by: "pi", at: "2026-10-04T06:39:00.867Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T03:21:09.297Z
+    at: 2026-10-04T06:39:00.867Z
 ---
 
 # Slint UI Testing
@@ -102,7 +104,26 @@ of its own, so the core fills `PointerEvent.modifiers` from the modifier keys th
 window currently sees held down. The helper presses Shift, clicks, then releases
 Shift.
 
-Evidence: `repo://crates/limedl-native/src/ui_tests/mod.rs#L294-L430`.
+Evidence: `repo://crates/limedl-native/src/ui_tests/mod.rs#L294-L490`.
+
+### Toast assertions
+
+The toast helpers read the Rust-side queue rather than the rendered rows:
+`toasts()` returns `(kind, message)` for the pending entries,
+`assert_toast(kind, text)` requires exactly one, `toast_ids()` names them for
+`dismiss_toast(id)`, which invokes the same callback the close button calls.
+Dismissal is a two-stage retire: the entry is marked `leaving` so it stays in
+the model for the exit animation, and is dropped only after the animation
+window. `toasts()` and `toast_ids()` therefore filter `leaving` out — otherwise
+a dismissed toast would still count as pending. `ui_tests/toast.rs` asserts both
+halves: the entry is retired from the pending set and it remains in the queue
+during the animation. `sync_toasts` reconciles the model in place for the same
+reason, so only genuinely new rows play the enter animation. The reconcile test
+also queries `ToastStack::toast_close` to force the stack to lay out, so a
+binding loop between the card's height and its layout slot fails the test.
+
+Evidence: `repo://crates/limedl-native/src/ui_tests/mod.rs#L584-L632`,
+`repo://crates/limedl-native/src/ui_tests/toast.rs#L22-L135`.
 
 ### Window size and geometry
 
@@ -117,7 +138,7 @@ Geometry assertions are `assert_inside_window`, `assert_min_size`,
 failure. The testing window defaults to 800x600, so a full-page assertion sets a
 larger size first.
 
-Evidence: `repo://crates/limedl-native/src/ui_tests/mod.rs#L426-L585`.
+Evidence: `repo://crates/limedl-native/src/ui_tests/mod.rs#L434-L585`.
 
 **Clipped means absent**: element queries skip subtrees that are not visible, and
 dialogs are `visible: is_open || opacity > 0.01`, so `has()` doubles as an "is
@@ -166,7 +187,7 @@ loop to drain queued callbacks and due timers. `pump_until` repeats this up to 5
 rounds and fails loudly with the recorded engine calls if the predicate never
 holds, so a contract that does not settle fails instead of hanging CI.
 
-Evidence: `repo://crates/limedl-native/src/ui_tests/mod.rs#L630-L680`.
+Evidence: `repo://crates/limedl-native/src/ui_tests/mod.rs#L635-L678`.
 
 ### Element ids are test contracts
 

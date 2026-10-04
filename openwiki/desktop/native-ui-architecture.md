@@ -40,12 +40,14 @@ sources:
     resource: repo://crates/limedl-native/src/ui_boot.rs
   - id: openwiki-source-dc8eda3d2c4e2e45f618f8dc
     resource: repo://crates/limedl-native/src/ui_sync.rs
+  - id: openwiki-source-8dffa5722cdb3e6e3fb0c023
+    resource: repo://crates/limedl-native/ui/components/toast_stack.slint
   - id: openwiki-source-90185777dff572d79a3b452d
     resource: repo://crates/limedl-native/ui/theme.slint
-generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+generated: { by: "pi", at: "2026-10-04T06:33:35.544Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T05:35:23.596Z
+    at: 2026-10-04T06:33:35.544Z
 ---
 
 # Native Desktop UI (Slint)
@@ -186,13 +188,29 @@ Behavior worth knowing:
   `WarningDedup` collapses the *same* `id:message` within a 5 s window.
 
 Evidence: `repo://crates/limedl-native/src/event_stream/bus.rs#L40-L343`,
-`repo://crates/limedl-native/src/toast.rs#L66-L111`.
+`repo://crates/limedl-native/src/toast.rs#L147-L175`.
 
-Toasts themselves are a shared `Vec<ToastEntry>` behind a mutex; `push_toast`
-appends, syncs to the Slint model and spawns an auto-dismiss task for the given
-duration, and `dismiss_toast` removes one immediately.
+Toasts themselves are a shared `Vec<ToastEntry>` behind a mutex. `push_toast`
+appends an entry with `leaving: false`, syncs the Slint model and spawns an
+auto-dismiss task for the given duration; both that task and the close-button
+`dismiss_toast` route through `retire_toast`, which sets `leaving` and syncs
+again, then drops the entry only after `TOAST_EXIT_MS` (240 ms). The extra state
+is what lets the card play its exit animation: the row stays in the model — and
+in the stack layout — until the animation has had time to run, so retiring one
+toast does not reflow the others mid-slide.
 
-Evidence: `repo://crates/limedl-native/src/toast.rs#L12-L62`.
+`sync_toasts` reconciles the live model in place (`apply_toasts`) instead of
+replacing it: a fresh `VecModel` would make the repeater destroy and recreate
+every row, replaying the enter animation of untouched toasts whenever a sibling
+was dismissed. Rows whose id survives are updated via `set_row_data`; only new
+ids are inserted. The Slint card (`toast_stack.slint`) starts off-screen and
+flips an `entered` flag from a one-shot `Timer`, so the property animation has
+an initial value to animate from, then slides back out when `toast.leaving`
+flips. Rust's `TOAST_EXIT_MS` is deliberately a little longer than the `.slint`
+200 ms animation so a slow first frame is not cut off.
+
+Evidence: `repo://crates/limedl-native/src/toast.rs#L12-L145`,
+`repo://crates/limedl-native/ui/components/toast_stack.slint#L34-L62`.
 
 ## Settings save side effects live in one module
 

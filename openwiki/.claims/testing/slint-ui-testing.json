@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:81f67b48ae4502e62756c42eb57318dc9d7a0c27ba02a43280f6719ad83ced6e",
+  "pageVersion": "sha256:e48e8f7cb9d5d9647a7c0ace34052b0846996b97b760007c1f2449797cbed965",
   "claims": [
     {
       "id": "claim_8ae54ce2240f44308d879c9a2c645566",
@@ -71,8 +71,8 @@
       "statement": "Geometry assertions assert_inside_window, assert_min_size and assert_no_overlap operate in logical window coordinates, and assert_inside_window dumps id_tree() on failure; the testing window defaults to 800x600.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L493-L585",
-          "version": "repo-lines-v1:sha256:1c738a6588ff5bf166d6873e5c3749a16c7e70979417c38ccef0dcf54f12406e:eyJzZWxlY3RlZExpbmVDb3VudCI6OTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhZTkyYTQ1ZWVkNmMyODhlN2I2YzkyNWIyMzQ3MjNlMTgxMzI3OTE4ZTNmMWRkNWI3NTg3YWFhZmU5YTQyYmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmOTI3ZTkwOWJkMTZkNmJjNWE5MGMxZDk3NzRkNzVkY2VjYWE4ZTI4YWY2MTNjMzg0YjYyYTllNTNmNGM0NWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgwNzU3MDRiMWNjNmM2MWVlZjJlZjkxNTFlNDhmMWY4ODgyYzMyYzFiZmIzNmJmN2FmOWJmYmFiMDQ1NmIwZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEzMDE3YjM1ZDQ4ZWZkNjk2YzdmMWY4YmJiMmQ2NDY1ODhmM2JmMTk2ZGEyMGEwNDE3YWYwOTc4MTI3MjcyZDcifQ"
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L493-L586",
+          "version": "repo-lines-v1:sha256:78e821dd18f63ca309b851ff94c4407d2442af0f3d4510455bd2b510c896bd71:eyJzZWxlY3RlZExpbmVDb3VudCI6OTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhZTkyYTQ1ZWVkNmMyODhlN2I2YzkyNWIyMzQ3MjNlMTgxMzI3OTE4ZTNmMWRkNWI3NTg3YWFhZmU5YTQyYmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2NTE1MWM4NzU0YzgwNTVhMjA5N2VjNzRmYWYyMWMxYzk2ZGU5ZGE1MTNkYWE5NjFlY2ViNDkwMWJlM2FjZmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgwNzU3MDRiMWNjNmM2MWVlZjJlZjkxNTFlNDhmMWY4ODgyYzMyYzFiZmIzNmJmN2FmOWJmYmFiMDQ1NmIwZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEzMDE3YjM1ZDQ4ZWZkNjk2YzdmMWY4YmJiMmQ2NDY1ODhmM2JmMTk2ZGEyMGEwNDE3YWYwOTc4MTI3MjcyZDcifQ"
         }
       ]
     },
@@ -115,7 +115,7 @@
       "statement": "pump_once advances the mocked clock by 20 ms, yields the tokio runtime, then drains Slint's queue; pump_until repeats up to 50 rounds and fails with the recorded engine calls rather than hanging when a contract never settles.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L630-L680",
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L634-L684",
           "version": "repo-lines-v1:sha256:df4f1208ca7bfebb9736ec1e2ea28106db0942c0eaf14e71dae5f85207a484cf:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4MzYyYjkyMGNhZGM2Mjk3NDk3OTdiZjM0ZDY2YmIyZmM2YmEwYzVmNzgyOTc0YWY1YWFmZDJmNTYwZTU2NWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwMjc1Y2M1Mjc2MmFiOWJlNDQ2ZjcwOGFkZTRiYjgwMTA4NTQ3ZGQ3ZTc1MzgyMzFkZDBmZDlkNDU4MWFlNzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhODQ2ZTY3MTdhNGM3YjFkNzkxZDU5ZGVkMWRiZGI1NTlhMTliNDZlOGExMTZlMTU0NWZjNTljNWFiY2EzYjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2NWVhZGRhMDFiMzIyNmVkNDRhYWQ5YWY0ODBjYzI5N2M1OGZiYzhiMzkxMGFjNTQ4ODc1NDEyNzFlMzFhMWMifQ"
         }
       ]
@@ -157,10 +157,30 @@
           "version": "repo-lines-v1:sha256:d328ca86eb055b3410755a5920f206ea13b1764c2dfac0421b9437082537c9e3:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0YmIxMWI4YTI0NDBhOWZiYTQ2MDkwNTA1ZTIwNWFlNDJmMmJlNTMzN2QyNjFkNDJiZWIwMjFmNmM4NmUyOGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhZWFmMjM3OWNjZjVjMDllMWFlYzViODYwNTQzNjU2MDNkYjVkYzBiZDJlMDEyMDI0ZmViMmE4MzIyYWVmN2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
+    },
+    {
+      "id": "claim_3fbd6d29e2284e0aaaf98eedeb9b7805",
+      "statement": "The TestUi toast helpers read the Rust-side queue and filter out entries marked leaving, so a toast playing its exit animation no longer counts as pending; dismiss_toast invokes the same callback the close button uses.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L584-L632",
+          "version": "repo-lines-v1:sha256:66aa09975d20cda9813465878fac20ce04517a1543dff1f070fe2255cc11dac4:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhlN2NlOWEwMzllOWNhZGFhNDk1OTQxNWQ5ODMyZmRlOGQzNGUxOTZkN2RjM2EzOGNmMjAyYzcxZmU0M2NmOTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU3ZTg1MjMwYTliNDU1ZTY1MGEzMTY4MTU2NTViZGUwNGY3ODZlNjBkNmI2NTU1Mjc5YzE5NWFlZTBkODRmZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZlZDVkNTAzZjZlOWIyYmM3NTU4MTQ2MjE2NjQ3YWQ0OGZiOTE3NjU5ZGIxOWU2ZjMwOWJiMTBhNjM5YjU2ZGYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7e13694a5a8647f7a934c9b71aef88cc",
+      "statement": "ui_tests/toast.rs asserts both that dismissal retires an entry from the pending set while it stays in the queue for the exit animation, and that apply_toasts reuses surviving rows instead of recreating them; it also queries ToastStack::toast_close to force the stack to lay out, catching a height binding loop.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/toast.rs#L22-L135",
+          "version": "repo-lines-v1:sha256:176e85256f33850e929592b173ff09e35d5d858df80ee56db9abc5533506b4c2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwZGQzY2UxYjk0MDFmYzlmMDM4NTkwMzgyOTQ2YjI0YzIxMjNmMzFhYmUxNmIzYmVlM2ZmZTJkZTdlNzRhOTI2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T03:21:09.297Z"
+    "at": "2026-10-04T06:39:00.867Z"
   }
 }

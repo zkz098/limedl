@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:d6ae5864a9501d72dd0fe984e8139f1d9947d9b7cfdeb7bc980a5fd125e5bbef",
+  "pageVersion": "sha256:03592e7e4da7a7f533bf82bf1edf77811168c51a4546f985dc70326b934c0062",
   "claims": [
     {
       "id": "claim_a3116684fdf845e3bf61d5d54d1ccadf",
@@ -92,15 +92,15 @@
     },
     {
       "id": "claim_4f7745d2bc264f4b8593772a063a5bd7",
-      "statement": "push_toast appends to a shared queue and spawns a task that removes it after the requested duration, and WarningDedup collapses the same id:message warning within a 5-second window because core emits one warning per peer/mirror/disk check.",
+      "statement": "push_toast appends to a shared queue and spawns a task that, after the requested duration, marks the entry leaving and drops it after TOAST_EXIT_MS; dismiss_toast uses the same retire path, and WarningDedup collapses the same id:message warning within a 5-second window because core emits one warning per peer/mirror/disk check.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/toast.rs#L36-L62",
-          "version": "repo-lines-v1:sha256:192779716b0ad2eaa9b24298701a68985e4a46dd8dfd84c4ce1f09b040c52214:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMyNTU1NDQxODY1Zjc0NDM3NDQyOWJhMGExZDVkMzliYmY4OWY2YmJlMWI1NDE4YTBiMjNlMmM1ZTI3MzM5NjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyZDExY2FmNDNlOTdlZjM2OWU2YmVlZDFhMjY4YmQwNTgzOGYyOWI5ZGQyNTRiZjY5YmE2NDg4NDE0NzIzNGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdhZDc5ZTZhNGI1MjAwYjA3NjVlYWRkMWZkZTk4M2VhY2RmMDUyMmIxZmZmMWQ0OThiNDlkY2I1OGI0MjNiMGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEzMWE5NjRlZmM3NGVmNDI2ZGQ1MWJiMDJhMTBiODdlYzcwMjA3NjM2M2YyZjEyYzYwNWZlNWExNzViNjQ5ZjAifQ"
+          "resource": "repo://crates/limedl-native/src/toast.rs#L147-L175",
+          "version": "repo-lines-v1:sha256:0c6bf1940775fff97eb16b5cc307cf68ebfb9e4bbf4fa9bd51adc74624699848:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0MTkyZTYxNTU4N2I5N2ExYjkyMTU2YzM1OTVjOTJkMTNmOTlkODM0ZDc5MDU0MDRlNTc2MjI1M2Q5MzM0ODUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRkNWE5NGViOWM4MGIyZWJmNzMyZTZlNDI1NzUxNTY0OWVhNGRlODVjODNkOWVkOGM4ZGM0NjFjNWYzNGQyMDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRmYWI3MTBkZGY3ODU5ZTU3NTc2NGE5MTNhMDAyYzc0NTg1ZmZhNzAwMTUxMGNiODgxMWRhODNkMmNmNzRiMzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEzODY4ZDk0ZjViYWFlZDIyYjYzMTRmMWQxNWI1NWE3MGFiODYzOTdlZDc0MmU1ZjFkMjIxZDVmYjVhZDhmZDEifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/toast.rs#L66-L111",
-          "version": "repo-lines-v1:sha256:265f748db7a0d12e38bb66c89977a00287cdff091835a6ebdf9e21e48e8f40f8:eyJzZWxlY3RlZExpbmVDb3VudCI6NDYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyZjViYmJlNzIzODI2ZmVhN2I1MGE3MjgyZWI1YTlkOWMyN2Q3M2NjMzAxYTZiZTgzMmI1MzY5NDFkOTdhZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3MzMzNzdiN2QxMzQ5OGI2YTlkMmU2ZGQyODEwMTJjNjFhNmIyMzc2MzAwMTJjMWExZTY0YTk0MDU1ODdjOWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEzMWE5NjRlZmM3NGVmNDI2ZGQ1MWJiMDJhMTBiODdlYzcwMjA3NjM2M2YyZjEyYzYwNWZlNWExNzViNjQ5ZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJmZjgwOWMzMWM5MWEzMjViZWUxNjk4MWZlYWU3MmQwZjRmZWM2NmExMjIxN2I5YzFkOGJlZjZlN2FkODFhZTQifQ"
+          "resource": "repo://crates/limedl-native/src/toast.rs#L90-L145",
+          "version": "repo-lines-v1:sha256:2cce27514acb2d27be89728bc919c2d43705b66894664b9bdc8ca43102103580:eyJzZWxlY3RlZExpbmVDb3VudCI6NTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyYjY2M2E1NzMwODljZjMyMDgyMzA5MDhmZmU3MTQ1MmZkNmY0OGVkNWEwYTgxNDMyZjgwMzdlYzkxNzMyMmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY5OWNmOWM1MTA5MmRmYjEwODM3NDc5NTU1M2Y2YmJhYWFlNGRiYTlkZDdkMzE0ODIxNWRkNGQ1MzkwODIzMjAifQ"
         }
       ]
     },
@@ -263,10 +263,34 @@
           "version": "repo-lines-v1:sha256:2d0780d0eef47f3c9d88c4cde47e1e635c1b26c81af6f604def8d5d34f2f58da:eyJzZWxlY3RlZExpbmVDb3VudCI6NTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIyMDExZTJjZjI2NjYyNzNkZTc0MjYzYzBkNTg1NmY5NDY1NmI0NGE3YjVkYWQ1OGE0NTQ1MzNmZWUwZGY5NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwZmFlNjZjNmFkNDQyMTc3ODY5MjE5Y2QyNzMyZDYwMzgzNzVhY2I4MTIwYTkxMTQ2ZTE3YTg4OWZmMjY4YmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNmNjRkNGI0YTIzYWE1NTM0ZjQ1YTc3YzI1YzNhNGEyYTcyNGVjYjViOTY5N2E3ZDgwMDY3MDA3Mjk5ZTIyM2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiYzk4ZDZiMGRjNDkyYzUwMTZkZjEwODA1YTNhNTRlYjljMTg0YTVhNjEzN2U3ZjRiZWNmYTBjMjIwNTUwZDAifQ"
         }
       ]
+    },
+    {
+      "id": "claim_ebb2476931334fb682feca93309fa0c0",
+      "statement": "sync_toasts reconciles the live Slint toasts model in place through apply_toasts, updating rows whose id survives and inserting only new ids, so dismissing one toast does not recreate and re-animate the others.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/toast.rs#L34-L88",
+          "version": "repo-lines-v1:sha256:34744939cea679d8fe7bdfe8fde8cfaf250dc85a80ccc4b5263e1cbcf6b03709:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5ZjIyNThiOWU2YzI5ZjA1YmYxYjQ2ZWM4NmNlMjQzODM1NzcyNGJkNjg5NzZhMWIyZTIzMjYxYjkzN2MyZjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ3MWMyZjI2MGZiNzhjOTA3MzlmMGE0NDI1OWNmZDhmMjYzZGU3MTAyZTdiNTBjZTQ2NWU4NTAxMmUxZDAzMjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU2YzVjNDUxNDkzZmIwMjljYjAzMWJjNDAxNThjMDc1ZDJkNTMxMDk4ZWU1OTBjZWE4NWJmYjM2ZjQxOTdjMDUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_dabe3d0d866d4b7f841ea2637f34eca9",
+      "statement": "The toast card in ui/components/toast_stack.slint slides in from the right on creation and slides back out when the toast's leaving flag flips, driven by an entered flag that a one-shot Timer sets; Rust keeps the entry for TOAST_EXIT_MS (240 ms), longer than the 200 ms animation.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/toast.rs#L12-L17",
+          "version": "repo-lines-v1:sha256:b6b8f21a34db8abe099a6b46369f8ff98c23a246512cd46ad3e86514ae1be7c1:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTQ2MDNjZjUyNWU4NzE3NWY4ZDE5YmFlMDhkMjRlZjE3MjI1MjlhNzg0ZjA0NDZkZGQ0NTk4MDlkNmIzMDI2ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjUwMTliNjBhYTNiZjE4ZmYzYmRlZTQ5YmE0MzFmMzczMjRmMTgzNDA4OWU3ZGE1ODY5ODhkOTEzMjZjNzJhNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYWZiZTk3MTQ0YTVhNTY3ZGE4YTZkYjBlOThiN2E1MzJjZjgxNWM0YWZhOWQ5YmUzOTk1ZTY4NzE4ZTJjNDZiNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTZhYmY1YWY2ZjAyMTA0Nzk2YTYzZDIyMWRkZjU2MDA0MTJmNzA3YmVlM2JhNDI1MzEzNDY3MDc5ZmY3OTViOSJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-native/ui/components/toast_stack.slint#L34-L62",
+          "version": "repo-lines-v1:sha256:c5d467a8bdd0cd96117470c034d0fe15e2f27b464dd0df091b0a1cb9c5c03177:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTY1NDVjZjhiYTI4Y2M0M2IzYTMzNGY1MDBjMDllNmNkYTNiMjYyODIwNmVhZjE2Y2I3MTIwZGU0ZTE3ZjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYyMDQ3NzJhNmFiMmVkMGY2MGMyZjdjYzcwYTNlMDBiYWNkZGQ5M2E5YzE4M2RjNDY2Njc4ZGQ2YTRiOGZiNjIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI3MDg1YzlmMzQ2ZTY4NGQ2ZDlhZDczYjAzYjMyMWRiZjBlZDg4YTFlNmE1NDNkOTkwZmJmY2VlZjhmMTdjMTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZkYmEwYmQxMzI3ZGU3NWJjYTUwZWRhOWY3YThhOTgwYzcwZWIxM2Q0MDMxNzBkM2I3N2U5MzEwOWY0YTA3MWQifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T05:35:23.596Z"
+    "at": "2026-10-04T06:33:35.544Z"
   }
 }
