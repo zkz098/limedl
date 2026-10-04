@@ -330,6 +330,35 @@ fn find_slint_files(dir: &Path) -> Result<Vec<PathBuf>> {
 
 /// Apply tokens across `.slint` files in `ui_dir`.
 fn apply_tokens(ui_dir: &Path) -> Result<()> {
+    let key_map = build_key_map();
+    let token_re = Regex::new(r"#([0-9a-fA-F]{3,8})\b")?;
+    let slint_files = find_slint_files(ui_dir)?;
+    let mut updated = 0;
+
+    for file in &slint_files {
+        let text = fs::read_to_string(file).with_context(|| format!("read {}", file.display()))?;
+        let mut result = replace_tokens(&text, &token_re, &key_map);
+
+        if result != text {
+            // Ensure `import { Theme }` is present
+            if !result.contains("import { Theme") && !result.contains("import {Theme") {
+                result = insert_import(&result, &theme_import(file));
+            }
+
+            fs::write(file, &result).with_context(|| format!("write {}", file.display()))?;
+            println!("updated {}", file.display());
+            updated += 1;
+        }
+    }
+
+    println!("updated {updated} Slint file(s)");
+    report_unmapped(ui_dir)?;
+
+    Ok(())
+}
+
+/// The `Theme.c<hex>` replacement for every color token `keep_set` does not keep.
+fn build_key_map() -> BTreeMap<String, String> {
     let keep_set: HashSet<&str> = KEEP_LITERAL.iter().copied().collect();
     let mut key_map: BTreeMap<String, String> = BTreeMap::new();
 
@@ -344,75 +373,71 @@ fn apply_tokens(ui_dir: &Path) -> Result<()> {
         }
     }
 
-    let token_re = Regex::new(r"#([0-9a-fA-F]{3,8})\b")?;
-    let slint_files = find_slint_files(ui_dir)?;
-    let mut updated = 0;
+    key_map
+}
 
-    for file in &slint_files {
-        let text = fs::read_to_string(file).with_context(|| format!("read {}", file.display()))?;
-
-        let modified = token_re.replace_all(&text, |caps: &regex::Captures| {
+/// Rewrite every hex literal in `text` that `key_map` knows about.
+fn replace_tokens(text: &str, token_re: &Regex, key_map: &BTreeMap<String, String>) -> String {
+    token_re
+        .replace_all(text, |caps: &regex::Captures| {
             let hex = caps[1].to_ascii_lowercase();
-            if let Some(replacement) = key_map.get(&hex) {
-                replacement.clone()
-            } else {
-                caps[0].to_string()
+            match key_map.get(&hex) {
+                Some(replacement) => replacement.clone(),
+                None => caps[0].to_string(),
             }
-        });
+        })
+        .into_owned()
+}
 
-        if modified != text {
-            let mut result = modified.into_owned();
+/// The `import { Theme }` statement a file in `file`'s directory needs.
+fn theme_import(file: &Path) -> String {
+    let is_component = file
+        .parent()
+        .and_then(Path::file_name)
+        .is_some_and(|n| n == "components");
+    let rel = if is_component { "../theme.slint" } else { "theme.slint" };
+    format!("import {{ Theme }} from \"{rel}\";")
+}
 
-            // Ensure `import { Theme }` is present
-            if !result.contains("import { Theme") && !result.contains("import {Theme") {
-                let is_component = file
-                    .parent()
-                    .and_then(|p| p.file_name())
-                    .is_some_and(|n| n == "components");
-                let rel = if is_component { "../theme.slint" } else { "theme.slint" };
-                let import_stmt = format!("import {{ Theme }} from \"{rel}\";");
-
-                // Find where to insert: right after the last top-level import statement
-                let lines: Vec<&str> = result.lines().collect();
-                let mut last_import_idx = None;
-                for (i, line) in lines.iter().enumerate() {
-                    let trimmed = line.trim();
-                    if trimmed.starts_with("import ") {
-                        last_import_idx = Some(i);
-                    } else if last_import_idx.is_some() && !trimmed.is_empty() && !trimmed.starts_with("//") {
-                        // Stopped seeing imports
-                        break;
-                    }
-                }
-
-                let mut new_lines = Vec::with_capacity(lines.len() + 1);
-                if let Some(idx) = last_import_idx {
-                    for (i, line) in lines.into_iter().enumerate() {
-                        new_lines.push(line.to_string());
-                        if i == idx {
-                            new_lines.push(import_stmt.clone());
-                        }
-                    }
-                } else {
-                    new_lines.push(import_stmt);
-                    new_lines.extend(lines.into_iter().map(String::from));
-                }
-
-                result = new_lines.join("\n");
-                if !result.ends_with('\n') {
-                    result.push('\n');
-                }
-            }
-
-            fs::write(file, &result).with_context(|| format!("write {}", file.display()))?;
-            println!("updated {}", file.display());
-            updated += 1;
+/// Insert `import_stmt` right after the last top-level import of `text`.
+fn insert_import(text: &str, import_stmt: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut last_import_idx = None;
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("import ") {
+            last_import_idx = Some(i);
+        } else if last_import_idx.is_some() && !trimmed.is_empty() && !trimmed.starts_with("//") {
+            // Stopped seeing imports
+            break;
         }
     }
 
-    println!("updated {updated} Slint file(s)");
+    let mut new_lines = Vec::with_capacity(lines.len() + 1);
+    match last_import_idx {
+        Some(idx) => {
+            for (i, line) in lines.into_iter().enumerate() {
+                new_lines.push(line.to_string());
+                if i == idx {
+                    new_lines.push(import_stmt.to_string());
+                }
+            }
+        }
+        None => {
+            new_lines.push(import_stmt.to_string());
+            new_lines.extend(lines.into_iter().map(String::from));
+        }
+    }
 
-    // Scan for unmapped colors
+    let mut result = new_lines.join("\n");
+    if !result.ends_with('\n') {
+        result.push('\n');
+    }
+    result
+}
+
+/// Print the hex literals that `apply` could not map, for a human to triage.
+fn report_unmapped(ui_dir: &Path) -> Result<()> {
     let unmapped = scan_unmapped(ui_dir)?;
     if !unmapped.is_empty() {
         println!("\nUNMAPPED colors remaining ({}):", unmapped.len());
@@ -422,7 +447,6 @@ fn apply_tokens(ui_dir: &Path) -> Result<()> {
     } else {
         println!("no unmapped colors remaining");
     }
-
     Ok(())
 }
 

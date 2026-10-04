@@ -336,7 +336,7 @@ fn assert_no_staging_files(dir: &Path, destination_name: &str) {
     let prefix = format!("{destination_name}.finalizing.");
     let leftovers: Vec<String> = fs::read_dir(dir)
         .expect("read destination dir")
-        .filter_map(|entry| entry.ok())
+        .filter_map(Result::ok)
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
         .filter(|name| name.starts_with(&prefix))
         .collect();

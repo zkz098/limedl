@@ -208,7 +208,7 @@ fn platform_entry(key: &str, entry: &AssetEntry, version: &str, repo: &str) -> R
     let file_name = entry
         .path
         .file_name()
-        .and_then(|name| name.to_str())
+        .and_then(std::ffi::OsStr::to_str)
         .with_context(|| format!("artifact path has no file name: {}", entry.path.display()))?;
 
     Ok(PlatformEntry {

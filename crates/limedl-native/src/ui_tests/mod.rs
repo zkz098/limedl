@@ -661,8 +661,11 @@ impl TestUi {
             self.pump_once().await;
             // Give the blocking pool a real slice of time before the next
             // (instant) mock-time step, so a `spawn_blocking` completion has
-            // landed by the time the runtime is polled again.
-            std::thread::sleep(Duration::from_millis(1));
+            // landed by the time the runtime is polled again. `tokio::time`
+            // shares the mock clock with nothing here: the runtime is real-time,
+            // so this schedules a genuine 1ms wait *and* lets the runtime poll
+            // the spawned work while it waits.
+            tokio::time::sleep(Duration::from_millis(1)).await;
         }
     }
 

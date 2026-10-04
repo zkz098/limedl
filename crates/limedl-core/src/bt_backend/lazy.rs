@@ -567,7 +567,7 @@ impl LazyBtBackend {
         std::fs::read_dir(torrents_dir)
             .map(|entries| {
                 entries.flatten().any(|entry| {
-                    entry.path().extension().and_then(|e| e.to_str()) == Some("resume")
+                    entry.path().extension().and_then(std::ffi::OsStr::to_str) == Some("resume")
                 })
             })
             .unwrap_or(false)
