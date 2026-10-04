@@ -67,3 +67,35 @@ UPnP/PEX/uTP off, port 0). Two implementation-coupled points:
   "ban leecher / cap upload slots" and upload policy's "pause by limit" branches
   are **not** covered (`get_peer_info` is empty and the loop returns early).
   Changing those branches cannot rely on the existing tests to catch a regression.
+
+## Crash-consistency / startup hardening changes (2026-10)
+
+The durable-progress rework (see
+[`troubleshooting.md`](troubleshooting.md#durable-vs-received-progress-crash-consistency))
+landed a set of changes whose failure modes are only visible from the outside, so
+the notes below are worth keeping:
+
+- **A re-lock inside an already-held core guard is a self-deadlock**, and it
+  presents as an unrelated hang. The first version of the finalize durability check
+  called `ensure_fully_durable(&managed)`, which called `managed.lock_core()` from
+  *inside* the block that already held the guard (`parking_lot::Mutex` is not
+  reentrant). `aria2_add_uri_multiple_uris_use_mirror_fallback` and four other
+  `aria2_rpc::e2e_tests` handled it as a 60–180 s timeout, because every tokio
+  worker ended up parked on the futex: the test's own `rpc_call` could never be
+  polled. The fix is `ensure_core_fully_durable(&core)`, which takes the guard it
+  was given. **Do not call `lock_core()` from a function that is passed a guard.**
+- **Two `database::tests` fixtures used `end` as an exclusive bound** (`start: 0,
+  end: 500` with `downloaded: 500, completed: true`, i.e. a 501-byte chunk). They
+  passed only because `completed` used to be stored verbatim; once the row derives
+  `completed` from the durable count the fixtures had to become self-consistent.
+  `ChunkManifest::end` is the **last byte**, not one past it.
+- **`record_progress_on_managed` must not set `chunk.dirty`.** The dirty flag is
+  what schedules a row write, and a row may only record durable bytes. The old
+  assertion in `manager_tests::progress::record_progress_normal_update` pinned the
+  opposite behaviour and was inverted on purpose.
+- **The retry loop needs a budget, not just per-request retries**: the single-stream
+  and chunked loops both re-request from the new offset when a server ends the body
+  early, and each request had a fresh retry counter, so a server that always ends
+  the response immediately spun forever. `RequestBudget` (`http_executor`) bounds
+  the requests per unit of work and is unit-tested directly
+  (`request_budget_*` in `http_executor::tests`).

@@ -37,6 +37,97 @@ Measured 2026-09, with Chrome 154 stable at the time:
    anti-abuse pages and skips pointless Referer probing (see
    [`openwiki/workflows/http-download-lifecycle.md`](../openwiki/workflows/http-download-lifecycle.md)).
 
+## Durable vs received progress (crash consistency)
+
+A download has two progress counters per chunk and they are deliberately not the
+same number:
+
+| Field | Meaning | Used by |
+| --- | --- | --- |
+| `ChunkManifest::downloaded`, `::completed` | bytes **received** into the write buffer | the scheduler, the claim/unclaim logic, the UI |
+| `ChunkManifest::durable_downloaded` (+ `DownloadCore::durable_bytes`) | bytes that provably reached the file | persistence, and therefore resume |
+
+`record_progress_on_managed` only advances the received counters;
+`record_durable_bytes` is the **only** writer of the durable ones and is called
+from the write buffer after a flush (or from the direct-write paths). The database
+stores `downloaded = chunk.durable_bytes()` and
+`completed = durable >= chunk.len()` (`chunk_to_params`), so a row can never claim
+more than the file holds. Before this, the 300 ms persist cycle wrote the received
+counters, which run ahead of the file by whatever the buffer still held — a hard
+kill then left the database claiming a chunk was complete while its bytes were
+only in memory, and the next resume skipped over the resulting hole.
+
+**The durability boundary is `pwrite`, not `fsync`.** A successful flush counts,
+which covers a process crash, `SIGKILL` and the OOM killer. It does **not** cover
+power loss: those bytes are in the page cache, and so are the SQLite commits
+(`synchronous = NORMAL` in WAL mode), so the two are lost together rather than one
+running ahead of the other. Closing that gap would need an fsync per flush, which
+the HDD path deliberately avoids (`SyncMode::Adaptive` syncs at ≥16 MB / ≥3 s).
+
+`downloads.db` is written through three paths and all three substitute the durable
+values: `persist_manifest_snapshot` (the 300 ms cycle), `persist_manifest_snapshots_batch`
+(the scheduler's 2 s cycle) and `DownloadManager::persist` (the full upsert on state
+transitions). `chunk.durable_bytes()` also clamps to the received count, so a reset
+path that forgot to clear a counter can only under-report — which costs a
+re-download, never a hole.
+
+Finalization re-checks the invariant: `ensure_core_fully_durable` refuses to
+publish a file whose chunks are not all durable (a failed flush, a dropped buffer)
+instead of renaming a truncated file into place. It takes the already-held core
+guard — calling `lock_core()` there would deadlock, see
+[test-regression-notes.md](test-regression-notes.md).
+
+## Startup resilience
+
+A GUI process has no console (`windows_subsystem = "windows"`) and, before this
+was added, no way to report a fatal error — a failure during startup made the
+window never appear with nothing written anywhere. Now:
+
+- **Logging comes up before the engine** (`main` calls `init_logging` with the
+  defaults, then re-applies the configured settings), so a bootstrap, settings or
+  migration failure is logged. `logs/limedl.log` and `logs/crash.log` live in the
+  core state directory (`<data-dir>/downloads`).
+- **A crash log is written by a panic hook** (`crates/limedl-native/src/crash.rs`).
+  The release profile builds with `panic = "abort"`, and the hook still runs on the
+  way to `abort()`, so the report (timestamp, thread, `file:line`, payload,
+  backtrace) is the only evidence a panic leaves. It rotates at 1 MiB to
+  `crash.log.1`. Note that `catch_unwind` anywhere in the tree is a dev/test-only
+  safety net for the same reason.
+- **A fatal startup error opens a message box** with the error and the crash-log
+  path, then exits non-zero.
+- **A corrupt `settings.json` no longer bricks the app**: the parse failure moves
+  the file to `settings.json.corrupt`, tries `settings.json.bak` (the previous
+  save, written before every rename), and only then falls back to defaults.
+  `persist_settings` flushes *and* `sync_all`s the temp file before the rename, so
+  a power loss cannot leave an empty `settings.json` behind.
+- **A `downloads.db` that fails `PRAGMA quick_check` — or cannot be opened at all
+  — is moved to `downloads.db.corrupt-<unix_ms>`** (with its `-wal`/`-shm`
+  sidecars) and a fresh database is created, so the app stays usable. Task history
+  is lost, the downloaded files are not. Lock/busy errors are *not* treated as
+  corruption, and databases above 128 MiB skip the probe so startup stays bounded.
+- **A failing tray icon no longer prevents startup.** On Linux a missing
+  StatusNotifier host used to abort the launch before the window was shown, even
+  though `tray_init_failure_message` promises the app keeps running.
+
+## Schema migrations are transactional and idempotent
+
+Each migration body and its `user_version` bump commit in one transaction
+(`Database::open`), and every `ALTER TABLE ... ADD COLUMN` goes through
+`add_column_if_missing`. Without that, a failure midway (disk full, I/O error,
+kill) left the schema half-applied while `user_version` still named the old
+version; the next start replayed the same migration and failed with "duplicate
+column name" on every launch thereafter. The legacy `user_version` probe now only
+ever moves the detected version forward.
+
+## Aria2 RPC is disabled by default
+
+`Aria2RpcSettings::default()` has `enabled = false`. With an empty `secret` the
+endpoint answers anonymously, and while it binds loopback that still lets any local
+process (or a page the default CORS policy admits) drive downloads and read paths,
+so opting in is an explicit action: enable it in Settings → Aria2 RPC and set a
+secret or per-client tokens. An existing `settings.json` with `"enabled": true` is
+honoured, and the server logs a warning whenever it serves without authentication.
+
 ## Accepted warnings (do not need fixing)
 
 These used to be documented here and all came from the retired Tauri shell
