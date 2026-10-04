@@ -55,8 +55,10 @@ pub struct InstanceClaim {
 
 enum ClaimState {
     /// This process owns the app instance. `PrimaryHandle` keeps the claim alive
-    /// (mutex handle / file lock) for the process lifetime.
-    Primary(PrimaryHandle),
+    /// (mutex handle / file lock) for the process lifetime. On Windows the
+    /// handle is only *held* (the mutex lives until process exit) and never read
+    /// again, so the field is intentionally exempt from `dead_code`.
+    Primary(#[cfg_attr(windows, allow(dead_code))] PrimaryHandle),
     /// Another instance is already running.
     Secondary,
 }

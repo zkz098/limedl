@@ -639,18 +639,31 @@ impl TestUi {
     /// quits it. Bounded on purpose: a contract that never settles fails the
     /// test instead of hanging CI.
     pub async fn pump_until(&self, what: &str, mut done: impl FnMut() -> bool) {
-        const ROUNDS: usize = 50;
-        for _ in 0..ROUNDS {
+        // Bounded on purpose: a contract that never settles fails the test
+        // instead of hanging CI. The bound is wall-clock rather than a round
+        // count because a pump round only advances the *mocked* clock and drains
+        // Slint's queue, while the engine call it waits for can include real
+        // blocking work (`SettingsService` persists through `tokio::fs`, i.e.
+        // `spawn_blocking`). A counted loop can exhaust every round before such a
+        // task is ever polled — that is how the settings-save contract flaked on
+        // a loaded coverage runner.
+        const SETTLE_TIMEOUT: Duration = Duration::from_secs(5);
+        let deadline = std::time::Instant::now() + SETTLE_TIMEOUT;
+        loop {
             if done() {
                 return;
             }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "{what} did not settle within {SETTLE_TIMEOUT:?}; engine calls so far: {:?}",
+                self.core.calls()
+            );
             self.pump_once().await;
+            // Give the blocking pool a real slice of time before the next
+            // (instant) mock-time step, so a `spawn_blocking` completion has
+            // landed by the time the runtime is polled again.
+            std::thread::sleep(Duration::from_millis(1));
         }
-        assert!(
-            done(),
-            "{what} did not settle in {ROUNDS} pump rounds; engine calls so far: {:?}",
-            self.core.calls()
-        );
     }
 
     /// [`Self::pump_until`] with a fixed number of rounds, for contracts whose

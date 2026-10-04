@@ -210,8 +210,11 @@ fn concurrent_load_chunks_while_saving() {
             );
             if let Ok(Some(manifest)) = &result {
                 for chunk in &manifest.chunks {
+                    // `start..=end` is inclusive, so the chunk holds one more
+                    // byte than `end - start`; a fully received chunk reaches
+                    // exactly `end - start + 1` (see `finalize.rs`).
                     assert!(
-                        chunk.downloaded <= chunk.end - chunk.start,
+                        chunk.downloaded <= chunk.end.saturating_sub(chunk.start) + 1,
                         "chunk {} download {} exceeds range {}-{}",
                         chunk.index,
                         chunk.downloaded,
@@ -228,7 +231,7 @@ fn concurrent_load_chunks_while_saving() {
             if let Ok(chunks) = &chunks {
                 for chunk in chunks {
                     assert!(
-                        chunk.downloaded <= chunk.end - chunk.start,
+                        chunk.downloaded <= chunk.end.saturating_sub(chunk.start) + 1,
                         "chunk {} download {} exceeds range {}-{}",
                         chunk.index,
                         chunk.downloaded,
