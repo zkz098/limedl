@@ -249,12 +249,12 @@ export component TaskCard inherits Rectangle {
 
             // Progress Bar
             Rectangle {
-                background: Theme.c1e2229;
+                background: root.item.is_indeterminate ? Theme.c26331a : Theme.c1e2229;
                 border-radius: 3px;
                 height: 5px;
                 clip: true;
 
-                Rectangle {
+                if !root.item.is_indeterminate : Rectangle {
                     x: 0px;
                     y: 0px;
                     width: parent.width * max(0.0, min(1.0, root.item.progress));
@@ -276,6 +276,24 @@ export component TaskCard inherits Rectangle {
                         background: #ffffff55;
                         border-radius: 2px;
                     }
+                }
+
+                if root.item.is_indeterminate : Rectangle {
+                    property <length> beam_width: max(60px, parent.width * 0.35);
+                    x: -beam_width + (mod(animation-tick(), 1500ms) / 1500ms) * (parent.width + beam_width);
+                    y: 0px;
+                    width: beam_width;
+                    height: parent.height;
+                    background: @linear-gradient(90deg,
+                        Theme.c84cc16.transparentize(1.0) 0%,
+                        Theme.c84cc16.transparentize(0.2) 25%,
+                        Theme.ca3e635 45%,
+                        Theme.cffffff.transparentize(0.1) 50%,
+                        Theme.ca3e635 55%,
+                        Theme.c84cc16.transparentize(0.2) 75%,
+                        Theme.c84cc16.transparentize(1.0) 100%
+                    );
+                    border-radius: 3px;
                 }
             }
 

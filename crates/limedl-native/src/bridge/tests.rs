@@ -961,3 +961,46 @@ use crate::LabsFormData;
         assert_eq!(detect_file_category("unknown.xyz"), "default");
         assert_eq!(detect_file_category("no_extension"), "default");
     }
+
+    #[test]
+    fn test_indeterminate_task_state() {
+        // 1. Newly created HTTP task: Queued, 0 downloaded, unknown total size
+        let s1 = sample_summary("http:t1", "pending.bin", DownloadState::Queued, 0, None, 0.0, 1000);
+        let item1 = summary_to_task_item(&s1, false, Language::ZhCn);
+        assert!(item1.is_indeterminate);
+
+        // 2. Newly created task with known size before downloading begins
+        let s2 = sample_summary("http:t2", "file.zip", DownloadState::Queued, 0, Some(5000), 0.0, 1000);
+        let item2 = summary_to_task_item(&s2, false, Language::ZhCn);
+        assert!(item2.is_indeterminate);
+
+        // 3. Downloading task before initial byte arrives (total unknown)
+        let s3 = sample_summary("http:t3", "stream.bin", DownloadState::Downloading, 0, None, 0.0, 1000);
+        let item3 = summary_to_task_item(&s3, false, Language::ZhCn);
+        assert!(item3.is_indeterminate);
+
+        // 4. Actively downloading with bytes received
+        let s4 = sample_summary("http:t4", "active.zip", DownloadState::Downloading, 500, Some(5000), 100.0, 1000);
+        let item4 = summary_to_task_item(&s4, false, Language::ZhCn);
+        assert!(!item4.is_indeterminate);
+
+        // 5. Stream download with bytes received but no Content-Length
+        let s5 = sample_summary("http:t5", "stream.bin", DownloadState::Downloading, 1024, None, 50.0, 1000);
+        let item5 = summary_to_task_item(&s5, false, Language::ZhCn);
+        assert!(!item5.is_indeterminate);
+
+        // 6. Paused task at 0 bytes
+        let s6 = sample_summary("http:t6", "paused.zip", DownloadState::Paused, 0, None, 0.0, 1000);
+        let item6 = summary_to_task_item(&s6, false, Language::ZhCn);
+        assert!(!item6.is_indeterminate);
+
+        // 7. Completed task
+        let s7 = sample_summary("http:t7", "done.zip", DownloadState::Completed, 5000, Some(5000), 0.0, 1000);
+        let item7 = summary_to_task_item(&s7, false, Language::ZhCn);
+        assert!(!item7.is_indeterminate);
+
+        // 8. Failed task
+        let s8 = sample_summary("http:t8", "failed.zip", DownloadState::Failed, 0, None, 0.0, 1000);
+        let item8 = summary_to_task_item(&s8, false, Language::ZhCn);
+        assert!(!item8.is_indeterminate);
+    }

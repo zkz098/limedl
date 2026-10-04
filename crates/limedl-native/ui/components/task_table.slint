@@ -501,9 +501,11 @@ export component TaskTable inherits Rectangle {
 
                                     Rectangle {
                                         height: 5px;
-                                        background: Theme.c20242d;
+                                        background: task.is_indeterminate ? Theme.c26331a : Theme.c20242d;
                                         border-radius: 2px;
-                                        Rectangle {
+                                        clip: true;
+
+                                        if !task.is_indeterminate : Rectangle {
                                             x: 0;
                                             y: 0;
                                             width: parent.width * max(0.0, min(1.0, task.progress));
@@ -513,6 +515,34 @@ export component TaskTable inherits Rectangle {
                                                       : task.is_failed ? Theme.cf87171
                                                       : (task.state_code == "verifying" ? Theme.cf59e0b : Theme.c84cc16);
                                             animate width { duration: 250ms; easing: ease-out; }
+
+                                            // Soft highlight at leading edge when actively downloading
+                                            if task.state_code == "downloading" && task.progress > 0.02 && task.progress < 0.99 : Rectangle {
+                                                x: parent.width - 6px;
+                                                y: 0px;
+                                                width: 6px;
+                                                height: parent.height;
+                                                background: #ffffff55;
+                                                border-radius: 2px;
+                                            }
+                                        }
+
+                                        if task.is_indeterminate : Rectangle {
+                                            property <length> beam_width: max(40px, parent.width * 0.35);
+                                            x: -beam_width + (mod(animation-tick(), 1500ms) / 1500ms) * (parent.width + beam_width);
+                                            y: 0px;
+                                            width: beam_width;
+                                            height: parent.height;
+                                            background: @linear-gradient(90deg,
+                                                Theme.c84cc16.transparentize(1.0) 0%,
+                                                Theme.c84cc16.transparentize(0.2) 25%,
+                                                Theme.ca3e635 45%,
+                                                Theme.cffffff.transparentize(0.1) 50%,
+                                                Theme.ca3e635 55%,
+                                                Theme.c84cc16.transparentize(0.2) 75%,
+                                                Theme.c84cc16.transparentize(1.0) 100%
+                                            );
+                                            border-radius: 2px;
                                         }
                                     }
                                 }

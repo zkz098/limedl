@@ -191,6 +191,15 @@ pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool, lang: Lan
         String::new()
     };
 
+    let is_indeterminate = match summary.state {
+        DownloadState::Queued => summary.downloaded_bytes == 0,
+        DownloadState::Downloading => {
+            summary.downloaded_bytes == 0
+                && (summary.total_bytes.is_none() || summary.total_bytes == Some(0))
+        }
+        _ => false,
+    };
+
     TaskItem {
         id: SharedString::from(&summary.id),
         kind: SharedString::from(kind_str),
@@ -216,6 +225,7 @@ pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool, lang: Lan
         can_resume,
         is_completed,
         is_failed,
+        is_indeterminate,
         selected,
         file_type: SharedString::from(detect_file_category(&summary.file_name)),
     }
