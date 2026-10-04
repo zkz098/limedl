@@ -17,6 +17,19 @@ fn test_language_parsing() {
 }
 
 #[test]
+fn test_startup_failure_message_is_localized_and_carries_details() {
+    for lang in [Language::ZhCn, Language::ZhTw, Language::EnUs] {
+        let (title, body) = format_startup_failure(lang, "db is locked", "/tmp/limedl/crash.log");
+        assert!(!title.is_empty(), "missing title for {lang:?}");
+        assert!(body.contains("db is locked"), "missing detail for {lang:?}");
+        assert!(
+            body.contains("/tmp/limedl/crash.log"),
+            "missing log path for {lang:?}"
+        );
+    }
+}
+
+#[test]
 fn test_format_eta_localized() {
     assert_eq!(format_eta(Some(45), Language::ZhCn), "剩余 45秒");
     assert_eq!(format_eta(Some(45), Language::ZhTw), "剩餘 45秒");

@@ -30,7 +30,10 @@ slint = { workspace = true, features = [
   "renderer-software",
 ] }
 raw-window-handle = "0.6"
-tokio = { workspace = true }
+# `signal` is Unix-only in practice (the `cfg(unix)` SIGTERM/SIGINT watcher in
+# `main.rs`); on Windows the feature is inert, and feature unification already
+# enables it for limedl-core's tokio in the same build.
+tokio = { workspace = true, features = ["signal"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 anyhow = { workspace = true }

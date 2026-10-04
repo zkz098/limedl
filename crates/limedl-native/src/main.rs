@@ -8,6 +8,7 @@ slint::include_modules!();
 mod autostart;
 mod bridge;
 mod context;
+mod crash;
 mod event_stream;
 mod handlers;
 mod i18n;
@@ -51,6 +52,18 @@ use crate::ui_boot::UiState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    if let Err(error) = run().await {
+        // A GUI process has no console and, on Windows, no attached stderr: a
+        // fatal startup error would otherwise leave the user with nothing at all.
+        crash::report_startup_failure(&error);
+        return Err(error);
+    }
+    Ok(())
+}
+
+/// Everything `main` does, so a fatal error can be reported once instead of at
+/// every `?`.
+async fn run() -> anyhow::Result<()> {
     // CLI contract: `limedl-native [--hidden] [<url|magnet|path|limedl://…>]`
     let args: Vec<String> = std::env::args().skip(1).collect();
     let hidden_flag = args
@@ -61,19 +74,38 @@ async fn main() -> anyhow::Result<()> {
         .find(|a| !matches!(a.as_str(), "--hidden" | "-hidden" | "--minimized"))
         .cloned();
 
-    // Single-instance guard
-    let instance_claim = single_instance::InstanceClaim::claim();
-    if instance_claim.is_secondary() {
-        instance_claim.notify_primary(cli_payload.as_deref());
-        return Ok(());
-    }
-
-    // Initialize core directories
+    // Initialize core directories first: the single-instance claim and the
+    // activation socket live in the data directory.
     let base_dir = paths::dirs_or_temp_dir();
     platform_win::set_base_dir(base_dir.clone());
     let state_dir = base_dir.join("downloads");
     update::clean_update_work_dir(&base_dir);
     tokio::fs::create_dir_all(&state_dir).await?;
+
+    // Single-instance guard
+    let instance_claim = single_instance::InstanceClaim::claim(&base_dir);
+    if instance_claim.is_secondary() {
+        if instance_claim.notify_primary(cli_payload.as_deref()) {
+            return Ok(());
+        }
+        // Never exit with nothing on screen: something holds the instance claim
+        // but did not answer, so report it through the startup-error path.
+        anyhow::bail!(
+            "another limedl instance is running but did not accept the activation request; \
+             close it (or wait for it to finish starting) and try again"
+        );
+    }
+
+    // Everything below can panic, and a GUI process has nowhere to print it:
+    // install the crash reporter before the first thing that can fail.
+    crash::install_panic_hook(&state_dir);
+
+    // Logging comes up before the engine: bootstrap loads settings and migrates
+    // the database, and a failure in either used to be reported to a subscriber
+    // that did not exist yet — the one class of failure that most needs a log.
+    // The configured settings are re-applied as soon as they are known.
+    limedl_core::init_logging(&limedl_core::types::LogSettings::default(), &state_dir)
+        .with_context(|| "初始化日志失败")?;
 
     // Bootstrap download core
     let core = bootstrap(state_dir.clone())
@@ -151,7 +183,12 @@ async fn main() -> anyhow::Result<()> {
     ui_sync::schedule_window_placement_restore(&main_window, &base_dir);
 
     // System Tray Icon
-    let tray_icon = TrayIconBuilder::new()
+    //
+    // The tray is an optional extra, not the primary UI: on Linux a missing
+    // StatusNotifier host (GNOME without the AppIndicator extension, a bare
+    // window manager) makes `build()` fail, and failing the whole launch there
+    // would take the window down with it. Log the actionable hint and keep going.
+    match TrayIconBuilder::new()
         .with_menu(Box::new(tray::build_tray_menu(
             initial_lang,
             ctx.tray_speed_limit_active.load(Ordering::Relaxed),
@@ -159,8 +196,10 @@ async fn main() -> anyhow::Result<()> {
         .with_tooltip(i18n::get_tray_strings(initial_lang).tooltip)
         .with_icon(tray::create_default_tray_icon())
         .build()
-        .map_err(|e| anyhow::anyhow!(tray::tray_init_failure_message(&e)))?;
-    TRAY_INSTANCE.with(|cell| *cell.borrow_mut() = Some(tray_icon));
+    {
+        Ok(tray_icon) => TRAY_INSTANCE.with(|cell| *cell.borrow_mut() = Some(tray_icon)),
+        Err(error) => tracing::warn!("{}", tray::tray_init_failure_message(&error)),
+    }
 
     // Load initial tasks from SQLite via Dispatcher
     if let Ok(initial_tasks) = core.dispatcher.list().await {
@@ -245,6 +284,7 @@ async fn main() -> anyhow::Result<()> {
     if !start_hidden {
         main_window.show()?;
     }
+    install_signal_shutdown();
     slint::run_event_loop_until_quit()?;
 
     // Graceful shutdown
@@ -262,6 +302,48 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Ask the Slint event loop to quit.
+///
+/// Split out so the signal path below is a thin wrapper; also harmless when no
+/// event loop is running yet (the call then fails and is ignored).
+#[cfg(unix)]
+fn request_event_loop_quit() {
+    let _ = slint::invoke_from_event_loop(|| {
+        let _ = slint::quit_event_loop();
+    });
+}
+
+/// Turn SIGTERM/SIGINT into a normal quit.
+///
+/// Without this the process dies where it stands: no buffer flush, no manifest
+/// persist, no WAL checkpoint — only the crash-recovery path would see the
+/// download state. Logout, `systemctl stop` and a terminal Ctrl+C all take this
+/// route.
+#[cfg(unix)]
+fn install_signal_shutdown() {
+    use tokio::signal::unix::{SignalKind, signal};
+
+    tokio::spawn(async move {
+        let (Ok(mut terminate), Ok(mut interrupt)) =
+            (signal(SignalKind::terminate()), signal(SignalKind::interrupt()))
+        else {
+            tracing::warn!("could not install the SIGTERM/SIGINT handlers");
+            return;
+        };
+        let received = tokio::select! {
+            _ = terminate.recv() => "SIGTERM",
+            _ = interrupt.recv() => "SIGINT",
+        };
+        tracing::info!("received {received}; shutting the engine down cleanly");
+        request_event_loop_quit();
+    });
+}
+
+/// Windows has no signal to catch here (`windows_subsystem = "windows"` means no
+/// console and therefore no Ctrl+C); the window close handler owns shutdown.
+#[cfg(not(unix))]
+fn install_signal_shutdown() {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -273,5 +355,13 @@ mod tests {
         assert!(ui_sync::should_start_hidden(true, false, true));
         assert!(ui_sync::should_start_hidden(false, true, true));
         assert!(!ui_sync::should_start_hidden(false, false, true));
+    }
+
+    /// The SIGTERM/SIGINT watcher calls this from a worker task, possibly before
+    /// the event loop is up: it must fail quietly instead of panicking.
+    #[cfg(unix)]
+    #[test]
+    fn quitting_without_an_event_loop_is_a_no_op() {
+        request_event_loop_quit();
     }
 }

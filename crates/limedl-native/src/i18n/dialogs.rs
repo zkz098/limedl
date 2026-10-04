@@ -153,3 +153,32 @@ pub fn pick_log_dir_title(lang: Language) -> &'static str {
         Language::EnUs => "Select Log Folder",
     }
 }
+
+/// Title and body of the fatal startup-error dialog.
+///
+/// Shown before settings are available, so the caller passes the language
+/// detected from the OS locale rather than the configured one. `detail` is the
+/// underlying error and `log_path` the crash log the same report was written to.
+pub fn format_startup_failure(
+    lang: Language,
+    detail: &str,
+    log_path: &str,
+) -> (String, String) {
+    let title = match lang {
+        Language::ZhCn => "limedl 无法启动",
+        Language::ZhTw => "limedl 無法啟動",
+        Language::EnUs => "limedl could not start",
+    };
+    let body = match lang {
+        Language::ZhCn => format!(
+            "启动时发生错误：\n\n{detail}\n\n详细信息已写入：\n{log_path}"
+        ),
+        Language::ZhTw => format!(
+            "啟動時發生錯誤：\n\n{detail}\n\n詳細資訊已寫入：\n{log_path}"
+        ),
+        Language::EnUs => format!(
+            "limedl failed to start:\n\n{detail}\n\nDetails were written to:\n{log_path}"
+        ),
+    };
+    (title.to_string(), body)
+}
