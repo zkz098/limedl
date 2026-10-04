@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:9fbb06af9b19e8a1d8edeec5c48bf971b7b2747133d04cb76871b7a37569d236",
+  "pageVersion": "sha256:5987b9c8d31877a79daa9742b399061111e3a50048b3f967f704069550491143",
   "claims": [
     {
       "id": "claim_50e14f0840f8483a9aa585a5b612f644",
@@ -118,11 +118,11 @@
     },
     {
       "id": "claim_d0aaeb4ec12b4c9380eee64826a46ec8",
-      "statement": "limedl-core defaults to the bt feature; aria2-rpc pulls in axum/tower-http/argon2/subtle and implies bt; test-utils exposes AIMD, buffer-pool and test-harness internals that are private otherwise.",
+      "statement": "limedl-core defaults to the bt feature; aria2-rpc pulls in axum/tower-http/argon2/subtle and implies bt; test-utils exposes AIMD, buffer-pool and test-harness internals that are private otherwise, and also enables the gzip/brotli/zstd encoders used by the compression test endpoints.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/Cargo.toml#L47-L58",
-          "version": "repo-lines-v1:sha256:889e085b99b82233e6567e2d6eb02e2211417c885ad96db49ff4ce1017fa9540:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2ZjZjMWM3M2U0Njg1YjZmNTU3OTJhZTUzOTI1NTNmZjc5ZDNjYzA2N2IwYjc0ZTA2ODY5OGY2YjJjNzZiODIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmNmI5N2QwZGI2YzlmMjExZTJiNTYyNTU2Y2U3NjlkZTYxNjQ2ZDZjNjk3MDU0YmViODA3NzA0ZWMxYjNkNGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJhMTRhNjEyYjYzMWQwYTk2M2Y5ZWY2ODk0OTIyZDZmNGUyNWUxYmY3YjA5ZGYzZjNjN2EzZjE1NTk5MzQxNmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzNjA5NGE0YWZkYjQzNjE2ZGU3ZmY0NjdhNzFiYTM0YzljNzBlNTZkMmNhZjAyYmE1NTVhYTJkZTQwY2U2NjkifQ"
+          "resource": "repo://crates/limedl-core/Cargo.toml#L53-L64",
+          "version": "repo-lines-v1:sha256:dbe54e5a7a8913400d7c8885f546d4c3fcad4a260e8ecf4fef8c7953743410d7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2ZjZjMWM3M2U0Njg1YjZmNTU3OTJhZTUzOTI1NTNmZjc5ZDNjYzA2N2IwYjc0ZTA2ODY5OGY2YjJjNzZiODIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyYTBmNzdmZmVhMzhlZTNkM2ExNzQxZDI1NmJhZjNjOTA2MmI3NWE0NzFiYWQxZDIwMjk4MjJhOTUyZTk4MWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYxNjBhODRhNjk5Njk4NTk1NmIzZWFlYmQ5Yzc2NmY3MmMxZjU1NGEwMDdhODk3MWRmZmFmOTM2MmNmMjU3MzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzNjA5NGE0YWZkYjQzNjE2ZGU3ZmY0NjdhNzFiYTM0YzljNzBlNTZkMmNhZjAyYmE1NTVhYTJkZTQwY2U2NjkifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/lib.rs#L36-L48",
@@ -145,7 +145,7 @@
       "statement": "The workspace release profile optimizes for size (lto=thin, opt-level=s, panic=abort, strip), but limedl-native is overridden to opt-level 3 because Slint rendering is CPU/GPU heavy.",
       "evidence": [
         {
-          "resource": "repo://Cargo.toml#L85-L108",
+          "resource": "repo://Cargo.toml#L94-L117",
           "version": "repo-lines-v1:sha256:5977ebd5effe234e13ff63914167c619100264503edb55fcc49d2cefe05a82cf:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2MWI5OTBhZDhmNDI4NGMzNTRjZDhmOWI2YjFiMGQwMTU2NTAyYWJiMDhhYjI5YWI1MDgyNDk0ZDdhMDc2MGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJkYjM4ZDBjZWM4NzY5MGNlZmM3MDIxMzZjZjlmNTJhZTBjZjM4YTM2M2YzZDgyZmM3YjM4YmY1MDdmZWFkNWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjIzYWE4MzdlYjcwZDgzMWU3Njc2NTExYzMxNjM1MTk3OWFhN2Q0MzMyM2ExZWNjOTczNjA3YzFmZTdhOTQ1NjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzNDM3Y2FlZjBkMjM4OTYwOWQxMzA4ODdjYzVlY2MxNGRjODdiMmMyMmQ4ZTFjMDMzMjcwYTRhMGU4OTE0OTYifQ"
         }
       ]
@@ -171,6 +171,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T10:20:09.270Z"
+    "at": "2026-10-04T11:10:17.271Z"
   }
 }

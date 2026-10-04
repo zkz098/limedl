@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:7e74590d3eecba8e7bd64a069627ddb9cf8237c761dad472355ec5a36a9650ed",
+  "pageVersion": "sha256:6e15d7c75e91e86fd3f73c9451cdfd84b34d5140a34150bd7cd9e5168f42d4dd",
   "claims": [
     {
       "id": "claim_65bbce20cdb64f53960b988322db9037",
@@ -135,7 +135,7 @@
       "statement": "Pause/resume tests throttle the origin rather than race a fast localhost: the multi-threaded resume test downloads through TestServer::file_url_range_bandwidth, a range-capable endpoint that throttles each chunk connection so the transfer is still in flight when pause lands.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/test_harness/mod.rs#L547-L617",
+          "resource": "repo://crates/limedl-core/src/test_harness/mod.rs#L685-L755",
           "version": "repo-lines-v1:sha256:e4d4a533a242e9dc6362188caa41527082cc1c3f9d1290410fa88d14ad6fa3d9:eyJzZWxlY3RlZExpbmVDb3VudCI6NzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiYTNjYmE3NjgyM2YyMTE4NGUyNGQzNDQ3NzljNWY4YzQ1YjJmNTFjZjUyMjg1MjkwYWVmYWI5MGIxNDE3ZTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ODllZmU0MzBiMmY0Y2FlY2I3MDAwYmIwOTAwMGQ4YjIzNjk4YTFlNDBjNjE2MjM0ZGZmYmJlY2RjZjUxNGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5OWQ5N2E4ZTQ2NmUxNWQzODhkY2UxMGI1NmNkYTM5MDU3ODQ0NTQ5NTgyZjAyMTUwZjE2NzcxZGI4MjRkZmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxYmQ3OWJiN2JkYmRiOTIxZWIwODM3NWRjMTE2NTM0YTM3ZTMzMzAzYjUyYjljNzhhZDU2YWM3NzJmYjBkYWYifQ"
         },
         {
@@ -241,14 +241,28 @@
           "version": "repo-lines-v1:sha256:353a612cb21fd6af4dc72ab1ade04f40651e0f9d718192bef3c8b92c81b6213e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0N2UyNGUzNjE4YTZjNDkwYzYyYjAxZWE5Y2U0MWQ5YzE2NmRlMTE2ZTQ2MTViMDUxOGM5ZDRmNDBiM2JiODYifQ"
         },
         {
-          "resource": "repo://docs/aria2-interop-testing.md#L77-L154",
-          "version": "repo-lines-v1:sha256:71c1809eb62c017f4d540fbc816d2362cc92ac5b3fff259c092d1bd55db3cffd:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0MzhmMmU1OGJiZGYwMjdlZjMzODMxMTkwNjcyNmUzODIwOWU4ZWVjN2I5MzgzZTBlNDcyOGI2Yjc5M2QyMGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlN2VlMGI4YTBlMmEwMDRjYTgyYzRjN2Y3ZjAwMjNkNzA5YjFmMzc1NWFlMDM0MzM5OGVhMTEyZTAwYzVlY2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA3ZmJiN2Y5YmNlMjE3MzRkMmNlNzcwNTYxYjNiOGI4ZDdlMGY1OWFjNDFjYjkwNDZiYjg0ODJmMzhkZjU3MTQifQ"
+          "resource": "repo://docs/aria2-interop-testing.md#L77-L156",
+          "version": "repo-lines-v1:sha256:3fad3c3dbadae085cf629b957947daad49163487785eb04626bd9ce09077df67:eyJzZWxlY3RlZExpbmVDb3VudCI6ODAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0MzhmMmU1OGJiZGYwMjdlZjMzODMxMTkwNjcyNmUzODIwOWU4ZWVjN2I5MzgzZTBlNDcyOGI2Yjc5M2QyMGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlN2VlMGI4YTBlMmEwMDRjYTgyYzRjN2Y3ZjAwMjNkNzA5YjFmMzc1NWFlMDM0MzM5OGVhMTEyZTAwYzVlY2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA3ZmJiN2Y5YmNlMjE3MzRkMmNlNzcwNTYxYjNiOGI4ZDdlMGY1OWFjNDFjYjkwNDZiYjg0ODJmMzhkZjU3MTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4b6be72d3910424f825dd4c51ea7af2c",
+      "statement": "http_executor_tests/compression.rs exercises gzip/brotli/zstd against a server that compresses only when asked and counts compressions: single-stream downloads complete with the decoded checksum and trigger compression, while 4-thread range downloads complete with zero compressed responses, proving identity_encoding kept segments byte-exact.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/test_harness/mod.rs#L180-L196",
+          "version": "repo-lines-v1:sha256:c2a9f575363bac263d2a6e7956800da291ca8757ff95dd9d3fe372d01ce71175:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4ZTQ0ZTJlZTJjMDNkN2U5MjYyZmNlNTBmMTEyYTVhN2I0YTdmNTBjM2RiZTQxYjg2MGU5YmY5YTMzYzFhZTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNlZDA0Y2RkMzYxNTAxYjE5N2ZkZWRjMTdiZmE2MTQ2NjQ5N2QyMmZhYzUzNDQzMjdiNTI0ODlkYjA2NzM0YjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwNjYyODIwOGE5ZDJmMWZkMDA2MzA2ZmI0N2JhMDhkNmYzYzM3NzQ0MGNhODJjNmEyNWIyZDY2ZjVkNmNhNjUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/tests/http_executor_tests/compression.rs#L1-L40",
+          "version": "repo-lines-v1:sha256:e4fba69e601db36b85e15d8143ee6d2cb9fb8dc595309055d09f16d4084e3462:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVmZTc4ZmM4YmI5MTM2Zjk2Y2Y3YTQxOTkyYmM1MjhjZGUwY2VmOTQ3YzUxZDQ5YjQ3ZWY2MjYzYzBjMmJmNWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE3ZjNjNDMzNDQ4ZWU4NTZjZTUxNDEzMzI4NTQyN2M1Y2RmNzJiZjA2NzRkOWE5MTdhNmI0YTQ4NWE1ZTcyZmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNmZWNiMjE5MzY4ODg0MzcxODk4ZjZlZThmMDhlYTRiNTNkMDA0N2NhOGE5YWJkNzAzNDFlOGVmY2JmYTc5YTYifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T10:39:31.763Z"
+    "at": "2026-10-04T11:10:17.271Z"
   }
 }

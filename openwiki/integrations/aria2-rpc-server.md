@@ -36,10 +36,10 @@ sources:
     resource: repo://crates/limedl-core/src/types/settings.rs
   - id: openwiki-source-3fe9812b75a7522e89f74344
     resource: repo://docs/aria2-interop-testing.md
-generated: { by: "pi", at: "2026-10-04T10:39:31.763Z" }
+generated: { by: "pi", at: "2026-10-04T11:10:17.271Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T10:39:31.763Z
+    at: 2026-10-04T11:10:17.271Z
 ---
 
 # Aria2 JSON-RPC Compatibility Server
@@ -321,7 +321,11 @@ These are documented choices, not bugs, and are tracked alongside the Tier 1/Tie
   `addTorrent`'s `out`/`select-file` are parsed but not applied at start (use
   `aria2.changeOption` after metadata).
 - `getOption` returns several fixed placeholder values and `getGlobalOption` only
-  a subset; `getVersion` still reports a stale version/feature list.
+  a subset. `getVersion` is now truthful: `Async DNS`, `BitTorrent`, `GZip`,
+  `Brotli`, `Zstd`, `HTTPS`, `Message Digest`, and it deliberately omits aria2's
+  `Metalink`/`SFTP`/`XML-RPC`/`Firefox3 Cookie`. `interop_get_version_is_truthful`
+  locks the set, and `http-accept-gzip` reports `true` because the engine now
+  negotiates compression on the single-stream GET.
 - GID prefix matching is not supported (exact GID only); HTTPS RPC, HTTP Basic
   auth and `--rpc-listen-all` are not served.
 
@@ -337,10 +341,12 @@ Gaps are **reported, not asserted** for now: the report is printed by nextest's
 `--success-output=final`, and a run only fails when the oracle cannot start or a
 server stops answering. The first aria2 1.37.0 run reported the deviations above
 plus the option-key and GET/JSONP/Batch transport gaps; individual entries are
-promoted to hard assertions once the report is stable.
+promoted to hard assertions once the report is stable. After response
+compression landed, `GZip` is shared with aria2 and `Brotli`/`Zstd` show up as
+truthful limedl-only additions.
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60`,
-`repo://docs/aria2-interop-testing.md#L77-L154`,
+`repo://docs/aria2-interop-testing.md#L77-L156`,
 `repo://.github/workflows/aria2-oracle.yml#L1-L45`.
 
 ## Terminal-result visibility

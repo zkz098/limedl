@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:93c40ac1e6241155b3dc607abbc0b7be80b3d9e55cee39ade97f23dfd8b202c7",
+  "pageVersion": "sha256:a3bbd3d221eb531196f5c54413464f30cc554dcc555a988ba41c85c8546cc8c2",
   "claims": [
     {
       "id": "claim_7adfe6bc70df455da96fef56ab373539",
@@ -24,11 +24,11 @@
     },
     {
       "id": "claim_4f5b375237a24fe5b3a4c9f6c0b20b0a",
-      "statement": "probe issues HEAD with a GET Range:0-0 fallback, returns RemoteMetadata, treats a WAF/mirror anti-abuse 403 as terminal after a bounded body sniff, and only for non-anti-abuse 403s infers and tests candidate Referers, storing a successful one in extra_headers.",
+      "statement": "probe issues HEAD with a GET Range:0-0 fallback (both forced to Accept-Encoding: identity), returns RemoteMetadata, treats a WAF/mirror anti-abuse 403 as terminal after a bounded body sniff, and only for non-anti-abuse 403s infers and tests candidate Referers, storing a successful one in extra_headers.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/run.rs#L8-L118",
-          "version": "repo-lines-v1:sha256:5ec2e54d41ea485429092b442b1b44084b1d3fe058872c68ae23fb75a05c2382:eyJzZWxlY3RlZExpbmVDb3VudCI6MTExLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJiMjMzMGEzNjQ2MWZlZDRiZGQyOGQ3MTkwMjdkNmUyOWEwYjY2MGI3MzRkODIxZWFjZWM5N2Y5ZjhhM2QyODFjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJmOWIxOTgyZThkZDc0ODExODE0NmIzOWEyZDAwNjJmNDA4MWUzNDc3OWI4Njc1YzIzNGM0ZmIxMjRkYzM5MzkwIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5MmU1NmMwNzU0ZmQxODAyNDVhNWI0ZDZjZWYyYWIxM2Y2MmMwZWFiYmRjZGE0NTNkOWNlNDQ1ZjM0NmViMTYwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJkYzkzNGY1MTRjYmEwOTNkOWE2ZjJmNjc0MDE3NWIzZTE4NjY5MzFkZTU5ODhlODQ1NWQ4ZTJiZDA4OGRmMmViIn0"
+          "resource": "repo://crates/limedl-core/src/http_executor/run.rs#L8-L119",
+          "version": "repo-lines-v1:sha256:3a06c9928eab499d4362ef046374b74465fd5f2398a179d2cd50e9e8b68dea2d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJiMjMzMGEzNjQ2MWZlZDRiZGQyOGQ3MTkwMjdkNmUyOWEwYjY2MGI3MzRkODIxZWFjZWM5N2Y5ZjhhM2QyODFjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5MmU1NmMwNzU0ZmQxODAyNDVhNWI0ZDZjZWYyYWIxM2Y2MmMwZWFiYmRjZGE0NTNkOWNlNDQ1ZjM0NmViMTYwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJmNDVlNDI0NDg1NzE3MTEyOTMzNjE4Y2NkNTJmNzMyZDAxNzllODJiOWFjNzEyYTExMTU0NDFkYjNmNTNiN2Q0In0"
         }
       ]
     },
@@ -77,7 +77,7 @@
       "statement": "A 429 with more than one allocated thread maps to DowngradeSingleThread; the supervisor shuts workers down, flushes, fixes the task to one thread with the 429 note, persists, notifies the scheduler, waits 1500 ms and continues single-threaded without losing progress.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/chunked.rs#L429-L467",
+          "resource": "repo://crates/limedl-core/src/http_executor/chunked.rs#L431-L469",
           "version": "repo-lines-v1:sha256:6d07d2f2853e9f68ad3f51127459d4f61955fe20d6680ab16414a308446cef88:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjZThkOWEzZTViYmE1YWRhMDE5YjhiYjEyYjYxMjVkOWIwNDc3NjA3ZjUzYWNjMDAxNDZhZGFmZTk2Yzg5NmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImViOTZhYWEwZDVhM2E2MGE5ZmUyMzk0YTI3MGMyYTU4NjczM2NiMTJkYWM3NmQ0NTFkYzMwZDIxZjQ4MzI3MzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyN2EzMDRhNjUwMzViZDNiNGIyZjk1ZmJlMTE0OTk2ZWEwZDUwOTRmMjExM2ZhZmYxN2UxNjkzZWViNmI4OWIifQ"
         },
         {
@@ -91,7 +91,7 @@
       "statement": "RestartSingle clears the buffer, prepares a fresh temp file, resets progress and restarts the download as a single stream, discarding previously written data deliberately.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/chunked.rs#L468-L487",
+          "resource": "repo://crates/limedl-core/src/http_executor/chunked.rs#L470-L489",
           "version": "repo-lines-v1:sha256:40212dbe0f78f1ac27dc481ff52c1d50962e8544408fa6917e147cc6ccc5ad71:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjZTIwNzAxMmU2MjYyMWY2OGFmOTZlZDM0OTZkYWNmYzJhMjNhNTZmNTE1NzU2NzQ2OTdlMjhlYjY5N2UwMDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjllMzg0MTM0MGYwYzI3MTg0MzZjNGY2OTUwOWY3ZjE0YjExN2Q1NGMyNDk2NGQ1NTQzMzIzNDFiZmY4M2Q5OGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM3OTRkMDJhODEyMTk0NGQxNzZkMjY1ZTliYjljYzU5ZjZhYjg5MGJjYWRmOGFlZmRlYmRiYmI0ZjJlYTg0NDQifQ"
         }
       ]
@@ -173,7 +173,7 @@
           "version": "repo-lines-v1:sha256:d3bbb76db0a186948201aaf2bcc43aa639f0d7644187f4d72604260fbadf0bd5:eyJzZWxlY3RlZExpbmVDb3VudCI6ODEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUwMzMzZDhhMDZmOWYxZDQxMmUwOWNiMTI5M2IyNDdjOGEzY2EyNTM4NmYyMTBlOGI3ZGFhNmZjZjlmY2EzZTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUxYTE2MTY4NzFlNzNlZWEyZWVhMDczNjU0NmFkYWJlMzMwNTljZmNiZDU4Y2M1NzVkNzJjMjkzNmQ4ZmYwNzMifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L247-L280",
+          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L250-L283",
           "version": "repo-lines-v1:sha256:952800cca454dd775f3d61d11a012a0a5f6f76e6d734cad81aa9444e92ab419a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg1OWE1NjMyYzBiMGU5MjUyMzI1NjdjY2U2NzllZjMyNmMyZWEzYzJlNDY5YjkxNzNlY2FmNmQ3Y2I1MTcxMTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEzZjMwYmQxNDMxNjhjN2FkNzIzZTk2MjA5NDNjODFmNzYwZTc1ZTU3YzAwMDhiNjc4OGM4NGFlNzgyZDY3MzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
         },
         {
@@ -185,6 +185,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T05:35:23.596Z"
+    "at": "2026-10-04T11:10:17.271Z"
   }
 }

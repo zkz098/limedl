@@ -18,20 +18,24 @@ sources:
     resource: repo://crates/limedl-core/src/http_executor/single.rs
   - id: openwiki-source-be8d7d8e3afa06fad7add3ab
     resource: repo://crates/limedl-core/src/http_executor/worker.rs
+  - id: openwiki-source-e0b430766ec4bf361e578331
+    resource: repo://crates/limedl-core/src/http/mod.rs
   - id: openwiki-source-c1216bb52f086b1114796ff0
     resource: repo://crates/limedl-core/src/rate_limiter/mod.rs
   - id: openwiki-source-61df807712674b34c14141ea
     resource: repo://crates/limedl-core/src/retry.rs
+  - id: openwiki-source-b55d53f72185d12e19318ab3
+    resource: repo://crates/limedl-core/src/tests/http_executor_tests/compression.rs
   - id: openwiki-source-5dec6002b80585dbbafe39ac
     resource: repo://crates/limedl-core/src/types/common.rs
   - id: openwiki-source-7ef10e5bb7f9bf65c86b6285
     resource: repo://crates/limedl-core/src/types/settings.rs
   - id: openwiki-source-191c52d830a19ec45ce7e929
     resource: repo://crates/limedl-core/src/url_rewrite/mod.rs
-generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+generated: { by: "pi", at: "2026-10-04T11:10:17.271Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T05:35:23.596Z
+    at: 2026-10-04T11:10:17.271Z
 ---
 
 # Networking, HTTP Clients and Rate Control
@@ -108,7 +112,39 @@ no Alt-Svc auto-upgrade and no h3→h1/h2 fallback, and the h3 connector does no
 pass through the proxy connector — so enabling it in production requires handling
 the "configured proxy must not leak over h3" case first.
 
-Evidence: `repo://Cargo.toml#L16-L28`, `repo://.cargo/config.toml#L1-L45`.
+Evidence: `repo://Cargo.toml#L18-L34`, `repo://.cargo/config.toml#L1-L45`.
+
+### Response compression (gzip / brotli / zstd)
+
+reqwest is built with the `gzip`, `brotli` and `zstd` features, so it advertises
+`Accept-Encoding` and transparently decompresses the response body. That is only
+safe on the plain single-stream GET: tower-http's decompression layer adds
+`Accept-Encoding` to **every** request without one — it does not exempt `Range`
+requests — so a compressed `206` would be decompressed and destroy the byte
+offsets, the per-chunk `Content-Length` and the final checksum.
+
+`http::identity_encoding` therefore forces `Accept-Encoding: identity` on every
+request where decompression would be wrong:
+
+- probes: the `HEAD`, the `Range: bytes=0-0` fallback and the anti-hotlink
+  candidates (a compressed probe would report the compressed length/ranges);
+- `build_segment_request`, i.e. every parallel chunk request;
+- the chunked `bytes=0-0` warmup request;
+- the single-stream resume request (which carries a `Range`).
+
+Only the fresh single-stream GET (offset 0, no `Range`) negotiates compression.
+The identity probe has already reported the true decoded length, so progress,
+`guard_content_length` and the final checksum stay correct.
+
+`tests/http_executor_tests/compression.rs` proves both halves against a server
+that compresses whenever it is asked and counts how often it did: single-stream
+downloads complete with the decoded checksum, and range downloads never trigger a
+compressed response.
+
+Evidence: `repo://crates/limedl-core/src/http/mod.rs#L220-L240`,
+`repo://crates/limedl-core/src/http_executor/single.rs#L188-L212`,
+`repo://crates/limedl-core/src/http_executor/run.rs#L20-L45`,
+`repo://crates/limedl-core/src/tests/http_executor_tests/compression.rs#L1-L40`.
 
 ## Global rate limiter
 

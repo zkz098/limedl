@@ -42,6 +42,8 @@ sources:
     resource: repo://crates/limedl-core/src/tests/corruption_oracle_tests.rs
   - id: openwiki-source-c4e790430c7c56f8a34b5dc0
     resource: repo://crates/limedl-core/src/tests/dispatcher_tests.rs
+  - id: openwiki-source-b55d53f72185d12e19318ab3
+    resource: repo://crates/limedl-core/src/tests/http_executor_tests/compression.rs
   - id: openwiki-source-b6ac5cc91bdd258dd969abbc
     resource: repo://crates/limedl-core/src/tests/mod.rs
   - id: openwiki-source-6b9d139f018792972b672af7
@@ -52,10 +54,10 @@ sources:
     resource: repo://crates/limedl-core/tests/logging_reload_repro.rs
   - id: openwiki-source-3fe9812b75a7522e89f74344
     resource: repo://docs/aria2-interop-testing.md
-generated: { by: "pi", at: "2026-10-04T10:39:31.763Z" }
+generated: { by: "pi", at: "2026-10-04T11:10:17.271Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T10:39:31.763Z
+    at: 2026-10-04T11:10:17.271Z
 ---
 
 # Testing Strategy
@@ -205,7 +207,7 @@ Evidence: `repo://crates/limedl-core/src/tests/resume_corruption_tests.rs#L99-L1
 - `manager_tests/` — start/validation, thread resolution, progress, checksum,
   eviction, lifecycle, queries, scheduling.
 - `http_executor_tests/` — single stream, multi stream, chunk workers, mirrors
-  and abuse, HTTP errors, rate limiting.
+  and abuse, HTTP errors, rate limiting, response compression.
 - `scheduler_tests/` — limits, lifecycle, scheduling.
 - `persistence_tests.rs` / `persistence_e2e_tests.rs` — restart recovery,
   including the stale-claim test.
@@ -213,6 +215,26 @@ Evidence: `repo://crates/limedl-core/src/tests/resume_corruption_tests.rs#L99-L1
   `retry_tests.rs`, `settings_roundtrip_tests.rs`, `disk_detect_test.rs`.
 
 Evidence: `repo://crates/limedl-core/src/tests/mod.rs#L1-L27`.
+
+### Response compression tests
+
+`http_executor_tests/compression.rs` covers the gzip/brotli/zstd paths added by
+reqwest's decompression features. The test server exposes `/file/encoded/{enc}`
+(single-stream) and `/file/encoded-range/{enc}` (range-capable but returns the
+whole compressed body when asked), compresses only when the request's
+`Accept-Encoding` allows it, and counts how often it did
+(`TestServer::encoded_responses`).
+
+Each encoding is exercised twice:
+
+- single-stream: the download must complete with the checksum of the **decoded**
+  content and the server must have compressed at least once;
+- range: a 4-thread download of a 9 MiB file must complete with the decoded
+  checksum and the server must have compressed **zero** times — proving
+  `identity_encoding` kept every segment request byte-exact.
+
+Evidence: `repo://crates/limedl-core/src/tests/http_executor_tests/compression.rs#L1-L40`,
+`repo://crates/limedl-core/src/test_harness/mod.rs#L180-L196`.
 
 ### Dispatcher facade tests
 
@@ -269,6 +291,9 @@ It is pure Rust with no external binary, so it runs inside the normal
 `cargo nextest run --features "test-utils,aria2-rpc"` core gate. The Tier 2
 (real `aria2c` oracle) and Tier 3 (AriaNg smoke test) layers, together with the
 list of intentional deviations, live in `docs/aria2-interop-testing.md`.
+`interop_get_version_is_truthful` additionally locks `aria2.getVersion` to the
+real version and the truthful feature list (no XML-RPC/Firefox3 Cookie/Metalink/
+SFTP; GZip/Brotli/Zstd present).
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L1-L60`,
 `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L81-L214`,

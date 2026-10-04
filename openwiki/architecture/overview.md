@@ -5,7 +5,7 @@ description: Repository layout and runtime topology of limedl — the core engin
 tags: [architecture, workspace, crates, routing, event-bus, conventions]
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T10:20:09.270Z
+    at: 2026-10-04T11:10:17.271Z
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
     resource: repo://.cargo/config.toml
@@ -37,7 +37,7 @@ sources:
     resource: repo://crates/limedl-native/src/main.rs
   - id: openwiki-source-d94bdd15f85e5a65c6c7399a
     resource: repo://crates/limedl-native/src/renderer.rs
-generated: { by: "pi", at: "2026-10-04T10:20:09.270Z" }
+generated: { by: "pi", at: "2026-10-04T11:10:17.271Z" }
 ---
 
 # Workspace and System Architecture
@@ -156,8 +156,10 @@ Evidence: `repo://crates/limedl-native/src/main.rs#L176-L179`,
   `repo://crates/limedl-core/src/types/task.rs#L13-L43`.
 - **Feature flags**: `limedl-core` defaults to `bt`, and the `aria2-rpc` feature
   pulls in axum/tower-http/argon2/subtle and implies `bt`. `test-utils` exposes
-  AIMD/buffer-pool/test-harness internals that are private in release builds.
-  Evidence: `repo://crates/limedl-core/Cargo.toml#L47-L58`,
+  AIMD/buffer-pool/test-harness internals that are private in release builds; it
+  also enables the gzip/brotli/zstd encoders the compression test endpoints use
+  (the decoder side is always on through reqwest).
+  Evidence: `repo://crates/limedl-core/Cargo.toml#L53-L64`,
   `repo://crates/limedl-core/src/lib.rs#L36-L48`.
 - **Target flags**: `.cargo/config.toml` adds `target-cpu=x86-64-v3` (desktop)
   and `--cfg reqwest_unstable` for every target; the HTTP/3 feature in reqwest

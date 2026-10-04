@@ -30,10 +30,10 @@ sources:
     resource: repo://crates/limedl-core/src/persistence.rs
   - id: openwiki-source-098d28438aacd15b419786dc
     resource: repo://crates/limedl-core/src/task_lifecycle/mod.rs
-generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+generated: { by: "pi", at: "2026-10-04T11:10:17.271Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T05:35:23.596Z
+    at: 2026-10-04T11:10:17.271Z
 ---
 
 # HTTP Download Lifecycle
@@ -71,7 +71,10 @@ Evidence: `repo://crates/limedl-core/src/task_lifecycle/mod.rs#L85-L190`.
 
 `HttpExecutor::probe` issues a `HEAD`, falling back to `GET` with
 `Range: bytes=0-0` when the HEAD is not successful. It returns `RemoteMetadata`:
-final URL, file name, total bytes, range support, ETag and Last-Modified.
+final URL, file name, total bytes, range support, ETag and Last-Modified. The
+probe (and the anti-hotlink candidates) force `Accept-Encoding: identity`, so the
+reported length and range support describe the identity representation even when
+the client has response decompression enabled.
 
 A `403 Forbidden` is disambiguated by sniffing a bounded body prefix:
 
@@ -82,7 +85,7 @@ A `403 Forbidden` is disambiguated by sniffing a bounded body prefix:
   generates candidates, each is tried, and the first success is stored in the
   manifest's `extra_headers` so all chunk workers inherit it.
 
-Evidence: `repo://crates/limedl-core/src/http_executor/run.rs#L8-L118`.
+Evidence: `repo://crates/limedl-core/src/http_executor/run.rs#L8-L119`.
 
 `run_download` then:
 
