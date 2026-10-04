@@ -5,7 +5,7 @@ description: Repository layout and runtime topology of limedl — the core engin
 tags: [architecture, workspace, crates, routing, event-bus, conventions]
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T05:35:23.596Z
+    at: 2026-10-04T07:31:34.204Z
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
     resource: repo://.cargo/config.toml
@@ -37,7 +37,7 @@ sources:
     resource: repo://crates/limedl-native/src/main.rs
   - id: openwiki-source-d94bdd15f85e5a65c6c7399a
     resource: repo://crates/limedl-native/src/renderer.rs
-generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+generated: { by: "pi", at: "2026-10-04T07:31:34.204Z" }
 ---
 
 # Workspace and System Architecture
@@ -46,7 +46,7 @@ limedl is a Cargo workspace with three members: `crates/limedl-core` (the pure
 download engine, lib name `limedl_core`), `crates/limedl-native` (the Slint desktop
 client binary), and `xtask` (repository tooling for version bumps, font fetching
 and release signing). All crates use Rust edition 2024 and the workspace version
-is inherited from the root manifest.
+(`0.4.5`) is inherited from the root manifest.
 
 Evidence: `repo://Cargo.toml#L1-L11`.
 

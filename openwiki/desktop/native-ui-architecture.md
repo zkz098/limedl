@@ -8,6 +8,8 @@ sources:
     resource: repo://crates/limedl-native/src/autostart.rs
   - id: openwiki-source-2ba14b7f8d43883e76ffefa7
     resource: repo://crates/limedl-native/src/bridge/mod.rs
+  - id: openwiki-source-7acf26e7ec8ef8633b599976
+    resource: repo://crates/limedl-native/src/bridge/models.rs
   - id: openwiki-source-ec243741e58f29f41733a43b
     resource: repo://crates/limedl-native/src/context.rs
   - id: openwiki-source-464561a96b1e4d21d0fee313
@@ -40,14 +42,22 @@ sources:
     resource: repo://crates/limedl-native/src/ui_boot.rs
   - id: openwiki-source-dc8eda3d2c4e2e45f618f8dc
     resource: repo://crates/limedl-native/src/ui_sync.rs
+  - id: openwiki-source-21d94ca69186f557c4be155a
+    resource: repo://crates/limedl-native/ui/components/labs_dialog.slint
+  - id: openwiki-source-c8ea6494d2edd0f743860be5
+    resource: repo://crates/limedl-native/ui/components/settings/tab_about.slint
+  - id: openwiki-source-271291a9954de641cdaeace8
+    resource: repo://crates/limedl-native/ui/components/task_card.slint
+  - id: openwiki-source-6fc9c568593230054ba6dc94
+    resource: repo://crates/limedl-native/ui/components/task_table.slint
   - id: openwiki-source-8dffa5722cdb3e6e3fb0c023
     resource: repo://crates/limedl-native/ui/components/toast_stack.slint
   - id: openwiki-source-90185777dff572d79a3b452d
     resource: repo://crates/limedl-native/ui/theme.slint
-generated: { by: "pi", at: "2026-10-04T06:33:35.544Z" }
+generated: { by: "pi", at: "2026-10-04T07:31:34.204Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T06:33:35.544Z
+    at: 2026-10-04T07:31:34.204Z
 ---
 
 # Native Desktop UI (Slint)
@@ -212,6 +222,32 @@ flips. Rust's `TOAST_EXIT_MS` is deliberately a little longer than the `.slint`
 Evidence: `repo://crates/limedl-native/src/toast.rs#L12-L145`,
 `repo://crates/limedl-native/ui/components/toast_stack.slint#L34-L62`.
 
+## Download progress rendering
+
+`summary_to_task_item` derives `TaskItem::is_indeterminate`: a `Queued` task with
+zero downloaded bytes, or a `Downloading` task with zero downloaded bytes and an
+unknown or zero total, is indeterminate; every other state — including a
+`Downloading` task whose total is known — is determinate.
+
+The two row components render the flag differently:
+
+- **Determinate** bars (`task_card.slint`, `task_table.slint`) animate their
+  width over 250 ms (`animate width { duration: 250ms; easing: ease-out; }`), and
+  the table bar adds a soft white highlight at the leading edge while the task is
+  actively downloading between 2% and 99%. The update-download bar in
+  `tab_about.slint` and the CDN-speedtest bar in `labs_dialog.slint` reuse the
+  same width animation.
+- **Indeterminate** bars replace the fill with a 35%-wide highlight beam that
+  sweeps the track on a 1500 ms cycle (`mod(animation-tick(), 1500ms) / 1500ms`)
+  and paints it with a `@linear-gradient` between the accent and white, so a task
+  that has not reported any bytes still shows that it is alive.
+
+Evidence: `repo://crates/limedl-native/src/bridge/models.rs#L194-L203`,
+`repo://crates/limedl-native/ui/components/task_card.slint#L250-L298`,
+`repo://crates/limedl-native/ui/components/task_table.slint#L501-L547`,
+`repo://crates/limedl-native/ui/components/settings/tab_about.slint#L143-L152`,
+`repo://crates/limedl-native/ui/components/labs_dialog.slint#L270-L278`.
+
 ## Settings save side effects live in one module
 
 `settings_sync::SettingsSync` is shared by the settings dialog and the setup
@@ -247,7 +283,10 @@ Evidence: `repo://crates/limedl-native/src/i18n/mod.rs#L1-L16`,
 
 `InstanceClaim::claim(base_dir)` resolves to one of two strategies, and the
 primary handle must stay alive for the whole process — dropping it releases the
-claim:
+claim. The handle is held, not read: `ClaimState::Primary` carries a
+`PrimaryHandle` that on Windows wraps a raw mutex `HANDLE`, and the field is
+deliberately exempted from `dead_code` because keeping the value alive (never
+calling `CloseHandle`) is the entire point.
 
 - **Windows**: a session-local named mutex (`Local\limedl-native-single-instance`).
   Ownership is read from `GetLastError() == ERROR_ALREADY_EXISTS` after

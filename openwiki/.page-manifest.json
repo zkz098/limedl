@@ -9,11 +9,11 @@
       "completedRunId": "3ebdb451-7419-4982-b2f0-16cb7f2c6e6b"
     },
     "/openwiki/architecture/overview.md": {
-      "gitHead": "9c4e9d28d5b0df8487bc5a0254b565ee47beabfa",
-      "sourceFingerprint": "sha256:1b7ed353c3d689d5f24d6a8c1d39e3c25c8c6747d74aed6197eb65dac9c10a63",
-      "pageVersion": "sha256:50934b1dac55aa52a75b9301e40360311dd4a405f014db2a12881933a6884af2",
+      "pageVersion": "sha256:6dace9590dae7b1444067069805b8109eac7d6d57e9c73bea7aa4ab622ad102b",
       "completedBy": "pi",
-      "completedRunId": "e166833d-eb4e-4774-81ab-b38e35c2dde5"
+      "completedRunId": "748560d7-d3d9-476e-8033-71b826358d51",
+      "gitHead": "a4b7eabac36633a235568af82c96215f66ef2add",
+      "sourceFingerprint": "sha256:59e34ccb5f58dbff6ebef7b3fabb77c625a8f6cc585c0fa9714895abf761561b"
     },
     "/openwiki/architecture/protocol-routing-and-dispatcher.md": {
       "gitHead": "1e0b3b9485bae0d91d2e43e51b09a417cbb1a492",
@@ -23,11 +23,11 @@
       "completedRunId": "3ebdb451-7419-4982-b2f0-16cb7f2c6e6b"
     },
     "/openwiki/desktop/native-ui-architecture.md": {
-      "gitHead": "88f07f4191e369d511fead16f530d70aa52ad6c4",
-      "sourceFingerprint": "sha256:add0ef5840b7f24515c02103e363674c3b260a5e5717ad36329b00b6d7e1d176",
-      "pageVersion": "sha256:03592e7e4da7a7f533bf82bf1edf77811168c51a4546f985dc70326b934c0062",
+      "pageVersion": "sha256:3fe1e1f3bc7fadf917b3ea3da887893239e6ea72fdfc36c9d8a64711d619487b",
       "completedBy": "pi",
-      "completedRunId": "5b9ace8a-0765-42b0-838e-fa784f134efa"
+      "completedRunId": "748560d7-d3d9-476e-8033-71b826358d51",
+      "gitHead": "a4b7eabac36633a235568af82c96215f66ef2add",
+      "sourceFingerprint": "sha256:59e34ccb5f58dbff6ebef7b3fabb77c625a8f6cc585c0fa9714895abf761561b"
     },
     "/openwiki/desktop/self-update-and-distribution.md": {
       "gitHead": "7742de755ce41bead3f8a2f30a8b65b164591836",
@@ -51,11 +51,11 @@
       "completedRunId": "7c41b6ab-b8cf-4d38-8685-fa10d3a1e8c0"
     },
     "/openwiki/quickstart.md": {
-      "gitHead": "7742de755ce41bead3f8a2f30a8b65b164591836",
-      "sourceFingerprint": "sha256:6e48867fa33bf6439babc319e38fd238f5775f96f2ea8639c5ecc8029b5b4baf",
-      "pageVersion": "sha256:511790dd22e72f9e2adf81ed25f23e994aaf038afc59e12e6cb5aee24c6e976d",
+      "pageVersion": "sha256:932728165c1d68621eb59d8762509a34b564c66c63f69bd25f2bea30c7c06d47",
       "completedBy": "pi",
-      "completedRunId": "7c41b6ab-b8cf-4d38-8685-fa10d3a1e8c0"
+      "completedRunId": "748560d7-d3d9-476e-8033-71b826358d51",
+      "gitHead": "a4b7eabac36633a235568af82c96215f66ef2add",
+      "sourceFingerprint": "sha256:59e34ccb5f58dbff6ebef7b3fabb77c625a8f6cc585c0fa9714895abf761561b"
     },
     "/openwiki/systems/disk-io-and-storage.md": {
       "gitHead": "9c4e9d28d5b0df8487bc5a0254b565ee47beabfa",
@@ -86,11 +86,11 @@
       "completedRunId": "e166833d-eb4e-4774-81ab-b38e35c2dde5"
     },
     "/openwiki/testing/slint-ui-testing.md": {
-      "pageVersion": "sha256:e48e8f7cb9d5d9647a7c0ace34052b0846996b97b760007c1f2449797cbed965",
+      "pageVersion": "sha256:2b759548c1da717b9360210d3751c49946a5cde4ae7b1cb3aedaed3dac4d192c",
       "completedBy": "pi",
-      "completedRunId": "bfcc5e55-005f-41df-aa77-34ca55471355",
-      "gitHead": "88f07f4191e369d511fead16f530d70aa52ad6c4",
-      "sourceFingerprint": "sha256:d640bd0ab705c248049c219a0cb31b9163dbfdb372d70a646572b9f9e4903167"
+      "completedRunId": "748560d7-d3d9-476e-8033-71b826358d51",
+      "gitHead": "a4b7eabac36633a235568af82c96215f66ef2add",
+      "sourceFingerprint": "sha256:59e34ccb5f58dbff6ebef7b3fabb77c625a8f6cc585c0fa9714895abf761561b"
     },
     "/openwiki/testing/testing-strategy.md": {
       "gitHead": "9c4e9d28d5b0df8487bc5a0254b565ee47beabfa",

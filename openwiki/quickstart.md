@@ -3,9 +3,6 @@ type: guide
 title: limedl Wiki Quickstart
 description: Entry point and task-routing map for the limedl wiki — where to start for building, understanding the engine, adding a backend, debugging downloads, testing and shipping a release, plus the repository's load-bearing invariants.
 tags: [quickstart, navigation, onboarding, build, workflow]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T03:21:09.297Z
 sources:
   - id: openwiki-source-4d1d392666be6dfdd7a91a2e
     resource: repo://.github/workflows/release.yml
@@ -40,6 +37,9 @@ sources:
   - id: openwiki-source-ca864fd40fa4107ed35f840f
     resource: repo://xtask/src/fetch_font.rs
 generated: { by: "pi", at: "2026-10-04T03:21:09.297Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-04T07:31:34.204Z
 ---
 
 # limedl Wiki Quickstart

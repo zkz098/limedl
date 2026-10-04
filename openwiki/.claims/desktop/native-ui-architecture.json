@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:03592e7e4da7a7f533bf82bf1edf77811168c51a4546f985dc70326b934c0062",
+  "pageVersion": "sha256:3fe1e1f3bc7fadf917b3ea3da887893239e6ea72fdfc36c9d8a64711d619487b",
   "claims": [
     {
       "id": "claim_a3116684fdf845e3bf61d5d54d1ccadf",
@@ -141,11 +141,11 @@
           "version": "repo-lines-v1:sha256:722e841f9d6c05a9a587160b0e321dab948eaf398af4830203dce32ba239755b:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgwZjBjOThiODYwZDg4YjhhYzk2NzRlNDZjYmU4NjE0NWNjMWZhMjQ0MGRiZWI1ZjM1YjFkZTg1NzIzNGRkMmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiZjgxMzZkZDNkODQ3MTc0N2UzYjUyYmNjMzZjOTFjNjU2ZTQzYzdhOWFhYzgxNTA4Y2E0NTA1YzRkZGNiMDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFkNGMyMWExZWUyZjA3ZGZkOGE3YmY3MzljOWE3ZTY5NTBlMGIzNWNlNGIxNzBjYjUzZGM1NzI2NmU0NGVlMTUifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/single_instance.rs#L256-L330",
+          "resource": "repo://crates/limedl-native/src/single_instance.rs#L258-L332",
           "version": "repo-lines-v1:sha256:9519b6c9be95e73076f5839837db72f6504e8a4f1760af17c06a8df3ea8f3431:eyJzZWxlY3RlZExpbmVDb3VudCI6NzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzODMxMzIxZmY1MjI5MmVhNjQzYjIxMTBkZmFkZjVjMGJkMDdlNjYyZTA0YmFlZTc2YjE0ODAyZmRkMGY2ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhMmRjNDhiNzAyOWY5NTEzMWJkODEyMzY3YmY3NzQxYzAwMjhmYTQxZjRkYWM4NjUyMGQwZTk5YjQ5MzlkMWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY2MTk2YTliODlmMTNhMzAxODhmYWE4NDJjYWNhZGZiNTVlYTFiY2Q4OWVjNTRiYzE0MTc1YjBjY2MwNzA0NzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhODM5Mjk2ZDlkZWJiNDU4MzgzNTc5ZDE4Y2E4ZjFhNWRkOWM2Njc5MTY3YmQ2ZmI4ZGEzYmNkMGY0MTUxODEifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/single_instance.rs#L88-L165",
+          "resource": "repo://crates/limedl-native/src/single_instance.rs#L90-L167",
           "version": "repo-lines-v1:sha256:3795c6964bfc3a30b633077e3d82505c448c9e8ccc76a309a2d3fab6f5ce7502:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwNzVkOTQ1Y2UyMTM5ZGFiZWZmOTUxYTJhOWRjM2Q5MDZmMTI0ZTI3YzQzMmEzMTVmMmFiYzgzMTkyZmJmOTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU4NzkyNzQzM2E5OGQ2ZjMwMjdiMTQzYWRmODYwZTM3MjNlNGUzYTE2YTE5OThlYWRjMDNhZmQzM2I0OGVkZmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQwNGMyNDE5MjMxNWMzMTlkMWZlNzU1ZWY2OWRkMGE4YjVlNTQ1ZGU3MTE3ZWFlNjk2ZjUxMGFlZTY4MTEyNjkifQ"
         }
       ]
@@ -287,10 +287,36 @@
           "version": "repo-lines-v1:sha256:c5d467a8bdd0cd96117470c034d0fe15e2f27b464dd0df091b0a1cb9c5c03177:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTY1NDVjZjhiYTI4Y2M0M2IzYTMzNGY1MDBjMDllNmNkYTNiMjYyODIwNmVhZjE2Y2I3MTIwZGU0ZTE3ZjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYyMDQ3NzJhNmFiMmVkMGY2MGMyZjdjYzcwYTNlMDBiYWNkZGQ5M2E5YzE4M2RjNDY2Njc4ZGQ2YTRiOGZiNjIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI3MDg1YzlmMzQ2ZTY4NGQ2ZDlhZDczYjAzYjMyMWRiZjBlZDg4YTFlNmE1NDNkOTkwZmJmY2VlZjhmMTdjMTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZkYmEwYmQxMzI3ZGU3NWJjYTUwZWRhOWY3YThhOTgwYzcwZWIxM2Q0MDMxNzBkM2I3N2U5MzEwOWY0YTA3MWQifQ"
         }
       ]
+    },
+    {
+      "id": "claim_d5855f9a8f3e4afa9b159a3634412b13",
+      "statement": "summary_to_task_item derives TaskItem::is_indeterminate (Queued with zero downloaded bytes, or Downloading with zero downloaded bytes and an unknown or zero total); task_card.slint and task_table.slint render indeterminate rows with a 1500 ms flowing highlight beam and animate the determinate bar width over 250 ms, and the update-download and CDN-speedtest bars reuse that width animation.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/bridge/models.rs#L194-L203",
+          "version": "repo-lines-v1:sha256:cabadac73ca9a09a545815efe9636433dbb6a9d240e5511efd4e4030ff01b337:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzNzY1N2UwNzZkZWM0NDJlNjhlM2ZjZGFjMGE2NWI5Y2I3NGU0ODI2ZmIyZmQ0NDg3ZWQ4Y2M1MzQ5ZjllZjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjOTdlMzAzNGQ4ODdjY2U0NzI2OGYwN2UwZDhkYTU5MjlkNDIxOWQ1NmU1OTVkNzRhMjYzMDc1MWMxMWY3NzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYzZDM3NDk2MGJiYmY0ZmQ4ZDBkYjVmM2FlZTA0NmYwMjRjZDNmMWY0YzhkOTc4YTIwNTM4ZjJjZWEzYjU5YTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhYmNjNTQwMzQ5MWEzNzc4ZjkzY2ZiODEzYjY3ZDliMGM0NmFmOGNjMGEwOGJjMjllMjI3ZDJmY2EyOTUyZWIifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/ui/components/labs_dialog.slint#L270-L278",
+          "version": "repo-lines-v1:sha256:f63608e983caf4567057fc316f2468765262299f9b9e2a19de3349bfdc465714:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDQ4ZjE1MTBkZTAxZTE1YTQ4ODdkOWRjNmY5MzhkZDdkMzg1MjU3YTdkY2JkMDU0NTUwYzYyMGRjN2I2YWIxNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWVjMDFjYWMxMGY1M2IzNzgwMzc0NGUzODFhOGNkYzNmODBlOWMyYTU1ODc0MmVkNjBhNTBlYzllZWY5YjE1YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzM1M2NkMTVhZjhhNjA4NGRjMjc3N2Q0ZGY3YjkxNjM5OTRmMDYyNWZiZGU2NDQ0ZjAwNzZkNjY3NDg3ZDY2OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDA4Nzk1YjRkZTE1NmVmYmFiNzY4NWZiNTQ4YjU2MTc4Njg4NGI2ODE5NWI0MThjNWU1ZTY3OWVjNzIyNzAxMiJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-native/ui/components/settings/tab_about.slint#L143-L152",
+          "version": "repo-lines-v1:sha256:1d99a007cf733311ea254dedc41d4f9acf22e917402b09f2532cd5c0877e9f1d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMGZkYjBhZjg0MjAxNmEzN2QzMDY3OTc5ZDA2YzkwYjdiMDE4ZDVjZmVjOTg4YjY0MjkxNDU0ZjNkNzBlOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNlNjdlMTI4ZTQzZWJjOWExZjhjYjU0ODFmODI0YmRhZGE1ZGZmYjU4NTk3YTdkZmMyNDRkMTQ0YTkzNDA4YzAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI4MDRiY2I1MDViNjIyNzZhZDVjNjhiYjYyOTAyODVlN2E4M2Q2MDljYjBhOWVmZGUxNzBiOGM2MzVmOTZiNTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMzMTQzNzk4NDk3OTRjNDI3MmMxZTg1MzgzZmYzODA1ZjU1MGNjMzhkYjRmODNjMTkyOWUxOGQ0OTcwMjkzZWMifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/ui/components/task_card.slint#L250-L298",
+          "version": "repo-lines-v1:sha256:345da603e79273fca6fc01acce8e9c68eb8c279fa7efed494cc4db53e473fff6:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY0MDNjYmMxMzBkMDhmZjQxMzc5YzVkMjMyYzg4ODZjMzVkYTkxMWI0YWJkNmM5ODQyZjYyNTkyMDgzZGMzYmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MjJjNDJjZDE5YzZkMDNkODA4YzQ1MjcyMDU1MjgyNWI3ZWExYzViNDkxYjIxODUxMWNhYzc0MTVjZjlkOWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE3NjFiZjRiZTFiMWZjOTM5NDEyZDdiNjhhY2VkZmUyNjNjMWNiYzIyMjMxMjEyZGYzOTA5YzcyMjljZDE2ZWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFiODg0ZDM5NzVhYzExZmQzMjBjY2RmY2ZhNzRlZDBiNzQyYTcxNjFmNWJmOGUwYmVlYjVlNGJhN2MxZWY4MTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/ui/components/task_table.slint#L501-L547",
+          "version": "repo-lines-v1:sha256:5d186ac129b9af27beed36eb040765269b538be088f574b31ad872b270be712b:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlYzAxY2FjMTBmNTNiMzc4MDM3NDRlMzgxYThjZGMzZjgwZTljMmE1NTg3NDJlZDYwYTUwZWM5ZWVmOWIxNWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc3YWQ0OTI4MmEwMGZhOTI1NjQ0ODgwNWFhOTU1NjBkYjg5ZjQyYjlhYjgyOWZhM2NjNmEyZWVkNThjNmRkZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVhMzVmNDMyZDgzMTBkOWEyM2M2Y2FiNjM5ODA3Nzc2YmY3NDEwNDAxNzRkYTc0ZTA0MzhiZTU3ZGZlZTAxNzQifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T06:33:35.544Z"
+    "at": "2026-10-04T07:31:34.204Z"
   }
 }

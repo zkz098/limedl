@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:e48e8f7cb9d5d9647a7c0ace34052b0846996b97b760007c1f2449797cbed965",
+  "pageVersion": "sha256:2b759548c1da717b9360210d3751c49946a5cde4ae7b1cb3aedaed3dac4d192c",
   "claims": [
     {
       "id": "claim_8ae54ce2240f44308d879c9a2c645566",
@@ -112,11 +112,11 @@
     },
     {
       "id": "claim_a4dfd79659774293b9ae48cd3fb037b3",
-      "statement": "pump_once advances the mocked clock by 20 ms, yields the tokio runtime, then drains Slint's queue; pump_until repeats up to 50 rounds and fails with the recorded engine calls rather than hanging when a contract never settles.",
+      "statement": "pump_once advances the mocked clock by 20 ms, yields the tokio runtime, then drains Slint's queue; pump_until repeats this against a 5 s wall-clock deadline with a 1 ms real-time sleep between rounds and fails with the recorded engine calls rather than hanging when a contract never settles.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L634-L684",
-          "version": "repo-lines-v1:sha256:df4f1208ca7bfebb9736ec1e2ea28106db0942c0eaf14e71dae5f85207a484cf:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4MzYyYjkyMGNhZGM2Mjk3NDk3OTdiZjM0ZDY2YmIyZmM2YmEwYzVmNzgyOTc0YWY1YWFmZDJmNTYwZTU2NWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwMjc1Y2M1Mjc2MmFiOWJlNDQ2ZjcwOGFkZTRiYjgwMTA4NTQ3ZGQ3ZTc1MzgyMzFkZDBmZDlkNDU4MWFlNzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhODQ2ZTY3MTdhNGM3YjFkNzkxZDU5ZGVkMWRiZGI1NTlhMTliNDZlOGExMTZlMTU0NWZjNTljNWFiY2EzYjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2NWVhZGRhMDFiMzIyNmVkNDRhYWQ5YWY0ODBjYzI5N2M1OGZiYzhiMzkxMGFjNTQ4ODc1NDEyNzFlMzFhMWMifQ"
+          "resource": "repo://crates/limedl-native/src/ui_tests/mod.rs#L641-L691",
+          "version": "repo-lines-v1:sha256:538a10d04234eaf92879b7e22f246409086f5a17336b2cf57e271699333dfe3f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjViNWM0NGY3YTIzZjFhNTk2Mzk3YzZjYmRmNzc3ZmVmM2I0NWEwYjYwY2UwMDE2NDQ2NTg5MGZmZTZiMzI1NTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg5MTA2YzJiOTdmMTliOTkzNDgxMWY3YjlmOWQ2M2U4ZWNjZTViNTg3NmQ3YWE4ODkyODYwMmFlMGNhMWIwZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUyYWY1ODViOTI2YTVjYWNjZjA3OTg3Mzc0YzU3YjhmNzJjMjFiOGEyOWM1OTVkNjVmMzY0MGZhZDQ2NDQzMjMifQ"
         }
       ]
     },
@@ -181,6 +181,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T06:39:00.867Z"
+    "at": "2026-10-04T07:31:34.204Z"
   }
 }
