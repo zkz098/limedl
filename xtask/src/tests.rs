@@ -189,3 +189,79 @@ fn default_update_path_declares_the_embedded_pubkey() {
         update_src.display()
     );
 }
+
+#[test]
+fn theme_generation_matches_repo_theme() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("xtask sits one level below the repo root");
+    let theme_file = repo_root.join("crates/limedl-native/ui/theme.slint");
+    let disk_content = fs::read_to_string(&theme_file).expect("read theme.slint");
+    let generated = theme::generate_theme_slint();
+    assert_eq!(
+        disk_content.replace("\r\n", "\n"),
+        generated.replace("\r\n", "\n"),
+        "theme.slint is out of sync with xtask/src/theme.rs. Run `cargo xtask theme generate`."
+    );
+}
+
+#[test]
+fn icons_generation_creates_expected_assets() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("xtask sits one level below the repo root");
+    let logo_path = repo_root.join("crates/limedl-native/ui/assets/logo.png");
+    let icon_path = repo_root.join("crates/limedl-native/ui/assets/icon.png");
+
+    let dir = temp_dir("icons");
+
+    // 1. MSIX
+    let msix_dir = dir.join("msix");
+    icons::run(icons::IconsCommand::Msix {
+        out_dir: msix_dir.clone(),
+        source: logo_path,
+    })
+    .unwrap();
+    for (name, size) in icons::MSIX_SPECS {
+        let p = msix_dir.join(format!("{name}.png"));
+        assert!(p.is_file(), "missing {name}.png");
+        let decoded = image::ImageReader::open(&p).unwrap().decode().unwrap();
+        assert_eq!(decoded.width(), *size);
+        assert_eq!(decoded.height(), *size);
+    }
+
+    // 2. Hicolor
+    let hicolor_dir = dir.join("hicolor");
+    icons::run(icons::IconsCommand::Hicolor {
+        out_dir: hicolor_dir.clone(),
+        source: icon_path.clone(),
+    })
+    .unwrap();
+    for size in icons::HICOLOR_SIZES {
+        let p = hicolor_dir
+            .join(format!("{size}x{size}"))
+            .join("apps/limedl-native.png");
+        assert!(p.is_file(), "missing hicolor {size}x{size}");
+        let decoded = image::ImageReader::open(&p).unwrap().decode().unwrap();
+        assert_eq!(decoded.width(), *size);
+        assert_eq!(decoded.height(), *size);
+    }
+
+    // 3. macOS iconset
+    let macos_dir = dir.join("AppIcon.iconset");
+    icons::run(icons::IconsCommand::MacosIconset {
+        out_dir: macos_dir.clone(),
+        source: icon_path,
+    })
+    .unwrap();
+    for (name, size) in icons::MACOS_SPECS {
+        let p = macos_dir.join(name);
+        assert!(p.is_file(), "missing {name}");
+        let decoded = image::ImageReader::open(&p).unwrap().decode().unwrap();
+        assert_eq!(decoded.width(), *size);
+        assert_eq!(decoded.height(), *size);
+    }
+
+    fs::remove_dir_all(&dir).ok();
+}
+

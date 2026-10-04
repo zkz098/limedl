@@ -249,7 +249,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$staging/Assets" | Out-Null
 
           Copy-Item dist/limedl-native.exe $staging/
-          pwsh scripts/gen-msix-assets.ps1 -OutDir "$staging/Assets"
+          cargo xtask gen-icons msix --out-dir "$staging/Assets"
 
           # MSIX versions are strictly a.b.c.d (numeric only) — drop any
           # prerelease suffix from the tag.

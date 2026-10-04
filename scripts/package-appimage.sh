@@ -92,36 +92,7 @@ ln -sf "limedl-native.png" "$APPDIR/.DirIcon"
 mkdir -p "$APPDIR/usr/share/pixmaps"
 install -m 0644 "$ICON" "$APPDIR/usr/share/pixmaps/limedl-native.png"
 
-mkdir -p "$APPDIR/usr/share/icons/hicolor/512x512/apps"
-install -m 0644 "$ICON" "$APPDIR/usr/share/icons/hicolor/512x512/apps/limedl-native.png"
-
-ICON_32="$REPO_ROOT/crates/limedl-native/ui/assets/32x32.png"
-if [[ -f "$ICON_32" ]]; then
-  mkdir -p "$APPDIR/usr/share/icons/hicolor/32x32/apps"
-  install -m 0644 "$ICON_32" "$APPDIR/usr/share/icons/hicolor/32x32/apps/limedl-native.png"
-fi
-
-if command -v convert >/dev/null 2>&1; then
-  for s in 16 48 64 128 256; do
-    mkdir -p "$APPDIR/usr/share/icons/hicolor/${s}x${s}/apps"
-    convert "$ICON" -resize "${s}x${s}" "$APPDIR/usr/share/icons/hicolor/${s}x${s}/apps/limedl-native.png" 2>/dev/null || true
-  done
-elif command -v python3 >/dev/null 2>&1 && python3 -c "from PIL import Image" >/dev/null 2>&1; then
-  python3 -c "
-from PIL import Image
-import os, sys
-src = sys.argv[1]
-dest = sys.argv[2]
-try:
-    im = Image.open(src)
-    for s in [16, 48, 64, 128, 256]:
-        d = os.path.join(dest, f'usr/share/icons/hicolor/{s}x{s}/apps')
-        os.makedirs(d, exist_ok=True)
-        im.resize((s, s), Image.Resampling.LANCZOS).save(os.path.join(d, 'limedl-native.png'))
-except Exception as e:
-    pass
-" "$ICON" "$APPDIR"
-fi
+cargo xtask gen-icons hicolor --out-dir "$APPDIR/usr/share/icons/hicolor" --source "$ICON"
 
 # ── 5. AppImageTool Execution ────────────────────────────────────────────────
 APPIMAGETOOL=""

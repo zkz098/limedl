@@ -42,7 +42,9 @@ use minisign::{KeyPair, PublicKey, SecretKey, SecretKeyBox, SignatureBox};
 
 mod bump_version;
 mod fetch_font;
+mod icons;
 mod manifest;
+mod theme;
 
 /// base64 of the key file text — the form stored in CI secrets and embedded in
 /// `update.rs`.
@@ -165,6 +167,12 @@ enum Command {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Slint theme operations (generate theme.slint, apply tokens, check unmapped colors).
+    #[command(subcommand)]
+    Theme(theme::ThemeCommand),
+    /// Generate desktop packaging icons (MSIX, Linux hicolor, macOS iconset).
+    #[command(subcommand)]
+    GenIcons(icons::IconsCommand),
 }
 
 fn main() -> Result<()> {
@@ -229,6 +237,8 @@ fn main() -> Result<()> {
             level,
             &bump_version::Options { dry_run, no_push },
         ),
+        Command::Theme(cmd) => theme::run(cmd),
+        Command::GenIcons(cmd) => icons::run(cmd),
     }
 }
 

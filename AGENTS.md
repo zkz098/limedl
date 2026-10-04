@@ -17,6 +17,8 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C`                                                                                                      |
 | Fetch UI font   | `cargo xtask fetch-font [--verify]` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                  |
 | Drive the UI    | `set "SLINT_EMIT_DEBUG_INFO=1" && set "SLINT_MCP_PORT=8080" && cargo run -p limedl-native --features slint/mcp` (see `docs/manual-smoke-testing.md`)              |
+| Theme / tokens  | `cargo xtask theme generate` · `cargo xtask theme apply` · `cargo xtask theme check`                                                                               |
+| Generate icons  | `cargo xtask gen-icons [msix\|hicolor\|macos-iconset] --out-dir <dir>`                                                                                             |
 | Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `docs/update-signing-key.md`)             |
 
 ## Architecture
@@ -25,7 +27,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 limedl/
 ├── crates/limedl-core/   # Pure download engine (lib: limedl_core)
 ├── crates/limedl-native/ # Lightweight native desktop UI based on Slint
-└── xtask/                # Repo tooling: minisign keygen/sign/guard for the update channel
+└── xtask/                # Repo tooling: minisign keygen/sign/guard, font fetch, version bump, theme, icons
 ```
 
 All Rust crates use edition 2024.

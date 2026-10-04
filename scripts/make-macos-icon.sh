@@ -24,26 +24,16 @@ if [[ ! -f "$SRC" ]]; then
   echo "error: source image not found: $SRC" >&2
   exit 1
 fi
-for tool in sips iconutil; do
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    echo "error: '$tool' not found — this script must run on macOS" >&2
-    exit 1
-  fi
-done
+if ! command -v iconutil >/dev/null 2>&1; then
+  echo "error: 'iconutil' not found — this script must run on macOS" >&2
+  exit 1
+fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 ICONSET="$WORK/AppIcon.iconset"
-mkdir -p "$ICONSET"
-
-# `sips -z <height> <width>`; every iconset member is square and 1x/2x pairs are
-# the same pixel data under a different name.
-for base in 16 32 128 256 512; do
-  sips -z "$base" "$base" "$SRC" --out "$ICONSET/icon_${base}x${base}.png" >/dev/null
-  double=$((base * 2))
-  sips -z "$double" "$double" "$SRC" --out "$ICONSET/icon_${base}x${base}@2x.png" >/dev/null
-done
+cargo xtask gen-icons macos-iconset --out-dir "$ICONSET" --source "$SRC"
 
 mkdir -p "$(dirname "$OUT")"
 iconutil -c icns "$ICONSET" -o "$OUT"

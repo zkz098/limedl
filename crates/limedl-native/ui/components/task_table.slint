@@ -65,9 +65,9 @@ export component TaskTable inherits Rectangle {
 
     pure function file_type_color(t: string) -> color {
         t == "video" ? #c084fc : (
-            t == "audio" ? #f472b6 : (
-                t == "archive" ? #fbbf24 : (
-                    t == "document" ? #38bdf8 : (
+            t == "audio" ? Theme.cf472b6 : (
+                t == "archive" ? Theme.cfbbf24 : (
+                    t == "document" ? Theme.c38bdf8 : (
                         t == "installer" ? #34d399 : (
                             t == "image" ? #22d3ee : Theme.c9ca3af
                         )

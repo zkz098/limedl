@@ -17,6 +17,8 @@ clap = { workspace = true }
 # Raw deflate decode for the MiSans zip entry; same version limedl-native uses,
 # so the shared build graph does not gain a second compression backend.
 flate2 = "1"
+# Pure-Rust image decoder/resizer for cross-platform icon generation
+image = { version = "0.25", default-features = false, features = ["png"] }
 minisign = "0.9"
 # Version bumping edits Cargo.toml/Cargo.lock/website with the same anchored
 # patterns the retired scripts used; regex keeps that contract legible.

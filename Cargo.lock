@@ -8969,6 +8969,7 @@ dependencies = [
  "base64 0.23.1",
  "clap",
  "flate2",
+ "image",
  "minisign",
  "minisign-verify",
  "regex",
