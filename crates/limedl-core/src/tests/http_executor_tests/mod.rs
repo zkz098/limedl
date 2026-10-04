@@ -62,14 +62,11 @@ fn generate_test_content(size: u64) -> Vec<u8> {
 
 // ── Tests / features not covered ──────────────────────────────────────────
 //
-// 1. gzip / deflate content-encoding
-//    reqwest is built with `default-features = false` (gzip/brotli/deflate
-//    features NOT enabled).  Responses with `Content-Encoding: gzip` would
-//    NOT be decompressed transparently — the downloader would save the raw
-//    compressed bytes to disk.  A test for this requires either enabling
-//    the `gzip` feature on reqwest or manually decompressing.
-//    TODO: Enable reqwest gzip decompression in `configure_client_builder`
-//          and add a gzip endpoint + test.
+// 1. gzip / brotli / zstd content-encoding
+//    Covered by `compression.rs` and the `/file/encoded*` endpoints: the plain
+//    single-stream GET negotiates and transparently decompresses, while probes
+//    and Range requests force `Accept-Encoding: identity` so a 206 is never
+//    decompressed.
 //
 // 2. Connection / read timeout
 //    The HTTP client has a 15-second read timeout.  Testing it requires a
@@ -94,6 +91,7 @@ fn generate_test_content(size: u64) -> Vec<u8> {
 // ==========================================================================
 
 mod chunk_workers;
+mod compression;
 mod http_errors;
 mod mirrors_and_abuse;
 mod multi_stream;

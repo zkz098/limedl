@@ -547,7 +547,10 @@ pub(crate) async fn handle_get_option(
     );
     map.insert(
         "http-accept-gzip".to_string(),
-        Value::String("false".to_string()),
+        // limedl negotiates gzip/br/zstd automatically on the plain single-stream
+        // GET (range requests are forced to identity), so the option is
+        // effectively always on. Reported truthfully as `true`.
+        Value::String("true".to_string()),
     );
     map.insert(
         "http-auth-challenge".to_string(),

@@ -216,7 +216,26 @@ pub fn build_segment_request(
     if let Some((name, value)) = validator {
         builder = builder.header(name, value);
     }
-    apply_extra_headers(builder, extra_headers)
+    // A segment always carries `Range`; a compressed `206` would break offsets.
+    identity_encoding(apply_extra_headers(builder, extra_headers))
+}
+
+/// Force `Accept-Encoding: identity` on a request builder.
+///
+/// reqwest's gzip/brotli/zstd features make it advertise `Accept-Encoding` on
+/// every request without one and transparently decompress any `Content-Encoding`
+/// response. That is only correct for the plain single-stream GET:
+///
+/// - on a probe, a compressed body makes `Content-Length` and `Accept-Ranges`
+///   describe the compressed representation, which would mis-plan the download;
+/// - on a `Range` request, decompressing a `206` destroys the byte offsets, the
+///   per-chunk `Content-Length` and the final checksum.
+///
+/// Probes and segment requests therefore opt out. Applied *after*
+/// [`apply_extra_headers`] so a user-supplied `Accept-Encoding` cannot re-enable
+/// compression on a request where it would corrupt the file.
+pub fn identity_encoding(builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    builder.header(header::ACCEPT_ENCODING, "identity")
 }
 
 /// Apply `"Name: Value"` extra headers to a request builder, skipping any

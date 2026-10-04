@@ -335,7 +335,7 @@ async fn aria2_add_uri_lifecycle_and_dedup() {
     .await;
 
     assert_eq!(resp["jsonrpc"], "2.0");
-    assert_eq!(resp["result"]["version"], "0.1.0");
+    assert_eq!(resp["result"]["version"], env!("CARGO_PKG_VERSION"));
     let features = resp["result"]["enabledFeatures"]
         .as_array()
         .expect("enabledFeatures must be array");
@@ -930,7 +930,7 @@ async fn aria2_multicall_batches_calls_and_wraps_errors() {
     // Success entries are single-element arrays: a client reading `entry[0]`
     // must receive the value (a two-element `[null, value]` reads as failure).
     assert_eq!(results[0].as_array().map(Vec::len), Some(1));
-    assert_eq!(results[0][0]["version"], "0.1.0");
+    assert_eq!(results[0][0]["version"], env!("CARGO_PKG_VERSION"));
     assert_eq!(results[1].as_array().map(Vec::len), Some(1));
     assert_eq!(results[1][0]["gid"].as_str(), Some(gid.as_str()));
     // Failures carry the error object where the value would be.
@@ -1008,7 +1008,7 @@ async fn aria2_secret_token_gates_every_method() {
     )
     .await;
     assert_eq!(
-        resp["result"]["version"], "0.1.0",
+        resp["result"]["version"], env!("CARGO_PKG_VERSION"),
         "the valid token must be accepted: {resp}"
     );
 
@@ -1054,7 +1054,7 @@ async fn aria2_secret_token_gates_every_method() {
     let results = resp["result"]
         .as_array()
         .unwrap_or_else(|| panic!("multicall with the token must succeed: {resp}"));
-    assert_eq!(results[0][0]["version"], "0.1.0");
+    assert_eq!(results[0][0]["version"], env!("CARGO_PKG_VERSION"));
     assert_eq!(results[1][0]["gid"].as_str(), Some(gid.as_str()));
 
     let _ = shutdown_tx.send(true);
@@ -1143,7 +1143,7 @@ async fn aria2_per_client_tokens_authenticate_independently() {
     )
     .await;
     assert_eq!(
-        resp["result"][0][0]["version"], "0.1.0",
+        resp["result"][0][0]["version"], env!("CARGO_PKG_VERSION"),
         "multicall with a per-client token must succeed: {resp}"
     );
 

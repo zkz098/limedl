@@ -568,3 +568,49 @@ async fn interop_shutdown_handshake() {
 
     let _ = shutdown_tx.send(true);
 }
+
+/// `getVersion` must describe limedl, not copy aria2's feature list. This is the
+/// report the Tier 2 oracle compares against.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(30_000)]
+async fn interop_get_version_is_truthful() {
+    let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = rpc_call(&client, &rpc_url, "aria2.getVersion", json!([])).await;
+    assert_eq!(
+        resp["result"]["version"],
+        env!("CARGO_PKG_VERSION"),
+        "{resp}"
+    );
+    let features: Vec<&str> = resp["result"]["enabledFeatures"]
+        .as_array()
+        .expect("enabledFeatures array")
+        .iter()
+        .filter_map(|value| value.as_str())
+        .collect();
+
+    // Capabilities limedl does not have must not be advertised.
+    for untrue in ["XML-RPC", "Firefox3 Cookie", "Metalink", "SFTP"] {
+        assert!(
+            !features.contains(&untrue),
+            "getVersion must not advertise {untrue}: {resp}"
+        );
+    }
+    for real in [
+        "BitTorrent",
+        "HTTPS",
+        "Async DNS",
+        "Message Digest",
+        "GZip",
+        "Brotli",
+        "Zstd",
+    ] {
+        assert!(
+            features.contains(&real),
+            "getVersion is missing supported feature {real}: {resp}"
+        );
+    }
+
+    let _ = shutdown_tx.send(true);
+}

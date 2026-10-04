@@ -128,8 +128,10 @@ Captured by the first oracle run; a change here shows up in the report diff:
 - `system.listMethods`: aria2 has 36 methods; limedl lacks `aria2.addMetalink`
   and adds the `aria2.multicall` alias.
 - `system.listNotifications`: identical (6).
-- `getVersion`: limedl does not advertise `Metalink` / `SFTP` (and correctly
-  omits `XML-RPC`, which aria2 lists because it serves it).
+- `getVersion`: `GZip` is now shared (limedl decompresses gzip/br/zstd).
+  limedl additionally advertises `Brotli` / `Zstd` (non-standard strings) and
+  correctly omits `Metalink` / `SFTP` / `XML-RPC` / `Firefox3 Cookie`, which
+  aria2 lists because it serves them and limedl does not.
 - `tellStatus` (paused HTTP): limedl omits `numPieces` / `pieceLength` /
   `bitfield` until chunks are planned; aria2 always emits the first two.
 - Error responses: aria2 returns `code: 1` for **every** failure (unauthorized,
@@ -177,7 +179,8 @@ choices, not bugs; each one is documented where it is implemented.
 | JSON-RPC error codes | `-32601` / `-32602` / `1` | aria2 returns `code: 1` for every failure (confirmed against 1.37.0); AriaNg keys off `message`, so the JSON-RPC codes are tolerated. The oracle reports the difference. |
 | `tellStatus` piece map | `numPieces` / `pieceLength` / `bitfield` appear once chunks are planned | aria2 always emits `numPieces`/`pieceLength`; limedl only has them after the range probe |
 | `numStoppedTotal` | mirrors the current stopped count | no lifetime counter |
-| `getVersion` | reports `0.1.0` and lists `XML-RPC` / `Firefox3 Cookie` | **stale**; limedl has no XML-RPC endpoint. To be corrected, and then asserted by Tier 1. |
+| `getVersion.enabledFeatures` | truthful: `Async DNS`, `BitTorrent`, `GZip`, `Brotli`, `Zstd`, `HTTPS`, `Message Digest` | aria2's `Metalink`/`SFTP`/`XML-RPC`/`Firefox3 Cookie` are not advertised because limedl does not implement them; `Brotli`/`Zstd` are truthful non-standard additions. Locked by `interop_get_version_is_truthful`. |
+| HTTP response compression | gzip/brotli/zstd are decompressed only on the plain single-stream GET; probes and every `Range` request force `Accept-Encoding: identity` | transparently decompressing a `206` destroys byte offsets, `Content-Length` and the checksum. See `http::identity_encoding` and `tests/http_executor_tests/compression.rs`. |
 | `getGlobalOption` / `changeGlobalOption` | a fixed subset (`dir`, `max-concurrent-downloads`, …); `max-overall-download-limit` is accepted but ignored | engine settings model |
 | `getOption` | several fields are fixed placeholders (`min-split-size`, `max-tries`, …) | not surfaced by the engine |
 | `aria2.shutdown` / `forceShutdown` | acknowledge + warn; do not exit | limedl is a managed subsystem; the UI owns exit |

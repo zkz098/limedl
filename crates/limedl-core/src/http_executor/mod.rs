@@ -31,8 +31,8 @@ use crate::{
     },
     http::{
         ANTI_ABUSE_SNIFF_LIMIT, anti_abuse_forbidden_error, apply_extra_headers,
-        build_segment_request, extract_total_bytes, has_header, header_string, if_range_header,
-        infer_candidate_referers, infer_file_name, is_too_many_requests_error,
+        build_segment_request, extract_total_bytes, has_header, header_string, identity_encoding,
+        if_range_header, infer_candidate_referers, infer_file_name, is_too_many_requests_error,
         looks_like_anti_abuse_page, read_body_prefix, supports_ranges, validate_probe_response,
         validate_segment_response,
     },

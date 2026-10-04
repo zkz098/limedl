@@ -43,6 +43,12 @@ subtle = { workspace = true, optional = true }
 irontide = { workspace = true, optional = true }
 libc = { workspace = true }
 open = { workspace = true }
+# Encoders for the compression test endpoints. Optional and only enabled by
+# `test-utils`: the decoder side arrives through reqwest's gzip/brotli/zstd
+# features, so these exact versions are already in the graph.
+flate2 = { version = "1", optional = true }
+brotli = { version = "9", optional = true }
+zstd = { version = "0.14", optional = true }
 
 [features]
 bt = ["dep:irontide"]
@@ -55,7 +61,7 @@ aria2-rpc = [
     "dep:subtle",
     "bt",
 ]
-test-utils = ["dep:rand", "dep:axum", "dep:tower-http"]
+test-utils = ["dep:rand", "dep:axum", "dep:tower-http", "dep:flate2", "dep:brotli", "dep:zstd"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
@@ -66,6 +72,11 @@ tokio-tungstenite = { workspace = true }
 axum = { workspace = true }
 tower-http = { workspace = true }
 criterion = { workspace = true }
+# Encoders for the compression test endpoints, needed under `cfg(test)` where
+# the optional normal deps above are not enabled. See the `test-utils` feature.
+flate2 = "1"
+brotli = "9"
+zstd = "0.14"
 
 [[bench]]
 name = "aimd"

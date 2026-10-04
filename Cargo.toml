@@ -22,6 +22,15 @@ reqwest = { version = "=0.13.4", features = [
   # reqwest_unstable`, which `.cargo/config.toml` adds to every supported
   # target's rustflags (a missing cfg is a hard `compile_error!` in reqwest).
   "http3",
+  # Transparent response decompression. NOTE: once any of these is enabled,
+  # reqwest advertises `Accept-Encoding` on every request without one and
+  # decompresses any `Content-Encoding` response — including a `206` range
+  # response, which would destroy byte offsets. The engine therefore forces
+  # `Accept-Encoding: identity` on probes and every `Range` request; only the
+  # plain single-stream GET negotiates compression. See `http::identity_encoding`.
+  "gzip",
+  "brotli",
+  "zstd",
 ] }
 futures-util = "0.3"
 blake3 = "1"

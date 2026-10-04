@@ -1,6 +1,6 @@
 //! Remote probe and the top-level run loop (single-stream vs chunked).
 
-use super::{ANTI_ABUSE_SNIFF_LIMIT, AdaptiveProfile, AimdState, Arc, CancellationToken, ChecksumMode, Client, DownloadError, DownloadManager, DownloadState, HttpExecutor, ManagedDownload, Path, PathBuf, RemoteMetadata, Result, RunOutcome, StartDownloadRequest, StatusCode, TaskKind, ThreadMode, anti_abuse_forbidden_error, apply_extra_headers, check_disk_space, extract_total_bytes, has_header, has_partial_chunk_progress, header, header_string, infer_candidate_referers, infer_file_name, looks_like_anti_abuse_page, now_ms, plan_chunks, read_body_prefix, resolve_chunk_size, supports_parallelism, supports_ranges, validate_probe_response, validators_changed};
+use super::{ANTI_ABUSE_SNIFF_LIMIT, AdaptiveProfile, AimdState, Arc, CancellationToken, ChecksumMode, Client, DownloadError, DownloadManager, DownloadState, HttpExecutor, ManagedDownload, Path, PathBuf, RemoteMetadata, Result, RunOutcome, StartDownloadRequest, StatusCode, TaskKind, ThreadMode, anti_abuse_forbidden_error, apply_extra_headers, check_disk_space, extract_total_bytes, has_header, has_partial_chunk_progress, header, header_string, identity_encoding, infer_candidate_referers, infer_file_name, looks_like_anti_abuse_page, now_ms, plan_chunks, read_body_prefix, resolve_chunk_size, supports_parallelism, supports_ranges, validate_probe_response, validators_changed};
 
 impl HttpExecutor {
     /// Probe a remote URL to obtain file metadata (final URL, file name,
@@ -13,22 +13,22 @@ impl HttpExecutor {
         extra_headers: &[String],
     ) -> Result<RemoteMetadata> {
         let (client, _, _) = dm.resolve_client(url).await;
-        let head = apply_extra_headers(
+        let head = identity_encoding(apply_extra_headers(
             client.head(url).header(header::USER_AGENT, user_agent),
             extra_headers,
-        )
+))
         .send()
         .await;
         let mut response = match head {
             Ok(response) if response.status().is_success() => response,
             _ => {
-                apply_extra_headers(
+                identity_encoding(apply_extra_headers(
                     client
                         .get(url)
                         .header(header::USER_AGENT, user_agent)
                         .header(header::RANGE, "bytes=0-0"),
                     extra_headers,
-                )
+                ))
                 .send()
                 .await?
             }
@@ -61,23 +61,23 @@ impl HttpExecutor {
             for cand in candidates {
                 let mut test_headers = extra_headers.to_vec();
                 test_headers.push(format!("Referer: {cand}"));
-                let head_cand = apply_extra_headers(
+                let head_cand = identity_encoding(apply_extra_headers(
                     client
                         .head(effective_url)
                         .header(header::USER_AGENT, user_agent),
                     &test_headers,
-                )
+                ))
                 .send()
                 .await;
                 let cand_resp = match head_cand {
                     Ok(r) if r.status().is_success() => Some(r),
-                    _ => apply_extra_headers(
+                    _ => identity_encoding(apply_extra_headers(
                         client
                             .get(effective_url)
                             .header(header::USER_AGENT, user_agent)
                             .header(header::RANGE, "bytes=0-0"),
                         &test_headers,
-                    )
+                    ))
                     .send()
                     .await
                     .ok()

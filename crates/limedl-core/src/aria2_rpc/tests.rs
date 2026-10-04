@@ -204,17 +204,26 @@ fn success_response_factory_serialization() {
 #[timeout(10_000)]
 fn handle_version_returns_version_info() {
     let result = handle_version();
-    assert_eq!(result["version"], "0.1.0");
+    assert_eq!(result["version"], env!("CARGO_PKG_VERSION"));
     let features = result["enabledFeatures"]
         .as_array()
         .expect("enabledFeatures should be an array");
     assert!(features.contains(&json!("BitTorrent")));
     assert!(features.contains(&json!("HTTPS")));
     assert!(features.contains(&json!("Async DNS")));
-    assert!(features.contains(&json!("Firefox3 Cookie")));
-    assert!(features.contains(&json!("GZip")));
     assert!(features.contains(&json!("Message Digest")));
-    assert!(features.contains(&json!("XML-RPC")));
+    assert!(features.contains(&json!("GZip")));
+    assert!(features.contains(&json!("Brotli")));
+    assert!(features.contains(&json!("Zstd")));
+    // Capabilities limedl does not have must not be advertised: XML-RPC has no
+    // `/rpc` endpoint, Firefox3 Cookie is not implemented, and Metalink/SFTP are
+    // out of scope.
+    for untrue in ["XML-RPC", "Firefox3 Cookie", "Metalink", "SFTP"] {
+        assert!(
+            !features.contains(&json!(untrue)),
+            "getVersion must not advertise unsupported feature {untrue}: {result}"
+        );
+    }
     assert_eq!(features.len(), 7);
 }
 
@@ -841,7 +850,7 @@ async fn process_jsonrpc_message_covers_errors_and_success() {
     let body = json!({"jsonrpc": "2.0", "id": 9, "method": "aria2.getVersion", "params": []});
     let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, &body.to_string()).await)
         .expect("valid JSON response");
-    assert_eq!(resp["result"]["version"], "0.1.0", "success: {resp}");
+    assert_eq!(resp["result"]["version"], env!("CARGO_PKG_VERSION"), "success: {resp}");
     assert_eq!(resp["id"], 9);
 }
 

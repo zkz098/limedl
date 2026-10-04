@@ -1,7 +1,7 @@
 //! Chunked (parallel) download path, tail sprint and worker supervision.
 
 use super::worker::{ChunkWorkerCtx, all_chunks_completed, claim_or_steal_chunk, current_allocation, download_chunk, shutdown_chunk_workers};
-use super::{Arc, CancellationToken, ChunkWorkerOutcome, Client, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, Duration, HttpExecutor, Instant, JoinSet, ManagedDownload, Path, PathBuf, Result, RunOutcome, TAIL_SPRINT_MIN_SPLIT_SIZE, TAIL_SPRINT_STALL_WINDOW_SECS, ThreadMode, build_write_buffer, cancellation_outcome, check_disk_space_periodically, finish_buffer_flush, flush_write_buffer, now_ms, open_download_file, persist_manifest_snapshot, sleep, wait_or_stop};
+use super::{Arc, CancellationToken, ChunkWorkerOutcome, Client, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, Duration, HttpExecutor, Instant, JoinSet, ManagedDownload, Path, PathBuf, Result, RunOutcome, TAIL_SPRINT_MIN_SPLIT_SIZE, TAIL_SPRINT_STALL_WINDOW_SECS, ThreadMode, build_write_buffer, cancellation_outcome, check_disk_space_periodically, finish_buffer_flush, flush_write_buffer, identity_encoding, now_ms, open_download_file, persist_manifest_snapshot, sleep, wait_or_stop};
 
 impl HttpExecutor {
     pub(super) async fn download_chunked(
@@ -158,11 +158,13 @@ async fn open_chunked_target(
     // ── Connection warmup: pre-establish TCP+TLS before workers start ──
     if warmup_enabled {
         let final_url = managed.lock_core().manifest.final_url.clone();
-        let _ = client
-            .get(&final_url)
-            .header(reqwest::header::RANGE, "bytes=0-0")
-            .send()
-            .await;
+        let _ = identity_encoding(
+            client
+                .get(&final_url)
+                .header(reqwest::header::RANGE, "bytes=0-0"),
+        )
+        .send()
+        .await;
     }
     let disk_type = {
         let destination_dir = managed.lock_core().manifest.destination_dir.clone();

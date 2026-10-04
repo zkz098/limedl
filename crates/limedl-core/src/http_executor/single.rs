@@ -3,7 +3,7 @@
 use bytes::Bytes;
 use futures_util::StreamExt;
 
-use super::{Arc, BatchLimiter, CancellationToken, Client, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, HttpExecutor, Instant, ManagedDownload, Path, PathBuf, ProgressThrottle, RequestBudget, Result, RunOutcome, StatusCode, apply_extra_headers, build_write_buffer, cancellation_outcome, check_disk_space_periodically, contiguous_prefix_end, finish_buffer_flush, flush_write_buffer, fs, header, if_range_header, io_error_with_path, now_ms, open_download_file, record_durable_bytes, request_with_retry, reset_download_file, wait_or_stop, write_all_at};
+use super::{Arc, BatchLimiter, CancellationToken, Client, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, HttpExecutor, Instant, ManagedDownload, Path, PathBuf, ProgressThrottle, RequestBudget, Result, RunOutcome, StatusCode, apply_extra_headers, build_write_buffer, cancellation_outcome, check_disk_space_periodically, contiguous_prefix_end, finish_buffer_flush, flush_write_buffer, fs, header, identity_encoding, if_range_header, io_error_with_path, now_ms, open_download_file, record_durable_bytes, request_with_retry, reset_download_file, wait_or_stop, write_all_at};
 
 /// Upper bound on the number of responses one single-stream download may consume.
 ///
@@ -198,7 +198,10 @@ async fn single_request(
         &extra_headers,
     );
     if start_offset > 0 {
-        builder = builder.header(header::RANGE, format!("bytes={start_offset}-"));
+        // Resuming sends `Range`: a compressed 206 would shift byte offsets, so
+        // this request must not negotiate compression even though the fresh
+        // (offset 0) GET does.
+        builder = identity_encoding(builder.header(header::RANGE, format!("bytes={start_offset}-")));
         if let Some((name, value)) = validator {
             builder = builder.header(name, value);
         }

@@ -398,11 +398,15 @@ pub(crate) async fn handle_global_stat(ctx: &RpcContext) -> Result<Value, JsonRp
 }
 
 pub(crate) fn handle_version() -> Value {
+    // Advertise only what limedl actually does. The old list was copied from
+    // aria2 and claimed GZip, XML-RPC and Firefox3 Cookie support that does not
+    // exist; clients (and users) read this to decide what they can use.
+    // `interop_get_version_is_truthful` locks the set against the real version.
     serde_json::json!({
-        "version": "0.1.0",
+        "version": env!("CARGO_PKG_VERSION"),
         "enabledFeatures": [
-            "Async DNS", "BitTorrent", "Firefox3 Cookie", "GZip",
-            "HTTPS", "Message Digest", "XML-RPC"
+            "Async DNS", "BitTorrent", "GZip", "Brotli", "Zstd",
+            "HTTPS", "Message Digest"
         ]
     })
 }

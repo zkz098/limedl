@@ -16,6 +16,7 @@
 
 use std::convert::Infallible;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use axum::{
@@ -23,7 +24,7 @@ use axum::{
     body::Body,
     extract::{Path, State},
     http::{HeaderMap, HeaderValue, StatusCode, header},
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     routing::get,
     serve,
 };
@@ -57,6 +58,10 @@ pub struct TestServer {
     pub sha512_hash: String,
     /// Dropping this triggers graceful server shutdown.
     _shutdown: tokio::sync::oneshot::Sender<()>,
+    /// How many responses the encoded endpoints actually compressed. Lets a
+    /// test prove compression was exercised (or, for range downloads, that the
+    /// engine never asked for it).
+    encoded_responses: Arc<AtomicUsize>,
 }
 
 impl TestServer {
@@ -79,7 +84,9 @@ impl TestServer {
             blake3_hash: blake3_hash.clone(),
             sha256_hash: sha256_hash.clone(),
             sha512_hash: sha512_hash.clone(),
+            encoded_responses: Arc::new(AtomicUsize::new(0)),
         });
+        let encoded_responses = state.encoded_responses.clone();
 
         let app = Router::new()
             .route("/file", get(serve_file))
@@ -97,6 +104,8 @@ impl TestServer {
             .route("/file/github-asset", get(serve_github_asset))
             .route("/file/range-shifted/{shift}", get(serve_file_range_shifted))
             .route("/file/range-bitflip", get(serve_file_range_bitflip))
+            .route("/file/encoded/{encoding}", get(serve_file_encoded))
+            .route("/file/encoded-range/{encoding}", get(serve_file_encoded_range))
             .route("/file.sha256", get(serve_sha256))
             .route("/file.sha256sum", get(serve_sha256))
             .route("/SHA256SUMS", get(serve_sha256sums))
@@ -130,6 +139,7 @@ impl TestServer {
             sha256_hash,
             sha512_hash,
             _shutdown: tx,
+            encoded_responses,
         }
     }
 
@@ -161,6 +171,28 @@ impl TestServer {
     /// transfer. The limit is per connection, so N chunk workers share N×`bps`.
     pub fn file_url_range_bandwidth(&self, bps: u64) -> String {
         format!("{}/file/range/bandwidth/{bps}", self.addr)
+    }
+
+    /// URL for a **single-stream** file (no `Accept-Ranges`) that is served
+    /// gzip/brotli/zstd-compressed when the request's `Accept-Encoding` allows
+    /// it, and identity otherwise. The probe sends `identity`, so the engine
+    /// sees the true size and falls back to a single stream.
+    pub fn file_url_encoded(&self, encoding: &str) -> String {
+        format!("{}/file/encoded/{encoding}", self.addr)
+    }
+
+    /// URL for a **range-capable** file whose endpoint compresses the whole body
+    /// (ignoring `Range`) whenever the request asks for the encoding. This is
+    /// the hazard `identity_encoding` prevents on segment requests: if the
+    /// engine advertised compression here, every `206` would be a compressed
+    /// full-file `200` and the download would corrupt.
+    pub fn file_url_encoded_range(&self, encoding: &str) -> String {
+        format!("{}/file/encoded-range/{encoding}", self.addr)
+    }
+
+    /// How many responses the encoded endpoints actually compressed.
+    pub fn encoded_responses(&self) -> usize {
+        self.encoded_responses.load(Ordering::Relaxed)
     }
 
     /// URL for a slow download at the given bytes‑per‑second rate.
@@ -226,8 +258,7 @@ impl TestServer {
         format!("{}/file/range-bitflip", self.addr)
     }
 
-    /// URL that returns `416 Range Not Satisfiable` for any request with a `Range` header.
-    ///
+    /// URL that returns `416 Range Not Satisfiable` for any request with a `Range` header.    ///
     /// Non-range requests receive the full file with `Accept-Ranges: bytes`, which
     /// tricks the executor into attempting parallel chunked downloads — each chunk
     /// worker then gets 416 and fails.
@@ -294,6 +325,7 @@ struct ServerState {
     blake3_hash: String,
     sha256_hash: String,
     sha512_hash: String,
+    encoded_responses: Arc<AtomicUsize>,
 }
 
 // ---------------------------------------------------------------------------
@@ -353,6 +385,12 @@ async fn serve_file_range(
     State(state): State<Arc<ServerState>>,
     req_headers: HeaderMap,
 ) -> impl IntoResponse {
+    serve_range_identity(&state, &req_headers)
+}
+
+/// Identity `Range` response shared by `/file/range` and the encoded-range
+/// endpoint's fallback (a request that did not ask for compression).
+fn serve_range_identity(state: &ServerState, req_headers: &HeaderMap) -> Response {
     let data_len = state.data.len();
     let mut resp_headers = HeaderMap::new();
     resp_headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
@@ -360,7 +398,7 @@ async fn serve_file_range(
         header::CONTENT_DISPOSITION,
         HeaderValue::from_static("attachment; filename*=UTF-8''test-file.bin"),
     );
-    add_checksum_headers(&mut resp_headers, &state);
+    add_checksum_headers(&mut resp_headers, state);
 
     // Try to extract a Range header
     let Some(range_value) = req_headers.get(header::RANGE).and_then(|v| v.to_str().ok()) else {
@@ -385,6 +423,106 @@ async fn serve_file_range(
     );
     resp_headers.insert(header::CONTENT_LENGTH, usize_header_value(body.len()));
     (StatusCode::PARTIAL_CONTENT, resp_headers, body.to_vec()).into_response()
+}
+
+/// The `Content-Encoding` token a client must ask for.
+fn encoding_token(encoding: &str) -> &'static str {
+    match encoding {
+        "brotli" => "br",
+        "gzip" => "gzip",
+        "zstd" => "zstd",
+        _ => "identity",
+    }
+}
+
+/// `true` when the request's `Accept-Encoding` explicitly allows `encoding`.
+fn accepts_encoding(req_headers: &HeaderMap, encoding: &str) -> bool {
+    let token = encoding_token(encoding);
+    let Some(value) = req_headers
+        .get(header::ACCEPT_ENCODING)
+        .and_then(|v| v.to_str().ok())
+    else {
+        return false;
+    };
+    value.split(',').any(|part| {
+        part.split(';')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .eq_ignore_ascii_case(token)
+    })
+}
+
+/// Compress `data` with the named encoding. `None` for an unknown name.
+fn encode_body(data: &[u8], encoding: &str) -> Option<Vec<u8>> {
+    use std::io::Write;
+    match encoding {
+        "gzip" => {
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(data).ok()?;
+            encoder.finish().ok()
+        }
+        "brotli" => {
+            let mut out = Vec::new();
+            {
+                let mut writer = brotli::CompressorWriter::new(&mut out, 4096, 5, 22);
+                writer.write_all(data).ok()?;
+            }
+            Some(out)
+        }
+        "zstd" => zstd::stream::encode_all(data, 3).ok(),
+        _ => None,
+    }
+}
+
+/// `GET /file/encoded/{encoding}` — single-stream (no `Accept-Ranges`).
+///
+/// Compresses only when the client asks for the encoding; the probe's
+/// `Accept-Encoding: identity` therefore sees the true length and no ranges.
+async fn serve_file_encoded(
+    State(state): State<Arc<ServerState>>,
+    Path(encoding): Path<String>,
+    req_headers: HeaderMap,
+) -> impl IntoResponse {
+    if accepts_encoding(&req_headers, &encoding)
+        && let Some(body) = encode_body(&state.data, &encoding)
+    {
+        state.encoded_responses.fetch_add(1, Ordering::Relaxed);
+        let mut headers = HeaderMap::new();
+        if let Ok(value) = HeaderValue::from_str(encoding_token(&encoding)) {
+            headers.insert(header::CONTENT_ENCODING, value);
+        }
+        headers.insert(header::CONTENT_LENGTH, usize_header_value(body.len()));
+        return (StatusCode::OK, headers, body).into_response();
+    }
+    let mut headers = HeaderMap::new();
+    headers.insert(header::CONTENT_LENGTH, usize_header_value(state.data.len()));
+    (StatusCode::OK, headers, state.data.to_vec()).into_response()
+}
+
+/// `GET /file/encoded-range/{encoding}` — range-capable, but a request that
+/// asks for compression gets the **whole** compressed file as a `200` (the
+/// endpoint ignores `Range`, as a compressing server may). Segment requests
+/// must therefore force `identity`.
+async fn serve_file_encoded_range(
+    State(state): State<Arc<ServerState>>,
+    Path(encoding): Path<String>,
+    req_headers: HeaderMap,
+) -> impl IntoResponse {
+    if accepts_encoding(&req_headers, &encoding)
+        && let Some(body) = encode_body(&state.data, &encoding)
+    {
+        state.encoded_responses.fetch_add(1, Ordering::Relaxed);
+        let mut headers = HeaderMap::new();
+        headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+        if let Ok(value) = HeaderValue::from_str(encoding_token(&encoding)) {
+            headers.insert(header::CONTENT_ENCODING, value);
+        }
+        headers.insert(header::CONTENT_LENGTH, usize_header_value(body.len()));
+        return (StatusCode::OK, headers, body).into_response();
+    }
+    serve_range_identity(&state, &req_headers)
 }
 
 /// Parse a `"start-end"` or `"start-"` byte range string.
