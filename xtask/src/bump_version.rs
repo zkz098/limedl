@@ -79,16 +79,28 @@ pub fn run(root: &Path, level: Level, opts: &Options) -> Result<()> {
         .with_context(|| format!("write {}", cargo_path.display()))?;
     println!("  Updated: Cargo.toml");
 
-    // Cargo.lock — only the workspace's own packages carry the version.
+    // Cargo.lock — only the workspace's own packages carry the version. The
+    // suffix class is deliberately open (`limedl-*`) so a newly added workspace
+    // crate cannot be forgotten, and the check below makes a miss fatal here
+    // instead of in a tagged release whose `--locked` legs refuse to run.
     let lock_path = root.join("Cargo.lock");
     if lock_path.is_file() {
         let lock = fs::read_to_string(&lock_path)
             .with_context(|| format!("read {}", lock_path.display()))?;
-        let limedl_version = Regex::new(r#"(?m)(name = "limedl(?:-core|-native)?"\r?\nversion = ")[^"]+(")"#)
-            .expect("valid regex");
+        let limedl_version =
+            Regex::new(r#"(?m)(name = "limedl(?:-[a-z]+)?"\r?\nversion = ")[^"]+(")"#)
+                .expect("valid regex");
         let updated = limedl_version.replace_all(&lock, |caps: &regex::Captures<'_>| {
             format!("{}{new}{}", &caps[1], &caps[2])
         });
+        let stale = stale_limedl_lock_entries(&updated, &new);
+        if !stale.is_empty() {
+            bail!(
+                "Cargo.lock still lists {}; bump every workspace crate in the lock \
+                 before tagging",
+                stale.join(", ")
+            );
+        }
         fs::write(&lock_path, updated.as_bytes())
             .with_context(|| format!("write {}", lock_path.display()))?;
         println!("  Updated: Cargo.lock");
@@ -142,6 +154,18 @@ fn parse_version(cargo: &str) -> Result<String> {
         .captures(cargo)
         .context("Could not parse version from Cargo.toml")?;
     Ok(captures[1].to_string())
+}
+
+/// Workspace packages (`limedl*`, never `xtask`) whose lock entry is not at
+/// `version`, formatted as `name (version)`.
+fn stale_limedl_lock_entries(lock: &str, version: &str) -> Vec<String> {
+    let entry = Regex::new(r#"(?m)^name = "(limedl[a-z-]*)"\r?\nversion = "([^"]+)""#)
+        .expect("valid regex");
+    entry
+        .captures_iter(lock)
+        .filter(|captures| &captures[2] != version)
+        .map(|captures| format!("{} ({})", &captures[1], &captures[2]))
+        .collect()
 }
 
 fn next_version(current: &str, level: Level) -> Result<String> {
@@ -207,6 +231,8 @@ mod tests {
             root.join("Cargo.lock"),
             "[[package]]\nname = \"limedl-core\"\nversion = \"0.4.1\"\n\n\
              [[package]]\nname = \"limedl-native\"\nversion = \"0.4.1\"\n\n\
+             [[package]]\nname = \"limedl-server\"\nversion = \"0.4.1\"\n\n\
+             [[package]]\nname = \"xtask\"\nversion = \"0.0.0\"\n\n\
              [[package]]\nname = \"serde\"\nversion = \"0.4.1\"\n",
         )
         .unwrap();
@@ -242,8 +268,11 @@ mod tests {
         let lock = fs::read_to_string(root.join("Cargo.lock")).unwrap();
         assert!(lock.contains("name = \"limedl-core\"\nversion = \"0.5.0\""));
         assert!(lock.contains("name = \"limedl-native\"\nversion = \"0.5.0\""));
+        assert!(lock.contains("name = \"limedl-server\"\nversion = \"0.5.0\""));
         // A non-workspace package with a coincidentally equal version is untouched.
         assert!(lock.contains("name = \"serde\"\nversion = \"0.4.1\""), "{lock}");
+        // `xtask` pins its own literal version, so it is never rewritten.
+        assert!(lock.contains("name = \"xtask\"\nversion = \"0.0.0\""), "{lock}");
 
         let pkg = fs::read_to_string(root.join("website/package.json")).unwrap();
         assert!(pkg.contains("\"version\": \"0.5.0\""));
@@ -252,6 +281,36 @@ mod tests {
             let text = fs::read_to_string(root.join(rel)).unwrap();
             assert_eq!(text, "download v0.5.0 now, version 0.5.0 is current\n", "{rel}");
         }
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn stale_lock_entries_are_reported() {
+        let lock = "[[package]]\nname = \"limedl-core\"\nversion = \"0.5.0\"\n\n\
+                    [[package]]\nname = \"limedl-server\"\nversion = \"0.4.1\"\n\n\
+                    [[package]]\nname = \"xtask\"\nversion = \"0.0.0\"\n";
+        assert_eq!(
+            stale_limedl_lock_entries(lock, "0.5.0"),
+            vec!["limedl-server (0.4.1)"]
+        );
+        assert!(stale_limedl_lock_entries(lock, "0.4.1").contains(&"limedl-core (0.5.0)".to_string()));
+    }
+
+    /// A workspace crate the rewrite regex cannot see must fail the bump instead of
+    /// leaving a lagging `Cargo.lock` behind for a tagged `--locked` release leg.
+    #[test]
+    fn refuses_to_bump_when_the_lock_still_lags() {
+        let root = fixture();
+        let lock = fs::read_to_string(root.join("Cargo.lock")).unwrap();
+        fs::write(
+            root.join("Cargo.lock"),
+            format!("{lock}[[package]]\nname = \"limedl-extra-crate\"\nversion = \"0.4.1\"\n"),
+        )
+        .unwrap();
+
+        let error = run(&root, Level::Minor, &Options { dry_run: false, no_push: true })
+            .expect_err("a lagging workspace lock entry must fail the bump");
+        assert!(error.to_string().contains("limedl-extra-crate"), "{error}");
         fs::remove_dir_all(&root).ok();
     }
 
