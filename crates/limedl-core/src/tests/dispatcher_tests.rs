@@ -456,20 +456,29 @@ async fn dispatcher_resume_emits_updated() -> TestResult {
 
     let mut rx = subscribe(&eb);
     let snapshot = dispatcher.resume(&task_id).await?;
-    // The scheduler may pick the task up before `resume` returns, so the
-    // snapshot is either still queued or already running — never Paused.
-    assert!(matches!(
+    // The scheduler may pick the task up before `resume` returns, and the
+    // deliberately unreachable loopback URL fails its probe just as fast, so the
+    // snapshot can be Queued/Downloading/Retrying — or already Failed. The one
+    // thing `resume` must never hand back is the pre-resume `Paused` snapshot,
+    // which is the actual invariant under test here.
+    assert_ne!(
         snapshot.state,
-        DownloadState::Queued | DownloadState::Downloading | DownloadState::Retrying
-    ));
+        DownloadState::Paused,
+        "resume must not return the pre-resume Paused snapshot"
+    );
 
-    let event = rx.try_recv()?;
-    match event {
-        DownloadEvent::Updated { summary } => {
-            assert_eq!(summary.id, id_str, "resume: Updated event id must match task id");
+    // `resume` publishes its own snapshot last, but the spawned run may already
+    // have published its own events (including the failure summary), so scan for
+    // the `Updated` event instead of assuming it arrived first.
+    let summary = loop {
+        if let DownloadEvent::Updated { summary } = rx.try_recv()? {
+            break summary;
         }
-        other => panic!("resume: expected Updated, got {other:?}"),
-    }
+    };
+    assert_eq!(
+        summary.id, id_str,
+        "resume: Updated event id must match task id"
+    );
 
     Ok(())
 }
