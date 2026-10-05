@@ -4091,7 +4091,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-core"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "anyhow",
  "argon2",
@@ -4139,7 +4139,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-native"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "anyhow",
  "arboard",
