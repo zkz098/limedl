@@ -9,6 +9,7 @@ export component NewTaskDialog inherits Rectangle {
     in-out property <string> new_task_url;
     in-out property <string> new_task_dir;
     in-out property <string> new_task_filename;
+    in-out property <string> new_task_checksum;
     in property <string> default_download_dir;
 
     // ── Checksum probe state (driven from Rust) ──
@@ -147,26 +148,36 @@ export component NewTaskDialog inherits Rectangle {
                             placeholder: @tr("http://, https://, magnet:?xt=, or select a local .torrent file");
                         }
 
-                        // Checksum probe row (HTTP only, enforced by the Rust handler)
-                        HorizontalLayout {
-                            spacing: 8px;
-                            VerticalLayout {
-                                alignment: center;
-                                horizontal-stretch: 1;
+                        // Checksum input & probe row (HTTP only)
+                        VerticalLayout {
+                            spacing: 4px;
+                            HorizontalLayout {
+                                alignment: space-between;
                                 Text {
+                                    text: @tr("Checksum (Optional):");
+                                    color: Theme.c9ca3af;
+                                    font-size: 12px;
+                                    vertical-alignment: center;
+                                }
+                                if root.probe_status_text != "" : Text {
                                     text: root.probe_status_text;
                                     color: root.probe_state == "found" ? Theme.c84cc16 : (
                                         root.probe_state == "missing" || root.probe_state == "not_http" ? Theme.cf59e0b : Theme.c9ca3af);
-                                    font-size: root.probe_state == "found" ? 11px : 12px;
-                                    font-family: root.probe_state == "found" ? "Consolas" : "MiSans VF";
-                                    overflow: elide;
+                                    font-size: 11px;
                                     vertical-alignment: center;
                                 }
                             }
-                            SecondaryButton {
-                                text: @tr("Detect Checksum");
-                                enabled: root.new_task_url != "" && root.probe_state != "probing";
-                                clicked => { root.probe_checksum(); }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                nt_checksum_input := CustomTextInput {
+                                    text <=> root.new_task_checksum;
+                                    placeholder: @tr("SHA-256, SHA-512, or BLAKE3 hash");
+                                }
+                                nt_probe_btn := SecondaryButton {
+                                    text: @tr("Detect Checksum");
+                                    enabled: root.new_task_url != "" && root.probe_state != "probing";
+                                    clicked => { root.probe_checksum(); }
+                                }
                             }
                         }
 

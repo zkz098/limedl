@@ -47,6 +47,10 @@ pub fn register(ctx: &AppContext) {
                 if ui.get_new_task_probe_state().as_str() != "idle" {
                     ui.set_new_task_probe_state("idle".into());
                     ui.set_new_task_probe_status_text(SharedString::default());
+                    let probe_hash = ui.get_new_task_probe_hash();
+                    if !probe_hash.is_empty() && ui.get_new_task_checksum() == probe_hash {
+                        ui.set_new_task_checksum(SharedString::default());
+                    }
                     ui.set_new_task_probe_hash(SharedString::default());
                 }
             });

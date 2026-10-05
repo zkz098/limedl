@@ -38,6 +38,7 @@ pub(super) fn reset_transient_state(ui: &MainWindow) {
     ui.set_new_task_probe_state("idle".into());
     ui.set_new_task_probe_status_text(SharedString::default());
     ui.set_new_task_probe_hash(SharedString::default());
+    ui.set_new_task_checksum(SharedString::default());
     ui.set_new_task_preview_state("none".into());
     ui.set_new_task_preview_status_text(SharedString::default());
     ui.set_new_task_preview_summary_text(SharedString::default());
@@ -160,7 +161,8 @@ pub(super) fn spawn_probe(
                         ui.set_new_task_probe_status_text(SharedString::from(
                             i18n::format_probe_status("found", &hash, lang),
                         ));
-                        ui.set_new_task_probe_hash(SharedString::from(hash));
+                        ui.set_new_task_probe_hash(SharedString::from(&hash));
+                        ui.set_new_task_checksum(SharedString::from(hash));
                     }
                     None => {
                         ui.set_new_task_probe_state("missing".into());

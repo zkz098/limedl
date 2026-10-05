@@ -345,3 +345,12 @@ pub fn format_toast_update_restart_failed(err: &str, lang: Language) -> String {
         Language::EnUs => format!("Failed to restart: {err}"),
     }
 }
+
+pub fn format_toast_invalid_checksum(lang: Language) -> String {
+    match lang {
+        Language::ZhCn => "校验和格式无效（支持 SHA-256、SHA-512、BLAKE3）".to_string(),
+        Language::ZhTw => "校驗值格式無效（支援 SHA-256、SHA-512、BLAKE3）".to_string(),
+        Language::EnUs => "Invalid checksum format (supports SHA-256, SHA-512, BLAKE3)".to_string(),
+    }
+}
+

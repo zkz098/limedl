@@ -275,6 +275,7 @@ export component MainWindow inherits Window {
     in-out property <string> new_task_url: "";
     in-out property <string> new_task_dir: "";
     in-out property <string> new_task_filename: "";
+    in-out property <string> new_task_checksum: "";
     in-out property <bool> new_task_batch_mode: false;
     in-out property <string> new_task_batch_text: "";
     // Checksum probe state: probe_state "idle" | "probing" | "found" | "missing" | "not_http"
@@ -1422,6 +1423,7 @@ export component MainWindow inherits Window {
         new_task_url <=> root.new_task_url;
         new_task_dir <=> root.new_task_dir;
         new_task_filename <=> root.new_task_filename;
+        new_task_checksum <=> root.new_task_checksum;
         default_download_dir: root.default_download_dir;
         probe_state: root.new_task_probe_state;
         probe_status_text: root.new_task_probe_status_text;

@@ -1850,3 +1850,10 @@ msgstr "令牌已配置（隐藏）。点击重新生成以显示新令牌。"
 
 msgid "Click Save Settings below to apply client changes."
 msgstr "添加或修改客户端后，请点击下方「保存设置」生效。"
+
+msgid "Checksum (Optional):"
+msgstr "校验和 (可选):"
+
+msgid "SHA-256, SHA-512, or BLAKE3 hash"
+msgstr "SHA-256、SHA-512 或 BLAKE3 哈希值"
+

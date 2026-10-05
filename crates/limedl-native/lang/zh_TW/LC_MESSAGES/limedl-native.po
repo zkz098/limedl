@@ -1851,3 +1851,10 @@ msgstr "權杖已設定（隱藏）。點擊重新產生以顯示新權杖。"
 
 msgid "Click Save Settings below to apply client changes."
 msgstr "新增或修改用戶端後，請點擊下方「儲存設定」生效。"
+
+msgid "Checksum (Optional):"
+msgstr "校驗值 (可選):"
+
+msgid "SHA-256, SHA-512, or BLAKE3 hash"
+msgstr "SHA-256、SHA-512 或 BLAKE3 雜湊值"
+

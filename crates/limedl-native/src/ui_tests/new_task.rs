@@ -20,6 +20,7 @@ fn reopening_the_dialog_resets_batch_mode_and_the_checksum_probe() {
         ui.window.set_new_task_batch_mode(true);
         ui.window
             .set_new_task_batch_text("https://example.invalid/leftover".into());
+        ui.window.set_new_task_checksum("deadbeef".into());
         ui.window.set_new_task_probe_state("ready".into());
         ui.window
             .set_new_task_probe_status_text("sha256 detected".into());
@@ -34,6 +35,7 @@ fn reopening_the_dialog_resets_batch_mode_and_the_checksum_probe() {
             "batch mode must not survive a reopen"
         );
         assert!(ui.window.get_new_task_batch_text().is_empty());
+        assert!(ui.window.get_new_task_checksum().is_empty());
         assert_eq!(ui.window.get_new_task_probe_state().as_str(), "idle");
         assert!(ui.window.get_new_task_probe_hash().is_empty());
         assert!(ui.window.get_new_task_probe_status_text().is_empty());
@@ -51,6 +53,7 @@ fn editing_the_url_drops_a_checksum_that_belonged_to_the_old_one() {
         ui.click("MainWindow::ta_new_task");
         ui.window.set_new_task_probe_state("ready".into());
         ui.window.set_new_task_probe_hash("deadbeef".into());
+        ui.window.set_new_task_checksum("deadbeef".into());
         ui.window
             .set_new_task_probe_status_text("sha256 detected".into());
 
@@ -60,6 +63,7 @@ fn editing_the_url_drops_a_checksum_that_belonged_to_the_old_one() {
 
         assert_eq!(ui.window.get_new_task_probe_state().as_str(), "idle");
         assert!(ui.window.get_new_task_probe_hash().is_empty());
+        assert!(ui.window.get_new_task_checksum().is_empty());
         assert!(ui.window.get_new_task_probe_status_text().is_empty());
 
         // Idempotent: resetting an idle dialog is a no-op, not a model churn.

@@ -71,9 +71,63 @@ pub(super) async fn submitting_a_url_passes_the_dialog_state_to_the_engine() {
     })
     .await;
     assert_eq!(ui.window.get_new_task_url().as_str(), "");
+    assert_eq!(ui.window.get_new_task_checksum().as_str(), "");
     ui.assert_toast(
         "success",
         &crate::i18n::format_toast_task_added("renamed.zip", Language::ZhCn),
+    );
+}
+
+pub(super) async fn submitting_a_url_with_manual_checksum_passes_to_engine() {
+    const BLAKE3_HASH: &str = "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262";
+
+    let ui = new_window();
+    open_new_task_dialog_without_the_clipboard_race(&ui).await;
+
+    ui.click("NewTaskDialog::nt_url_input");
+    ui.type_text("https://example.invalid/archive.zip");
+
+    ui.click("NewTaskDialog::nt_checksum_input");
+    ui.type_text(&format!("blake3:{BLAKE3_HASH}"));
+    assert_eq!(
+        ui.window.get_new_task_checksum().as_str(),
+        format!("blake3:{BLAKE3_HASH}").as_str()
+    );
+
+    ui.click("NewTaskDialog::submit_btn");
+    ui.pump_until("the single start request to reach the engine", || {
+        !ui.core.starts().is_empty()
+    })
+    .await;
+
+    let starts = ui.core.starts();
+    assert_eq!(starts.len(), 1);
+    assert_eq!(starts[0].checksum, Some(ChecksumMode::Blake3));
+    assert_eq!(starts[0].expected_checksum.as_deref(), Some(BLAKE3_HASH));
+
+    ui.pump_until("the dialog to close", || {
+        !ui.window.get_show_new_task_dialog()
+    })
+    .await;
+    assert_eq!(ui.window.get_new_task_checksum().as_str(), "");
+}
+
+pub(super) async fn submitting_a_url_with_invalid_checksum_shows_error_toast() {
+    let ui = new_window();
+    open_new_task_dialog_without_the_clipboard_race(&ui).await;
+
+    ui.click("NewTaskDialog::nt_url_input");
+    ui.type_text("https://example.invalid/archive.zip");
+
+    ui.click("NewTaskDialog::nt_checksum_input");
+    ui.type_text("invalid_hash_value");
+
+    ui.click("NewTaskDialog::submit_btn");
+    assert!(ui.core.starts().is_empty());
+    assert!(ui.window.get_show_new_task_dialog());
+    ui.assert_toast(
+        "error",
+        &crate::i18n::format_toast_invalid_checksum(Language::ZhCn),
     );
 }
 

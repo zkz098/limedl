@@ -70,6 +70,8 @@ fn event_loop_contracts() {
         rows::double_click_follows_the_configured_behavior().await;
 
         new_task::submitting_a_url_passes_the_dialog_state_to_the_engine().await;
+        new_task::submitting_a_url_with_manual_checksum_passes_to_engine().await;
+        new_task::submitting_a_url_with_invalid_checksum_shows_error_toast().await;
         new_task::submitting_a_torrent_leaves_out_the_unchecked_files().await;
         new_task::submitting_a_batch_starts_one_task_per_link().await;
         new_task::a_deep_link_payload_reaches_the_dialog().await;

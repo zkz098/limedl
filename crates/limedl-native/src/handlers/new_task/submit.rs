@@ -96,10 +96,24 @@ fn submit_single(
             Some(filename.trim().to_string())
         };
 
-        // Detected checksum (cleared by the dialog whenever the URL
-        // changes, so a `found` state here is always bound to the
-        // current URL).
-        let (checksum, expected_checksum) = if ui.get_new_task_probe_state().as_str() == "found" {
+        // Checksum: prefer manual user input (if valid), fallback to detected probe hash.
+        let manual = ui.get_new_task_checksum().trim().to_string();
+        let (checksum, expected_checksum) = if !manual.is_empty() {
+            match parse_user_checksum(&manual) {
+                Some((mode, hash)) => (Some(mode), Some(hash)),
+                None => {
+                    let lang = store.lock().language();
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_invalid_checksum(lang),
+                        "error",
+                        Duration::from_secs(4),
+                    );
+                    return None;
+                }
+            }
+        } else if ui.get_new_task_probe_state().as_str() == "found" {
             let hash = ui.get_new_task_probe_hash().to_string();
             (
                 (!hash.is_empty()).then_some(ChecksumMode::Sha256),
@@ -190,6 +204,8 @@ fn submit_single(
                     with_ui(&ui_weak, |ui| {
                         ui.set_new_task_url(SharedString::default());
                         ui.set_new_task_filename(SharedString::default());
+                        ui.set_new_task_checksum(SharedString::default());
+                        ui.set_new_task_probe_hash(SharedString::default());
                         ui.set_show_new_task_dialog(false);
                     });
                 });
@@ -314,4 +330,189 @@ fn submit_batch(
             });
         }
     });
+}
+
+/// Parse a user-entered checksum string into an explicit mode and normalized lowercase hex digest.
+///
+/// Supports:
+/// - Bare hex: 64 hex chars (default: SHA-256), 128 hex chars (SHA-512)
+/// - Prefixes: `sha256:`, `sha-256:`, `sha512:`, `sha-512:`, `blake3:`, `blake-3:`, `b3:`
+/// - BSD format: `SHA256 (...) = <hash>`, `SHA512 (...) = <hash>`, `BLAKE3 (...) = <hash>`
+/// - GNU format: `<hash>  <filename>` or `<hash> *<filename>`
+/// - Strips surrounding quotes and whitespace.
+pub fn parse_user_checksum(raw: &str) -> Option<(ChecksumMode, String)> {
+    let mut s = raw.trim().trim_matches('"').trim_matches('\'').trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    let mut explicit_mode: Option<ChecksumMode> = None;
+
+    // Check BSD format: ALGO (...) = HASH or ALGO = HASH
+    if let Some((prefix, rest)) = s.split_once('=') {
+        let prefix_lower = prefix.trim().to_ascii_lowercase();
+        if prefix_lower.starts_with("sha256") || prefix_lower.starts_with("sha-256") {
+            explicit_mode = Some(ChecksumMode::Sha256);
+            s = rest.trim();
+        } else if prefix_lower.starts_with("sha512") || prefix_lower.starts_with("sha-512") {
+            explicit_mode = Some(ChecksumMode::Sha512);
+            s = rest.trim();
+        } else if prefix_lower.starts_with("blake3")
+            || prefix_lower.starts_with("blake-3")
+            || prefix_lower.starts_with("b3")
+        {
+            explicit_mode = Some(ChecksumMode::Blake3);
+            s = rest.trim();
+        }
+    }
+
+    // Check prefix like "sha256:", "sha-256:", "sha512:", "sha-512:", "blake3:", "blake-3:", "b3:"
+    let s_lower = s.to_ascii_lowercase();
+    if let Some(rest) = s_lower
+        .strip_prefix("sha256:")
+        .or_else(|| s_lower.strip_prefix("sha-256:"))
+    {
+        explicit_mode = Some(ChecksumMode::Sha256);
+        s = s[s.len() - rest.len()..].trim();
+    } else if let Some(rest) = s_lower
+        .strip_prefix("sha512:")
+        .or_else(|| s_lower.strip_prefix("sha-512:"))
+    {
+        explicit_mode = Some(ChecksumMode::Sha512);
+        s = s[s.len() - rest.len()..].trim();
+    } else if let Some(rest) = s_lower
+        .strip_prefix("blake3:")
+        .or_else(|| s_lower.strip_prefix("blake-3:"))
+        .or_else(|| s_lower.strip_prefix("b3:"))
+    {
+        explicit_mode = Some(ChecksumMode::Blake3);
+        s = s[s.len() - rest.len()..].trim();
+    }
+
+    // Strip quotes again if they were after the prefix
+    let s = s.trim_matches('"').trim_matches('\'').trim();
+
+    // Take the first whitespace-separated token in case GNU format was pasted: `<hash>  <filename>`
+    let hash_token = s.split_whitespace().next().unwrap_or(s);
+
+    if hash_token.is_empty() || !hash_token.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+
+    let hash_lower = hash_token.to_ascii_lowercase();
+    match (explicit_mode, hash_lower.len()) {
+        (Some(ChecksumMode::Sha256), 64) => Some((ChecksumMode::Sha256, hash_lower)),
+        (Some(ChecksumMode::Blake3), 64) => Some((ChecksumMode::Blake3, hash_lower)),
+        (Some(ChecksumMode::Sha512), 128) => Some((ChecksumMode::Sha512, hash_lower)),
+        (None, 64) => Some((ChecksumMode::Sha256, hash_lower)),
+        (None, 128) => Some((ChecksumMode::Sha512, hash_lower)),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const HASH_64: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    const HASH_128: &str = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e";
+
+    #[test]
+    fn parse_bare_hex() {
+        assert_eq!(
+            parse_user_checksum(HASH_64),
+            Some((ChecksumMode::Sha256, HASH_64.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(&HASH_64.to_ascii_uppercase()),
+            Some((ChecksumMode::Sha256, HASH_64.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(HASH_128),
+            Some((ChecksumMode::Sha512, HASH_128.to_string()))
+        );
+    }
+
+    #[test]
+    fn parse_with_prefixes() {
+        assert_eq!(
+            parse_user_checksum(&format!("sha256:{HASH_64}")),
+            Some((ChecksumMode::Sha256, HASH_64.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(&format!("SHA-256: {HASH_64}")),
+            Some((ChecksumMode::Sha256, HASH_64.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(&format!("sha512:{HASH_128}")),
+            Some((ChecksumMode::Sha512, HASH_128.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(&format!("blake3:{HASH_64}")),
+            Some((ChecksumMode::Blake3, HASH_64.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(&format!("b3: {HASH_64}")),
+            Some((ChecksumMode::Blake3, HASH_64.to_string()))
+        );
+    }
+
+    #[test]
+    fn parse_gnu_and_bsd_formats() {
+        assert_eq!(
+            parse_user_checksum(&format!("{HASH_64}  myfile.tar.gz")),
+            Some((ChecksumMode::Sha256, HASH_64.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(&format!("{HASH_64} *myfile.zip")),
+            Some((ChecksumMode::Sha256, HASH_64.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(&format!("SHA256 (myfile.iso) = {HASH_64}")),
+            Some((ChecksumMode::Sha256, HASH_64.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(&format!("BLAKE3 (archive.tar) = {HASH_64}")),
+            Some((ChecksumMode::Blake3, HASH_64.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(&format!("sha256 = {HASH_64}")),
+            Some((ChecksumMode::Sha256, HASH_64.to_string()))
+        );
+    }
+
+    #[test]
+    fn parse_whitespace_and_quotes() {
+        assert_eq!(
+            parse_user_checksum(&format!(" \"{HASH_64}\" ")),
+            Some((ChecksumMode::Sha256, HASH_64.to_string()))
+        );
+        assert_eq!(
+            parse_user_checksum(&format!("'sha256:{HASH_64}'")),
+            Some((ChecksumMode::Sha256, HASH_64.to_string()))
+        );
+    }
+
+    #[test]
+    fn reject_invalid_checksums() {
+        assert_eq!(parse_user_checksum(""), None);
+        assert_eq!(parse_user_checksum("   "), None);
+        // MD5 (32 chars) unsupported
+        assert_eq!(parse_user_checksum("d41d8cd98f00b204e9800998ecf8427e"), None);
+        // SHA-1 (40 chars) unsupported
+        assert_eq!(
+            parse_user_checksum("da39a3ee5e6b4b0d3255bfef95601890afd80709"),
+            None
+        );
+        // Mismatched length with prefix
+        assert_eq!(parse_user_checksum(&format!("sha512:{HASH_64}")), None);
+        assert_eq!(parse_user_checksum(&format!("sha256:{HASH_128}")), None);
+        // Invalid hex characters
+        assert_eq!(
+            parse_user_checksum(
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8zz"
+            ),
+            None
+        );
+    }
 }
