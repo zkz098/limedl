@@ -140,7 +140,7 @@ const SUBCLASS_ID: usize = 0x4C494D45; // "LIME"
 pub const COPYDATA_MAGIC: usize = 0x4C494D45;
 
 #[cfg(windows)]
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 #[cfg(windows)]
 use windows::Win32::Graphics::Gdi::{
     GetMonitorInfoW, MonitorFromRect, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONULL,
@@ -155,11 +155,11 @@ use windows::Win32::UI::Shell::{
 use windows::Win32::System::DataExchange::COPYDATASTRUCT;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowPlacement, GetWindowRect, IsIconic, IsZoomed, SetForegroundWindow, SetWindowPos,
-    ShowWindow, SIZE_MAXIMIZED, SIZE_MINIMIZED, SIZE_RESTORED, SW_HIDE, SW_MAXIMIZE, SW_RESTORE,
-    SWP_NOACTIVATE,
-    SWP_NOSIZE, SWP_NOZORDER, WINDOWPLACEMENT, WM_COPYDATA, WM_DROPFILES, WM_EXITSIZEMOVE,
-    WM_SHOWWINDOW, WM_SIZE,
+    GetWindowPlacement, GetWindowRect, IsIconic, IsZoomed, SetForegroundWindow, SetWindowPlacement,
+    SetWindowPos, ShowWindow, SIZE_MAXIMIZED, SIZE_MINIMIZED, SIZE_RESTORED, SW_HIDE, SW_RESTORE,
+    SW_SHOWMAXIMIZED, SW_SHOWNORMAL, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER, WINDOWPLACEMENT,
+    WINDOWPLACEMENT_FLAGS, WM_COPYDATA, WM_DROPFILES, WM_EXITSIZEMOVE, WM_SHOWWINDOW, WM_SIZE,
+    WPF_RESTORETOMAXIMIZED,
 };
 
 /// Store the drag-drop / IPC callbacks without touching the OS window.
@@ -438,7 +438,11 @@ pub fn capture_window_geometry(hwnd: HWND) -> Option<WindowGeometry> {
             ..Default::default()
         };
         if GetWindowPlacement(hwnd, &mut wp).is_ok() {
-            let is_maximized = IsZoomed(hwnd).as_bool();
+            let is_maximized = if IsIconic(hwnd).as_bool() {
+                wp.flags.contains(WPF_RESTORETOMAXIMIZED)
+            } else {
+                IsZoomed(hwnd).as_bool()
+            };
             let rect = wp.rcNormalPosition;
             let width = (rect.right - rect.left).max(0) as u32;
             let height = (rect.bottom - rect.top).max(0) as u32;
@@ -576,21 +580,32 @@ pub fn apply_restored_window_placement(
             return false;
         };
         unsafe {
-            let _ = SetWindowPos(
-                hwnd,
-                None,
-                geom.x,
-                geom.y,
-                geom.width as i32,
-                geom.height as i32,
-                SWP_NOZORDER | SWP_NOACTIVATE,
-            );
-            // CRITICAL: never call ShowWindow(SW_MAXIMIZE) on a hidden window (e.g. autostart with --hidden).
-            // Calling ShowWindow on a hidden HWND forces it visible to Windows while Slint's internal state
-            // remains Hidden, leaving the window unrendered (transparent) and preventing it from closing.
-            if geom.is_maximized && window.is_visible() {
-                let _ = ShowWindow(hwnd, SW_MAXIMIZE);
-            }
+            let show_cmd = if !window.is_visible() {
+                SW_HIDE.0 as u32
+            } else if geom.is_maximized {
+                SW_SHOWMAXIMIZED.0 as u32
+            } else {
+                SW_SHOWNORMAL.0 as u32
+            };
+            let flags = if geom.is_maximized {
+                WPF_RESTORETOMAXIMIZED
+            } else {
+                WINDOWPLACEMENT_FLAGS::default()
+            };
+            let wp = WINDOWPLACEMENT {
+                length: std::mem::size_of::<WINDOWPLACEMENT>() as u32,
+                flags,
+                showCmd: show_cmd,
+                ptMinPosition: POINT { x: -1, y: -1 },
+                ptMaxPosition: POINT { x: -1, y: -1 },
+                rcNormalPosition: RECT {
+                    left: geom.x,
+                    top: geom.y,
+                    right: geom.x + geom.width as i32,
+                    bottom: geom.y + geom.height as i32,
+                },
+            };
+            let _ = SetWindowPlacement(hwnd, &wp);
         }
     }
 
@@ -603,10 +618,8 @@ pub fn apply_restored_window_placement(
         }
     }
 
-    // If the window is currently hidden, we have already restored the normal unmaximized
-    // position/size via SetWindowPos without displaying it. We intentionally do not
-    // maximize it yet to prevent popping up a window during a silent start. Maximization
-    // will be applied when the window is actually shown (e.g. from the tray).
+    // If the window is currently hidden, placement was applied without displaying it.
+    // Maximization will be applied when the window is actually shown (e.g. from the tray).
     if !window.is_visible() {
         return true;
     }
@@ -630,6 +643,36 @@ pub fn apply_restored_window_placement(
     );
 
     !still_missing_placement
+}
+
+static PLACEMENT_APPLIED: AtomicBool = AtomicBool::new(false);
+
+/// Ensure the restored window placement has been applied once during the application lifecycle.
+///
+/// Returns `true` if placement was already applied or was successfully applied now.
+/// Subsequent invocations (e.g. repeated tray hide/show cycles) are no-ops to avoid
+/// corrupting the active OS window geometry or overwriting live maximized/restored states.
+pub fn ensure_restored_window_placement(
+    window: &slint::Window,
+    base_dir: &Path,
+    current_maximized: bool,
+) -> bool {
+    if PLACEMENT_APPLIED.load(Ordering::SeqCst) {
+        return true;
+    }
+    if apply_restored_window_placement(window, base_dir, current_maximized) {
+        if window.is_visible() {
+            PLACEMENT_APPLIED.store(true, Ordering::SeqCst);
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[cfg(test)]
+pub fn reset_placement_applied_for_test() {
+    PLACEMENT_APPLIED.store(false, Ordering::SeqCst);
 }
 
 /// The Win32 HWND behind a Slint window, when it exists.
@@ -993,5 +1036,19 @@ mod tests {
         let p = temp.path().to_path_buf();
         set_base_dir(p.clone());
         assert_eq!(get_base_dir(), Some(p));
+    }
+
+    #[test]
+    fn ensure_restored_window_placement_is_idempotent() {
+        use slint::ComponentHandle;
+
+        i_slint_backend_testing::init_no_event_loop();
+        let ui = crate::MainWindow::new().unwrap();
+        reset_placement_applied_for_test();
+        assert!(!PLACEMENT_APPLIED.load(Ordering::SeqCst));
+        PLACEMENT_APPLIED.store(true, Ordering::SeqCst);
+        let temp = tempfile::tempdir().unwrap();
+        assert!(ensure_restored_window_placement(ui.window(), temp.path(), false));
+        reset_placement_applied_for_test();
     }
 }

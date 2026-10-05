@@ -253,7 +253,7 @@ pub fn restore_and_show_window(ui: &MainWindow, store: Option<&TaskStore>) {
     ui.window().set_minimized(false);
     ui.window().request_redraw();
     if let Some(base_dir) = platform_win::get_base_dir() {
-        platform_win::apply_restored_window_placement(
+        platform_win::ensure_restored_window_placement(
             ui.window(),
             &base_dir,
             ui.window().is_maximized(),
@@ -270,7 +270,7 @@ pub fn restore_and_show_window(ui: &MainWindow, store: Option<&TaskStore>) {
 }
 
 pub fn schedule_window_placement_restore(ui: &MainWindow, base_dir: &std::path::Path) {
-    if platform_win::apply_restored_window_placement(
+    if platform_win::ensure_restored_window_placement(
         ui.window(),
         base_dir,
         ui.window().is_maximized(),
@@ -290,7 +290,7 @@ pub fn schedule_window_placement_restore(ui: &MainWindow, base_dir: &std::path::
                 timer_for_cb.stop();
                 return;
             };
-            if platform_win::apply_restored_window_placement(
+            if platform_win::ensure_restored_window_placement(
                 ui.window(),
                 &base_dir,
                 ui.window().is_maximized(),

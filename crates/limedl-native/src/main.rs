@@ -179,7 +179,6 @@ async fn run() -> anyhow::Result<()> {
         main_window.window(),
         initial_settings.appearance.color_mode == limedl_core::types::ColorMode::Dark,
     );
-    ui_sync::schedule_window_placement_restore(&main_window, &base_dir);
 
     // System Tray Icon
     //
@@ -281,6 +280,7 @@ async fn run() -> anyhow::Result<()> {
     }
 
     if !start_hidden {
+        ui_sync::schedule_window_placement_restore(&main_window, &base_dir);
         main_window.show()?;
     }
     install_signal_shutdown();
