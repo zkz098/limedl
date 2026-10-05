@@ -26,6 +26,8 @@ export component LabsDialog inherits Rectangle {
     in property <[CdnCandidateItem]> cdn_candidates: [];
     in property <[UrlRewriteRuleItem]> rewrite_rules: [];
 
+    property <bool> sandbox_expanded: true;
+
     callback close();
     callback set_tab(int);
     callback save_labs(LabsFormData);
@@ -156,6 +158,7 @@ export component LabsDialog inherits Rectangle {
                 // ── Tab 0: CDN 网络优选 ──
                 if root.labs_tab == 0 : ScrollView {
                     VerticalLayout {
+                        alignment: start;
                         padding: 18px;
                         spacing: 14px;
 
@@ -522,260 +525,281 @@ export component LabsDialog inherits Rectangle {
                 }
 
                 // ── Tab 1: URL 镜像重写 ──
-                if root.labs_tab == 1 : ScrollView {
-                    VerticalLayout {
-                        padding: 18px;
-                        spacing: 14px;
+                if root.labs_tab == 1 : VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
 
-                        // Title & Toggle
-                        HorizontalLayout {
-                            alignment: space-between;
-                            VerticalLayout {
-                                spacing: 2px;
-                                Text { text: @tr("URL Mirror Rewrite & Dispatch"); color: Theme.ca3e635; font-size: 14px; font-weight: 700; }
-                                Text { text: @tr("Automatically redirect GitHub, Hugging Face, etc. downloads to high-speed mirrors based on domains or regex"); color: #6b7280; font-size: 11px; }
-                            }
-                            ToggleSwitch {
-                                checked: root.labs_form.url_rewrite_enabled;
-                                toggled => { root.labs_form.url_rewrite_enabled = !root.labs_form.url_rewrite_enabled; }
-                            }
+                    // Title & Toggle
+                    HorizontalLayout {
+                        alignment: space-between;
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text { text: @tr("URL Mirror Rewrite & Dispatch"); color: Theme.ca3e635; font-size: 14px; font-weight: 700; }
+                            Text { text: @tr("Automatically redirect GitHub, Hugging Face, etc. downloads to high-speed mirrors based on domains or regex"); color: #6b7280; font-size: 11px; }
                         }
-
-                        // Presets & Add Rule Bar
-                        HorizontalLayout {
-                            spacing: 8px;
-                            alignment: space-between;
-
-                            HorizontalLayout {
-                                spacing: 6px;
-                                alignment: start;
-                                Text { text: @tr("Import Presets:"); color: Theme.c9ca3af; font-size: 12px; vertical-alignment: center; }
-                                SecondaryButton {
-                                    text: @tr("GitHub Mirrors");
-                                    icon: @image-url("../assets/icons/links-line.svg");
-                                    clicked => { root.import_rewrite_preset("github"); }
-                                }
-                                SecondaryButton {
-                                    text: @tr("Hugging Face");
-                                    icon: @image-url("../assets/icons/cpu-line.svg");
-                                    clicked => { root.import_rewrite_preset("huggingface"); }
-                                }
-                                SecondaryButton {
-                                    text: @tr("Civitai");
-                                    icon: @image-url("../assets/icons/layout-grid-line.svg");
-                                    clicked => { root.import_rewrite_preset("civitai"); }
-                                }
-                            }
-
-                            PrimaryButton {
-                                text: @tr("Add Rule");
-                                icon: @image-url("../assets/icons/add-line.svg");
-                                clicked => { root.add_custom_rule(); }
-                            }
+                        ToggleSwitch {
+                            checked: root.labs_form.url_rewrite_enabled;
+                            toggled => { root.labs_form.url_rewrite_enabled = !root.labs_form.url_rewrite_enabled; }
                         }
+                    }
 
-                        Rectangle { height: 1px; background: Theme.c1f242e; }
+                    // Presets & Add Rule Bar
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: space-between;
 
-                        // Rules List
-                        if root.rewrite_rules.length == 0 : VerticalLayout {
-                            alignment: center;
+                        HorizontalLayout {
                             spacing: 6px;
-                            Text { text: @tr("No rewrite rules configured"); color: #6b7280; font-size: 13px; horizontal-alignment: center; }
-                            Text { text: @tr("Click \"Import Presets\" or \"Add Rule\" above to configure"); color: Theme.c4b5563; font-size: 11px; horizontal-alignment: center; }
+                            alignment: start;
+                            Text { text: @tr("Import Presets:"); color: Theme.c9ca3af; font-size: 12px; vertical-alignment: center; }
+                            SecondaryButton {
+                                text: @tr("GitHub Mirrors");
+                                icon: @image-url("../assets/icons/links-line.svg");
+                                clicked => { root.import_rewrite_preset("github"); }
+                            }
+                            SecondaryButton {
+                                text: @tr("Hugging Face");
+                                icon: @image-url("../assets/icons/cpu-line.svg");
+                                clicked => { root.import_rewrite_preset("huggingface"); }
+                            }
+                            SecondaryButton {
+                                text: @tr("Civitai");
+                                icon: @image-url("../assets/icons/layout-grid-line.svg");
+                                clicked => { root.import_rewrite_preset("civitai"); }
+                            }
                         }
 
-                        for rule[r_idx] in root.rewrite_rules : Rectangle {
-                            background: Theme.c15181f;
-                            border-color: Theme.c272d38;
-                            border-width: 1px;
-                            border-radius: 8px;
+                        PrimaryButton {
+                            text: @tr("Add Rule");
+                            icon: @image-url("../assets/icons/add-line.svg");
+                            clicked => { root.add_custom_rule(); }
+                        }
+                    }
 
-                            VerticalLayout {
-                                padding: 12px;
-                                spacing: 10px;
+                    Rectangle { height: 1px; background: Theme.c1f242e; }
 
-                                // Rule Card Header
-                                HorizontalLayout {
-                                    alignment: space-between;
-                                    HorizontalLayout {
-                                        spacing: 8px;
-                                        alignment: start;
+                    // Rules List (Scrollable Area)
+                    ScrollView {
+                        vertical-stretch: 1;
+                        VerticalLayout {
+                            alignment: start;
+                            spacing: 8px;
 
-                                        ToggleSwitch {
-                                            checked: rule.enabled;
-                                            toggled => { root.toggle_rule_enabled(r_idx); }
-                                        }
+                            if root.rewrite_rules.length == 0 : VerticalLayout {
+                                alignment: center;
+                                spacing: 6px;
+                                padding-top: 24px;
+                                padding-bottom: 24px;
+                                Text { text: @tr("No rewrite rules configured"); color: #6b7280; font-size: 13px; horizontal-alignment: center; }
+                                Text { text: @tr("Click \"Import Presets\" or \"Add Rule\" above to configure"); color: Theme.c4b5563; font-size: 11px; horizontal-alignment: center; }
+                            }
 
-                                        Text {
-                                            text: rule.name != "" ? rule.name : @tr("Unnamed Rule");
-                                            color: Theme.cf3f4f6;
-                                            font-size: 13px;
-                                            font-weight: 600;
-                                            vertical-alignment: center;
-                                        }
+                            for rule[r_idx] in root.rewrite_rules : Rectangle {
+                                vertical-stretch: 0;
+                                background: Theme.c15181f;
+                                border-color: Theme.c272d38;
+                                border-width: 1px;
+                                border-radius: 8px;
 
-                                        ToneBadge {
-                                            text: rule.match_type;
-                                            tone: "info";
-                                        }
-
-                                        if rule.pattern != "" : Text {
-                                            text: rule.pattern;
-                                            color: Theme.c9ca3af;
-                                            font-size: 11px;
-                                            font-family: "Consolas";
-                                            vertical-alignment: center;
-                                        }
-                                    }
-
-                                    HorizontalLayout {
-                                        spacing: 6px;
-                                        alignment: end;
-                                        IconButton {
-                                            text: rule.is_expanded ? @tr("Collapse") : @tr("Edit");
-                                            icon: @image-url("../assets/icons/settings-3-line.svg");
-                                            clicked => { root.toggle_rule_expanded(r_idx); }
-                                        }
-                                        IconButton {
-                                            icon: @image-url("../assets/icons/delete-bin-line.svg");
-                                            text_color: Theme.cf87171;
-                                            clicked => { root.remove_rule(r_idx); }
-                                        }
-                                    }
-                                }
-
-                                // Expanded Editor
-                                if rule.is_expanded : VerticalLayout {
+                                VerticalLayout {
+                                    padding: 12px;
                                     spacing: 10px;
-                                    Rectangle { height: 1px; background: Theme.c202632; }
 
+                                    // Rule Card Header
                                     HorizontalLayout {
-                                        spacing: 12px;
-                                        VerticalLayout {
-                                            spacing: 4px;
-                                            Text { text: @tr("Rule Name:"); color: Theme.c9ca3af; font-size: 12px; }
-                                            CustomTextInput {
-                                                text: rule.name;
-                                                placeholder: @tr("e.g. GitHub Mirrors");
-                                                edited(val) => { root.update_rule_name(r_idx, val); }
-                                            }
-                                        }
-                                        VerticalLayout {
-                                            spacing: 4px;
-                                            Text { text: @tr("Match Type:"); color: Theme.c9ca3af; font-size: 12px; }
-                                            CustomSelect {
-                                                model: ["host", "prefix", "regex", "wildcard"];
-                                                current-value: rule.match_type;
-                                                selected(val) => { root.update_rule_match_type(r_idx, val); }
-                                                height: 36px;
-                                            }
-                                        }
-                                    }
+                                        alignment: space-between;
+                                        HorizontalLayout {
+                                            spacing: 8px;
+                                            alignment: start;
 
-                                    HorizontalLayout {
-                                        spacing: 12px;
-                                        VerticalLayout {
-                                            spacing: 4px;
-                                            Text { text: @tr("Match Pattern:"); color: Theme.c9ca3af; font-size: 12px; }
-                                            CustomTextInput {
+                                            ToggleSwitch {
+                                                checked: rule.enabled;
+                                                toggled => { root.toggle_rule_enabled(r_idx); }
+                                            }
+
+                                            Text {
+                                                text: rule.name != "" ? rule.name : @tr("Unnamed Rule");
+                                                color: Theme.cf3f4f6;
+                                                font-size: 13px;
+                                                font-weight: 600;
+                                                vertical-alignment: center;
+                                            }
+
+                                            ToneBadge {
+                                                text: rule.match_type;
+                                                tone: "info";
+                                            }
+
+                                            if rule.pattern != "" : Text {
                                                 text: rule.pattern;
-                                                placeholder: rule.match_type == "host" ? "*.github.com" : (
-                                                    rule.match_type == "regex" ? "^https://huggingface\\.co/(.*)" : "https://example.com/downloads/"
-                                                );
-                                                edited(val) => { root.update_rule_pattern(r_idx, val); }
+                                                color: Theme.c9ca3af;
+                                                font-size: 11px;
+                                                font-family: "Consolas";
+                                                vertical-alignment: center;
+                                                overflow: elide;
                                             }
                                         }
-                                        VerticalLayout {
-                                            spacing: 4px;
-                                            Text { text: @tr("Replacement Mode:"); color: Theme.c9ca3af; font-size: 12px; }
-                                            CustomSelect {
-                                                model: ["prefix_proxy", "template"];
-                                                current-value: rule.replacement_mode;
-                                                selected(val) => { root.update_rule_mode(r_idx, val); }
-                                                height: 36px;
-                                            }
-                                        }
-                                    }
 
-                                    // Switch Options
-                                    HorizontalLayout {
-                                        spacing: 20px;
                                         HorizontalLayout {
-                                            spacing: 8px;
-                                            ToggleSwitch {
-                                                checked: rule.encode_url;
-                                                toggled => { root.toggle_rule_encode(r_idx); }
+                                            spacing: 6px;
+                                            alignment: end;
+                                            IconButton {
+                                                text: rule.is_expanded ? @tr("Collapse") : @tr("Edit");
+                                                icon: @image-url("../assets/icons/settings-3-line.svg");
+                                                clicked => { root.toggle_rule_expanded(r_idx); }
                                             }
-                                            Text { text: @tr("URL Encode Original (Recommended)"); color: Theme.c9ca3af; font-size: 12px; vertical-alignment: center; }
-                                        }
-                                        HorizontalLayout {
-                                            spacing: 8px;
-                                            ToggleSwitch {
-                                                checked: rule.fallback_to_original;
-                                                toggled => { root.toggle_rule_fallback(r_idx); }
-                                            }
-                                            Text { text: @tr("Fallback to Original on Failure (Recommended)"); color: Theme.c9ca3af; font-size: 12px; vertical-alignment: center; }
-                                        }
-                                    }
-
-                                    // Targets Section
-                                    VerticalLayout {
-                                        spacing: 6px;
-                                        HorizontalLayout {
-                                            alignment: space-between;
-                                            Text { text: @tr("Mirror Targets (top-to-bottom priority):"); color: Theme.ca3e635; font-size: 12px; font-weight: 600; vertical-alignment: center; }
-                                            SecondaryButton {
-                                                text: @tr("Add Target");
-                                                icon: @image-url("../assets/icons/add-line.svg");
-                                                clicked => { root.add_rule_target(r_idx); }
-                                            }
-                                        }
-
-                                        for target[t_idx] in rule.targets : HorizontalLayout {
-                                            spacing: 8px;
-                                            alignment: space-between;
-
-                                            ToggleSwitch {
-                                                checked: target.enabled;
-                                                toggled => { root.toggle_rule_target(r_idx, t_idx); }
-                                            }
-
-                                            CustomTextInput {
-                                                text: target.url_template;
-                                                placeholder: rule.replacement_mode == "prefix_proxy" ? "https://ghproxy.net" : "https://hf-mirror.com/$1";
-                                                edited(val) => { root.update_rule_target(r_idx, t_idx, val); }
-                                            }
-
                                             IconButton {
                                                 icon: @image-url("../assets/icons/delete-bin-line.svg");
                                                 text_color: Theme.cf87171;
-                                                clicked => { root.remove_rule_target(r_idx, t_idx); }
+                                                clicked => { root.remove_rule(r_idx); }
+                                            }
+                                        }
+                                    }
+
+                                    // Expanded Editor
+                                    if rule.is_expanded : VerticalLayout {
+                                        spacing: 10px;
+                                        Rectangle { height: 1px; background: Theme.c202632; }
+
+                                        HorizontalLayout {
+                                            spacing: 12px;
+                                            VerticalLayout {
+                                                spacing: 4px;
+                                                Text { text: @tr("Rule Name:"); color: Theme.c9ca3af; font-size: 12px; }
+                                                CustomTextInput {
+                                                    text: rule.name;
+                                                    placeholder: @tr("e.g. GitHub Mirrors");
+                                                    edited(val) => { root.update_rule_name(r_idx, val); }
+                                                }
+                                            }
+                                            VerticalLayout {
+                                                spacing: 4px;
+                                                Text { text: @tr("Match Type:"); color: Theme.c9ca3af; font-size: 12px; }
+                                                CustomSelect {
+                                                    model: ["host", "prefix", "regex", "wildcard"];
+                                                    current-value: rule.match_type;
+                                                    selected(val) => { root.update_rule_match_type(r_idx, val); }
+                                                    height: 36px;
+                                                }
+                                            }
+                                        }
+
+                                        HorizontalLayout {
+                                            spacing: 12px;
+                                            VerticalLayout {
+                                                spacing: 4px;
+                                                Text { text: @tr("Match Pattern:"); color: Theme.c9ca3af; font-size: 12px; }
+                                                CustomTextInput {
+                                                    text: rule.pattern;
+                                                    placeholder: rule.match_type == "host" ? "*.github.com" : (
+                                                        rule.match_type == "regex" ? "^https://huggingface\\.co/(.*)" : "https://example.com/downloads/"
+                                                    );
+                                                    edited(val) => { root.update_rule_pattern(r_idx, val); }
+                                                }
+                                            }
+                                            VerticalLayout {
+                                                spacing: 4px;
+                                                Text { text: @tr("Replacement Mode:"); color: Theme.c9ca3af; font-size: 12px; }
+                                                CustomSelect {
+                                                    model: ["prefix_proxy", "template"];
+                                                    current-value: rule.replacement_mode;
+                                                    selected(val) => { root.update_rule_mode(r_idx, val); }
+                                                    height: 36px;
+                                                }
+                                            }
+                                        }
+
+                                        // Switch Options
+                                        HorizontalLayout {
+                                            spacing: 20px;
+                                            HorizontalLayout {
+                                                spacing: 8px;
+                                                ToggleSwitch {
+                                                    checked: rule.encode_url;
+                                                    toggled => { root.toggle_rule_encode(r_idx); }
+                                                }
+                                                Text { text: @tr("URL Encode Original (Recommended)"); color: Theme.c9ca3af; font-size: 12px; vertical-alignment: center; }
+                                            }
+                                            HorizontalLayout {
+                                                spacing: 8px;
+                                                ToggleSwitch {
+                                                    checked: rule.fallback_to_original;
+                                                    toggled => { root.toggle_rule_fallback(r_idx); }
+                                                }
+                                                Text { text: @tr("Fallback to Original on Failure (Recommended)"); color: Theme.c9ca3af; font-size: 12px; vertical-alignment: center; }
+                                            }
+                                        }
+
+                                        // Targets Section
+                                        VerticalLayout {
+                                            spacing: 6px;
+                                            HorizontalLayout {
+                                                alignment: space-between;
+                                                Text { text: @tr("Mirror Targets (top-to-bottom priority):"); color: Theme.ca3e635; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                                SecondaryButton {
+                                                    text: @tr("Add Target");
+                                                    icon: @image-url("../assets/icons/add-line.svg");
+                                                    clicked => { root.add_rule_target(r_idx); }
+                                                }
+                                            }
+
+                                            for target[t_idx] in rule.targets : HorizontalLayout {
+                                                spacing: 8px;
+                                                alignment: space-between;
+
+                                                ToggleSwitch {
+                                                    checked: target.enabled;
+                                                    toggled => { root.toggle_rule_target(r_idx, t_idx); }
+                                                }
+
+                                                CustomTextInput {
+                                                    text: target.url_template;
+                                                    placeholder: rule.replacement_mode == "prefix_proxy" ? "https://ghproxy.net" : "https://hf-mirror.com/$1";
+                                                    edited(val) => { root.update_rule_target(r_idx, t_idx, val); }
+                                                }
+
+                                                IconButton {
+                                                    icon: @image-url("../assets/icons/delete-bin-line.svg");
+                                                    text_color: Theme.cf87171;
+                                                    clicked => { root.remove_rule_target(r_idx, t_idx); }
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
+                    }
 
-                        // Live Test Sandbox
-                        Rectangle {
-                            background: Theme.c141922;
-                            border-color: Theme.c38bdf8;
-                            border-width: 1px;
-                            border-radius: 8px;
+                    // Live Test Sandbox
+                    Rectangle {
+                        vertical-stretch: 0;
+                        background: Theme.c141922;
+                        border-color: Theme.c272d38;
+                        border-width: 1px;
+                        border-radius: 8px;
 
-                            VerticalLayout {
-                                padding: 14px;
-                                spacing: 10px;
+                        VerticalLayout {
+                            padding-top: 10px;
+                            padding-bottom: 10px;
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            spacing: 8px;
+                            alignment: start;
+
+                            // Header (collapsible)
+                            HorizontalLayout {
+                                alignment: space-between;
                                 HorizontalLayout {
-                                    spacing: 6px;
+                                    spacing: 8px;
+                                    alignment: start;
                                     VerticalLayout {
                                         alignment: center;
                                         Image {
                                             source: @image-url("../assets/icons/flask-line.svg");
                                             colorize: Theme.c38bdf8;
-                                            width: 16px;
-                                            height: 16px;
+                                            width: 15px;
+                                            height: 15px;
                                             image-fit: contain;
                                         }
                                     }
@@ -786,11 +810,54 @@ export component LabsDialog inherits Rectangle {
                                         font-weight: 700;
                                         vertical-alignment: center;
                                     }
+                                    if !root.sandbox_expanded && root.labs_form.url_rewrite_test_matched_rule != "" : ToneBadge {
+                                        text: root.labs_form.url_rewrite_test_matched_rule;
+                                        tone: "success";
+                                    }
                                 }
 
-                                VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: @tr("Input Test URL:"); color: Theme.c9ca3af; font-size: 12px; }
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    alignment: end;
+
+                                    if root.sandbox_expanded && root.labs_form.url_rewrite_test_url != "" : IconButton {
+                                        icon: @image-url("../assets/icons/close-line.svg");
+                                        text_color: Theme.c9ca3af;
+                                        clicked => {
+                                            root.labs_form.url_rewrite_test_url = "";
+                                            root.test_url_changed("");
+                                        }
+                                    }
+
+                                    IconButton {
+                                        icon: @image-url("../assets/icons/arrow-down-s-line.svg");
+                                        icon_rotation: root.sandbox_expanded ? 180deg : 0deg;
+                                        text: root.sandbox_expanded ? @tr("Collapse") : @tr("Expand");
+                                        text_color: Theme.c9ca3af;
+                                        clicked => {
+                                            root.sandbox_expanded = !root.sandbox_expanded;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Body
+                            if root.sandbox_expanded : VerticalLayout {
+                                spacing: 8px;
+                                alignment: start;
+
+                                HorizontalLayout {
+                                    spacing: 10px;
+                                    alignment: start;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Text {
+                                            text: @tr("Input Test URL:");
+                                            color: Theme.c9ca3af;
+                                            font-size: 12px;
+                                            vertical-alignment: center;
+                                        }
+                                    }
                                     CustomTextInput {
                                         text <=> root.labs_form.url_rewrite_test_url;
                                         placeholder: "https://raw.github.com/user/repo/file.zip";
@@ -798,42 +865,76 @@ export component LabsDialog inherits Rectangle {
                                     }
                                 }
 
-                                if root.labs_form.url_rewrite_test_url != "" : VerticalLayout {
-                                    spacing: 6px;
-                                    if root.labs_form.url_rewrite_test_matched_rule != "" : HorizontalLayout {
+                                if root.labs_form.url_rewrite_test_url != "" : Rectangle {
+                                    background: Theme.c0b0c0f;
+                                    border-color: Theme.c202632;
+                                    border-width: 1px;
+                                    border-radius: 6px;
+
+                                    VerticalLayout {
+                                        padding-top: 8px;
+                                        padding-bottom: 8px;
+                                        padding-left: 12px;
+                                        padding-right: 12px;
                                         spacing: 6px;
-                                        Text { text: "✓"; color: Theme.c4ade80; font-size: 13px; font-weight: 800; }
-                                        Text {
-                                            text: @tr("Matched Rule: ") + root.labs_form.url_rewrite_test_matched_rule;
-                                            color: Theme.c4ade80;
-                                            font-size: 12px;
-                                            font-weight: 600;
+                                        alignment: start;
+
+                                        if root.labs_form.url_rewrite_test_matched_rule != "" : HorizontalLayout {
+                                            spacing: 6px;
+                                            Text { text: "✓"; color: Theme.c4ade80; font-size: 13px; font-weight: 800; }
+                                            Text {
+                                                text: @tr("Matched Rule: ") + root.labs_form.url_rewrite_test_matched_rule;
+                                                color: Theme.c4ade80;
+                                                font-size: 12px;
+                                                font-weight: 600;
+                                            }
                                         }
-                                    }
 
-                                    if root.labs_form.url_rewrite_test_result_1 != "" : HorizontalLayout {
-                                        spacing: 6px;
-                                        Text { text: "1."; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
-                                        Text { text: root.labs_form.url_rewrite_test_result_1; color: Theme.c38bdf8; font-size: 12px; font-family: "Consolas"; }
-                                    }
+                                        if root.labs_form.url_rewrite_test_result_1 != "" : HorizontalLayout {
+                                            spacing: 6px;
+                                            Text { text: "1."; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
+                                            Text {
+                                                text: root.labs_form.url_rewrite_test_result_1;
+                                                color: Theme.c38bdf8;
+                                                font-size: 12px;
+                                                font-family: "Consolas";
+                                                overflow: elide;
+                                                horizontal-stretch: 1;
+                                            }
+                                        }
 
-                                    if root.labs_form.url_rewrite_test_result_2 != "" : HorizontalLayout {
-                                        spacing: 6px;
-                                        Text { text: "2."; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
-                                        Text { text: root.labs_form.url_rewrite_test_result_2; color: Theme.c38bdf8; font-size: 12px; font-family: "Consolas"; }
-                                    }
+                                        if root.labs_form.url_rewrite_test_result_2 != "" : HorizontalLayout {
+                                            spacing: 6px;
+                                            Text { text: "2."; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
+                                            Text {
+                                                text: root.labs_form.url_rewrite_test_result_2;
+                                                color: Theme.c38bdf8;
+                                                font-size: 12px;
+                                                font-family: "Consolas";
+                                                overflow: elide;
+                                                horizontal-stretch: 1;
+                                            }
+                                        }
 
-                                    if root.labs_form.url_rewrite_test_result_3 != "" : HorizontalLayout {
-                                        spacing: 6px;
-                                        Text { text: "3."; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
-                                        Text { text: root.labs_form.url_rewrite_test_result_3; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
-                                        ToneBadge { text: @tr("Fallback"); tone: "neutral"; }
-                                    }
+                                        if root.labs_form.url_rewrite_test_result_3 != "" : HorizontalLayout {
+                                            spacing: 6px;
+                                            Text { text: "3."; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
+                                            Text {
+                                                text: root.labs_form.url_rewrite_test_result_3;
+                                                color: Theme.c9ca3af;
+                                                font-size: 12px;
+                                                font-family: "Consolas";
+                                                overflow: elide;
+                                                horizontal-stretch: 1;
+                                            }
+                                            ToneBadge { text: @tr("Fallback"); tone: "neutral"; }
+                                        }
 
-                                    if root.labs_form.url_rewrite_test_matched_rule == "" : Text {
-                                        text: @tr("No rewrite rules matched. Original URL will be used.");
-                                        color: #6b7280;
-                                        font-size: 12px;
+                                        if root.labs_form.url_rewrite_test_matched_rule == "" : Text {
+                                            text: @tr("No rewrite rules matched. Original URL will be used.");
+                                            color: #6b7280;
+                                            font-size: 12px;
+                                        }
                                     }
                                 }
                             }
