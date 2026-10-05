@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:63bb2c51d9aae5ba070fe4ccf8ef15d8230b3ec3514030d8793ad817b64062aa",
+  "pageVersion": "sha256:38c9efa926a13d26c0cd152d311d09b4f8932a0a06c74fecb97d12d493e17967",
   "claims": [
     {
       "id": "claim_9069efa9e70847f4afdb9194ea98ad55",
@@ -277,8 +277,8 @@
       "statement": "aria2_rpc/oracle_tests.rs is a Tier 2 live-aria2c oracle (opt-in via ARIA2_ORACLE_BIN, nightly/manual Linux workflow) that asserts the client-facing contract against allowlists — AriaNg option keys, always-present tellStatus keys, the listMethods/listNotifications delta, code 1 error objects and JSON-RPC batch — and fails on anything outside them.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L45",
-          "version": "repo-lines-v1:sha256:3ebe04bd1a7715c472921803e86925329a7a1b7e5df9b524f9e9da7d934b5c56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYmZiNTU3MTExMDZlMDdjZTQ5MjZiMWQzODYxZWFkM2FkNmZkMWU4NDgwZmIxMmUxZDMzNmY1NzVlYjNhNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI4MGNjNzBjZjM1NWI0YjU0MzE0MDI1MWY0Zjk2MWJjNjMwYzIwYmZkMDg1YjU2OTlmNmIxZTg0ODZjZjIyZTMifQ"
+          "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L52",
+          "version": "repo-lines-v1:sha256:edc98e81ed7cfcbec229484bc6762121ba13c111593c66a0855f1a973d304730:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3NjRkNGZkYTkyOTUxNzZlNGQwODdlYjYzYTRkNzhiZGRiOGRjZDZkNTEwNDRkY2Q4YzQxM2UwNzYwNmM5YzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY4NjhmNjM2OTc2ZDVlZjljYzEwOGY1YzIwNjQ4MDY0YzNkY2VmZjNlNzRhOTViNjY3MjQ5MTA1MTQ5OGU2N2QifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70",
@@ -393,6 +393,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T14:09:40.431Z"
+    "at": "2026-10-05T01:38:26.934Z"
   }
 }

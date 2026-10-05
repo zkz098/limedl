@@ -3,9 +3,6 @@ type: operations
 title: Server Deployment and Packaging
 description: The committed deployment assets for the headless daemon — the hardened systemd unit and env file, the container entrypoint with its PUID/PGID convention, the from-source and prebuilt-binary Dockerfiles, the compose example and the multi-arch GHCR image.
 tags: [operations, server, systemd, docker, packaging, nas]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T12:58:25.182Z
 sources:
   - id: openwiki-source-715dace563ef484b6e8bd1e2
     resource: repo://.dockerignore
@@ -24,6 +21,9 @@ sources:
   - id: openwiki-source-816a10881eb55b69eaf93236
     resource: repo://packaging/server/systemd/limedl-server.service
 generated: { by: "pi", at: "2026-10-04T12:58:25.182Z" }
+verified:
+  - by: openwiki/0.7.0
+    at: 2026-10-05T01:38:26.934Z
 ---
 
 # Server Deployment and Packaging

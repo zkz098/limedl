@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:ef25c4fdf6b964827e07fbcdc78de964c171adaa0ae3915eb4c00da5364f11ef",
+  "pageVersion": "sha256:b04d25afd0c0b7cac709c73b1fde6332f13819c59900891c5ef0d943da67932e",
   "claims": [
     {
       "id": "claim_65bbce20cdb64f53960b988322db9037",
@@ -233,8 +233,8 @@
       "statement": "aria2_rpc/oracle_tests.rs is an opt-in Tier 2 suite (ARIA2_ORACLE_BIN) that starts a real aria2c --enable-rpc beside limedl and asserts the client-facing contract against allowlists (AriaNg option keys, tellStatus keys, listMethods/listNotifications delta, code 1 errors, batch), failing on unexpected differences; Aria2Oracle manages the port, --no-conf, DHT-off, readiness poll and child cleanup.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L45",
-          "version": "repo-lines-v1:sha256:3ebe04bd1a7715c472921803e86925329a7a1b7e5df9b524f9e9da7d934b5c56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYmZiNTU3MTExMDZlMDdjZTQ5MjZiMWQzODYxZWFkM2FkNmZkMWU4NDgwZmIxMmUxZDMzNmY1NzVlYjNhNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI4MGNjNzBjZjM1NWI0YjU0MzE0MDI1MWY0Zjk2MWJjNjMwYzIwYmZkMDg1YjU2OTlmNmIxZTg0ODZjZjIyZTMifQ"
+          "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L52",
+          "version": "repo-lines-v1:sha256:edc98e81ed7cfcbec229484bc6762121ba13c111593c66a0855f1a973d304730:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3NjRkNGZkYTkyOTUxNzZlNGQwODdlYjYzYTRkNzhiZGRiOGRjZDZkNTEwNDRkY2Q4YzQxM2UwNzYwNmM5YzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY4NjhmNjM2OTc2ZDVlZjljYzEwOGY1YzIwNjQ4MDY0YzNkY2VmZjNlNzRhOTViNjY3MjQ5MTA1MTQ5OGU2N2QifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70",
@@ -272,11 +272,11 @@
     },
     {
       "id": "claim_fe08cb6285b54ea29c185063cbbc1d4f",
-      "statement": "The limedl-server end-to-end test boots a real daemon with an injected pending shutdown future, asserts a request without the token is Unauthorized, then calls aria2.shutdown and awaits a clean process exit within a timeout.",
+      "statement": "The limedl-server end-to-end test boots a real daemon with an injected pending shutdown future, polls readiness through a fallible helper that tolerates the bootstrap connection-refused state, asserts a request without the token is Unauthorized, then calls aria2.shutdown and awaits a clean process exit within a timeout.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-server/tests/daemon.rs#L42-L109",
-          "version": "repo-lines-v1:sha256:71d8a75183678d209224394c4117e63379c49365e9e58de859795b1c850323df:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5MzcwNmU2ZTg2ZWM0NmU4YmUxYmU1MTkyOTY3M2M5Mjc0NGQwYjI4YjhkNmQwYTM2MGNhZDQ3MGQ3M2E5MGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYwMWVhNTUyYmIwMDZjZGU3ZDVjNTFkNjhkMjg4NjFmYWYxMGRkMmZhYjMxYWE1ZTZmZTRlZjJjZTE5ZjBjNTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://crates/limedl-server/tests/daemon.rs#L52-L123",
+          "version": "repo-lines-v1:sha256:bd9741a3da182ceda7a944bb5dc238ab9810c59a9f101f843c93414dd58e33f3:eyJzZWxlY3RlZExpbmVDb3VudCI6NzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5MzcwNmU2ZTg2ZWM0NmU4YmUxYmU1MTkyOTY3M2M5Mjc0NGQwYjI4YjhkNmQwYTM2MGNhZDQ3MGQ3M2E5MGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYwMWVhNTUyYmIwMDZjZGU3ZDVjNTFkNjhkMjg4NjFmYWYxMGRkMmZhYjMxYWE1ZTZmZTRlZjJjZTE5ZjBjNTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
@@ -313,6 +313,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T14:09:40.431Z"
+    "at": "2026-10-05T01:38:26.934Z"
   }
 }

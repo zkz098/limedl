@@ -43,7 +43,7 @@ sources:
 generated: { by: "pi", at: "2026-10-04T14:09:40.431Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T14:09:40.431Z
+    at: 2026-10-05T01:38:26.934Z
 ---
 
 # Aria2 JSON-RPC Compatibility Server

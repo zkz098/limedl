@@ -30,10 +30,10 @@ sources:
     resource: repo://crates/limedl-core/src/persistence.rs
   - id: openwiki-source-098d28438aacd15b419786dc
     resource: repo://crates/limedl-core/src/task_lifecycle/mod.rs
-generated: { by: "pi", at: "2026-10-04T11:10:17.271Z" }
+generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T11:10:17.271Z
+    at: 2026-10-05T01:38:26.934Z
 ---
 
 # HTTP Download Lifecycle
@@ -143,8 +143,17 @@ Each worker also carries a `RequestBudget` of
 ending the body early fails the download instead of driving the worker's
 re-fetch loop forever.
 
+A body that breaks *mid-segment* is not fatal either. `consume_segment` returns
+`SegmentBody::StreamInterrupted(err)` instead of propagating the error; the worker
+records a retry penalty, flips the task from `Retrying` back to `Downloading`,
+backs off with jitter and re-requests the rest of the segment from its current
+offset, which becomes a `Range` request. The consecutive-failure counter resets
+whenever the offset advanced, and only bodies that keep failing without progress
+past `max_retries` are propagated as a failure.
+
 Evidence: `repo://crates/limedl-core/src/http_executor/chunked.rs#L7-L135`,
-`repo://crates/limedl-core/src/http_executor/worker.rs#L28-L150`.
+`repo://crates/limedl-core/src/http_executor/worker.rs#L28-L150`,
+`repo://crates/limedl-core/src/http_executor/worker.rs#L206-L310`.
 
 ### 429 single-thread downgrade
 
@@ -178,7 +187,18 @@ The chunked worker has the same mechanism per chunk
 (`MAX_SEGMENT_FETCHES_PER_CHUNK = 24`) — see
 [networking-and-rate-control.md](../systems/networking-and-rate-control.md).
 
-Evidence: `repo://crates/limedl-core/src/http_executor/single.rs#L17-L186`.
+A body that breaks mid-transfer is recovered in place rather than failing the
+task. When `stream.next()` yields an error, `download_single` logs the offset it
+reached, records a retry penalty, sleeps a jittered backoff and re-issues the
+request — which resumes from the **durable** offset through the same
+`If-Range`/`Range` path, so bytes already written are never re-fetched. The
+`consecutive_stream_errors` counter is reset whenever the offset advanced, so a
+long download that keeps making progress can absorb many interruptions; only a
+body that keeps breaking without progress past `max_retries` propagates the error
+and fails the task. Cancelling during the backoff returns the normal cancel
+outcome.
+
+Evidence: `repo://crates/limedl-core/src/http_executor/single.rs#L114-L187`.
 
 ## Phase 4 — Scheduling and progress
 

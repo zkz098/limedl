@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:c83d4cb7aab684dd32983a9c5b16bf708afd6951a62be6187be8e080acbf3b5b",
+  "pageVersion": "sha256:06a4a63f57b015e8ffb7bb3b463e2d9c6461ebebf6e32fa1923e7a14542c44c4",
   "claims": [
     {
       "id": "claim_85e73356ae5d402eac4df4fc97598b30",
-      "statement": "build_http_client and configure_client_builder apply redirect Policy::limited(10), TCP_NODELAY, 15s read timeout, 30s connect timeout, keepalive and pool settings, and map proxy mode to no_proxy, reqwest system detection, or Proxy::all(manual_url).",
+      "statement": "build_http_client and configure_client_builder apply redirect Policy::limited(10), TCP_NODELAY, a 30 s read timeout, a 30 s connect timeout, keepalive and pool settings, and map proxy mode to no_proxy, reqwest system detection, or Proxy::all(manual_url).",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/http_client_factory/mod.rs#L28-L66",
-          "version": "repo-lines-v1:sha256:31711f569fddc259ea77af42c65cb3741b2b13bbe02502fef7cfe5457c3d4004:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE2YzJkYjI1NzMxMGUxMzZkMDM1OTFkOTRhN2ZkMWQ3ZWJjODVhYjlmYTc5YWE2NzZjMjVjYzVmZmRmNjhiMTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM4Njc5OWVjYTUxMGEyY2M5MzgxNzU4NzE2OWViNTVmNjY0NDlkMzJkNTE4NDI3OWQ4MDM2NTZmNWY4NDZkZmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ2YjI4YTM1MWZjN2NhOTM4YzRkYzk0YmM4NjU5NTBkM2FjMGYyMzg1NDdkMGUxYmEyYmNiOGVlZTIxMjNhY2IifQ"
+          "resource": "repo://crates/limedl-core/src/http_client_factory/mod.rs#L29-L65",
+          "version": "repo-lines-v1:sha256:1b38aa3ea0dc2672aaa7ce979766e29f914a0ad1fdd399f60d979575687c7595:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1MzM2NzEzMzVlNjVjNWExMzVmNTZmMzMyOTJjYzdmYjcxZWUwMDMzOWIxNTJmODgwZjllY2IzZDhjNGRiNDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJiMmVlMDhhN2RiMTE0YjdjOGZiZTU3ZGJlNzRkZjQ1NmYwNjY0YmIyZmM2OTQyZWNkYjJhYWUwNTNiMmZkZDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQzMjVhNWI1ODE0MDk4ZDFhOTkyYTRiMWM1OWY4Y2RhYTBkMmE4ODgyZjc3M2Y0OTExZGUxZTIwZGFkYzk5ZjYifQ"
         }
       ]
     },
@@ -101,8 +101,8 @@
       "statement": "Retryable failures increment the attempt, record an AIMD penalty and set the task to Retrying; a 429 on a multi-threaded download aborts retries so the chunked path can downgrade; backoff_delay stays the deterministic 250 ms * 2^min(attempt,4) capped at 4 s while backoff_or_cancel sleeps jittered_backoff_delay, which adds uniform jitter in [base, base*1.25].",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/retry.rs#L73-L200",
-          "version": "repo-lines-v1:sha256:010de8a7767a5a04a745581fd941820b059e7f9fdbdf5d43296de3834cd5ad46:eyJzZWxlY3RlZExpbmVDb3VudCI6MTI4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI4OTUxYjAzYjYwZDBmMzZiZjAwNjRmN2NlYTY0M2QxYTIyOTljMDMxZWVkNTkwYTllNzhlZDFkNmRiMmQyODVjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwYjJmMGVlMGM5ZTgzNjA2NTM0MTJlZTdmYjViMTYzMTYxMzExMDdhODMwNWRjODM1MjRjYzc2MjdhNzcyNmY0IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5YjVhNTEzZTllZDc3Y2M5NWVmY2NkYzVlYzcxYTIyOWMzMTVmZjc1M2QwN2IxZDI5ODVlNjU3NzI2MjBhNDJlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlNGVlMWU3N2IyNDFhMjFmNjI4ZmYyODk0ODE5MWVjNWJhZWViYWUyNzdjOGVlNTE5ZDJlNTQ1NDliNzdiMWEwIn0"
+          "resource": "repo://crates/limedl-core/src/retry.rs#L73-L203",
+          "version": "repo-lines-v1:sha256:23301ed50ca62e8a2ee891be09199350e43471ba2f7ab1eddd97c2a738b8a485:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI4OTUxYjAzYjYwZDBmMzZiZjAwNjRmN2NlYTY0M2QxYTIyOTljMDMxZWVkNTkwYTllNzhlZDFkNmRiMmQyODVjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5YjVhNTEzZTllZDc3Y2M5NWVmY2NkYzVlYzcxYTIyOWMzMTVmZjc1M2QwN2IxZDI5ODVlNjU3NzI2MjBhNDJlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
         }
       ]
     },
@@ -145,12 +145,12 @@
           "version": "repo-lines-v1:sha256:b34da1561d9232c52d809eb1d5e2895459d41e464df80f1109e1e61cb4d2e6ea:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE3ZmYzZjE4YzdiOTFjOGQyMTdmYWZhYzdiZmE0ZmFkOGQ4NjczNjY1M2VjMmQ3MzAzYjYyZWYwOTgxYjE2M2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI4MTZjMWFlNjhiOTY2Y2U2MThmZWI5NGMzMzg0ZmNhNGUwZjcwMjlmNGQ3ZTYyMTU0MzY2OTdiZjE0NmJjMjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdjOWMxMzk5NGI0ZmQzMDJmM2ZlOWRlOThmNGUxM2QzNDc3YjYwZDZiY2E1Y2EyNzkxNDZiYTE0ZGFmMWIwYWEifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L7-L35",
-          "version": "repo-lines-v1:sha256:7260cc1134777e5563935d7c9ac4a10f3f821eacde068571c505e4a2e60cca9b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYxZWNiMDAxMGMwYTYxNmRiNDAyOGI4MThjODdlYTM3MmQ1YTkwOGMzOTMzMGUyMzcwM2VmNThjZTBhMzAzMzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExNDU2ZWYwNTkzOTZmMzBjMGUzNWFhMjRkN2YzMTYzYmYzYWEwYWE5ZDIyZmJjMjgxZTk5MzdmMzc0YjVjOTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYwMGZmYTQxODdiOGQ5MGQxOWQ5ZmI2NWM1OTVmMmZhM2Y4YmQxODUyNjRkZGVjYjcyOTIzOTFhMDk0ZjA0NGEifQ"
+          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L20-L45",
+          "version": "repo-lines-v1:sha256:4a7580784cec3c1d6daae1345725de0853375fa4b1b5d0fbf3d8b2132847b0ce:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0NTMyMDg4MzU0NTc2MjYyOThjMmZmMTBiMGJkNjk4Yjg0NzJlNWZhZTdjNWE1N2M4YzA2OTc2MTU1NWQ5YWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhZWI4NmNjOTI5YWNjYzJlMWExYzRmNjNlYWUzMzI2MjZkZWFlYWJiZTk0ZWMyNjBkYThmMTRhMDQwMGY3Y2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUwY2JhYzk4M2IwNzg0MTcyYjg5ODdkMWU3ZjQ4MmY3NzczMjkyZTJmMDE0M2JmOTk3YTdhOTk3MTg1Njk4MWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgzODdiYzVkZDE0OTM5MTFmMjRlMGUxZWYwYzFhNWE0NzBlZmFiZWE4NDkzMDJiNzJlYzhkODU3YzZhYzJmMTAifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/http_executor/worker.rs#L200-L235",
-          "version": "repo-lines-v1:sha256:d5f2ef05fbfbed8998a6b7918c02af2ca049155637a4f75f744525bd92bd4473:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2OTk3MjU3YTc0M2ZiNTk0MDBhNTYwODM4YmZhYTJhNjcyYjM5MGU3Y2U3MjM3OTFlZjExMGQ0MmZiMjFhNmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVkMjMzOGVjYzZkNDA3YWVmNTYwNjg4NzcxOGYwN2I4N2EyOTFhMjY1NDhjMTNjODRjMjg1NjdkMGQ4ODI0MDYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZkMTc0NjIwYjIzMDE4YzMyNzZhZmU1OWE2NjY4ZDNhMzNkNDVkM2Q0MTkwMWYxNDZiNTk0YjM0MDJlODE2NzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0NjEwNGJlZWI2MGU1NjNkY2YxYzYwNmEyOGNjZGQ5MWY5YzMzMDk3NTRiMTFkODRlMDdmY2U0ODlmYmYyMjgifQ"
+          "version": "repo-lines-v1:sha256:c7fed3d9228ab737784e8980b1ff43a31751084453494120987eacc389ef7cb2:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUyYmYyOGVmZGU2MTY1M2E4NmJhNjU5M2EwYmRjMGE0MjYyYzViZDBhYjc4NjM5MjRiMjdjYmI2MjA5ZDgxYjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEyYTVmODE4MTIxODg3N2U2YWRhMDA3ZjViNmI4NTMwM2MzMmIzMDNmNmQ5YThiZmMwZDdiYjg5ZGZiMzdiMTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU1OWRkYWVkZjExZWUyYmI1YWZiNDVmZTcwZmU3NDM1ZWFhNGU3NGM2MTU4ZjAyOGMxMDcwYWU0MjQ5OTUxMWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU2Y2MyYTIxNGNiM2ZmMDMxYmYzYTkyMGY1YjgzYTFiNjFlNjU1ZDMxZDFkMDJkM2I2YzI0MTZlMDBiYjAzMWMifQ"
         }
       ]
     },
@@ -163,7 +163,7 @@
           "version": "repo-lines-v1:sha256:dbe8e7f512667871a1a816632634e8d0e7a307c1b699fb25a20d072c746b2f6c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ1YTNkYjg3N2ViMGMyZjg4MmRhNjJhMGI1OGI5MzNlMzBkNGZjMjIwYjZkYzM1ZWJjZDMzYzQ1ZjMyNjM2NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUzMzcwNjYyZGM1NzQ0NzdhMjJmMzk1NDdkMDJhZWZkMTRhN2UzMDE4YzRiOTE5MmFkMzAzMWI1YzVhZGQ1OGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNmY2U0ZmZjNjkxYmY4NDAxM2Q2MWY5OWM4ODM0ODc5NmNkYzJlNTE4ODYyZGZlZGQ4ZWNmMDdlODYwOWY2MzIifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L188-L212",
+          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L235-L259",
           "version": "repo-lines-v1:sha256:79d91a5031736de808bb0480c2d6bfd633e25212bddd6436bab0838b0047cf6f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE4ZWU1NDA2ZjMxMDU5MTJlNTQ3YzUxNjJhNGVkNjQ5NDhlMTgyN2NkOTkwOTVhNDFkOWExZGYwNGYxNzFhYTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmMjE3M2ExNGMyZWE2ZTQxZDcyMzZkNjQzNWFhNDVkNmQ1YTRjNGVkNmY4OTA0ZTBlODkyMjU3NDA1MGU0OWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA3ZTU1MWNhYmNjNDE4MzQ2YWQ3ZTdlOTVjOTAwZTg3Nzk4ZjhiOTFmOGQ2YmY2ZGUxMWUyMTE1NzUzODg5ZWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUxN2M5ZjI5YTA5MGY0OWRiN2EzZTZlNWU0ZjJkNWZiOTcxMjI5ZWQ3ZWNiZmM3M2U4NjhlMzU2MjZmMTZiOTMifQ"
         },
         {
@@ -175,6 +175,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T13:24:31.562Z"
+    "at": "2026-10-05T01:38:26.934Z"
   }
 }

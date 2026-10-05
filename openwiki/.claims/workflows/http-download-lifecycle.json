@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:a3bbd3d221eb531196f5c54413464f30cc554dcc555a988ba41c85c8546cc8c2",
+  "pageVersion": "sha256:c764004c4bebf0d7219198ce32ff325e03cd293812c3d2df7e64c83aeb0f20d1",
   "claims": [
     {
       "id": "claim_7adfe6bc70df455da96fef56ab373539",
@@ -67,7 +67,7 @@
       "statement": "Chunk workers claim by interleaved stripe with an any-unclaimed fallback, steal work by splitting the active chunk with the largest remaining range of at least 2 MiB, and release a claim only when it still belongs to that worker.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/worker.rs#L28-L150",
+          "resource": "repo://crates/limedl-core/src/http_executor/worker.rs#L36-L158",
           "version": "repo-lines-v1:sha256:881493c6508f1eaf361c22b145a751ee1250864bb11a07ffd51e80c838a66473:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI3NTdmMzJhY2ZjMGFiMmNjZmY1ZDVhZGIxZDEyZDhiYWYwMDBiY2RkODNjYmE0ODdhMWEwMmY3ZjUzODgyNmJlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJiYTIwN2ZlYzA5M2ZjOGMxNzU3NDgyMzkxZDdmOGEwYzUyYTk4ZTNhY2MwMmZjYzJjMjY1M2MwNjM1MDVjOGYyIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIzNzJmOWIwZmNiNTJlOTZhNjdmZDRjMGEyMzE1MmNhMzUxZWFlN2JjZGVlMzNkMzFmM2VhMmViZGE5NjYzOGYzIn0"
         }
       ]
@@ -81,7 +81,7 @@
           "version": "repo-lines-v1:sha256:6d07d2f2853e9f68ad3f51127459d4f61955fe20d6680ab16414a308446cef88:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjZThkOWEzZTViYmE1YWRhMDE5YjhiYjEyYjYxMjVkOWIwNDc3NjA3ZjUzYWNjMDAxNDZhZGFmZTk2Yzg5NmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImViOTZhYWEwZDVhM2E2MGE5ZmUyMzk0YTI3MGMyYTU4NjczM2NiMTJkYWM3NmQ0NTFkYzMwZDIxZjQ4MzI3MzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyN2EzMDRhNjUwMzViZDNiNGIyZjk1ZmJlMTE0OTk2ZWEwZDUwOTRmMjExM2ZhZmYxN2UxNjkzZWViNmI4OWIifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/worker.rs#L270-L331",
+          "resource": "repo://crates/limedl-core/src/http_executor/worker.rs#L319-L380",
           "version": "repo-lines-v1:sha256:26e481c8699e635faafd565b411c7e5e7c1adf7d03f72e9c20d7a68647bc9023:eyJzZWxlY3RlZExpbmVDb3VudCI6NjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzNTYxZmI1YzcwZDBlMDcxYWMxOGQwZTk0NjI2NjIwNmRiMGM1ZTYwNWJkYzcyMzA4ODc1NmJiM2Y4YTU1MWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk0ZGRjMGM1NjZkM2QwYjFlYmViOTYwYTc1NGQ5MjhkMDU2NTcyMGNkODE5ODI4ZGVhZDAyMGZlYmE0OGJlZTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjlkMTQ0MmQxMTYyOWYyMTFlYTNkY2EyYzI2ZWY4NmY0ZDEzN2ZhZWRkODZlMmE1OWUyMTc5ZmE1NjhjYzQ3MWIifQ"
         }
       ]
@@ -98,11 +98,11 @@
     },
     {
       "id": "claim_7dd833753d9d4afaaaae45f6d03f3539",
-      "statement": "download_single resumes from contiguous_prefix_end with an If-Range validator, retries requests, streams the body through the write buffer while batching rate-limiter consumption and throttling persist/progress, guards content length, flushes the limiter and buffer on every exit path, and charges a RequestBudget of 64 responses so a server that always ends the body early fails instead of looping.",
+      "statement": "download_single resumes from contiguous_prefix_end with an If-Range validator, retries requests, streams the body through the write buffer while batching rate-limiter consumption and throttling persist/progress, guards content length, and recovers a mid-body stream error by recording a retry penalty and re-requesting from the durable offset after a jittered backoff; it flushes the limiter and buffer on every exit path and charges a RequestBudget of 64 responses so a server that always ends the body early fails instead of looping.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L17-L186",
-          "version": "repo-lines-v1:sha256:9c15d66d3619dc63c3c8296f648becc52bc3498887e84b65397923c0f0f4f719:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMDg0MmQ3ZGZkOTQxNzYzY2Y3OTg3N2QzZmE3NjYxNTM0ZGJmMzZkZDkxNDBlMDU0N2JmYjE1ZWYyZTA0MjM1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI1MTM4NWM5NmRkOGQ2ZDdlZDY5NTUzYjYzZWNmOThlMDA1NTgxNTkyODhjOWQ1NWI0NWZiOTA2ZjdkMTU1Yjc3IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlODZlMTUyMjQyZTc5ODE0NTk0NzFiMDAyNDZiNmJhMjg3YmNlOTk1MDY0N2E3NzUyOWMyNGYyNDY1YzMzZmNhIn0"
+          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L26-L187",
+          "version": "repo-lines-v1:sha256:5dae48a9a0d8f5bbd262a87633f7f8b2909c36844cf1e673bae0c3587a896175:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMDg0MmQ3ZGZkOTQxNzYzY2Y3OTg3N2QzZmE3NjYxNTM0ZGJmMzZkZDkxNDBlMDU0N2JmYjE1ZWYyZTA0MjM1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI1MTM4NWM5NmRkOGQ2ZDdlZDY5NTUzYjYzZWNmOThlMDA1NTgxNTkyODhjOWQ1NWI0NWZiOTA2ZjdkMTU1Yjc3IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIwYjI1MjgzYWE0Y2EwZWU4ZjQxNDVkYTM5ZGE1NmY0MDJlMjBlYzc0M2NiNzg0NGI1NDg3MjllMTgyODFlOTE1In0"
         }
       ]
     },
@@ -173,7 +173,7 @@
           "version": "repo-lines-v1:sha256:d3bbb76db0a186948201aaf2bcc43aa639f0d7644187f4d72604260fbadf0bd5:eyJzZWxlY3RlZExpbmVDb3VudCI6ODEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUwMzMzZDhhMDZmOWYxZDQxMmUwOWNiMTI5M2IyNDdjOGEzY2EyNTM4NmYyMTBlOGI3ZGFhNmZjZjlmY2EzZTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUxYTE2MTY4NzFlNzNlZWEyZWVhMDczNjU0NmFkYWJlMzMwNTljZmNiZDU4Y2M1NzVkNzJjMjkzNmQ4ZmYwNzMifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L250-L283",
+          "resource": "repo://crates/limedl-core/src/http_executor/single.rs#L297-L330",
           "version": "repo-lines-v1:sha256:952800cca454dd775f3d61d11a012a0a5f6f76e6d734cad81aa9444e92ab419a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg1OWE1NjMyYzBiMGU5MjUyMzI1NjdjY2U2NzllZjMyNmMyZWEzYzJlNDY5YjkxNzNlY2FmNmQ3Y2I1MTcxMTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEzZjMwYmQxNDMxNjhjN2FkNzIzZTk2MjA5NDNjODFmNzYwZTc1ZTU3YzAwMDhiNjc4OGM4NGFlNzgyZDY3MzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
         },
         {
@@ -185,6 +185,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T11:10:17.271Z"
+    "at": "2026-10-05T01:38:26.934Z"
   }
 }

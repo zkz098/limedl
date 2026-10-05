@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:a91954f4169318e4cdfd6b1d149e459283f9128603c4262a773cf7ec1968e745",
+  "pageVersion": "sha256:4ec060eccb39da666e4900e15ca8062dd905fb3e79c9747ae295544310e5fd08",
   "claims": [
     {
       "id": "claim_6719a8b6ce264d6fa5e8103236b5336c",
-      "statement": "limedl is a four-member Cargo workspace: crates/limedl-core (engine library limedl_core), crates/limedl-native (Slint desktop binary), crates/limedl-server (headless daemon binary) and xtask (repository tooling).",
+      "statement": "limedl is a four-member Cargo workspace at version 0.4.7: crates/limedl-core (engine library limedl_core), crates/limedl-native (Slint desktop binary), crates/limedl-server (headless daemon binary) and xtask (repository tooling).",
       "evidence": [
         {
-          "resource": "repo://Cargo.toml#L1-L11",
-          "version": "repo-lines-v1:sha256:fdb7d7d0bda8364cc420b0fbf76206e26d8bb07041b7bee975ad55e921180ee5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
+          "resource": "repo://Cargo.toml#L1-L7",
+          "version": "repo-lines-v1:sha256:6573ecd31fd4626eabcf8ad2e2866781c5e1938ba756f91b8de1a441991e000e:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDM0ZTEwMmM4NjFmOTk0ZDJhYWNlOTExNGQzOTJkYmMxNjIxOTBlMDBiZThmZTM1N2Q0NzIxNTBjYTQzOTYxNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWIwZDBkMWQxMDkwMzY3ZGQ5MGUxMjFmY2YyOTQyZTZmNTY5MjA5NmVjMDJkYTM5ZmViYTMwMWE2OGZlZmY5ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTVlOGU0MDc0NTFhNDVjMWYxNTUxMGIyYjYwZGQ5ZTY2ZTQ1MTI5MTA2NGQ0YzEwYzBmYjM1YzExYjBjMDgwNyJ9"
         },
         {
           "resource": "repo://crates/limedl-core/src/lib.rs#L1-L34",
@@ -115,8 +115,8 @@
       "statement": "Every outbound HTTP client must be built through http_client_factory or proxy and User-Agent settings are silently bypassed.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/http_client_factory/mod.rs#L28-L66",
-          "version": "repo-lines-v1:sha256:31711f569fddc259ea77af42c65cb3741b2b13bbe02502fef7cfe5457c3d4004:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE2YzJkYjI1NzMxMGUxMzZkMDM1OTFkOTRhN2ZkMWQ3ZWJjODVhYjlmYTc5YWE2NzZjMjVjYzVmZmRmNjhiMTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM4Njc5OWVjYTUxMGEyY2M5MzgxNzU4NzE2OWViNTVmNjY0NDlkMzJkNTE4NDI3OWQ4MDM2NTZmNWY4NDZkZmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ2YjI4YTM1MWZjN2NhOTM4YzRkYzk0YmM4NjU5NTBkM2FjMGYyMzg1NDdkMGUxYmEyYmNiOGVlZTIxMjNhY2IifQ"
+          "resource": "repo://crates/limedl-core/src/http_client_factory/mod.rs#L29-L65",
+          "version": "repo-lines-v1:sha256:1b38aa3ea0dc2672aaa7ce979766e29f914a0ad1fdd399f60d979575687c7595:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1MzM2NzEzMzVlNjVjNWExMzVmNTZmMzMyOTJjYzdmYjcxZWUwMDMzOWIxNTJmODgwZjllY2IzZDhjNGRiNDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJiMmVlMDhhN2RiMTE0YjdjOGZiZTU3ZGJlNzRkZjQ1NmYwNjY0YmIyZmM2OTQyZWNkYjJhYWUwNTNiMmZkZDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQzMjVhNWI1ODE0MDk4ZDFhOTkyYTRiMWM1OWY4Y2RhYTBkMmE4ODgyZjc3M2Y0OTExZGUxZTIwZGFkYzk5ZjYifQ"
         }
       ]
     },
@@ -203,8 +203,8 @@
       "statement": "Aria2 RPC interoperability has a Tier 2 live-aria2c oracle in aria2_rpc/oracle_tests.rs, run by the nightly/manual .github/workflows/aria2-oracle.yml, which asserts the client-facing contract against allowlists.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L45",
-          "version": "repo-lines-v1:sha256:3ebe04bd1a7715c472921803e86925329a7a1b7e5df9b524f9e9da7d934b5c56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYmZiNTU3MTExMDZlMDdjZTQ5MjZiMWQzODYxZWFkM2FkNmZkMWU4NDgwZmIxMmUxZDMzNmY1NzVlYjNhNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI4MGNjNzBjZjM1NWI0YjU0MzE0MDI1MWY0Zjk2MWJjNjMwYzIwYmZkMDg1YjU2OTlmNmIxZTg0ODZjZjIyZTMifQ"
+          "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L52",
+          "version": "repo-lines-v1:sha256:edc98e81ed7cfcbec229484bc6762121ba13c111593c66a0855f1a973d304730:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3NjRkNGZkYTkyOTUxNzZlNGQwODdlYjYzYTRkNzhiZGRiOGRjZDZkNTEwNDRkY2Q4YzQxM2UwNzYwNmM5YzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY4NjhmNjM2OTc2ZDVlZjljYzEwOGY1YzIwNjQ4MDY0YzNkY2VmZjNlNzRhOTViNjY3MjQ5MTA1MTQ5OGU2N2QifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70",
@@ -267,6 +267,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T14:09:40.431Z"
+    "at": "2026-10-05T01:38:26.934Z"
   }
 }

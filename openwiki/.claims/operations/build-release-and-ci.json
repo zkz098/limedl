@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:5572794fb4fcf6e158aed059f116000e41bd5397a462b46bb876d442a55c9b10",
+  "pageVersion": "sha256:c0375a9603acd1130b4986bba29468b20a21df06d45766f4730b7b27eaa4b2ff",
   "claims": [
     {
       "id": "claim_ebf902f2ec634cfda5a0a6f0ae54d147",
@@ -126,15 +126,15 @@
     },
     {
       "id": "claim_c9c800411f5f4eba8eb475683cf575c1",
-      "statement": "A v* tag triggers the release: font fetches once, changelog generates the body with git-cliff from Conventional Commits, three desktop platform jobs build and upload artifacts, build-server cross-compiles static musl limedl-server tarballs with cargo zigbuild, server-image publishes a multi-arch GHCR image from those binaries, and native-manifest is the sole writer of latest-native.json, running with if: always() and merging only succeeded platforms before signing and guarding.",
+      "statement": "A v* tag triggers the release: font fetches once, changelog generates the body with git-cliff from Conventional Commits, three desktop platform jobs build and upload artifacts, build-server cross-compiles static musl limedl-server tarballs with cargo zigbuild after installing the pinned ziglang 0.16.0 wheel, server-image publishes a multi-arch GHCR image from those binaries, and native-manifest is the sole writer of latest-native.json, running with if: always() and merging only succeeded platforms before signing and guarding.",
       "evidence": [
         {
           "resource": "repo://.github/workflows/release.yml#L1-L37",
           "version": "repo-lines-v1:sha256:8fa480337946ae15abd285511de7073b89f7e1493e9af9ab2fef02be97c361ae:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZWVmOTAzMGQwYzcwMjkwMTBjNDYzNTY4OWY1ODMyOGQxMDllNmE4NWVkMWE5MjQ1YjIwZjM5NTViN2RiMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5ZWNlZGMxOGVjYWYxZGFmOWU3YmVmYjlmZDc5ZTJjM2NmMTU1OTllNTNlNzljZGJkOTAxZWU2ZTJjOTc5ZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5YTBjOGM1NTM1MTczOGM0Y2FjMTdiMTIzMzVkY2NjMWVkY2YzZDJkNjBlYWJlMGExMDljMTA0NDA1Y2Q2YTkifQ"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L548-L623",
-          "version": "repo-lines-v1:sha256:b44891a0413c5efb3881b0fcea5984026a7bb9777e90df2c620c231899059712:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMDc4NDhhNDM2NjY1NmIyYmE2MTk3YmUwMmI5MjA4MTQ1NDZmOWQ5YWQwYjUzMzllNGMyNmEyYzk0NjUxMTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNGE2ZTUyMTE5NWZiMzYxM2I0NDFlZGU1OTE4OGY4YTU2MjI3NmI3MzBjNDU4NTc4OGQ5NjM3YWZjNDc0ODMifQ"
+          "resource": "repo://.github/workflows/release.yml#L548-L625",
+          "version": "repo-lines-v1:sha256:af98b4ef9c000b7f9d5898ed2088d99299c7eeace5f4957cc2b8f7df94a9fbff:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzYmY0M2U4NjViOWVhZDEyZWVkM2M4YTIyNTBhNDMyYWQ2YWZiYTZiZGYzMDdmM2E4MDgyMWI0MjliZmUwMzYifQ"
         },
         {
           "resource": "repo://.github/workflows/release.yml#L639-L724",
@@ -179,8 +179,8 @@
       "statement": "A standalone .github/workflows/aria2-oracle.yml runs the Tier 2 aria2 oracle on a nightly schedule and workflow_dispatch (never on push/PR), reading the Linux ci-debug cache entry with save-if false; the oracle asserts the client-facing contract against allowlists and fails on any difference outside them, or when the oracle cannot start or a server stops answering.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L45",
-          "version": "repo-lines-v1:sha256:3ebe04bd1a7715c472921803e86925329a7a1b7e5df9b524f9e9da7d934b5c56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYmZiNTU3MTExMDZlMDdjZTQ5MjZiMWQzODYxZWFkM2FkNmZkMWU4NDgwZmIxMmUxZDMzNmY1NzVlYjNhNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI4MGNjNzBjZjM1NWI0YjU0MzE0MDI1MWY0Zjk2MWJjNjMwYzIwYmZkMDg1YjU2OTlmNmIxZTg0ODZjZjIyZTMifQ"
+          "resource": "repo://.github/workflows/aria2-oracle.yml#L1-L52",
+          "version": "repo-lines-v1:sha256:edc98e81ed7cfcbec229484bc6762121ba13c111593c66a0855f1a973d304730:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3NjRkNGZkYTkyOTUxNzZlNGQwODdlYjYzYTRkNzhiZGRiOGRjZDZkNTEwNDRkY2Q4YzQxM2UwNzYwNmM5YzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY4NjhmNjM2OTc2ZDVlZjljYzEwOGY1YzIwNjQ4MDY0YzNkY2VmZjNlNzRhOTViNjY3MjQ5MTA1MTQ5OGU2N2QifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70",
@@ -213,8 +213,8 @@
       "statement": "The build-server release job cross-compiles limedl-server for x86_64 and aarch64 musl with cargo zigbuild, bundles the systemd unit and env example into the tarballs, and uploads plain release assets that are not signed and not part of the update manifest.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L548-L623",
-          "version": "repo-lines-v1:sha256:b44891a0413c5efb3881b0fcea5984026a7bb9777e90df2c620c231899059712:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMDc4NDhhNDM2NjY1NmIyYmE2MTk3YmUwMmI5MjA4MTQ1NDZmOWQ5YWQwYjUzMzllNGMyNmEyYzk0NjUxMTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNGE2ZTUyMTE5NWZiMzYxM2I0NDFlZGU1OTE4OGY4YTU2MjI3NmI3MzBjNDU4NTc4OGQ5NjM3YWZjNDc0ODMifQ"
+          "resource": "repo://.github/workflows/release.yml#L548-L611",
+          "version": "repo-lines-v1:sha256:db018e0cf5e4f9c8cd4e8375df80e0cf97467d82bfbdb5b4858c3f4c70383e75:eyJzZWxlY3RlZExpbmVDb3VudCI6NjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxYjBlN2Q3NDMzNGYwNDA4ZWJkZDU3YWViMDU0OTY1NmM0ZThhYTY5YjdkMGNmODAwYjJmNmYwNTgwNzkzMmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQyNzljMTVmNjQwYjRhN2Q3NDJmNzAxMGYzMDc4ZGFmNTBkODVkNzQ5ZDkzYTBjODNlZWViYzdiNGRkMGQ5NWUifQ"
         }
       ]
     },
@@ -251,6 +251,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T14:09:40.431Z"
+    "at": "2026-10-05T01:38:26.934Z"
   }
 }

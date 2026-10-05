@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:8322e49ba1eb301d9a4f506b6cf0b205dbbb9e089f83c55dcf4600e7cc327108",
+  "pageVersion": "sha256:ca6e1ec6cedd5cb3b51d60907a3c3343b855b0522f0c346f89fcf959586ca855",
   "claims": [
     {
       "id": "claim_50e14f0840f8483a9aa585a5b612f644",
-      "statement": "The workspace has exactly four members — crates/limedl-core, crates/limedl-native, crates/limedl-server and xtask — inherits version 0.4.6 from the root manifest, and uses Rust edition 2024 in every crate.",
+      "statement": "The workspace has exactly four members — crates/limedl-core, crates/limedl-native, crates/limedl-server and xtask — inherits version 0.4.7 from the root manifest, and uses Rust edition 2024 in every crate.",
       "evidence": [
         {
           "resource": "repo://Cargo.toml#L1-L11",
-          "version": "repo-lines-v1:sha256:fdb7d7d0bda8364cc420b0fbf76206e26d8bb07041b7bee975ad55e921180ee5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
+          "version": "repo-lines-v1:sha256:2ff0aa9315c5aaa077616d334bdcb32b2b23a43db5366496cf87c2a0c26ef347:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
         }
       ]
     },
@@ -194,21 +194,21 @@
     },
     {
       "id": "claim_41f41be5e5e14708a8dcf4e2ce174fe4",
-      "statement": "The Linux desktop release is built with cargo zigbuild --target x86_64-unknown-linux-gnu.2.17, which keeps the dynamic system libraries while lowering the binary's own glibc symbol floor to 2.17.",
+      "statement": "The Linux desktop release is built with cargo zigbuild --target x86_64-unknown-linux-gnu.2.17 after installing the pinned ziglang 0.16.0 wheel, which keeps the dynamic system libraries while lowering the binary's own glibc symbol floor to 2.17.",
       "evidence": [
         {
           "resource": "repo://.cargo/config.toml#L25-L34",
           "version": "repo-lines-v1:sha256:82017e3ba65bbcb2741dbad1db9c6586d72b821bb6073a86653c13d48a1a1ae7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3MTUzN2Y3NGUzZDg4NTkzOWVlYjQwMzczNjJmNGY5YjI0MzliYzkxNjc4ZWUxZjc5NTRiYWM3Y2UyZWQ2MjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcwOTBkZmY2ZGY2ZDI3YmZhNDgzOWQxYWY5NWIyOGE1MWM3MGUwMGM5ZWEwNDBlNWQwZGRkNjQ2MGZmYzg3N2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ0NTdmOTBlNWZkNjkzYjU5MDk0ZmE3ZjUzYWJhYzA5NWQ5NjYyMzEwYmM5YzcyMjIzYzQyMjk3YjBmNzA3YjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2NjJjMTBhM2RhZjJkMTc1NzViN2FmYjlmMTFhZGFjN2U0NTE3ZWU1YmUzNzAzYjU1NTg4NGE3YjU5YTRkMjcifQ"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L396-L480",
-          "version": "repo-lines-v1:sha256:2cf73d6a5391f4302dda780a19f1cdb02bbcc8de94a343d158f59b07c2fabbda:eyJzZWxlY3RlZExpbmVDb3VudCI6ODUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0YzZkN2NmZDEzN2EwYTUwOWE3NTA5ZjY1MjkwYWZkN2ZmYzQzMzYxYWIzMGYyYWM4MzE5YTA3MmQxNDVkNjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIyOGY2YmYwMTI2MjVmMzg1ZTZlMzIyYWJhNzAxYWZhZWVkNjVkYmQ1YjcwMmViYjZmNjcxY2I1OWNhMzlhNTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU3MWM3NTRhN2ZlNGFhNzY4MTQ3YTI3NmJjNGQ4MmJhN2E0ZmRmZWU5ZDc1NTg3YTBmZGE4NjIwMzZkOWI2NmIifQ"
+          "resource": "repo://.github/workflows/release.yml#L460-L481",
+          "version": "repo-lines-v1:sha256:f0bb3315d1102f806c5c4e4c05b9166dc8d48d10ea029d0148318cf1b9bda8ae:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhZjI4YmI4MDRmYzczOTdmYTlhMzExODhlNmQ5OTQ0ZTk3YjQxMDRmMDUxY2I2ZmUxMGJkOWE3YzY5NzNhZWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBmMTZmNGUwMjVkNGUyNTg3ZmU2OWIxMjUyMjdlZTVlMjFkYWVmN2YxODJkOTliOTczYjQxYTU1NGI0MDhmNWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwZjI2MDAyMGI4Y2JiNzIyMDU5YmJlNzg0YjYwNjIzMGRjNmMzYjZkNjBjMWJhODhmYTk2MWE0ZWFkZDVmNTcifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T14:09:40.431Z"
+    "at": "2026-10-05T01:38:26.934Z"
   }
 }

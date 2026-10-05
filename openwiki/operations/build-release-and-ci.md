@@ -32,10 +32,10 @@ sources:
     resource: repo://xtask/src/fetch_font.rs
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
-generated: { by: "pi", at: "2026-10-04T14:09:40.431Z" }
+generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T14:09:40.431Z
+    at: 2026-10-05T01:38:26.934Z
 ---
 
 # Build, Tooling, CI and Release Operations
@@ -264,6 +264,12 @@ Pushing a `v*` tag triggers `.github/workflows/release.yml`:
    missing platform key is handled by the client as "no update" instead of an
    error. It lists `build-server` in `needs` only so it flips the release's
    `prerelease` flag to `false` last.
+
+Both `cargo zigbuild` legs install Zig from the PyPI `ziglang` wheel pinned to
+`0.16.0` and pass `pip --only-binary ":all:"`; the wheel ships no `zig` console
+script, so the packaged binary is symlinked onto `PATH` for cargo-zigbuild. The
+pin and the binary-only install are what the supply-chain rules require and what
+keeps a release reproducible.
 
 The signing key never appears in the tree; `cargo xtask guard` fails the release
 if the CI secret's derived public key does not match the client's `PUBKEY_B64`.

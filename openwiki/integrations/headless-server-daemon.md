@@ -22,10 +22,10 @@ sources:
     resource: repo://packaging/server/Dockerfile
   - id: openwiki-source-816a10881eb55b69eaf93236
     resource: repo://packaging/server/systemd/limedl-server.service
-generated: { by: "pi", at: "2026-10-04T12:58:25.182Z" }
+generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T12:58:25.182Z
+    at: 2026-10-05T01:38:26.934Z
 ---
 
 # Headless Server Daemon (`limedl-server`)
@@ -173,11 +173,13 @@ the instance lock's exclusivity.
 The end-to-end test in `tests/daemon.rs` is the one that proves the wiring: it
 starts a real daemon against a temp data directory on a reserved port, polls
 `aria2.getVersion` until the engine is up, asserts a missing token is rejected,
-calls `aria2.shutdown`, and awaits the daemon task exiting cleanly. It runs in
-the Linux `check-rust` job; the Windows/macOS legs only compile the crate via the
-workspace clippy.
+calls `aria2.shutdown`, and awaits the daemon task exiting cleanly. The readiness
+poll uses a fallible `rpc_try` and treats a refused connection as "not ready
+yet", because the engine bootstraps and binds the port asynchronously — only the
+request after readiness may panic. It runs in the Linux `check-rust` job; the
+Windows/macOS legs only compile the crate via the workspace clippy.
 
-Evidence: `repo://crates/limedl-server/tests/daemon.rs#L42-L109`,
+Evidence: `repo://crates/limedl-server/tests/daemon.rs#L24-L123`,
 `repo://crates/limedl-server/src/config.rs#L119-L192`,
 `repo://.github/workflows/ci.yml#L507-L514`.
 

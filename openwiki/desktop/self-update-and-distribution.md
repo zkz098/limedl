@@ -22,10 +22,10 @@ sources:
     resource: repo://xtask/src/main.rs
   - id: openwiki-source-c74f60d1c3f2961e83a2a521
     resource: repo://xtask/src/manifest.rs
-generated: { by: "pi", at: "2026-10-04T13:24:31.562Z" }
+generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T13:24:31.562Z
+    at: 2026-10-05T01:38:26.934Z
 ---
 
 # Self-Update and Distribution Channels
@@ -196,6 +196,12 @@ Evidence: `repo://xtask/src/main.rs#L1-L22`,
   `ghcr.io/zkz098/limedl-server` manifest (the `latest` tag is skipped for an
   alpha/beta/rc). It does not rebuild the engine; QEMU only runs the image's
   Alpine `apk add` layer.
+
+Both zig-based legs (`build-native-linux`, `build-server`) install the pinned
+`ziglang==0.16.0` wheel with `pip --only-binary ":all:"` and symlink its `zig`
+onto `PATH`, because the PyPI wheel ships no `zig` console script for
+`cargo-zigbuild` to find. Pinning the version and refusing source distributions is
+what keeps the release reproducible and satisfies the supply-chain scanner.
 
 `native-manifest` is the **sole writer** of `latest-native.json`. It runs on
 `windows-latest` with `if: always()`, downloads only the artifacts whose platform

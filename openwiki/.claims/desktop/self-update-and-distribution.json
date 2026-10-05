@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:064c82b75f361970f0c0bce7a81931b3c818952dbd13eeb45e2d47765dae1976",
+  "pageVersion": "sha256:e9335847bd01cd4a9fecd652a86ad617869a916d71ebafb515657a6b880f9a28",
   "claims": [
     {
       "id": "claim_b8bf90043cdf4155b5827e79a2b03cd5",
@@ -176,11 +176,11 @@
     },
     {
       "id": "claim_787f00a3df9e42f0beec3a972249edf9",
-      "statement": "The build-server release job cross-compiles limedl-server for the two musl Linux targets with cargo zigbuild, bundles the systemd unit and env example into the tarballs, and uploads them as plain release assets that are never signed or added to latest-native.json.",
+      "statement": "The build-server release job cross-compiles limedl-server for the two musl Linux targets with cargo zigbuild after installing the pinned ziglang 0.16.0 wheel, bundles the systemd unit and env example into the tarballs, and uploads them as plain release assets that are never signed or added to latest-native.json.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L548-L623",
-          "version": "repo-lines-v1:sha256:b44891a0413c5efb3881b0fcea5984026a7bb9777e90df2c620c231899059712:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMDc4NDhhNDM2NjY1NmIyYmE2MTk3YmUwMmI5MjA4MTQ1NDZmOWQ5YWQwYjUzMzllNGMyNmEyYzk0NjUxMTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNGE2ZTUyMTE5NWZiMzYxM2I0NDFlZGU1OTE4OGY4YTU2MjI3NmI3MzBjNDU4NTc4OGQ5NjM3YWZjNDc0ODMifQ"
+          "resource": "repo://.github/workflows/release.yml#L548-L625",
+          "version": "repo-lines-v1:sha256:af98b4ef9c000b7f9d5898ed2088d99299c7eeace5f4957cc2b8f7df94a9fbff:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzYmY0M2U4NjViOWVhZDEyZWVkM2M4YTIyNTBhNDMyYWQ2YWZiYTZiZGYzMDdmM2E4MDgyMWI0MjliZmUwMzYifQ"
         }
       ]
     },
@@ -223,8 +223,8 @@
       "statement": "The Linux desktop binary targets glibc 2.17 (Debian 10 / Ubuntu 18.04 / CentOS 7 and newer) while still linking the distro's fontconfig and dlopening X11/Wayland/GL at runtime.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L419-L480",
-          "version": "repo-lines-v1:sha256:09204cad76f86fecde57097827873f0e5ac75b9702665df3a637c0a4d21d8e1b:eyJzZWxlY3RlZExpbmVDb3VudCI6NjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwMWVlMjUzYmNjYWI0MDczNzQ1ODFmODBmYWQ0NzI4MGU4MWRjYTE0NjQwZmI2NjYzZTI5NTUzYTg3ZDMzMDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0YzZkN2NmZDEzN2EwYTUwOWE3NTA5ZjY1MjkwYWZkN2ZmYzQzMzYxYWIzMGYyYWM4MzE5YTA3MmQxNDVkNjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhhZDk0YjAxNDc2M2RmMzdmZTg4NDEwNDQ0ZmI2MWEzYWRiMGMwN2Y2ZTAxZTM0ZmJmMWUyMzAwMGY4ZjMzOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU3MWM3NTRhN2ZlNGFhNzY4MTQ3YTI3NmJjNGQ4MmJhN2E0ZmRmZWU5ZDc1NTg3YTBmZGE4NjIwMzZkOWI2NmIifQ"
+          "resource": "repo://.github/workflows/release.yml#L396-L481",
+          "version": "repo-lines-v1:sha256:8757816ceb2c90654a3fac5edf15880087de0559bcbfdeea10035e07803ed7da:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIyOGY2YmYwMTI2MjVmMzg1ZTZlMzIyYWJhNzAxYWZhZWVkNjVkYmQ1YjcwMmViYjZmNjcxY2I1OWNhMzlhNTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwZjI2MDAyMGI4Y2JiNzIyMDU5YmJlNzg0YjYwNjIzMGRjNmMzYjZkNjBjMWJhODhmYTk2MWE0ZWFkZDVmNTcifQ"
         },
         {
           "resource": "repo://docs/desktop-build-and-packaging.md#L59-L73",
@@ -235,6 +235,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-04T13:24:31.562Z"
+    "at": "2026-10-05T01:38:26.934Z"
   }
 }

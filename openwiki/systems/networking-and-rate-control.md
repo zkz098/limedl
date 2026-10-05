@@ -32,10 +32,10 @@ sources:
     resource: repo://crates/limedl-core/src/types/settings.rs
   - id: openwiki-source-191c52d830a19ec45ce7e929
     resource: repo://crates/limedl-core/src/url_rewrite/mod.rs
-generated: { by: "pi", at: "2026-10-04T13:24:31.562Z" }
+generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T13:24:31.562Z
+    at: 2026-10-05T01:38:26.934Z
 ---
 
 # Networking, HTTP Clients and Rate Control
@@ -56,9 +56,16 @@ Shared configuration applied by the factory:
 | --- | --- |
 | Redirect policy | `Policy::limited(10)` |
 | TCP | `tcp_nodelay(true)`, keepalive 60 s |
-| Read timeout | 15 s |
+| Read timeout | 30 s |
 | Connect timeout | 30 s |
 | Pool | 20 idle per host, 120 s idle timeout |
+
+The read timeout is a stall detector between body bytes, so it is deliberately equal
+to the connect timeout: a high-latency or jittery link legitimately produces
+multi-second gaps mid-body, and timing out on those turns a slow mirror into a
+failed download. It was relaxed from 15 s to 30 s for exactly that reason; the
+authoritative per-request patience is still `max_retries` plus the `RequestBudget`
+below, not the socket timeout.
 
 Proxy behaviour follows `settings.proxy.mode`:
 
@@ -201,8 +208,16 @@ attempt loop under a cancellation token:
   of hammering the host.
 - `register_retry_penalty` sets the task to `Retrying`, records the error and
   marks an AIMD penalty for connection backpressure.
+- `is_network_error` classifies a `DownloadError::Http` as transport-level when
+  reqwest reports `is_connect`, `is_timeout`, `is_body` **or `is_decode`**. The
+  last one matters because a connection that dies while the body is being read
+  surfaces as "error decoding response body", not as a connect error; without it
+  a multi-URL task would fail outright instead of failing over to the next
+  mirror. Only a transport-class failure with another candidate URL left moves on
+  to the mirror; every other error fails the task immediately.
 
-Evidence: `repo://crates/limedl-core/src/retry.rs#L31-L200`.
+Evidence: `repo://crates/limedl-core/src/retry.rs#L31-L203`,
+`repo://crates/limedl-core/src/task_lifecycle/mod.rs#L590-L596`.
 
 ### RequestBudget: why per-request retries are not enough
 

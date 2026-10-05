@@ -58,10 +58,10 @@ sources:
     resource: repo://docs/aria2-interop-testing.md
   - id: openwiki-source-feafbe9db788653e845840b8
     resource: repo://sonar-project.properties
-generated: { by: "pi", at: "2026-10-04T14:09:40.431Z" }
+generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-04T14:09:40.431Z
+    at: 2026-10-05T01:38:26.934Z
 ---
 
 # Testing Strategy
@@ -174,6 +174,22 @@ download reaches finalize — only the checksum comparison can expose the proble
 With an explicit `expected_checksum`, the download must end in `Failed`.
 
 Evidence: `repo://crates/limedl-core/src/tests/adversarial_interception_tests.rs#L1-L16`.
+
+### Mid-stream body interruption
+
+`http_executor_tests/http_errors.rs` serves a 64 KiB file whose **first** response
+sends 16 KiB and then aborts the body stream with a `ConnectionReset` error; the
+resumed request is answered from the `Range` header. The test
+(`stream_interruption_resumes_and_completes`) requires the download to finish with
+the correct checksum instead of failing with "error decoding response body" — the
+single-stream loop must treat a broken body as a retryable transport error and
+resume from its durable offset. The classification it depends on is pinned by
+`task_lifecycle::tests::is_network_error_http_decode_is_true`, which asserts a
+reqwest *decode* error counts as a network error (so a multi-URL task fails over
+to the next mirror) while an HTTP builder error does not.
+
+Evidence: `repo://crates/limedl-core/src/tests/http_executor_tests/http_errors.rs#L435-L592`,
+`repo://crates/limedl-core/src/task_lifecycle/tests.rs#L262-L299`.
 
 ### Resume and buffer integrity
 
@@ -377,7 +393,10 @@ The `limedl-server` crate adds two layers:
   (a request without `token:` is `Unauthorized`) → `aria2.shutdown` →
   `registry.shutdown_all()` → the daemon task exits cleanly within a timeout. The
   shutdown future is injected (`std::future::pending()`), so the only way the
-  process may stop is the JSON-RPC call the test sends.
+  process may stop is the JSON-RPC call the test sends. Readiness is polled with a
+  fallible `rpc_try` that treats a refused connection as "not ready yet", because
+  the engine bootstraps and binds its port asynchronously; only the request after
+  readiness may panic.
 
 It runs in the Linux `check-rust` job only. The Windows/macOS legs compile the
 crate (including the `cfg(not(unix))` Ctrl+C path) through `cargo clippy
@@ -385,7 +404,7 @@ crate (including the `cfg(not(unix))` Ctrl+C path) through `cargo clippy
 daemon targets musl Linux and a bootstrapped engine on those runners would add
 flake for no signal.
 
-Evidence: `repo://crates/limedl-server/tests/daemon.rs#L42-L109`,
+Evidence: `repo://crates/limedl-server/tests/daemon.rs#L24-L123`,
 `repo://crates/limedl-server/src/lib.rs#L194-L213`,
 `repo://.github/workflows/ci.yml#L507-L514`.
 
