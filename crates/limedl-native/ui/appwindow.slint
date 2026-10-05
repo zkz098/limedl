@@ -1029,7 +1029,7 @@ export component MainWindow inherits Window {
 
                         if root.search_query == "" : HorizontalLayout {
                             alignment: center;
-                            Rectangle {
+                            drop_hint_pill := Rectangle {
                                 height: 26px;
                                 border-radius: 13px;
                                 background: Theme.c14171d;
@@ -1042,14 +1042,17 @@ export component MainWindow inherits Window {
                                     spacing: 6px;
                                     alignment: center;
 
-                                    Image {
-                                        width: 13px;
-                                        height: 13px;
-                                        source: @image-url("assets/icons/file-upload-line.svg");
-                                        colorize: Theme.c6b7280;
-                                        image-fit: contain;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        drop_hint_icon := Image {
+                                            width: 13px;
+                                            height: 13px;
+                                            source: @image-url("assets/icons/file-upload-line.svg");
+                                            colorize: Theme.c6b7280;
+                                            image-fit: contain;
+                                        }
                                     }
-                                    Text {
+                                    drop_hint_text := Text {
                                         text: @tr("Drop .torrent or metalink files to start");
                                         color: Theme.c6b7280;
                                         font-size: 11px;

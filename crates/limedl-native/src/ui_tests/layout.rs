@@ -301,3 +301,29 @@ fn view_mode_button_shows_text_only_on_wide_viewports() {
     });
 }
 
+#[test]
+fn drop_hint_pill_icon_and_text_are_vertically_centered() {
+    with_ui(|ui| {
+        let (_, pill_y, _, pill_h) = ui.bounds("MainWindow::drop_hint_pill");
+        let (_, icon_y, _, icon_h) = ui.bounds("MainWindow::drop_hint_icon");
+        let (_, text_y, _, text_h) = ui.bounds("MainWindow::drop_hint_text");
+
+        let pill_center_y = pill_y + pill_h / 2.0;
+        let icon_center_y = icon_y + icon_h / 2.0;
+        let text_center_y = text_y + text_h / 2.0;
+
+        assert!(
+            (icon_center_y - pill_center_y).abs() <= 1.0,
+            "icon center ({icon_center_y}) should align with pill center ({pill_center_y})"
+        );
+        assert!(
+            (text_center_y - pill_center_y).abs() <= 1.0,
+            "text center ({text_center_y}) should align with pill center ({pill_center_y})"
+        );
+        assert!(
+            (icon_center_y - text_center_y).abs() <= 1.0,
+            "icon center ({icon_center_y}) should align with text center ({text_center_y})"
+        );
+    });
+}
+
