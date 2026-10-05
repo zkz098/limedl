@@ -215,16 +215,17 @@ fn handle_version_returns_version_info() {
     assert!(features.contains(&json!("GZip")));
     assert!(features.contains(&json!("Brotli")));
     assert!(features.contains(&json!("Zstd")));
+    assert!(features.contains(&json!("Metalink")));
     // Capabilities limedl does not have must not be advertised: XML-RPC has no
-    // `/rpc` endpoint, Firefox3 Cookie is not implemented, and Metalink/SFTP are
+    // `/rpc` endpoint, Firefox3 Cookie is not implemented, and SFTP is
     // out of scope.
-    for untrue in ["XML-RPC", "Firefox3 Cookie", "Metalink", "SFTP"] {
+    for untrue in ["XML-RPC", "Firefox3 Cookie", "SFTP"] {
         assert!(
             !features.contains(&json!(untrue)),
             "getVersion must not advertise unsupported feature {untrue}: {result}"
         );
     }
-    assert_eq!(features.len(), 7);
+    assert_eq!(features.len(), 8);
 }
 
 #[test]
@@ -234,6 +235,7 @@ fn handle_list_methods_returns_array() {
     let methods = result.as_array().expect("should be an array");
 
     // Spot-check essential methods
+    assert!(methods.contains(&json!("aria2.addMetalink")));
     assert!(methods.contains(&json!("aria2.addUri")));
     assert!(methods.contains(&json!("aria2.addTorrent")));
     assert!(methods.contains(&json!("aria2.pause")));
@@ -262,7 +264,7 @@ fn handle_list_methods_returns_array() {
     assert!(methods.contains(&json!("system.listNotifications")));
 
     // Verify the exact count
-    assert_eq!(methods.len(), 36);
+    assert_eq!(methods.len(), 37);
 }
 
 #[test]

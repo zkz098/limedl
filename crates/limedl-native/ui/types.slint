@@ -53,6 +53,17 @@ export struct NewTaskTorrentFileItem {
     included: bool,
 }
 
+export struct MirrorItem {
+    url: string,
+    location: string,
+    priority: int,
+    connections: string,
+    speed_text: string,
+    rtt_text: string,
+    status_label: string,
+    status_color: color,
+}
+
 export struct InspectorInfo {
     id: string,
     kind: string,

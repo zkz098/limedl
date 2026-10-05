@@ -215,6 +215,107 @@ pub(crate) async fn handle_add_torrent(
     ctx.gid_cache.lock().await.insert(gid.clone(), task_id);
     Ok(Value::String(gid))
 }
+
+pub(crate) async fn handle_add_metalink(
+    ctx: &RpcContext,
+    params: Vec<Value>,
+) -> Result<Value, JsonRpcError> {
+    let metalink_b64 = params
+        .first()
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing metalink base64 data"))?;
+
+    let metalink_bytes = base64::engine::general_purpose::STANDARD
+        .decode(metalink_b64)
+        .map_err(|_| make_error(ERR_INVALID_PARAMS, "Invalid base64 metalink data"))?;
+
+    let metalink_xml = std::str::from_utf8(&metalink_bytes)
+        .map_err(|_| make_error(ERR_INVALID_PARAMS, "Metalink payload is not valid UTF-8 XML"))?;
+
+    let doc = crate::metalink::parse_metalink_xml(metalink_xml)
+        .map_err(|e| make_error(ERR_INVALID_PARAMS, format!("Failed to parse metalink XML: {e}")))?;
+
+    let (_, options, position) = split_aria2_tail(&params, 1);
+    let options = options.as_ref();
+    let destination_dir = options
+        .and_then(|o| o.get("dir"))
+        .and_then(|v| v.as_str())
+        .filter(|dir| !dir.trim().is_empty())
+        .map(String::from)
+        .unwrap_or_else(|| ctx.settings_default_download_dir());
+
+    let selected_file_indices = options
+        .and_then(|o| o.get("select-file"))
+        .map(parse_select_file)
+        .transpose()?;
+
+    let mut gids = Vec::new();
+
+    for (file_idx, file) in doc.files.into_iter().enumerate() {
+        if let Some(ref indices) = selected_file_indices {
+            // 1-based index in aria2 select-file
+            if !indices.contains(&(file_idx + 1)) && !indices.contains(&file_idx) {
+                continue;
+            }
+        }
+
+        let sorted_urls = file.sorted_mirror_urls();
+        if sorted_urls.is_empty() {
+            continue;
+        }
+
+        let primary_url = sorted_urls[0].clone();
+        let (checksum, expected_checksum) = file
+            .best_checksum()
+            .map(|(mode, hash)| (Some(mode), Some(hash)))
+            .unwrap_or((None, None));
+
+        let headers = collect_request_headers(options, &primary_url);
+
+        let request = StartDownloadRequest {
+            kind: Some(TaskKind::Http),
+            url: primary_url,
+            destination_dir: destination_dir.clone(),
+            file_name: extract_option_str(options, "out").or(Some(file.name)),
+            user_agent: extract_option_str(options, "user-agent"),
+            thread_mode: None,
+            thread_count: extract_option_usize(options, "split"),
+            max_retries: extract_option_u32(options, "max-tries"),
+            checksum,
+            expected_checksum,
+            selected_file_indices: None,
+            headers: (!headers.is_empty()).then_some(headers),
+            start_paused: option_is_true(options, "pause"),
+            mirror_urls: (sorted_urls.len() > 1).then_some(sorted_urls),
+            priority: None,
+        };
+
+        let task_id = ctx
+            .dispatcher
+            .start(request)
+            .await
+            .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
+
+        if position == Some(0) {
+            let _ = ctx.dispatcher.set_priority(&task_id, Priority::High).await;
+        }
+
+        if option_is_true(options, "pause") {
+            let _ = ctx.dispatcher.pause(&task_id).await;
+        }
+
+        let gid = internal_id_to_gid(&task_id.raw_id());
+        ctx.gid_cache.lock().await.insert(gid.clone(), task_id);
+
+        if let Ok(snapshot) = ctx.dispatcher.status(&task_id).await {
+            ctx.dispatcher.emit_updated(&snapshot);
+        }
+        broadcast_event(ctx, "aria2.onDownloadStart", &gid);
+        gids.push(Value::String(gid));
+    }
+
+    Ok(Value::Array(gids))
+}
 pub(crate) async fn handle_pause(
     ctx: &RpcContext,
     params: Vec<Value>,

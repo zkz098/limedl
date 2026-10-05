@@ -2398,3 +2398,50 @@ async fn aria2_add_torrent_single_file_reports_one_entry() {
 
     let _ = shutdown_tx.send(true);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(90_000)]
+async fn e2e_add_metalink_creates_downloads_and_reports_status() {
+    let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
+    let url1 = test_server.file_url();
+    let url2 = test_server.file_url_bandwidth(32 * 1024);
+
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
+    let client = reqwest::Client::new();
+    let dest_dir = tmp.path().join("output");
+
+    let metalink_xml = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<metalink xmlns="urn:ietf:params:xml:ns:metalink">
+  <file name="test-file.bin">
+    <size>65536</size>
+    <url priority="1">{url1}</url>
+    <url priority="2">{url2}</url>
+  </file>
+</metalink>"#
+    );
+
+    let encoded = base64::engine::general_purpose::STANDARD.encode(metalink_xml.as_bytes());
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.addMetalink",
+        serde_json::json!([encoded, {"dir": dest_dir.to_string_lossy(), "pause": "true"}]),
+    )
+    .await;
+
+    let gids = resp["result"].as_array().expect("gids array");
+    assert_eq!(gids.len(), 1, "expected 1 GID: {resp}");
+    let gid = gids[0].as_str().expect("gid string").to_string();
+
+    wait_for_status(&client, &rpc_url, &gid, &["paused"]).await;
+    let resp = rpc_call(&client, &rpc_url, "aria2.tellStatus", serde_json::json!([gid])).await;
+    let status = &resp["result"];
+    assert_eq!(status["status"], "paused");
+    let files = status["files"].as_array().expect("files array");
+    assert_eq!(files.len(), 1);
+    assert!(files[0]["path"].as_str().unwrap().contains("test-file.bin"));
+
+    let _ = rpc_call(&client, &rpc_url, "aria2.remove", serde_json::json!([gid])).await;
+    let _ = shutdown_tx.send(true);
+}

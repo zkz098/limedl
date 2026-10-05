@@ -406,7 +406,7 @@ pub(crate) fn handle_version() -> Value {
         "version": env!("CARGO_PKG_VERSION"),
         "enabledFeatures": [
             "Async DNS", "BitTorrent", "GZip", "Brotli", "Zstd",
-            "HTTPS", "Message Digest"
+            "HTTPS", "Message Digest", "Metalink"
         ]
     })
 }
@@ -572,6 +572,7 @@ pub(crate) fn handle_list_notifications() -> Value {
 pub(crate) fn handle_list_methods() -> Value {
     Value::Array(
         [
+            "aria2.addMetalink",
             "aria2.addTorrent",
             "aria2.addUri",
             "aria2.changeGlobalOption",

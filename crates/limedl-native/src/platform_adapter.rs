@@ -100,6 +100,29 @@ fn setup_windows_hooks(ctx: &AppContext) {
                 );
                 return;
             }
+            let metalink_count = files
+                .iter()
+                .filter(|f| {
+                    let l = f.to_lowercase();
+                    l.ends_with(".metalink") || l.ends_with(".meta4")
+                })
+                .count();
+            if metalink_count == 1
+                && let Some(mf) = files.iter().find(|f| {
+                    let l = f.to_lowercase();
+                    l.ends_with(".metalink") || l.ends_with(".meta4")
+                })
+            {
+                open_new_task_with_payload(
+                    mf,
+                    &ui_weak_drop,
+                    &dispatcher_drop,
+                    &store_drop,
+                    &entries_cache_drop,
+                    &included_cache_drop,
+                );
+                return;
+            }
             let joined = files.join("\n");
             let count = files.len();
             let ui_weak = ui_weak_drop.clone();

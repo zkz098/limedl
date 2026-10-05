@@ -111,7 +111,7 @@ Coverage (all offline, against `test_harness::TestServer`):
 
 | Test | Compares |
 | --- | --- |
-| `oracle_list_methods_diff` | method set; today the only diff is `addMetalink` (missing) + `aria2.multicall` (extra) |
+| `oracle_list_methods_diff` | method set; today the only diff is `aria2.multicall` (extra alias) |
 | `oracle_list_notifications_diff` | notification set (currently equal) |
 | `oracle_get_version_shape` | `version`/`enabledFeatures` shapes; feature diff reported |
 | `oracle_error_objects` | unknown method / missing params / bad GID return an error object |
@@ -129,12 +129,12 @@ artifacts instead of paying a cold build.
 
 Captured by the first oracle run; a change here shows up in the report diff:
 
-- `system.listMethods`: aria2 has 36 methods; limedl lacks `aria2.addMetalink`
-  and adds the `aria2.multicall` alias.
+- `system.listMethods`: aria2 has 36 methods; limedl implements all 36 (including
+  `aria2.addMetalink`) and adds the `aria2.multicall` alias (37 total).
 - `system.listNotifications`: identical (6).
-- `getVersion`: `GZip` is now shared (limedl decompresses gzip/br/zstd).
+- `getVersion`: `GZip` and `Metalink` are now shared.
   limedl additionally advertises `Brotli` / `Zstd` (non-standard strings) and
-  correctly omits `Metalink` / `SFTP` / `XML-RPC` / `Firefox3 Cookie`, which
+  correctly omits `SFTP` / `XML-RPC` / `Firefox3 Cookie`, which
   aria2 lists because it serves them and limedl does not.
 - `tellStatus` (paused HTTP): limedl omits `numPieces` / `pieceLength` /
   `bitfield` until chunks are planned; aria2 always emits the first two.
@@ -185,12 +185,12 @@ choices, not bugs; each one is documented where it is implemented.
 | `errorCode` | `"0"` (no error) or `"1"` (failure) | limedl does not persist aria2 exit-status codes; the reason stays in `errorMessage` |
 | `tellStatus` piece map | `numPieces` / `pieceLength` / `bitfield` appear once chunks are planned | aria2 always emits `numPieces`/`pieceLength`; limedl only has them after the range probe |
 | `numStoppedTotal` | mirrors the current stopped count | no lifetime counter |
-| `getVersion.enabledFeatures` | truthful: `Async DNS`, `BitTorrent`, `GZip`, `Brotli`, `Zstd`, `HTTPS`, `Message Digest` | aria2's `Metalink`/`SFTP`/`XML-RPC`/`Firefox3 Cookie` are not advertised because limedl does not implement them; `Brotli`/`Zstd` are truthful non-standard additions. Locked by `interop_get_version_is_truthful`. |
+| `getVersion.enabledFeatures` | truthful: `Async DNS`, `BitTorrent`, `GZip`, `Brotli`, `Zstd`, `HTTPS`, `Message Digest`, `Metalink` | aria2's `SFTP`/`XML-RPC`/`Firefox3 Cookie` are not advertised because limedl does not implement them; `Brotli`/`Zstd` are truthful non-standard additions. Locked by `interop_get_version_is_truthful`. |
 | HTTP response compression | gzip/brotli/zstd are decompressed only on the plain single-stream GET; probes and every `Range` request force `Accept-Encoding: identity` | transparently decompressing a `206` destroys byte offsets, `Content-Length` and the checksum. See `http::identity_encoding` and `tests/http_executor_tests/compression.rs`. |
 | `getGlobalOption` / `changeGlobalOption` | answers AriaNg's full global key set; `dir`, `max-concurrent-downloads`, `split`, `max-tries`, `user-agent`, `max-overall-*-limit`, and the mappable `bt-*`/`enable-*` keys are real, the rest are documented aria2 defaults | engine settings model; aria2-only keys AriaNg never reads are omitted |
 | `getOption` | answers AriaNg's full task key set; several fields stay fixed placeholders (`min-split-size`, `max-tries`, …) | not all surfaced by the engine |
 | `aria2.shutdown` / `forceShutdown` | acknowledge + warn; exit the process when `exit_on_shutdown` is set (the headless daemon) | the desktop is a managed subsystem and the UI owns exit |
-| `addMetalink`, `changeUri` for BT | unsupported | Metalink is out of scope for now; torrent sources come from trackers/DHT |
+| `changeUri` for BT | unsupported | torrent sources come from trackers/DHT; HTTP `changeUri` is supported |
 | HTTP GET / JSONP transports | not served (POST, including a top-level JSON-RPC batch, + WebSocket only) | deliberate scope; add if browser/userscript clients need it |
 | HTTPS RPC, HTTP Basic auth | not served; use a reverse proxy for TLS. A configurable bind address (aria2's `--rpc-listen-all`) *is* supported, but a non-loopback bind requires authentication | security posture |
 | GID prefix matching | a unique prefix resolves; an ambiguous one is refused | aria2 accepts abbreviated GIDs; refusing an ambiguous prefix is safer than guessing |

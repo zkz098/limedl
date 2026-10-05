@@ -4113,6 +4113,7 @@ dependencies = [
  "open",
  "parking_lot",
  "percent-encoding",
+ "quick-xml",
  "rand 0.10.2",
  "regex",
  "reqwest 0.13.4",

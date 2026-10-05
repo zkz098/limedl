@@ -29,6 +29,7 @@ use super::e2e_tests::{rpc_call, start_rpc_server, start_rpc_server_with_secret,
 /// this — a method added to the dispatcher but not here (or vice versa) fails
 /// the contract test, which is the point.
 const EXPECTED_METHODS: &[&str] = &[
+    "aria2.addMetalink",
     "aria2.addTorrent",
     "aria2.addUri",
     "aria2.changeGlobalOption",
@@ -593,7 +594,7 @@ async fn interop_get_version_is_truthful() {
         .collect();
 
     // Capabilities limedl does not have must not be advertised.
-    for untrue in ["XML-RPC", "Firefox3 Cookie", "Metalink", "SFTP"] {
+    for untrue in ["XML-RPC", "Firefox3 Cookie", "SFTP"] {
         assert!(
             !features.contains(&untrue),
             "getVersion must not advertise {untrue}: {resp}"
@@ -604,6 +605,7 @@ async fn interop_get_version_is_truthful() {
         "HTTPS",
         "Async DNS",
         "Message Digest",
+        "Metalink",
         "GZip",
         "Brotli",
         "Zstd",

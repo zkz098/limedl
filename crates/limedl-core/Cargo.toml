@@ -43,6 +43,7 @@ subtle = { workspace = true, optional = true }
 irontide = { workspace = true, optional = true }
 libc = { workspace = true }
 open = { workspace = true }
+quick-xml = { workspace = true }
 # Encoders for the compression test endpoints. Optional and only enabled by
 # `test-utils`: the decoder side arrives through reqwest's gzip/brotli/zstd
 # features, so these exact versions are already in the graph.

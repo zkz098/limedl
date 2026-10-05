@@ -20,6 +20,7 @@ pub mod manager;
 pub mod http_executor;
 pub mod io_scheduler;
 pub mod manifest;
+pub mod metalink;
 pub mod persistence;
 pub mod platform;
 pub mod protocol;

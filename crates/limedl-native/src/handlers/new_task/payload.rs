@@ -103,6 +103,38 @@ pub fn open_new_task_with_payload(
         return;
     }
 
+    let is_metalink_file = path.is_file()
+        && path
+            .extension()
+            .and_then(OsStr::to_str)
+            .map(|ext| ext.eq_ignore_ascii_case("metalink") || ext.eq_ignore_ascii_case("meta4"))
+            .unwrap_or(false);
+
+    if is_metalink_file
+        && let Ok(content) = std::fs::read_to_string(path)
+        && let Ok(doc) = limedl_core::metalink::parse_metalink_xml(&content)
+        && let Some(file) = doc.files.into_iter().next()
+    {
+        let sorted_urls = file.sorted_mirror_urls();
+        if let Some(primary_url) = sorted_urls.first() {
+            let primary_url = primary_url.clone();
+            let file_name = file.name;
+            let ui_weak = ui_weak.clone();
+            let store = store.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                with_ui(&ui_weak, |ui| {
+                    restore_and_show_window(&ui, Some(&store.lock()));
+                    ui.set_new_task_url(SharedString::from(&primary_url));
+                    ui.set_new_task_filename(SharedString::from(&file_name));
+                    ui.set_new_task_batch_mode(false);
+                    reset_transient_state(&ui);
+                    ui.set_show_new_task_dialog(true);
+                });
+            });
+            return;
+        }
+    }
+
     // Check magnet link
     if normalized.starts_with("magnet:?") {
         let magnet_url = normalized.clone();

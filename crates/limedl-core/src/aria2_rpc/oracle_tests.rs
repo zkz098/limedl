@@ -48,9 +48,8 @@ const TELL_STATUS_REQUIRED: &[&str] = &[
     "files",
 ];
 
-/// `system.listMethods` may lack exactly these aria2 methods (Metalink is out
-/// of scope) and may add these non-aria2 aliases.
-const LIST_METHODS_ALLOWED_MISSING: &[&str] = &["aria2.addMetalink"];
+/// `system.listMethods` implements the full aria2 method set and may add these non-aria2 aliases.
+const LIST_METHODS_ALLOWED_MISSING: &[&str] = &[];
 const LIST_METHODS_ALLOWED_EXTRA: &[&str] = &["aria2.multicall"];
 
 /// A live `aria2c --enable-rpc` child process.

@@ -90,6 +90,7 @@ slint-build = "1.9"
 # belong to the other, and `MainWindow::new()` fails with "platform not
 # initialized" (or opens a real window).
 i-slint-backend-testing = "=1.17.1"
+quick-xml = "0.41.0"
 
 [profile.release]
 # Optimized for binary size while preserving good runtime performance.

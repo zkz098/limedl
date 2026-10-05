@@ -1,6 +1,6 @@
 //! Method dispatch table for JSON-RPC requests.
 
-use super::{ERR_METHOD_NOT_FOUND, JsonRpcError, RpcContext, Value, handle_add_torrent, handle_add_uri, handle_change_global_option, handle_change_option, handle_change_position, handle_change_uri, handle_get_files, handle_get_global_option, handle_get_option, handle_get_peers, handle_get_servers, handle_get_session_info, handle_get_uris, handle_global_stat, handle_list_methods, handle_list_notifications, handle_multicall, handle_pause, handle_pause_all, handle_purge_download_result, handle_remove, handle_remove_download_result, handle_save_session, handle_shutdown, handle_tell_active, handle_tell_status, handle_tell_stopped, handle_tell_waiting, handle_unpause, handle_unpause_all, handle_version, make_error};
+use super::{ERR_METHOD_NOT_FOUND, JsonRpcError, RpcContext, Value, handle_add_metalink, handle_add_torrent, handle_add_uri, handle_change_global_option, handle_change_option, handle_change_position, handle_change_uri, handle_get_files, handle_get_global_option, handle_get_option, handle_get_peers, handle_get_servers, handle_get_session_info, handle_get_uris, handle_global_stat, handle_list_methods, handle_list_notifications, handle_multicall, handle_pause, handle_pause_all, handle_purge_download_result, handle_remove, handle_remove_download_result, handle_save_session, handle_shutdown, handle_tell_active, handle_tell_status, handle_tell_stopped, handle_tell_waiting, handle_unpause, handle_unpause_all, handle_version, make_error};
 use super::{check_token, strip_token};
 
 /// Dispatch a JSON-RPC method, enforcing the secret token first.
@@ -49,6 +49,7 @@ pub(crate) async fn dispatch_authorized(
     match method {
         "aria2.addUri" => handle_add_uri(ctx, params).await,
         "aria2.addTorrent" => handle_add_torrent(ctx, params).await,
+        "aria2.addMetalink" => handle_add_metalink(ctx, params).await,
         "aria2.multicall" | "system.multicall" => handle_multicall(ctx, params).await,
         "aria2.pause" | "aria2.forcePause" => handle_pause(ctx, params).await,
         "aria2.unpause" => handle_unpause(ctx, params).await,
