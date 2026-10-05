@@ -128,6 +128,33 @@ so opting in is an explicit action: enable it in Settings → Aria2 RPC and set 
 secret or per-client tokens. An existing `settings.json` with `"enabled": true` is
 honoured, and the server logs a warning whenever it serves without authentication.
 
+## CDN service tests reach the real network (known flake)
+
+`cdn::tests::service_tests::{monitor_test_emits_progress_and_complete_ready,
+monitor_test_emits_complete_on_error}` are the only engine tests that talk to the
+public internet: `CdnService::start_test` runs the real accelerator, which fetches
+Cloudflare's IP ranges (10 s cap) and then probes candidate IPs and the default
+node with the production HTTP client. There is no injection point for the IP-range
+provider or the speed-test strategy (see the comment block in
+`crates/limedl-core/src/tests/retry_tests.rs`), so the tests cannot be made
+hermetic without adding one.
+
+Two consequences worth knowing before blaming a code change:
+
+- Both carry `#[timeout(30_000)]`, which is now exactly the client's `read_timeout`
+  (30 s). A probe that connects and then stalls is only released by that timeout,
+  so under parallel load the ntest watchdog can fire first and report an opaque
+  "the function call took 30000 ms" instead of the test's own assertion. Observed
+  once locally (2026-10-05, WSL2, full-suite run) where a re-run passed; CI has
+  been green.
+- The tests themselves tolerate either outcome of the accelerator run (`Ready` or
+  `Error: …`), so a slow or unreachable Cloudflare API makes them slower, not
+  wrong — unless the watchdog pre-empts them.
+
+The durable fix is to give the accelerator injectable range/speed-test strategies
+(and run these two tests against a local fixture server). Until then, treat a
+failure here as environment-sensitive and re-run before investigating.
+
 ## Accepted warnings (do not need fixing)
 
 These used to be documented here and all came from the retired Tauri shell
