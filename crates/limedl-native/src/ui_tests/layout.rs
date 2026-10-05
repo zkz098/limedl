@@ -279,3 +279,25 @@ fn the_batch_bar_stays_inside_the_window_and_its_actions_do_not_overlap() {
         );
     });
 }
+
+#[test]
+fn view_mode_button_shows_text_only_on_wide_viewports() {
+    with_ui(|ui| {
+        // At default size (1280px) and minimum size (1100px), it is icon-only (<= 32px width).
+        ui.set_window_size(MIN_SIZE.0, MIN_SIZE.1);
+        let (_, _, min_w, _) = ui.bounds("MainWindow::btn_view_mode");
+        assert!(min_w <= 32.0, "icon-only button at min width, got {min_w}");
+
+        ui.set_window_size(PREFERRED_SIZE.0, PREFERRED_SIZE.1);
+        let (_, _, pref_w, _) = ui.bounds("MainWindow::btn_view_mode");
+        assert!(pref_w <= 32.0, "icon-only button at preferred width, got {pref_w}");
+
+        // At wide viewport (>= 1360px), it expands to show the text label.
+        ui.set_window_size(1400.0, 800.0);
+        let (_, _, wide_w, _) = ui.bounds("MainWindow::btn_view_mode");
+        assert!(wide_w >= 60.0, "expanded button with text at 1400px, got {wide_w}");
+        ui.assert_inside_window("MainWindow::btn_view_mode");
+        ui.assert_inside_window("MainWindow::ta_new_task");
+    });
+}
+

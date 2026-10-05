@@ -826,6 +826,7 @@ export component MainWindow inherits Window {
                         VerticalLayout {
                             alignment: center;
                             btn_view_mode := IconButton {
+                                text: root.width >= 1360px ? (root.view_mode == 0 ? @tr("Table View") : @tr("Cards View")) : "";
                                 icon: root.view_mode == 0 ? @image-url("assets/icons/file-list-line.svg") : @image-url("assets/icons/layout-grid-line.svg");
                                 text_color: Theme.ca3e635;
                                 clicked => { root.toggle_view_mode(); }
