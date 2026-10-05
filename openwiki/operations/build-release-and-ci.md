@@ -32,10 +32,10 @@ sources:
     resource: repo://xtask/src/fetch_font.rs
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
-generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
+generated: { by: "pi", at: "2026-10-05T02:20:21.738Z" }
 verified:
   - by: openwiki/0.7.0
-    at: 2026-10-05T01:38:26.934Z
+    at: 2026-10-05T02:20:21.738Z
 ---
 
 # Build, Tooling, CI and Release Operations
@@ -76,10 +76,20 @@ Evidence: `repo://AGENTS.md#L3-L21`, `repo://.cargo/config.toml#L1-L96`.
 Evidence: `repo://xtask/src/main.rs#L71-L140`.
 
 `bump-version` updates the workspace `Cargo.toml` (first `version = "x.y.z"`),
-`Cargo.lock` and the website, then creates a `chore: bump version to X` commit and
-pushes commit + tag. `--dry-run` prints the plan and `--no-push` skips git.
+every `limedl*` workspace package in `Cargo.lock` and the website, then creates a
+`chore: bump version to X` commit and pushes commit + tag. `--dry-run` prints the
+plan and `--no-push` skips git.
 
-Evidence: `repo://xtask/src/bump_version.rs#L57-L135`.
+The lock rewrite matches the whole `limedl*` class instead of a hard-coded list of
+crate names, and its result is re-checked: if any `limedl*` lock entry still lags,
+the bump fails *before* committing or tagging. That guard exists because v0.4.7 was
+tagged with `limedl-server` still at `0.4.6` in the lock — the release legs run
+`cargo zigbuild --locked`, so both musl server jobs and the GHCR image failed 25 s
+in with "cannot update the lock file". A workspace crate the rewrite cannot express
+now fails loudly here instead of silently at tag time. `xtask` is unaffected: it
+pins its own literal `0.0.0`.
+
+Evidence: `repo://xtask/src/bump_version.rs#L57-L151`.
 
 ## The font artifact flow
 

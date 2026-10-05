@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:4ec060eccb39da666e4900e15ca8062dd905fb3e79c9747ae295544310e5fd08",
+  "pageVersion": "sha256:e61fc9f73e4a9f2ef0365a2ac6dc32fe916040aaa744aef85e86dac16de275e4",
   "claims": [
     {
       "id": "claim_6719a8b6ce264d6fa5e8103236b5336c",
-      "statement": "limedl is a four-member Cargo workspace at version 0.4.7: crates/limedl-core (engine library limedl_core), crates/limedl-native (Slint desktop binary), crates/limedl-server (headless daemon binary) and xtask (repository tooling).",
+      "statement": "limedl is a four-member Cargo workspace at version 0.4.8: crates/limedl-core (engine library limedl_core), crates/limedl-native (Slint desktop binary), crates/limedl-server (headless daemon binary) and xtask (repository tooling).",
       "evidence": [
         {
-          "resource": "repo://Cargo.toml#L1-L7",
-          "version": "repo-lines-v1:sha256:6573ecd31fd4626eabcf8ad2e2866781c5e1938ba756f91b8de1a441991e000e:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDM0ZTEwMmM4NjFmOTk0ZDJhYWNlOTExNGQzOTJkYmMxNjIxOTBlMDBiZThmZTM1N2Q0NzIxNTBjYTQzOTYxNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWIwZDBkMWQxMDkwMzY3ZGQ5MGUxMjFmY2YyOTQyZTZmNTY5MjA5NmVjMDJkYTM5ZmViYTMwMWE2OGZlZmY5ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTVlOGU0MDc0NTFhNDVjMWYxNTUxMGIyYjYwZGQ5ZTY2ZTQ1MTI5MTA2NGQ0YzEwYzBmYjM1YzExYjBjMDgwNyJ9"
+          "resource": "repo://Cargo.toml#L1-L8",
+          "version": "repo-lines-v1:sha256:fad56516f7c4abb55ef9fab469ef816473edd999a789caf46493a4a98d073472:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDM0ZTEwMmM4NjFmOTk0ZDJhYWNlOTExNGQzOTJkYmMxNjIxOTBlMDBiZThmZTM1N2Q0NzIxNTBjYTQzOTYxNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNjMDcxM2FlMGI0MTEzZmQwN2U0ZTg5MGZhZjQwZTdjYTc2YzliZjZhZGUzMmE3ZWI4YjUyZTgxOWEyNjBjZCJ9"
         },
         {
           "resource": "repo://crates/limedl-core/src/lib.rs#L1-L34",
@@ -267,6 +267,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-05T01:38:26.934Z"
+    "at": "2026-10-05T02:20:21.738Z"
   }
 }

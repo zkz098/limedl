@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:c0375a9603acd1130b4986bba29468b20a21df06d45766f4730b7b27eaa4b2ff",
+  "pageVersion": "sha256:936f2d1a8623ebd0bf729424d82b2bc0ad816e31ce874862a8e395a602b5ffeb",
   "claims": [
     {
       "id": "claim_ebf902f2ec634cfda5a0a6f0ae54d147",
@@ -34,11 +34,11 @@
     },
     {
       "id": "claim_d2dd15ff9c0447b4946c18991177db88",
-      "statement": "bump-version updates the workspace Cargo.toml version, Cargo.lock and the website, then commits 'chore: bump version to X' and pushes both commit and tag, with --dry-run and --no-push escape hatches.",
+      "statement": "bump-version updates the workspace Cargo.toml version, every limedl* workspace package in Cargo.lock and the website, then commits 'chore: bump version to X' and pushes both commit and tag, with --dry-run and --no-push escape hatches; it refuses to commit when any limedl* lock entry still lags, so a --locked release leg cannot be broken by a stale lockfile.",
       "evidence": [
         {
-          "resource": "repo://xtask/src/bump_version.rs#L57-L135",
-          "version": "repo-lines-v1:sha256:8021ea09cd59f328d2752a701715fc8fc9fc5c486046aa90f8266c09292da37b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjNDEwOTgyZmUwODgzZmQ0MDE1OGE1OTlmZGRmYzQ5MWIwN2EwYWNlOTU5NzEzZTU4N2IwZThlZTc1NjZhZWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJkNTk3YjJhNmZlMmNkMzlkMDc1NzUzNmE4NWExYjNlNGQ3OTEyMzA1MmQ3YTkzZjNiMGUzNGFlOWMwZDM2MzQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVjYmNlY2EwMTM5OWU3NmMyMWY1ZTcwZWJhMDk0ZTcxNWVkNDY1ZjM3M2Q1NWIyMTMxNTg2ZTc2YjgwMWVkMTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM1ZjZmNDY2ZTU5Y2ZjMzA3MDNjNDVmNzJhZjY1ZGU1NGFjMzYzZDM1NGNjMWEzMzMwMzUwYWNkNDUyNDM0YzQifQ"
+          "resource": "repo://xtask/src/bump_version.rs#L57-L169",
+          "version": "repo-lines-v1:sha256:4e0c563073fc154158f904693e5637ddebfbbdfc985423785fea8758024f2403:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI0YzQxMDk4MmZlMDg4M2ZkNDAxNThhNTk5ZmRkZmM0OTFiMDdhMGFjZTk1OTcxM2U1ODdiMGU4ZWU3NTY2YWVmIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlY2JjZWNhMDEzOTllNzZjMjFmNWU3MGViYTA5NGU3MTVlZDQ2NWYzNzNkNTViMjEzMTU4NmU3NmI4MDFlZDE4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIwMjE2MGJiN2E3NTlmZTA5OGVkN2U0Y2M4ODRiZmFkNjFhODQyYWNjODgwZDQxYWEzYmQ0MWYzY2JlNGM2ZTlhIn0"
         }
       ]
     },
@@ -251,6 +251,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.0",
-    "at": "2026-10-05T01:38:26.934Z"
+    "at": "2026-10-05T02:20:21.738Z"
   }
 }
