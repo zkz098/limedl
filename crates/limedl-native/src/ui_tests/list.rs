@@ -396,3 +396,58 @@ fn a_shift_click_selects_the_range_between_the_anchor_and_the_row() {
         );
     });
 }
+
+#[test]
+fn tasks_model_reconciles_in_place_preserving_instance_and_updating_data() {
+    with_ui(|ui| {
+        ui.seed(vec![
+            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
+            http_task(2, "bravo.bin", DownloadState::Paused, 20, 100),
+        ]);
+
+        let initial_model = ui.window.get_tasks();
+        assert_eq!(initial_model.row_count(), 2);
+
+        // Mutate progress of task 1 in the store and refresh
+        {
+            let mut store = ui.ctx.store.lock();
+            let mut summary = store.get_summary(&http_wire(1)).unwrap();
+            summary.downloaded_bytes = 50;
+            summary.speed_bytes_per_second = Some(1024.0 * 1024.0);
+            store.insert_or_update(summary);
+            crate::ui_sync::refresh_ui(&ui.window, &store);
+        }
+
+        let after_progress_model = ui.window.get_tasks();
+        let initial_vec = initial_model
+            .as_any()
+            .downcast_ref::<slint::VecModel<crate::TaskItem>>()
+            .unwrap();
+        let after_vec = after_progress_model
+            .as_any()
+            .downcast_ref::<slint::VecModel<crate::TaskItem>>()
+            .unwrap();
+        assert!(
+            std::ptr::eq(initial_vec, after_vec),
+            "reconciliation must preserve the in-place VecModel instance pointer"
+        );
+        let row0 = after_progress_model.row_data(0).unwrap();
+        assert_eq!(row0.id, http_wire(1));
+        assert_eq!(row0.downloaded_text, "50 B");
+
+        // Remove task 2 and ensure model shrinks in place
+        {
+            let mut store = ui.ctx.store.lock();
+            store.remove(&http_wire(2));
+            crate::ui_sync::refresh_ui(&ui.window, &store);
+        }
+
+        assert_eq!(ui.window.get_tasks().row_count(), 1);
+        let after_remove_model = ui.window.get_tasks();
+        let after_remove_vec = after_remove_model
+            .as_any()
+            .downcast_ref::<slint::VecModel<crate::TaskItem>>()
+            .unwrap();
+        assert!(std::ptr::eq(initial_vec, after_remove_vec));
+    });
+}

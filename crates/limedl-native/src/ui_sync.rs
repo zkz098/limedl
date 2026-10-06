@@ -19,7 +19,7 @@ use crate::bridge::{
 };
 use crate::i18n::{self, Language};
 use crate::{
-    ColorModePref, MainWindow, Theme, ThemeAccent, UpdateState, platform_win,
+    ColorModePref, MainWindow, TaskItem, Theme, ThemeAccent, UpdateState, platform_win,
     POWER_GUARD,
 };
 
@@ -149,7 +149,88 @@ pub fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
     ui.set_sort_asc(store.sort_asc());
 
     let items = store.filtered_items();
-    ui.set_tasks(Rc::new(VecModel::from(items)).into());
+    apply_tasks(ui, items);
+}
+
+/// Reconcile `items` in-place into the `tasks` model rather than replacing the `VecModel`.
+///
+/// Replacing the `VecModel` causes Slint to destroy and recreate every row component
+/// in `TaskTable` and `TaskCard`, which resets hover state (`has_hover`), loses internal
+/// double-click tracking timestamps in `TouchArea`, and breaks active pointer grabs
+/// (which abruptly dismisses the right-click context menu if a progress event arrives
+/// before button release).
+pub(crate) fn apply_tasks(ui: &MainWindow, items: Vec<TaskItem>) {
+    let model = ui.get_tasks();
+    let Some(model) = model.as_any().downcast_ref::<VecModel<TaskItem>>() else {
+        ui.set_tasks(Rc::new(VecModel::from(items)).into());
+        return;
+    };
+
+    // Fast path: if the IDs are identical and in the exact same order (the common
+    // case for in-progress download progress ticks), update changed rows in place.
+    let same_order = model.row_count() == items.len()
+        && (0..items.len()).all(|i| {
+            model
+                .row_data(i)
+                .is_some_and(|m| m.id.as_str() == items[i].id.as_str())
+        });
+
+    if same_order {
+        for (row, item) in items.into_iter().enumerate() {
+            if let Some(existing) = model.row_data(row)
+                && existing != item
+            {
+                model.set_row_data(row, item);
+            }
+        }
+        return;
+    }
+
+    // General reconciliation:
+    // 1. Remove rows that no longer exist in the target items.
+    let target_ids: foldhash::HashSet<&str> =
+        items.iter().map(|item| item.id.as_str()).collect();
+    let mut row = 0;
+    while row < model.row_count() {
+        let keep = model
+            .row_data(row)
+            .is_some_and(|m| target_ids.contains(m.id.as_str()));
+        if keep {
+            row += 1;
+        } else {
+            model.remove(row);
+        }
+    }
+
+    // 2. Align items row-by-row with target order.
+    let target_len = items.len();
+    for (target_idx, item) in items.into_iter().enumerate() {
+        match model.row_data(target_idx) {
+            Some(existing) if existing.id == item.id => {
+                if existing != item {
+                    model.set_row_data(target_idx, item);
+                }
+            }
+            _ => {
+                let mut found_later = false;
+                for j in (target_idx + 1)..model.row_count() {
+                    if model.row_data(j).is_some_and(|m| m.id == item.id) {
+                        model.remove(j);
+                        model.insert(target_idx, item.clone());
+                        found_later = true;
+                        break;
+                    }
+                }
+                if !found_later {
+                    model.insert(target_idx, item);
+                }
+            }
+        }
+    }
+
+    while model.row_count() > target_len {
+        model.remove(model.row_count() - 1);
+    }
 }
 
 pub fn refresh_settings_state(

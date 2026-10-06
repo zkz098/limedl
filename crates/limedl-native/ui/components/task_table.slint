@@ -370,7 +370,7 @@ export component TaskTable inherits Rectangle {
 
                     ta_row := TouchArea {
                         pointer-event(event) => {
-                            if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
+                            if event.button == PointerEventButton.right && event.kind == PointerEventKind.up {
                                 root.show_menu(task, row_rect.absolute-position.x + self.mouse-x + 8px, row_rect.absolute-position.y + self.mouse-y + 8px);
                             } else if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                                 shift_click = event.modifiers.shift;

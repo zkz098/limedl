@@ -93,7 +93,7 @@ export component TaskCard inherits Rectangle {
 
     ta := TouchArea {
         pointer-event(event) => {
-            if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
+            if event.button == PointerEventButton.right && event.kind == PointerEventKind.up {
                 root.show_menu(self.mouse-x, self.mouse-y);
             } else if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                 shift_click = event.modifiers.shift;

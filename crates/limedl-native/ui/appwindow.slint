@@ -955,7 +955,7 @@ export component MainWindow inherits Window {
 
                     empty_menu_ta := TouchArea {
                         pointer-event(event) => {
-                            if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
+                            if event.button == PointerEventButton.right && event.kind == PointerEventKind.up {
                                 // Empty list → background menu covers the whole area
                                 root.background_menu_x = self.absolute-position.x + self.mouse-x + 8px;
                                 root.background_menu_y = self.absolute-position.y + self.mouse-y + 8px;
@@ -1078,7 +1078,7 @@ export component MainWindow inherits Window {
 
                         list_menu_ta := TouchArea {
                             pointer-event(event) => {
-                                if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
+                                if event.button == PointerEventButton.right && event.kind == PointerEventKind.up {
                                     // absolute-position is window-relative and already
                                     // accounts for ScrollView offsets.
                                     root.background_menu_x = self.absolute-position.x + self.mouse-x + 8px;
