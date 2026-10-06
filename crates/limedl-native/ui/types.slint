@@ -189,7 +189,7 @@ export struct SettingsFormData {
     download_user_agent: string,
     // ── 外观 / 启动 ──
     appearance_color_mode_idx: int, // index into combo::COLOR_MODES (system/light/dark)
-    appearance_theme_color_idx: int, // index into combo::THEME_COLORS (amber/sky/lime)
+    appearance_theme_color_idx: int, // index into combo::THEME_COLORS (amber/sky/lime/violet/monochrome)
     appearance_background_opacity_idx: int, // index into combo::OPACITY_PRESETS (default/acrylic/frosted)
     appearance_language_idx: int, // index into combo::LANGUAGES (zh-CN/zh-TW/en-US)
     appearance_close_behavior_idx: int, // index into combo::CLOSE_BEHAVIORS (minimizeToTray/exit)
@@ -315,7 +315,7 @@ export struct SetupFormData {
     language_idx: int, // index into combo::LANGUAGES (zh-CN/zh-TW/en-US)
     // ── Step 2: 外观 ──
     color_mode_idx: int, // index into combo::COLOR_MODES (system/light/dark)
-    theme_color_idx: int, // index into combo::THEME_COLORS (amber/sky/lime)
+    theme_color_idx: int, // index into combo::THEME_COLORS (amber/sky/lime/violet/monochrome)
     // ── Step 3: CDN ──
     cdn_enabled: bool,
     cdn_active_ip: string, // read-only status card

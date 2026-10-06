@@ -1,7 +1,7 @@
 //! Canonical option lists for the settings dialog ComboBoxes.
 
 pub const COLOR_MODES: [&str; 3] = ["system", "light", "dark"];
-pub const THEME_COLORS: [&str; 3] = ["amber", "sky", "lime"];
+pub const THEME_COLORS: [&str; 5] = ["amber", "sky", "lime", "violet", "monochrome"];
 pub const OPACITY_PRESETS: [&str; 3] = ["default", "acrylic", "frosted"];
 pub const LANGUAGES: [&str; 3] = ["zh-CN", "zh-TW", "en-US"];
 pub const CLOSE_BEHAVIORS: [&str; 2] = ["minimizeToTray", "exit"];

@@ -42,7 +42,7 @@ export component SettingsTabAppearance inherits ScrollView {
                 spacing: 4px;
                 Text { text: @tr("Theme Color:"); color: Theme.c9ca3af; font-size: 12px; }
                 CustomSelect {
-                    model: [@tr("Amber"), @tr("Sky Blue"), @tr("Lime")];
+                    model: [@tr("Amber"), @tr("Sky Blue"), @tr("Lime"), @tr("Violet"), @tr("Monochrome")];
                     current-index <=> root.settings_form.appearance_theme_color_idx;
                     height: 36px;
                 }

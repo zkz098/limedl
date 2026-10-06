@@ -1073,6 +1073,12 @@ msgstr "天藍"
 msgid "Lime"
 msgstr "青檸"
 
+msgid "Violet"
+msgstr "紫羅蘭"
+
+msgid "Monochrome"
+msgstr "黑白"
+
 msgid "Default"
 msgstr "預設"
 

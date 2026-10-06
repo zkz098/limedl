@@ -550,6 +550,18 @@ export component SetupWizard inherits Rectangle {
                                 selected: root.form.theme_color_idx == 1;
                                 clicked => { root.set_appearance(root.form.color_mode_idx, 1); }
                             }
+                            ThemeSwatch {
+                                swatch_color: Theme.c8b5cf6;
+                                label: @tr("Violet");
+                                selected: root.form.theme_color_idx == 3;
+                                clicked => { root.set_appearance(root.form.color_mode_idx, 3); }
+                            }
+                            ThemeSwatch {
+                                swatch_color: Theme.cffffff;
+                                label: @tr("Monochrome");
+                                selected: root.form.theme_color_idx == 4;
+                                clicked => { root.set_appearance(root.form.color_mode_idx, 4); }
+                            }
                         }
                     }
                 }
@@ -1072,7 +1084,11 @@ export component SetupWizard inherits Rectangle {
         root.form.color_mode_idx == 1 ? @tr("Light") : root.form.color_mode_idx == 2 ? @tr("Dark") : @tr("System");
     }
     function summary_theme() -> string {
-        root.form.theme_color_idx == 0 ? @tr("Amber") : root.form.theme_color_idx == 1 ? @tr("Sky") : @tr("Lime");
+        root.form.theme_color_idx == 0 ? @tr("Amber") :
+        root.form.theme_color_idx == 1 ? @tr("Sky") :
+        root.form.theme_color_idx == 2 ? @tr("Lime") :
+        root.form.theme_color_idx == 3 ? @tr("Violet") :
+        @tr("Monochrome");
     }
     function summary_cdn() -> string {
         root.form.cdn_enabled ? @tr("Enabled") : @tr("Disabled");

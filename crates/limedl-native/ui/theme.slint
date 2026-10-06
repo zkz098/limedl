@@ -15,13 +15,13 @@ import { Palette } from "std-widgets.slint";
 
 export enum ColorModePref { System, Light, Dark }
 
-export enum ThemeAccent { Lime, Amber, Sky }
+export enum ThemeAccent { Lime, Amber, Sky, Violet, Monochrome }
 
 export global Theme {
     /// User preference from settings (system/light/dark).
     in-out property <ColorModePref> mode: ColorModePref.System;
 
-    /// Brand accent from settings (lime/amber/sky).
+    /// Brand accent from settings (lime/amber/sky/violet/monochrome).
     in-out property <ThemeAccent> accent: ThemeAccent.Lime;
 
     /// Effective dark flag used by every color token below.
@@ -229,26 +229,30 @@ export global Theme {
     in property <color> cf472b6: dark ? #f472b6 : #db2777;
     /// dark #31132b / light #fce7f3
     in property <color> c31132b: dark ? #31132b : #fce7f3;
+    /// dark #8b5cf6 / light #7c3aed
+    in property <color> c8b5cf6: dark ? #8b5cf6 : #7c3aed;
     /// dark #000000bb / light #00000066
     in property <color> c000000bb: dark ? #000000bb : #00000066;
     /// dark #000000cc / light #00000066
     in property <color> c000000cc: dark ? #000000cc : #00000066;
     /// brand accent (was dark #84cc16) — follows theme_color
-    in property <color> c84cc16: dark ? (accent == ThemeAccent.Amber ? #f59e0b : accent == ThemeAccent.Sky ? #0ea5e9 : #84cc16) : (accent == ThemeAccent.Amber ? #d97706 : accent == ThemeAccent.Sky ? #0284c7 : #65a30d);
+    in property <color> c84cc16: dark ? (accent == ThemeAccent.Amber ? #f59e0b : accent == ThemeAccent.Sky ? #0ea5e9 : accent == ThemeAccent.Violet ? #8b5cf6 : accent == ThemeAccent.Monochrome ? #ffffff : #84cc16) : (accent == ThemeAccent.Amber ? #d97706 : accent == ThemeAccent.Sky ? #0284c7 : accent == ThemeAccent.Violet ? #7c3aed : accent == ThemeAccent.Monochrome ? #000000 : #65a30d);
     /// brand accent (was dark #a3e635) — follows theme_color
-    in property <color> ca3e635: dark ? (accent == ThemeAccent.Amber ? #fbbf24 : accent == ThemeAccent.Sky ? #38bdf8 : #a3e635) : (accent == ThemeAccent.Amber ? #f59e0b : accent == ThemeAccent.Sky ? #0ea5e9 : #84cc16);
+    in property <color> ca3e635: dark ? (accent == ThemeAccent.Amber ? #fbbf24 : accent == ThemeAccent.Sky ? #38bdf8 : accent == ThemeAccent.Violet ? #a78bfa : accent == ThemeAccent.Monochrome ? #e5e5e5 : #a3e635) : (accent == ThemeAccent.Amber ? #f59e0b : accent == ThemeAccent.Sky ? #0ea5e9 : accent == ThemeAccent.Violet ? #8b5cf6 : accent == ThemeAccent.Monochrome ? #27272a : #84cc16);
     /// brand accent (was dark #65a30d) — follows theme_color
-    in property <color> c65a30d: dark ? (accent == ThemeAccent.Amber ? #d97706 : accent == ThemeAccent.Sky ? #0284c7 : #65a30d) : (accent == ThemeAccent.Amber ? #b45309 : accent == ThemeAccent.Sky ? #0369a1 : #4d7c0f);
+    in property <color> c65a30d: dark ? (accent == ThemeAccent.Amber ? #d97706 : accent == ThemeAccent.Sky ? #0284c7 : accent == ThemeAccent.Violet ? #7c3aed : accent == ThemeAccent.Monochrome ? #d4d4d8 : #65a30d) : (accent == ThemeAccent.Amber ? #b45309 : accent == ThemeAccent.Sky ? #0369a1 : accent == ThemeAccent.Violet ? #6d28d9 : accent == ThemeAccent.Monochrome ? #3f3f46 : #4d7c0f);
     /// brand accent (was dark #365314) — follows theme_color
-    in property <color> c365314: dark ? (accent == ThemeAccent.Amber ? #78350f : accent == ThemeAccent.Sky ? #0c4a6e : #365314) : (accent == ThemeAccent.Amber ? #713f12 : accent == ThemeAccent.Sky ? #0c4a6e : #1a2e05);
+    in property <color> c365314: dark ? (accent == ThemeAccent.Amber ? #78350f : accent == ThemeAccent.Sky ? #0c4a6e : accent == ThemeAccent.Violet ? #4c1d95 : accent == ThemeAccent.Monochrome ? #3f3f46 : #365314) : (accent == ThemeAccent.Amber ? #713f12 : accent == ThemeAccent.Sky ? #0c4a6e : accent == ThemeAccent.Violet ? #2e1065 : accent == ThemeAccent.Monochrome ? #d4d4d8 : #1a2e05);
     /// brand accent (was dark #26331a) — follows theme_color
-    in property <color> c26331a: dark ? (accent == ThemeAccent.Amber ? #451a03 : accent == ThemeAccent.Sky ? #082f49 : #26331a) : (accent == ThemeAccent.Amber ? #fef3c7 : accent == ThemeAccent.Sky ? #e0f2fe : #ecfccb);
+    in property <color> c26331a: dark ? (accent == ThemeAccent.Amber ? #451a03 : accent == ThemeAccent.Sky ? #082f49 : accent == ThemeAccent.Violet ? #2e1065 : accent == ThemeAccent.Monochrome ? #27272a : #26331a) : (accent == ThemeAccent.Amber ? #fef3c7 : accent == ThemeAccent.Sky ? #e0f2fe : accent == ThemeAccent.Violet ? #ede9fe : accent == ThemeAccent.Monochrome ? #f4f4f5 : #ecfccb);
     /// brand accent (was dark #232b1d) — follows theme_color
-    in property <color> c232b1d: dark ? (accent == ThemeAccent.Amber ? #3b280c : accent == ThemeAccent.Sky ? #0c4a6e : #232b1d) : (accent == ThemeAccent.Amber ? #fef3c7 : accent == ThemeAccent.Sky ? #e0f2fe : #f0f7e2);
+    in property <color> c232b1d: dark ? (accent == ThemeAccent.Amber ? #3b280c : accent == ThemeAccent.Sky ? #0c4a6e : accent == ThemeAccent.Violet ? #26153b : accent == ThemeAccent.Monochrome ? #27272a : #232b1d) : (accent == ThemeAccent.Amber ? #fef3c7 : accent == ThemeAccent.Sky ? #e0f2fe : accent == ThemeAccent.Violet ? #f5f3ff : accent == ThemeAccent.Monochrome ? #f4f4f5 : #f0f7e2);
     /// brand accent (was dark #2a3322) — follows theme_color
-    in property <color> c2a3322: dark ? (accent == ThemeAccent.Amber ? #422006 : accent == ThemeAccent.Sky ? #075985 : #2a3322) : (accent == ThemeAccent.Amber ? #fde68a : accent == ThemeAccent.Sky ? #bae6fd : #eaf6d9);
+    in property <color> c2a3322: dark ? (accent == ThemeAccent.Amber ? #422006 : accent == ThemeAccent.Sky ? #075985 : accent == ThemeAccent.Violet ? #3b1c66 : accent == ThemeAccent.Monochrome ? #27272a : #2a3322) : (accent == ThemeAccent.Amber ? #fde68a : accent == ThemeAccent.Sky ? #bae6fd : accent == ThemeAccent.Violet ? #ddd6fe : accent == ThemeAccent.Monochrome ? #e4e4e7 : #eaf6d9);
     /// brand accent (was dark #1c2618) — follows theme_color
-    in property <color> c1c2618: dark ? (accent == ThemeAccent.Amber ? #451a03 : accent == ThemeAccent.Sky ? #082f49 : #1c2618) : (accent == ThemeAccent.Amber ? #fef3c7 : accent == ThemeAccent.Sky ? #e0f2fe : #eaf6d9);
+    in property <color> c1c2618: dark ? (accent == ThemeAccent.Amber ? #451a03 : accent == ThemeAccent.Sky ? #082f49 : accent == ThemeAccent.Violet ? #221236 : accent == ThemeAccent.Monochrome ? #1c1c1f : #1c2618) : (accent == ThemeAccent.Amber ? #fef3c7 : accent == ThemeAccent.Sky ? #e0f2fe : accent == ThemeAccent.Violet ? #ede9fe : accent == ThemeAccent.Monochrome ? #f0f0f2 : #eaf6d9);
     /// brand accent (was dark #4d5c41) — follows theme_color
-    in property <color> c4d5c41: dark ? (accent == ThemeAccent.Amber ? #92400e : accent == ThemeAccent.Sky ? #0369a1 : #4d5c41) : (accent == ThemeAccent.Amber ? #d97706 : accent == ThemeAccent.Sky ? #0284c7 : #9db876);
+    in property <color> c4d5c41: dark ? (accent == ThemeAccent.Amber ? #92400e : accent == ThemeAccent.Sky ? #0369a1 : accent == ThemeAccent.Violet ? #6d28d9 : accent == ThemeAccent.Monochrome ? #71717a : #4d5c41) : (accent == ThemeAccent.Amber ? #d97706 : accent == ThemeAccent.Sky ? #0284c7 : accent == ThemeAccent.Violet ? #8b5cf6 : accent == ThemeAccent.Monochrome ? #a1a1aa : #9db876);
+    /// brand accent (was dark #0b1104) — follows theme_color
+    in property <color> c0b1104: dark ? (accent == ThemeAccent.Amber ? #0b1104 : accent == ThemeAccent.Sky ? #0b1104 : accent == ThemeAccent.Violet ? #ffffff : accent == ThemeAccent.Monochrome ? #000000 : #0b1104) : (accent == ThemeAccent.Amber ? #0b1104 : accent == ThemeAccent.Sky ? #0b1104 : accent == ThemeAccent.Violet ? #ffffff : accent == ThemeAccent.Monochrome ? #ffffff : #0b1104);
 }

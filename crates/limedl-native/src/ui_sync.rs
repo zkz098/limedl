@@ -311,6 +311,8 @@ pub fn apply_appearance(ui: &MainWindow, mode: ColorMode, theme_color: ThemeColo
         ThemeColor::Lime => ThemeAccent::Lime,
         ThemeColor::Amber => ThemeAccent::Amber,
         ThemeColor::Sky => ThemeAccent::Sky,
+        ThemeColor::Violet => ThemeAccent::Violet,
+        ThemeColor::Monochrome => ThemeAccent::Monochrome,
     };
     ui.global::<Theme>().set_mode(pref);
     ui.global::<Theme>().set_accent(accent);

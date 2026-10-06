@@ -1073,6 +1073,12 @@ msgstr "Sky Blue"
 msgid "Lime"
 msgstr "Lime"
 
+msgid "Violet"
+msgstr "Violet"
+
+msgid "Monochrome"
+msgstr "Monochrome"
+
 msgid "Default"
 msgstr "Default"
 

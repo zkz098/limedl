@@ -233,7 +233,7 @@ pub(super) async fn saving_settings_persists_the_edited_form() {
     // dialog property: the saved mode and accent are what the whole UI is
     // painted with, so they get asserted below.
     form.appearance_color_mode_idx = 2; // combo::COLOR_MODES = system / light / dark
-    form.appearance_theme_color_idx = 0; // combo::THEME_COLORS = amber / sky / lime
+    form.appearance_theme_color_idx = 0; // combo::THEME_COLORS = amber / sky / lime / violet / monochrome
     ui.window.set_settings_form(form);
 
     ui.click("SettingsDialog::save_btn");

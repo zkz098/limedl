@@ -113,6 +113,8 @@ pub enum ThemeColor {
     Sky,
     #[default]
     Lime,
+    Violet,
+    Monochrome,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]

@@ -92,6 +92,8 @@ pub fn update_app_settings_from_setup_form(
     match combo::value_at(combo::THEME_COLORS, form.theme_color_idx) {
         "amber" => settings.appearance.theme_color = ThemeColor::Amber,
         "sky" => settings.appearance.theme_color = ThemeColor::Sky,
+        "violet" => settings.appearance.theme_color = ThemeColor::Violet,
+        "monochrome" => settings.appearance.theme_color = ThemeColor::Monochrome,
         _ => settings.appearance.theme_color = ThemeColor::Lime,
     }
 

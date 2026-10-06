@@ -221,6 +221,8 @@ fn apply_appearance(settings: &mut AppSettings, form: &SettingsFormData) {
     match combo::value_at(combo::THEME_COLORS, form.appearance_theme_color_idx) {
         "amber" => settings.appearance.theme_color = ThemeColor::Amber,
         "sky" => settings.appearance.theme_color = ThemeColor::Sky,
+        "violet" => settings.appearance.theme_color = ThemeColor::Violet,
+        "monochrome" => settings.appearance.theme_color = ThemeColor::Monochrome,
         _ => settings.appearance.theme_color = ThemeColor::Lime,
     }
     settings.appearance.background_opacity = str_to_background_opacity(combo::value_at(

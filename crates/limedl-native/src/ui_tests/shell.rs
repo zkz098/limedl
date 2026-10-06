@@ -348,6 +348,20 @@ fn the_wizard_appearance_cards_preview_the_theme_live() {
             assert!(!theme.get_dark(), "light mode has to clear the flag");
         }
 
+        ui.window.invoke_setup_set_appearance(2, 3);
+        {
+            let theme = ui.window.global::<Theme>();
+            assert_eq!(theme.get_mode(), ColorModePref::Dark);
+            assert_eq!(theme.get_accent(), ThemeAccent::Violet);
+        }
+
+        ui.window.invoke_setup_set_appearance(2, 4);
+        {
+            let theme = ui.window.global::<Theme>();
+            assert_eq!(theme.get_mode(), ColorModePref::Dark);
+            assert_eq!(theme.get_accent(), ThemeAccent::Monochrome);
+        }
+
         // An index no card offers falls back to the first variant instead of
         // panicking (the same fail-open shape as the other combo mappings).
         ui.window.invoke_setup_set_appearance(9, 9);

@@ -42,6 +42,8 @@ fn appearance_from_idx(color_idx: i32, theme_idx: i32) -> (ColorMode, ThemeColor
     let theme = match theme_idx {
         0 => ThemeColor::Amber,
         1 => ThemeColor::Sky,
+        3 => ThemeColor::Violet,
+        4 => ThemeColor::Monochrome,
         _ => ThemeColor::Lime,
     };
     (mode, theme)

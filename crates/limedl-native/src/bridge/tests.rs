@@ -63,6 +63,26 @@ use crate::LabsFormData;
     }
 
     #[test]
+    fn test_setup_form_theme_colors() {
+        for (theme, expected_idx) in [
+            (ThemeColor::Amber, 0),
+            (ThemeColor::Sky, 1),
+            (ThemeColor::Lime, 2),
+            (ThemeColor::Violet, 3),
+            (ThemeColor::Monochrome, 4),
+        ] {
+            let mut s = AppSettings::default();
+            s.appearance.theme_color = theme.clone();
+            let form = app_settings_to_setup_form(&s, Language::ZhCn);
+            assert_eq!(form.theme_color_idx, expected_idx);
+
+            let mut back = AppSettings::default();
+            update_app_settings_from_setup_form(&mut back, &form, Language::ZhCn).unwrap();
+            assert_eq!(back.appearance.theme_color, theme);
+        }
+    }
+
+    #[test]
     fn test_setup_form_scheduler_presets() {
         // Default scheduler (balanced automatic) maps to preset idx 1.
         let s = AppSettings::default();

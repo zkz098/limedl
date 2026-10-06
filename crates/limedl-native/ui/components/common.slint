@@ -96,7 +96,7 @@ export component PrimaryButton inherits Rectangle {
             alignment: center;
             Image {
                 source: root.icon;
-                colorize: !root.enabled ? Theme.c4d5c41 : #0b1104;
+                colorize: !root.enabled ? Theme.c4d5c41 : Theme.c0b1104;
                 width: 15px;
                 height: 15px;
                 image-fit: contain;
@@ -105,7 +105,7 @@ export component PrimaryButton inherits Rectangle {
 
         if root.text != "" : Text {
             text: root.text;
-            color: !root.enabled ? Theme.c4d5c41 : #0b1104;
+            color: !root.enabled ? Theme.c4d5c41 : Theme.c0b1104;
             font-size: 13px;
             font-weight: 700;
             vertical-alignment: center;
@@ -303,7 +303,7 @@ export component CustomCheckBox inherits Rectangle {
 
     if root.checked : check_mark := Text {
         text: "✓";
-        color: #0b1104;
+        color: Theme.c0b1104;
         font-size: 12px;
         font-weight: 800;
         vertical-alignment: center;
@@ -331,7 +331,7 @@ export component ToggleSwitch inherits Rectangle {
         width: ta.pressed ? 19px : 16px;
         height: 16px;
         border-radius: 8px;
-        background: root.checked ? #0b1104 : Theme.c9ca3af;
+        background: root.checked ? Theme.c0b1104 : Theme.c9ca3af;
         animate x, width, background { duration: 150ms; easing: ease-out; }
     }
 }

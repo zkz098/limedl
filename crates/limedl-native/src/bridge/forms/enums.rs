@@ -85,6 +85,8 @@ pub(crate) fn theme_color_to_str(c: &ThemeColor) -> SharedString {
         ThemeColor::Amber => "amber",
         ThemeColor::Sky => "sky",
         ThemeColor::Lime => "lime",
+        ThemeColor::Violet => "violet",
+        ThemeColor::Monochrome => "monochrome",
     })
 }
 pub(crate) fn close_behavior_to_str(c: &CloseBehavior) -> SharedString {

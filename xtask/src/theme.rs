@@ -153,6 +153,8 @@ pub const STATIC_MAP: &[(&str, &str)] = &[
     ("ec4899", "db2777"),
     ("f472b6", "db2777"),
     ("31132b", "fce7f3"),
+    // violet (semantic / swatch)
+    ("8b5cf6", "7c3aed"),
     // overlays
     ("000000bb", "00000066"),
     ("000000cc", "00000066"),
@@ -162,6 +164,8 @@ pub struct AccentColor {
     pub lime: &'static str,
     pub amber: &'static str,
     pub sky: &'static str,
+    pub violet: &'static str,
+    pub monochrome: &'static str,
 }
 
 pub struct AccentEntry {
@@ -173,48 +177,53 @@ pub struct AccentEntry {
 pub const ACCENT_MAP: &[AccentEntry] = &[
     AccentEntry {
         key: "84cc16",
-        dark: AccentColor { lime: "84cc16", amber: "f59e0b", sky: "0ea5e9" },
-        light: AccentColor { lime: "65a30d", amber: "d97706", sky: "0284c7" },
+        dark: AccentColor { lime: "84cc16", amber: "f59e0b", sky: "0ea5e9", violet: "8b5cf6", monochrome: "ffffff" },
+        light: AccentColor { lime: "65a30d", amber: "d97706", sky: "0284c7", violet: "7c3aed", monochrome: "000000" },
     },
     AccentEntry {
         key: "a3e635",
-        dark: AccentColor { lime: "a3e635", amber: "fbbf24", sky: "38bdf8" },
-        light: AccentColor { lime: "84cc16", amber: "f59e0b", sky: "0ea5e9" },
+        dark: AccentColor { lime: "a3e635", amber: "fbbf24", sky: "38bdf8", violet: "a78bfa", monochrome: "e5e5e5" },
+        light: AccentColor { lime: "84cc16", amber: "f59e0b", sky: "0ea5e9", violet: "8b5cf6", monochrome: "27272a" },
     },
     AccentEntry {
         key: "65a30d",
-        dark: AccentColor { lime: "65a30d", amber: "d97706", sky: "0284c7" },
-        light: AccentColor { lime: "4d7c0f", amber: "b45309", sky: "0369a1" },
+        dark: AccentColor { lime: "65a30d", amber: "d97706", sky: "0284c7", violet: "7c3aed", monochrome: "d4d4d8" },
+        light: AccentColor { lime: "4d7c0f", amber: "b45309", sky: "0369a1", violet: "6d28d9", monochrome: "3f3f46" },
     },
     AccentEntry {
         key: "365314",
-        dark: AccentColor { lime: "365314", amber: "78350f", sky: "0c4a6e" },
-        light: AccentColor { lime: "1a2e05", amber: "713f12", sky: "0c4a6e" },
+        dark: AccentColor { lime: "365314", amber: "78350f", sky: "0c4a6e", violet: "4c1d95", monochrome: "3f3f46" },
+        light: AccentColor { lime: "1a2e05", amber: "713f12", sky: "0c4a6e", violet: "2e1065", monochrome: "d4d4d8" },
     },
     AccentEntry {
         key: "26331a",
-        dark: AccentColor { lime: "26331a", amber: "451a03", sky: "082f49" },
-        light: AccentColor { lime: "ecfccb", amber: "fef3c7", sky: "e0f2fe" },
+        dark: AccentColor { lime: "26331a", amber: "451a03", sky: "082f49", violet: "2e1065", monochrome: "27272a" },
+        light: AccentColor { lime: "ecfccb", amber: "fef3c7", sky: "e0f2fe", violet: "ede9fe", monochrome: "f4f4f5" },
     },
     AccentEntry {
         key: "232b1d",
-        dark: AccentColor { lime: "232b1d", amber: "3b280c", sky: "0c4a6e" },
-        light: AccentColor { lime: "f0f7e2", amber: "fef3c7", sky: "e0f2fe" },
+        dark: AccentColor { lime: "232b1d", amber: "3b280c", sky: "0c4a6e", violet: "26153b", monochrome: "27272a" },
+        light: AccentColor { lime: "f0f7e2", amber: "fef3c7", sky: "e0f2fe", violet: "f5f3ff", monochrome: "f4f4f5" },
     },
     AccentEntry {
         key: "2a3322",
-        dark: AccentColor { lime: "2a3322", amber: "422006", sky: "075985" },
-        light: AccentColor { lime: "eaf6d9", amber: "fde68a", sky: "bae6fd" },
+        dark: AccentColor { lime: "2a3322", amber: "422006", sky: "075985", violet: "3b1c66", monochrome: "27272a" },
+        light: AccentColor { lime: "eaf6d9", amber: "fde68a", sky: "bae6fd", violet: "ddd6fe", monochrome: "e4e4e7" },
     },
     AccentEntry {
         key: "1c2618",
-        dark: AccentColor { lime: "1c2618", amber: "451a03", sky: "082f49" },
-        light: AccentColor { lime: "eaf6d9", amber: "fef3c7", sky: "e0f2fe" },
+        dark: AccentColor { lime: "1c2618", amber: "451a03", sky: "082f49", violet: "221236", monochrome: "1c1c1f" },
+        light: AccentColor { lime: "eaf6d9", amber: "fef3c7", sky: "e0f2fe", violet: "ede9fe", monochrome: "f0f0f2" },
     },
     AccentEntry {
         key: "4d5c41",
-        dark: AccentColor { lime: "4d5c41", amber: "92400e", sky: "0369a1" },
-        light: AccentColor { lime: "9db876", amber: "d97706", sky: "0284c7" },
+        dark: AccentColor { lime: "4d5c41", amber: "92400e", sky: "0369a1", violet: "6d28d9", monochrome: "71717a" },
+        light: AccentColor { lime: "9db876", amber: "d97706", sky: "0284c7", violet: "8b5cf6", monochrome: "a1a1aa" },
+    },
+    AccentEntry {
+        key: "0b1104",
+        dark: AccentColor { lime: "0b1104", amber: "0b1104", sky: "0b1104", violet: "ffffff", monochrome: "000000" },
+        light: AccentColor { lime: "0b1104", amber: "0b1104", sky: "0b1104", violet: "ffffff", monochrome: "ffffff" },
     },
 ];
 
@@ -239,13 +248,13 @@ import { Palette } from "std-widgets.slint";
 
 export enum ColorModePref { System, Light, Dark }
 
-export enum ThemeAccent { Lime, Amber, Sky }
+export enum ThemeAccent { Lime, Amber, Sky, Violet, Monochrome }
 
 export global Theme {
     /// User preference from settings (system/light/dark).
     in-out property <ColorModePref> mode: ColorModePref.System;
 
-    /// Brand accent from settings (lime/amber/sky).
+    /// Brand accent from settings (lime/amber/sky/violet/monochrome).
     in-out property <ThemeAccent> accent: ThemeAccent.Lime;
 
     /// Effective dark flag used by every color token below.
@@ -264,12 +273,12 @@ export global Theme {
     for entry in ACCENT_MAP {
         let hex = entry.key;
         let dark_expr = format!(
-            "accent == ThemeAccent.Amber ? #{} : accent == ThemeAccent.Sky ? #{} : #{}",
-            entry.dark.amber, entry.dark.sky, entry.dark.lime
+            "accent == ThemeAccent.Amber ? #{} : accent == ThemeAccent.Sky ? #{} : accent == ThemeAccent.Violet ? #{} : accent == ThemeAccent.Monochrome ? #{} : #{}",
+            entry.dark.amber, entry.dark.sky, entry.dark.violet, entry.dark.monochrome, entry.dark.lime
         );
         let light_expr = format!(
-            "accent == ThemeAccent.Amber ? #{} : accent == ThemeAccent.Sky ? #{} : #{}",
-            entry.light.amber, entry.light.sky, entry.light.lime
+            "accent == ThemeAccent.Amber ? #{} : accent == ThemeAccent.Sky ? #{} : accent == ThemeAccent.Violet ? #{} : accent == ThemeAccent.Monochrome ? #{} : #{}",
+            entry.light.amber, entry.light.sky, entry.light.violet, entry.light.monochrome, entry.light.lime
         );
         out.push_str(&format!("    /// brand accent (was dark #{hex}) — follows theme_color\n"));
         out.push_str(&format!("    in property <color> c{hex}: dark ? ({dark_expr}) : ({light_expr});\n"));
