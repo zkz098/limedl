@@ -214,11 +214,10 @@ pub fn detect_install_kind() -> InstallKind {
 
 #[cfg(windows)]
 fn installer_registry_entry_exists() -> bool {
-    use winreg::enums::HKEY_CURRENT_USER;
     const UNINSTALL_KEY: &str =
         r"Software\Microsoft\Windows\CurrentVersion\Uninstall\limedl-native";
-    winreg::RegKey::predef(HKEY_CURRENT_USER)
-        .open_subkey(UNINSTALL_KEY)
+    windows_registry::CURRENT_USER
+        .open(UNINSTALL_KEY)
         .is_ok()
 }
 

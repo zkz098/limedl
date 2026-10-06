@@ -57,38 +57,38 @@ mod windows_impl {
         if crate::update::has_package_identity() {
             return startup_task_enabled().unwrap_or(false);
         }
-        winreg_is_enabled()
+        registry_is_enabled()
     }
 
     pub fn enable() -> anyhow::Result<()> {
         if crate::update::has_package_identity() {
             return startup_task_enable();
         }
-        winreg_enable()
+        registry_enable()
     }
 
     pub fn disable() -> anyhow::Result<()> {
         if crate::update::has_package_identity() {
             return startup_task_disable();
         }
-        winreg_disable()
+        registry_disable()
     }
 
     // ── Registry (portable / NSIS per-user installs) ──
 
-    fn winreg_is_enabled() -> bool {
-        winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
-            .open_subkey(RUN_KEY)
-            .and_then(|k| k.get_value::<String, _>(VALUE_NAME))
+    fn registry_is_enabled() -> bool {
+        windows_registry::CURRENT_USER
+            .open(RUN_KEY)
+            .and_then(|k| k.get_string(VALUE_NAME))
             .is_ok()
     }
 
-    fn winreg_enable() -> anyhow::Result<()> {
+    fn registry_enable() -> anyhow::Result<()> {
         let val = super::expected_command().context("failed to get current exe path")?;
-        winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
-            .open_subkey_with_flags(RUN_KEY, winreg::enums::KEY_WRITE)
-            .context("open Run key")?
-            .set_value(VALUE_NAME, &val)
+        windows_registry::CURRENT_USER
+            .create(RUN_KEY)
+            .context("open or create Run key")?
+            .set_string(VALUE_NAME, &val)
             .context("set Run value")?;
         Ok(())
     }
@@ -101,21 +101,17 @@ mod windows_impl {
             // nothing to reconcile here.
             return true;
         }
-        winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
-            .open_subkey(RUN_KEY)
-            .and_then(|k| k.get_value::<String, _>(VALUE_NAME))
+        windows_registry::CURRENT_USER
+            .open(RUN_KEY)
+            .and_then(|k| k.get_string(VALUE_NAME))
             .is_ok_and(|stored| super::registration_is_current(&stored))
     }
 
-    fn winreg_disable() -> anyhow::Result<()> {
-        let key = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
-            .open_subkey_with_flags(RUN_KEY, winreg::enums::KEY_WRITE)
-            .context("open Run key")?;
-        match key.delete_value(VALUE_NAME) {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(e.into()),
+    fn registry_disable() -> anyhow::Result<()> {
+        if let Ok(key) = windows_registry::CURRENT_USER.open(RUN_KEY) {
+            let _ = key.remove_value(VALUE_NAME);
         }
+        Ok(())
     }
 
     // ── StartupTask (MSIX / Store installs) ──

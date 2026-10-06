@@ -170,7 +170,7 @@ These used to be documented here and all came from the retired Tauri shell
   dependency tree. The tree now resolves `wayland-scanner 0.31.11` →
   `quick-xml 0.41.0`, which is patched (`patched = [">= 0.41.0"]`), so `deny.toml`
   no longer ignores them and CI runs a plain `cargo audit`.
-- **`winreg` `multiple-versions` warning** — came from `auto-launch` (via
-  `tauri-plugin-autostart`) and `embed-resource` (via `tauri-winres`). `winreg`
-  now appears exactly once (`0.52.0`, used by
-  `crates/limedl-native/src/autostart.rs`), so `cargo deny` reports no duplicate.
+- **`winreg` `multiple-versions` warning** — previously came from `auto-launch` and
+  `embed-resource`. `winreg` has been completely replaced by the official
+  `windows-registry` crate in `crates/limedl-native`, eliminating the dependency
+  entirely.

@@ -773,19 +773,15 @@ pub fn hide_window(window: &slint::Window) {
 pub fn os_description() -> String {
     #[cfg(windows)]
     {
-        use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_READ};
-        use winreg::RegKey;
-
-        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-        if let Ok(key) = hklm
-            .open_subkey_with_flags(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion", KEY_READ)
+        if let Ok(key) = windows_registry::LOCAL_MACHINE
+            .open(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion")
         {
             let product = key
-                .get_value::<String, _>("ProductName")
+                .get_string("ProductName")
                 .unwrap_or_else(|_| "Windows".to_string());
             let build = key
-                .get_value::<String, _>("CurrentBuildNumber")
-                .or_else(|_| key.get_value::<String, _>("CurrentBuild"))
+                .get_string("CurrentBuildNumber")
+                .or_else(|_| key.get_string("CurrentBuild"))
                 .unwrap_or_default();
             let product = match build.parse::<u32>() {
                 Ok(n) if n >= 22000 => product.replace("Windows 10", "Windows 11"),

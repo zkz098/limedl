@@ -12,25 +12,18 @@
 #![cfg_attr(not(windows), allow(dead_code))]
 
 #[cfg(windows)]
-use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};
+const MAGNET_KEY: &str = r"Software\Classes\magnet";
 #[cfg(windows)]
-use winreg::RegKey;
-
-#[cfg(windows)]
-const MAGNET_KEY: &str = "Software\\Classes\\magnet";
-#[cfg(windows)]
-const LIMEDL_KEY: &str = "Software\\Classes\\limedl";
+const LIMEDL_KEY: &str = r"Software\Classes\limedl";
 
 /// Check if the `magnet:` protocol is registered to the current limedl executable.
 #[allow(dead_code)]
 pub fn is_magnet_registered() -> bool {
     #[cfg(windows)]
     {
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        if let Ok(key) = hkcu.open_subkey_with_flags(
-            format!("{MAGNET_KEY}\\shell\\open\\command"),
-            KEY_READ,
-        ) && let Ok(cmd) = key.get_value::<String, _>("")
+        if let Ok(key) = windows_registry::CURRENT_USER
+            .open(format!(r"{MAGNET_KEY}\shell\open\command"))
+            && let Ok(cmd) = key.get_string("")
             && let Ok(current_exe) = std::env::current_exe()
         {
             let exe_str = current_exe.to_string_lossy();
@@ -50,24 +43,23 @@ pub fn register_protocols() -> anyhow::Result<()> {
     {
         let current_exe = std::env::current_exe()?;
         let exe_path = current_exe.to_string_lossy();
-        let cmd = format!("\"{}\" \"%1\"", exe_path);
+        let cmd = format!("\"{exe_path}\" \"%1\"");
 
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let hkcu = windows_registry::CURRENT_USER;
 
         // 1. magnet:? protocol
-        let (magnet_key, _) = hkcu.create_subkey(MAGNET_KEY)?;
-        magnet_key.set_value("", &"URL:BitTorrent Magnet Link")?;
-        magnet_key.set_value("URL Protocol", &"")?;
-        let (cmd_key, _) = hkcu.create_subkey(format!("{MAGNET_KEY}\\shell\\open\\command"))?;
-        cmd_key.set_value("", &cmd)?;
+        let magnet_key = hkcu.create(MAGNET_KEY)?;
+        magnet_key.set_string("", "URL:BitTorrent Magnet Link")?;
+        magnet_key.set_string("URL Protocol", "")?;
+        let cmd_key = hkcu.create(format!(r"{MAGNET_KEY}\shell\open\command"))?;
+        cmd_key.set_string("", &cmd)?;
 
         // 2. limedl:// deep link
-        let (limedl_key, _) = hkcu.create_subkey(LIMEDL_KEY)?;
-        limedl_key.set_value("", &"URL:limedl Protocol")?;
-        limedl_key.set_value("URL Protocol", &"")?;
-        let (limedl_cmd_key, _) =
-            hkcu.create_subkey(format!("{LIMEDL_KEY}\\shell\\open\\command"))?;
-        limedl_cmd_key.set_value("", &cmd)?;
+        let limedl_key = hkcu.create(LIMEDL_KEY)?;
+        limedl_key.set_string("", "URL:limedl Protocol")?;
+        limedl_key.set_string("URL Protocol", "")?;
+        let limedl_cmd_key = hkcu.create(format!(r"{LIMEDL_KEY}\shell\open\command"))?;
+        limedl_cmd_key.set_string("", &cmd)?;
 
         tracing::info!("系统协议关联已成功注册 (magnet:, limedl:)");
         Ok(())
@@ -83,9 +75,9 @@ pub fn register_protocols() -> anyhow::Result<()> {
 pub fn unregister_protocols() -> anyhow::Result<()> {
     #[cfg(windows)]
     {
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let _ = hkcu.delete_subkey_all(MAGNET_KEY);
-        let _ = hkcu.delete_subkey_all(LIMEDL_KEY);
+        let hkcu = windows_registry::CURRENT_USER;
+        let _ = hkcu.remove_tree(MAGNET_KEY);
+        let _ = hkcu.remove_tree(LIMEDL_KEY);
         tracing::info!("系统协议关联已移除");
         Ok(())
     }
