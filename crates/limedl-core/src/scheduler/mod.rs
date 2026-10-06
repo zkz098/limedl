@@ -265,6 +265,9 @@ fn check_oscillation(
         aimd.consecutive_good_samples = 0;
         aimd.consecutive_bad_samples = 0;
         aimd.oscillation_count = 0;
+        aimd.stable_cycles = 0;
+        aimd.is_probing_up = false;
+        aimd.probe_pre_throughput = None;
     }
 }
 
@@ -277,14 +280,15 @@ struct AdaptiveThresholds {
     increase: f64,
     samples_needed: u32,
     cooldown: Duration,
+    probe_stable_cycles: u32,
 }
 
 impl AdaptiveThresholds {
     fn for_profile(profile: AdaptiveProfile) -> Self {
-        let (degrade, increase, samples_needed) = match profile {
-            AdaptiveProfile::Conservative => (0.18, 0.08, 2),
-            AdaptiveProfile::Balanced => (0.16, 0.04, 1),
-            AdaptiveProfile::Aggressive => (0.20, 0.03, 1),
+        let (degrade, increase, samples_needed, probe_stable_cycles) = match profile {
+            AdaptiveProfile::Conservative => (0.18, 0.08, 2, 3),
+            AdaptiveProfile::Balanced => (0.16, 0.04, 1, 2),
+            AdaptiveProfile::Aggressive => (0.20, 0.03, 1, 2),
         };
         Self {
             profile,
@@ -292,6 +296,7 @@ impl AdaptiveThresholds {
             increase,
             samples_needed,
             cooldown: aimd::cooldown_for_profile(profile),
+            probe_stable_cycles,
         }
     }
 }
@@ -357,15 +362,93 @@ fn update_one_adaptive(
         return;
     }
 
+    // ── Settling period: suspend decisions right after thread changes ──
+    if aimd_in_settling(&mut aimd, now, throughput) {
+        return;
+    }
+
     let thresholds = AdaptiveThresholds::for_profile(profile);
+
+    // ── Probing verification: evaluate outcome of a previous upward probe ──
+    if aimd.is_probing_up {
+        if allocated != current {
+            // Wait until the allocation catches up with the target
+            aimd.record_sample(throughput);
+            return;
+        }
+
+        let pre_throughput = aimd.probe_pre_throughput.unwrap_or(0.0);
+        let pre_threads = aimd.probe_pre_threads;
+        let improved = pre_throughput > 0.0
+            && throughput >= pre_throughput * (1.0 + thresholds.increase);
+        aimd.is_probing_up = false;
+        aimd.probe_pre_throughput = None;
+
+        if improved {
+            // Probe succeeded: retain higher concurrency
+            aimd.last_throughput = Some(throughput);
+            aimd.stable_cycles = 0;
+            aimd.consecutive_bad_samples = 0;
+            aimd.recent_penalty = false;
+            aimd.record_sample(throughput);
+            track_direction(&mut aimd, Direction::Up);
+            check_oscillation(
+                &mut aimd,
+                manifest,
+                current,
+                min_threads,
+                now,
+                &thresholds.cooldown,
+            );
+            sync_snapshot_with_manifest(&mut core);
+            return;
+        } else {
+            // Probe did not yield throughput gain: rollback to pre-probe threads
+            let rollback_target = pre_threads.max(min_threads);
+            manifest.desired_thread_count = Some(rollback_target);
+            manifest.updated_at_ms = now_ms();
+            aimd.cooldown_until = Some(now + thresholds.cooldown * 2);
+            aimd.settling_until = Some(now + thresholds.cooldown);
+            aimd.last_throughput = Some(pre_throughput.max(throughput));
+            aimd.stable_cycles = 0;
+            aimd.consecutive_bad_samples = 0;
+            aimd.recent_penalty = false;
+            aimd.record_sample(throughput);
+            track_direction(&mut aimd, Direction::Down);
+            check_oscillation(
+                &mut aimd,
+                manifest,
+                current,
+                min_threads,
+                now,
+                &thresholds.cooldown,
+            );
+            sync_snapshot_with_manifest(&mut core);
+            return;
+        }
+    }
 
     let throughput_drop = aimd
         .last_throughput
         .is_some_and(|last| last > 0.0 && throughput < last * (1.0 - thresholds.degrade));
+
+    let is_severe_drop = aimd
+        .last_throughput
+        .is_some_and(|last| last > 0.0 && throughput < last * 0.50);
+
+    let degradation_confirmed = if throughput_drop {
+        aimd.consecutive_bad_samples = aimd.consecutive_bad_samples.saturating_add(1);
+        aimd.stable_cycles = 0;
+        is_severe_drop || aimd.consecutive_bad_samples >= 2 || aimd.recent_penalty
+    } else {
+        aimd.consecutive_bad_samples = 0;
+        false
+    };
+
     let should_decrease = current > 1
         && match profile {
-            AdaptiveProfile::Conservative => aimd.recent_penalty || throughput_drop,
-            AdaptiveProfile::Balanced | AdaptiveProfile::Aggressive => throughput_drop,
+            AdaptiveProfile::Conservative => aimd.recent_penalty || degradation_confirmed,
+            AdaptiveProfile::Balanced | AdaptiveProfile::Aggressive => degradation_confirmed,
         };
 
     if should_decrease {
@@ -387,14 +470,15 @@ fn update_one_adaptive(
     let changed_up = maybe_increase(
         &mut aimd,
         manifest,
-        current,
-        allocated,
         adaptive_cap,
         throughput,
         &thresholds,
+        now,
     );
 
-    aimd.last_throughput = Some(throughput);
+    if !changed_up {
+        aimd.last_throughput = Some(throughput);
+    }
     aimd.recent_penalty = false;
     aimd.record_sample(throughput);
 
@@ -440,6 +524,22 @@ fn hysteresis_skips_decision(aimd: &mut AimdState, now: Instant, throughput: f64
     false
 }
 
+/// While a settling period is active, record throughput samples and skip decisions;
+/// once it expires, establish a fresh throughput baseline.
+fn aimd_in_settling(aimd: &mut AimdState, now: Instant, throughput: f64) -> bool {
+    if let Some(settling_until) = aimd.settling_until {
+        if now < settling_until {
+            aimd.record_sample(throughput);
+            return true;
+        }
+        aimd.settling_until = None;
+        if aimd.last_throughput.is_none() && throughput > 0.0 {
+            aimd.last_throughput = Some(throughput);
+        }
+    }
+    false
+}
+
 /// Apply a decrease decision and run the Down-side oscillation tracking.
 fn apply_decrease(
     aimd: &mut AimdState,
@@ -454,8 +554,13 @@ fn apply_decrease(
         Some(aimd::reduce_threads(current, thresholds.profile, min_threads));
     manifest.updated_at_ms = now_ms();
     aimd.cooldown_until = Some(now + thresholds.cooldown);
+    aimd.settling_until = Some(now + thresholds.cooldown);
+    aimd.last_throughput = None;
     aimd.consecutive_good_samples = 0;
-    aimd.consecutive_bad_samples = aimd.consecutive_bad_samples.saturating_add(1);
+    aimd.consecutive_bad_samples = 0;
+    aimd.stable_cycles = 0;
+    aimd.is_probing_up = false;
+    aimd.probe_pre_throughput = None;
     aimd.recent_penalty = false;
     aimd.record_sample(throughput);
     // ── Oscillation tracking (MD = Down) ──
@@ -463,49 +568,83 @@ fn apply_decrease(
     check_oscillation(aimd, manifest, current, min_threads, now, &thresholds.cooldown);
 }
 
-/// Apply the up-side AIMD step when allocation caught up with the target.
+/// Apply the up-side AIMD step when allocation caught up with the target,
+/// or initiate proactive probing when transfer is stable.
 ///
 /// Returns `true` when the target was raised (drives the Up oscillation track).
 fn maybe_increase(
     aimd: &mut AimdState,
     manifest: &mut Manifest,
-    current: usize,
-    allocated: usize,
     adaptive_cap: usize,
     throughput: f64,
     thresholds: &AdaptiveThresholds,
+    now: Instant,
 ) -> bool {
+    let current = manifest.desired_thread_count.unwrap_or(1).max(1);
+    let allocated = manifest.allocated_thread_count.unwrap_or(0);
+
     if allocated != current {
         return false;
     }
 
-    let improved = match aimd.last_throughput {
+    if current >= adaptive_cap {
+        return false;
+    }
+
+    // Path 1: Throughput improved significantly over last throughput
+    let throughput_improved = match aimd.last_throughput {
         Some(last) if last > 0.0 => throughput >= last * (1.0 + thresholds.increase),
-        _ => true,
+        _ => false,
     };
-    if !improved {
-        return false;
+
+    if throughput_improved {
+        aimd.consecutive_good_samples = aimd.consecutive_good_samples.saturating_add(1);
+        aimd.consecutive_bad_samples = 0;
+        if aimd.consecutive_good_samples >= thresholds.samples_needed {
+            let step = match thresholds.profile {
+                AdaptiveProfile::Conservative => 1usize,
+                AdaptiveProfile::Balanced => (current / 4).max(1),
+                AdaptiveProfile::Aggressive => (current / 3).max(1),
+            };
+            let next = (current + step).min(adaptive_cap.max(1));
+            if next > current {
+                manifest.desired_thread_count = Some(next);
+                manifest.updated_at_ms = now_ms();
+                aimd.settling_until = Some(now + thresholds.cooldown);
+                aimd.last_throughput = None;
+                aimd.consecutive_good_samples = 0;
+                aimd.stable_cycles = 0;
+                return true;
+            }
+        }
+    } else {
+        aimd.consecutive_good_samples = 0;
     }
 
-    aimd.consecutive_good_samples = aimd.consecutive_good_samples.saturating_add(1);
-    aimd.consecutive_bad_samples = 0;
-    if aimd.consecutive_good_samples < thresholds.samples_needed {
-        return false;
+    // Path 2: Anti-deadlock proactive probing when steady
+    aimd.stable_cycles = aimd.stable_cycles.saturating_add(1);
+    if aimd.stable_cycles >= thresholds.probe_stable_cycles {
+        let step = match thresholds.profile {
+            AdaptiveProfile::Conservative => 1usize,
+            AdaptiveProfile::Balanced => (current / 4).max(1),
+            AdaptiveProfile::Aggressive => (current / 3).max(1),
+        };
+        let next = (current + step).min(adaptive_cap.max(1));
+        if next > current {
+            manifest.desired_thread_count = Some(next);
+            manifest.updated_at_ms = now_ms();
+            aimd.is_probing_up = true;
+            aimd.probe_pre_throughput = Some(throughput);
+            aimd.probe_pre_threads = current;
+            aimd.settling_until = Some(now + thresholds.cooldown);
+            aimd.last_throughput = None;
+            aimd.stable_cycles = 0;
+            aimd.consecutive_good_samples = 0;
+            return true;
+        }
     }
 
-    let step = match thresholds.profile {
-        AdaptiveProfile::Conservative => 2usize,
-        AdaptiveProfile::Balanced => (current / 4).max(1),
-        AdaptiveProfile::Aggressive => (current / 3).max(2),
-    };
-    let next = (current + step).min(adaptive_cap.max(1));
-    let changed_up = next > current;
-    if changed_up {
-        manifest.desired_thread_count = Some(next);
-        manifest.updated_at_ms = now_ms();
-    }
-    aimd.consecutive_good_samples = 0;
-    changed_up
+    false
 }
 
 // ── Rebalance helpers ────────────────────────────────────────────────────────

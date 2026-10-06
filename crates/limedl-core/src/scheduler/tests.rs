@@ -323,3 +323,177 @@ fn task_cap_default_is_at_least_one() {
     // Default max_threads_per_task is 8, so cap is 8
     assert_eq!(super::effective_automatic_task_cap(&s), 8);
 }
+
+// ── AIMD anti-deadlock & anti-cascade tests ───────────────────────────
+
+fn make_managed_task(desired: usize, allocated: usize, profile: crate::types::AdaptiveProfile) -> std::sync::Arc<crate::download::ManagedDownload> {
+    let mut m = manifest("https://example.com/file.bin");
+    m.state = DownloadState::Downloading;
+    m.supports_ranges = true;
+    m.thread_mode = ThreadMode::Adaptive;
+    m.desired_thread_count = Some(desired);
+    m.allocated_thread_count = Some(allocated);
+    m.adaptive_profile_snapshot = Some(profile);
+    let s = crate::manifest::snapshot_from_manifest(&m);
+    std::sync::Arc::new(crate::download::ManagedDownload {
+        core: parking_lot::Mutex::new(crate::download::DownloadCore::new(s, m)),
+        runtime: parking_lot::Mutex::new(None),
+        aimd: parking_lot::Mutex::new(crate::aimd::AimdState::default()),
+        stop_notify: tokio::sync::Notify::new(),
+    })
+}
+
+#[test]
+fn aimd_deadlock_broken_by_proactive_probing() {
+    use std::time::{Duration, Instant};
+
+    let managed = make_managed_task(1, 1, crate::types::AdaptiveProfile::Balanced);
+    let settings = settings_automatic();
+    let adaptive_cap = 8;
+    let min_threads = 1;
+
+    // Cycle 1: establish initial steady throughput (1000.0 B/s)
+    {
+        let mut aimd = managed.lock_aimd();
+        aimd.last_throughput = Some(1000.0);
+        aimd.last_sample_at = Some(Instant::now() - Duration::from_secs(2));
+        aimd.last_sample_bytes = 0;
+        let mut core = managed.lock_core();
+        core.manifest.downloaded_bytes = 2000; // 1000 B/s steady
+    }
+    super::update_one_adaptive(&managed, &settings, adaptive_cap, min_threads);
+    {
+        let core = managed.lock_core();
+        assert_eq!(core.manifest.desired_thread_count, Some(1));
+        let aimd = managed.lock_aimd();
+        assert_eq!(aimd.stable_cycles, 1);
+    }
+
+    // Cycle 2: second steady cycle reaches probe_stable_cycles = 2 -> triggers proactive probe!
+    {
+        let mut aimd = managed.lock_aimd();
+        aimd.last_sample_at = Some(Instant::now() - Duration::from_secs(2));
+        aimd.last_sample_bytes = 2000;
+        let mut core = managed.lock_core();
+        core.manifest.downloaded_bytes = 4000; // 1000 B/s steady (no spontaneous speedup)
+    }
+    super::update_one_adaptive(&managed, &settings, adaptive_cap, min_threads);
+    {
+        let core = managed.lock_core();
+        assert_eq!(core.manifest.desired_thread_count, Some(2), "should probe up to 2 threads");
+        let aimd = managed.lock_aimd();
+        assert!(aimd.is_probing_up);
+        assert_eq!(aimd.probe_pre_threads, 1);
+        assert!(aimd.settling_until.is_some());
+    }
+}
+
+#[test]
+fn aimd_probe_rollback_when_no_gain() {
+    use std::time::{Duration, Instant};
+
+    let managed = make_managed_task(2, 2, crate::types::AdaptiveProfile::Balanced);
+    let settings = settings_automatic();
+    let adaptive_cap = 8;
+    let min_threads = 1;
+
+    // Simulate probe currently in progress with pre-probe throughput 1000.0 B/s
+    {
+        let mut aimd = managed.lock_aimd();
+        aimd.is_probing_up = true;
+        aimd.probe_pre_throughput = Some(1000.0);
+        aimd.probe_pre_threads = 1;
+        aimd.settling_until = None; // settling completed
+        aimd.last_sample_at = Some(Instant::now() - Duration::from_secs(2));
+        aimd.last_sample_bytes = 1000;
+        let mut core = managed.lock_core();
+        core.manifest.downloaded_bytes = 3000; // 1000 B/s, no gain over pre-probe 1000!
+    }
+
+    super::update_one_adaptive(&managed, &settings, adaptive_cap, min_threads);
+
+    {
+        let core = managed.lock_core();
+        assert_eq!(core.manifest.desired_thread_count, Some(1), "should rollback to 1 thread");
+        let aimd = managed.lock_aimd();
+        assert!(!aimd.is_probing_up);
+        assert!(aimd.cooldown_until.is_some(), "should enter cooldown after failed probe");
+    }
+}
+
+#[test]
+fn aimd_probe_success_retains_increase() {
+    use std::time::{Duration, Instant};
+
+    let managed = make_managed_task(2, 2, crate::types::AdaptiveProfile::Balanced);
+    let settings = settings_automatic();
+    let adaptive_cap = 8;
+    let min_threads = 1;
+
+    // Simulate probe currently in progress with pre-probe throughput 1000.0 B/s
+    {
+        let mut aimd = managed.lock_aimd();
+        aimd.is_probing_up = true;
+        aimd.probe_pre_throughput = Some(1000.0);
+        aimd.probe_pre_threads = 1;
+        aimd.settling_until = None; // settling completed
+        aimd.last_sample_at = Some(Instant::now() - Duration::from_secs(2));
+        aimd.last_sample_bytes = 1000;
+        let mut core = managed.lock_core();
+        core.manifest.downloaded_bytes = 4600; // 1800 B/s -> 80% gain over 1000!
+    }
+
+    super::update_one_adaptive(&managed, &settings, adaptive_cap, min_threads);
+
+    {
+        let core = managed.lock_core();
+        assert_eq!(core.manifest.desired_thread_count, Some(2), "should retain 2 threads");
+        let aimd = managed.lock_aimd();
+        assert!(!aimd.is_probing_up);
+        assert!(aimd.last_throughput.is_some_and(|t| (t - 1800.0).abs() < 2.0));
+    }
+}
+
+#[test]
+fn aimd_no_cascade_after_decrease() {
+    use std::time::{Duration, Instant};
+
+    let managed = make_managed_task(6, 6, crate::types::AdaptiveProfile::Balanced);
+    let settings = settings_automatic();
+    let adaptive_cap = 8;
+    let min_threads = 1;
+
+    // Trigger initial severe drop: 1000 B/s to 100 B/s
+    {
+        let mut aimd = managed.lock_aimd();
+        aimd.last_throughput = Some(1000.0);
+        aimd.last_sample_at = Some(Instant::now() - Duration::from_secs(2));
+        aimd.last_sample_bytes = 0;
+        let mut core = managed.lock_core();
+        core.manifest.downloaded_bytes = 200; // 100 B/s
+    }
+
+    super::update_one_adaptive(&managed, &settings, adaptive_cap, min_threads);
+
+    {
+        let core = managed.lock_core();
+        assert_eq!(core.manifest.desired_thread_count, Some(3), "should decrease from 6 to 3");
+        let aimd = managed.lock_aimd();
+        assert!(aimd.last_throughput.is_none(), "baseline must be cleared to prevent cascade");
+        assert!(aimd.settling_until.is_some(), "settling period must be active");
+    }
+
+    // Now rebalance takes effect: allocated becomes 3
+    {
+        let mut core = managed.lock_core();
+        core.manifest.allocated_thread_count = Some(3);
+        core.manifest.downloaded_bytes = 1200; // 500 B/s under 3 threads
+    }
+
+    // During settling / cooldown, no cascading decrease occurs!
+    super::update_one_adaptive(&managed, &settings, adaptive_cap, min_threads);
+    {
+        let core = managed.lock_core();
+        assert_eq!(core.manifest.desired_thread_count, Some(3), "must not cascade to 2 or 1");
+    }
+}

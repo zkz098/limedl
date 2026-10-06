@@ -24,6 +24,11 @@ pub struct AimdState {
     pub last_direction: Option<Direction>,
     pub oscillation_count: u32,
     pub hysteresis_lock_until: Option<Instant>,
+    pub settling_until: Option<Instant>,
+    pub stable_cycles: u32,
+    pub is_probing_up: bool,
+    pub probe_pre_throughput: Option<f64>,
+    pub probe_pre_threads: usize,
 }
 
 impl AimdState {

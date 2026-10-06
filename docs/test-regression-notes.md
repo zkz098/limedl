@@ -99,3 +99,11 @@ the notes below are worth keeping:
   the response immediately spun forever. `RequestBudget` (`http_executor`) bounds
   the requests per unit of work and is unit-tested directly
   (`request_budget_*` in `http_executor::tests`).
+
+## AIMD scheduler anti-deadlock & cascade notes (2026-10)
+
+The adaptive HTTP thread scheduling rework solved the 1-thread deadlock and compounding decrease death spiral:
+
+- **Proactive probing breaks 1-thread deadlock**: Single connections in a stable bandwidth environment do not spontaneously accelerate, meaning passive AI (`throughput >= last * (1.0 + increase)`) never fired. The scheduler proactively probes upwards after `probe_stable_cycles` consecutive stable cycles. If the probe yields no throughput improvement, it rolls back to the pre-probe thread count and enters cooldown (`aimd_probe_rollback_when_no_gain`, `aimd_probe_success_retains_increase`).
+- **Settling period & baseline reset eliminate compounding decrease cascades**: Decreasing threads reduces immediate throughput by design. If `last_throughput` retained the pre-decrease high value, the next evaluation cycle misinterpreted the drop as fresh network congestion and halved threads again repeatedly down to 1. `apply_decrease` now clears `last_throughput` and sets `settling_until` to establish a clean baseline after connection allocation settles (`aimd_no_cascade_after_decrease`).
+- **Worker pool sizing in chunked executor**: `http_executor/chunked.rs` previously capped workers at `target.min((chunk_count / 2).max(1))`. With 2 or 3 chunks, worker concurrency was artificially clamped to 1, starving the scheduler's target. The worker limit is now `target.min(chunk_count)`.

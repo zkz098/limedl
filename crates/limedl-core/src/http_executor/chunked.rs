@@ -65,7 +65,7 @@ impl HttpExecutor {
                     core.manifest.chunks.len()
                 };
                 if chunk_count > 0 {
-                    target = target.min((chunk_count / 2).max(1));
+                    target = target.min(chunk_count);
                 }
                 target
             };

@@ -93,6 +93,11 @@ fn aimd_state_initial_returns_defaults() {
     assert!(state.last_direction.is_none());
     assert_eq!(state.oscillation_count, 0);
     assert!(state.hysteresis_lock_until.is_none());
+    assert!(state.settling_until.is_none());
+    assert_eq!(state.stable_cycles, 0);
+    assert!(!state.is_probing_up);
+    assert!(state.probe_pre_throughput.is_none());
+    assert_eq!(state.probe_pre_threads, 0);
 }
 
 #[test]
