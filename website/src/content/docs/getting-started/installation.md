@@ -32,7 +32,7 @@ Windows 平台提供三种分发格式，满足不同场景的使用偏好：
 - **自动更新**：支持软件内检测到新版本时一键静默热更新。
 - **静默安装参数**：适用于系统管理员或自动化脚本：
   ```cmd
-  limedl-native-v0.4.11-windows-x86_64-setup.exe /P /R
+  limedl-native-v0.4.12-windows-x86_64-setup.exe /P /R
   ```
   *(其中 `/P` 为静默模式，`/R` 抑制不必要的系统重启)*
 
@@ -51,7 +51,7 @@ Windows 平台提供三种分发格式，满足不同场景的使用偏好：
 针对 Apple Silicon 芯片（M 系列）提供了深度优化的 原生 aarch64 架构二进制。
 
 ### 安装步骤
-1. 前往下载页面获取 `limedl-native-v0.4.11-darwin-aarch64-portable.tar.gz`；
+1. 前往下载页面获取 `limedl-native-v0.4.12-darwin-aarch64-portable.tar.gz`；
 2. 解压下载的压缩包，得到 `limedl.app`；
 3. 将 `limedl.app` 拖入系统的 **应用程序 (Applications)** 文件夹中。
 
@@ -79,22 +79,22 @@ Windows 平台提供三种分发格式，满足不同场景的使用偏好：
 免除跨发行版依赖冲突，包含完整的运行时组件：
 ```bash
 # 赋予可执行权限
-chmod +x limedl-native-v0.4.11-linux-x86_64.AppImage
+chmod +x limedl-native-v0.4.12-linux-x86_64.AppImage
 
 # 运行客户端
-./limedl-native-v0.4.11-linux-x86_64.AppImage
+./limedl-native-v0.4.12-linux-x86_64.AppImage
 ```
 
 ### 2. Debian / Ubuntu 软件包 (.deb)
 深度集成桌面环境，自动安装图标、注册 MIME 类型以及协议映射：
 ```bash
-sudo apt install ./limedl-native-v0.4.11-linux-x86_64.deb
+sudo apt install ./limedl-native-v0.4.12-linux-x86_64.deb
 ```
 
 ### 3. 便携归档包 (.tar.gz)
 适合喜欢手动放置可执行文件的极客用户：
 ```bash
-tar -xzf limedl-native-v0.4.11-linux-x86_64-portable.tar.gz
+tar -xzf limedl-native-v0.4.12-linux-x86_64-portable.tar.gz
 cd limedl-native
 ./limedl-native
 ```
@@ -113,17 +113,17 @@ cd limedl-native
 
 **Windows (PowerShell)**:
 ```powershell
-Get-FileHash -Algorithm SHA256 .\limedl-native-v0.4.11-windows-x86_64-setup.exe
+Get-FileHash -Algorithm SHA256 .\limedl-native-v0.4.12-windows-x86_64-setup.exe
 ```
 
 **macOS (终端)**:
 ```bash
-shasum -a 256 limedl-native-v0.4.11-darwin-aarch64-portable.tar.gz
+shasum -a 256 limedl-native-v0.4.12-darwin-aarch64-portable.tar.gz
 ```
 
 **Linux (终端)**:
 ```bash
-sha256sum limedl-native-v0.4.11-linux-x86_64.AppImage
+sha256sum limedl-native-v0.4.12-linux-x86_64.AppImage
 ```
 
 ### 2. Minisign 密码学防篡改验签
@@ -137,7 +137,7 @@ RWTN2zWlB8Qz0bI6Xq4l4p9J7gYQx4fR8uV2kP3m9w0L
 
 执行验签命令：
 ```bash
-minisign -Vm limedl-native-v0.4.11-windows-x86_64-setup.exe -P "RWTN2zWlB8Qz0bI6Xq4l4p9J7gYQx4fR8uV2kP3m9w0L"
+minisign -Vm limedl-native-v0.4.12-windows-x86_64-setup.exe -P "RWTN2zWlB8Qz0bI6Xq4l4p9J7gYQx4fR8uV2kP3m9w0L"
 ```
 若终端输出 `Signature and comment signature verified`，说明文件未受任何篡改且确实由官方流水线签名产出。
 
