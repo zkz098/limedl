@@ -19,7 +19,7 @@ clap = { workspace = true }
 flate2 = "1"
 # Pure-Rust image decoder/resizer for cross-platform icon generation
 image = { version = "0.25", default-features = false, features = ["png"] }
-minisign = "0.9"
+minisign = "0.10"
 # Version bumping edits Cargo.toml/Cargo.lock/website with the same anchored
 # patterns the retired scripts used; regex keeps that contract legible.
 regex = { workspace = true }

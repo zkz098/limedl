@@ -18,7 +18,7 @@
 use std::sync::Mutex;
 
 use argon2::Argon2;
-use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
+use argon2::password_hash::{PasswordHasher, PasswordVerifier};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use subtle::ConstantTimeEq;
@@ -106,9 +106,8 @@ pub fn generate_token() -> String {
 pub fn hash_token(token: &str) -> Result<String, String> {
     let mut salt_bytes = [0u8; SALT_BYTES];
     rand::fill(&mut salt_bytes);
-    let salt = SaltString::encode_b64(&salt_bytes).map_err(|err| err.to_string())?;
     Argon2::default()
-        .hash_password(token.as_bytes(), &salt)
+        .hash_password_with_salt(token.as_bytes(), &salt_bytes)
         .map(|hash| hash.to_string())
         .map_err(|err| err.to_string())
 }
@@ -118,11 +117,8 @@ pub fn hash_token(token: &str) -> Result<String, String> {
 /// A malformed hash is a non-match rather than an error so a hand-edited
 /// settings file cannot take the RPC server down.
 pub(crate) fn verify_token(token: &str, stored_hash: &str) -> bool {
-    let Ok(parsed) = PasswordHash::new(stored_hash) else {
-        return false;
-    };
     Argon2::default()
-        .verify_password(token.as_bytes(), &parsed)
+        .verify_password(token.as_bytes(), stored_hash)
         .is_ok()
 }
 

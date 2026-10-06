@@ -102,7 +102,7 @@ notify-rust = "4"
 #
 # This only affects Linux (gtk/ashpd dependencies live under that target's cfg),
 # so Windows and macOS dependency graphs and behaviour are unchanged.
-rfd = { version = "0.16", default-features = false, features = ["xdg-portal", "tokio"] }
+rfd = { version = "0.17", default-features = false, features = ["xdg-portal", "wayland"] }
 arboard = "3.6"
 image = { version = "0.25", default-features = false, features = ["png"] }
 sys-locale = "0.3"
@@ -120,7 +120,7 @@ percent-encoding = { workspace = true }
 winres = "0.1"
 
 [target.'cfg(windows)'.dependencies]
-winreg = "0.52"
+winreg = "0.56"
 zip = { version = "8", default-features = false, features = ["deflate"] }
 windows = { version = "0.62", features = [
   "Foundation",

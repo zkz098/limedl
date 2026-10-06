@@ -1070,7 +1070,7 @@ export component MainWindow inherits Window {
                 }
 
                 if root.tasks.length > 0 && root.view_mode == 0 : ScrollView {
-                    viewport-y: 0;
+                    content-y: 0;
                     // Background layer: non-layout child, pinned to the full
                     // viewport, declared BEFORE the layout so it sits below the
                     // cards in z-order. Right-clicks on empty list space (padding,

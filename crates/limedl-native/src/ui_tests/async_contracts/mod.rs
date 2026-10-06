@@ -132,7 +132,7 @@ async fn open_new_task_dialog_without_the_clipboard_race(ui: &TestUi) {
 /// and a click whose press and release straddle the moving footer is delivered to
 /// two different positions and dropped.
 async fn settle_dialog_animation(ui: &TestUi) {
-    // 12 rounds x the 20ms the mock clock advances per round > the 200ms
-    // `animate height` in `new_task_dialog.slint`.
-    ui.pump(12).await;
+    // 25 rounds x 20ms = 500ms > the 200ms height + 160ms y animations
+    // in `new_task_dialog.slint`.
+    ui.pump(25).await;
 }

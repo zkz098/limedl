@@ -15,7 +15,7 @@ tokio-util = { version = "0.7" }
 # configuration, plus `charset`. Only the extras we need are listed here.
 # Guarded by `workspace_enables_reqwest_system_proxy` in
 # crates/limedl-core/src/http_client_factory/tests.rs.
-reqwest = { version = "=0.13.4", features = [
+reqwest = { version = "=0.13.5", features = [
   "stream",
   # HTTP/3 over QUIC: pulls in `h3` / `h3-quinn` / `quinn` and turns on `rustls`.
   # Upstream marks this *unstable*: it additionally requires `--cfg
@@ -39,7 +39,7 @@ sha2 = "0.11"
 # `default-features = false` drops argon2's `rand` feature: salts come from our
 # own `rand`, and the PHC salt is built with `SaltString::encode_b64`, so
 # `password-hash`'s bundled rand_core (a different major) never enters the graph.
-argon2 = { version = "0.5", default-features = false, features = ["alloc", "password-hash"] }
+argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"] }
 # Constant-time comparison for the shared-secret path.
 subtle = "2"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
@@ -71,16 +71,16 @@ rand = "0.10"
 irontide = { version = "=1.7.0", default-features = false, features = ["crypto-aws-lc"] }
 libc = "0.2"
 open = "5"
-minisign-verify = "0.2"
+minisign-verify = "0.3"
 mimalloc = "0.1"
 clap = { version = "4", features = ["derive"] }
 tempfile = "3"
-ntest = "0.9"
+ntest = "0.10"
 serde_bytes = "0.11"
 tokio-tungstenite = "0.30"
 criterion = { version = "0.8", features = ["html_reports"] }
-slint = { version = "1.9", default-features = false }
-slint-build = "1.9"
+slint = { version = "1.18", default-features = false }
+slint-build = "1.18"
 # In-process Slint UI testing backend (see `crates/limedl-native/src/ui_tests/`).
 # Pinned EXACTLY and not semver-following: the crate hard-depends on
 # `i-slint-core = "=x.y.z"` and breaks the build if that does not match the
@@ -88,9 +88,8 @@ slint-build = "1.9"
 # A mismatch is not a compile error but a split Slint platform — the testing
 # backend installs itself for one `i-slint-core` while the generated components
 # belong to the other, and `MainWindow::new()` fails with "platform not
-# initialized" (or opens a real window).
-i-slint-backend-testing = "=1.17.1"
-quick-xml = "0.41.0"
+i-slint-backend-testing = "=1.18.1"
+quick-xml = "0.42.0"
 
 [profile.release]
 # Optimized for binary size while preserving good runtime performance.

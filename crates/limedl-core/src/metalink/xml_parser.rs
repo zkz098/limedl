@@ -41,7 +41,7 @@ pub fn parse_metalink_xml(xml: &str) -> Result<MetalinkDocument> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let tag_name = String::from_utf8_lossy(e.name().as_ref()).to_ascii_lowercase();
+                let tag_name = e.name().as_ref().to_ascii_lowercase();
                 current_tag.push(tag_name.clone());
 
                 let mut attr_name = None;
@@ -55,8 +55,8 @@ pub fn parse_metalink_xml(xml: &str) -> Result<MetalinkDocument> {
                 attr_mediatype = None;
 
                 for attr in e.attributes().flatten() {
-                    let key = String::from_utf8_lossy(attr.key.as_ref()).to_ascii_lowercase();
-                    let val = String::from_utf8_lossy(&attr.value).to_string();
+                    let key = attr.key.as_ref().to_ascii_lowercase();
+                    let val = attr.value.to_string();
                     match key.as_str() {
                         "name" => attr_name = Some(val),
                         "type" => attr_type = Some(val),
@@ -105,8 +105,7 @@ pub fn parse_metalink_xml(xml: &str) -> Result<MetalinkDocument> {
                 }
             }
             Ok(Event::Text(ref e)) => {
-                let raw_str = std::str::from_utf8(e.as_ref()).unwrap_or("");
-                let text = quick_xml::escape::unescape(raw_str).unwrap_or_default().trim().to_string();
+                let text = quick_xml::escape::unescape(e.as_ref()).unwrap_or_default().trim().to_string();
                 if text.is_empty() {
                     continue;
                 }
@@ -189,7 +188,7 @@ pub fn parse_metalink_xml(xml: &str) -> Result<MetalinkDocument> {
                 }
             }
             Ok(Event::End(ref e)) => {
-                let tag_name = String::from_utf8_lossy(e.name().as_ref()).to_ascii_lowercase();
+                let tag_name = e.name().as_ref().to_ascii_lowercase();
                 if current_tag.last().is_some_and(|t| t == &tag_name) {
                     current_tag.pop();
                 }
