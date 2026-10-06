@@ -71,21 +71,27 @@ limedl 的 GitHub Actions CI 检查极为严苛：任何编译警告、Clippy �
 在提交 Pull Request 之前，必须在本地完整运行与 CI 完全对齐的验证门禁：
 
 ```powershell
-# 1. 开启警告阻断模式
-$env:RUSTFLAGS = "-D warnings"
+# 1. 环境变量配置
+$env:CARGO_BUILD_WARNINGS = "deny"
 $env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL = "sparse"
 
-# 2. 静态代码分析检查 (全 Workspace)
-cargo clippy --workspace --all-targets
+# 2. 静态代码分析检查 (全 Workspace，-D warnings)
+cargo clippy --workspace --all-targets -- -D warnings
 
-# 3. 执行核心下载引擎与 RPC 单元/集成测试
+# 3. 执行核心引擎单元与 RPC 测试
 cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
 
-# 4. 执行桌面客户端测试
+# 4. 执行仓库运维与发布工具测试
+cargo nextest run --manifest-path xtask/Cargo.toml
+
+# 5. 执行桌面客户端测试
 cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
+
+# 6. 执行无头服务端测试
+cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
 ```
 
-只有当上述四个命令**全部显示绿色**时，才允许提交代码并推送。
+只有当上述命令**全部显示绿色**时，才允许提交代码并推送。
 
 ---
 

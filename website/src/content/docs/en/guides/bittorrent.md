@@ -79,6 +79,14 @@ On asymmetric consumer broadband connections (such as fiber with asymmetric uplo
 - **Upload Speed Limit**: In **Settings -> Speed Limits**, cap the global upload limit at **70% ~ 80%** of your line's maximum physical upload rate.
 - **Seeding Ratio**: Default is `1.0`. Once uploaded bytes equal downloaded bytes, seeding concludes automatically, striking a balance between community sharing and resource conservation.
 
+### 4. Enable Lightweight BT Mode for Idle Efficiency (`bt.lightweightMode`)
+For users who primarily download HTTP/HTTPS resources, keeping the DHT routing table and listen sockets active consumes background memory.
+Enable **Lightweight BT Mode** under **Settings -> BitTorrent**:
+- The Irontide engine will not pre-warm on application launch;
+- Once all torrents are paused or completed with no active seeding, the engine automatically unloads its session from memory;
+- Torrent records remain visible and resumable via the SQLite `bt_tasks` cache;
+- Submitting a new magnet or resuming a task immediately awakens the engine within milliseconds.
+
 ---
 
 ## Anti-Leech & Corrupted Block Safeguards

@@ -66,10 +66,14 @@ limedl Workspace
 │   ├── main.rs               # 应用入口、单实例控制、托盘集成与事件循环
 │   ├── bridge/               # Rust 数据结构到 Slint UI 模型的映射层
 │   ├── handlers/             # 任务、设置、实验室与更新事件处理器
-│   ├── update.rs             # 基于 Minisign 密码学验签的跨平台自更新
+│   ├── update.rs             # 基于 Minisign + ML-DSA-65 后量子双验签的自更新
 │   └── ui/                   # Slint 声明式组件与主题系统
 │
-└── xtask/                    # 仓库运维工具：密码学生成、Minisign 签名与发布门禁
+├── crates/limedl-server/     # 无头服务端守护进程 (NAS / 软路由 / Docker)
+│   ├── main.rs               # CLI 参数解析、信号处理与单实例文件锁
+│   └── daemon.rs             # 纯异步 Aria2 JSON-RPC 2.0 守护服务
+│
+└── xtask/                    # 仓库运维工具：后量子密钥、双签名与发布防篡改门禁
 ```
 
 ### 数据交互流向

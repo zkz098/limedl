@@ -11,13 +11,16 @@ limedl 实现了高兼容性的 **Aria2 JSON-RPC 2.0** 接口规范。借助于�
 
 ## 服务端连接端点与鉴权
 
-limedl 在本地默认监听 `6800` 端口，并同时提供 HTTP POST 与 WebSocket 全双工通道：
+limedl 提供与标准 Aria2 兼容的 HTTP POST 与 WebSocket 全双工通道（默认监听 `6800` 端口）。出于本地安全考虑，**全新安装后该服务默认关闭**，需在【设置 → Aria2 RPC】中勾选启用：
 
 - **HTTP POST 端点**：`http://127.0.0.1:6800/jsonrpc`
 - **WebSocket 端点**：`ws://127.0.0.1:6800/jsonrpc`
 
 ### 身份鉴权机制
-如果启用了 **RPC 密钥 (Secret Token)**，limedl 按 aria2 标准要求在 `params` 数组第一个元素传入字符串 `token:<你的密钥>`（所有方法都必须携带，包括 `system.multicall` 的每一层；嵌套调用可重复携带）。
+limedl 支持两种鉴权模式，按 aria2 标准要求在 `params` 数组第一个元素传入字符串 `token:<密钥>`（所有方法都必须携带，包括 `system.multicall` 的每一层；嵌套调用可重复携带）：
+
+1. **共享密钥 (Secret Token)**：在设置中配置全局统一的 RPC 密码；
+2. **多客户端独立 Token (Per-Client Token)**：为每个连接端（如 AriaNg、浏览器插件）分配独立令牌，客户端密钥在本地通过强抗碰撞的 **Argon2** 哈希算法安全存储。
 
 > limedl 不支持通过 HTTP `Authorization` 标头做 RPC 鉴权（aria2 本身也不支持）；`header` 选项中的 `Authorization` 只作用于**下载请求**本身。
 
@@ -68,7 +71,27 @@ limedl 在本地默认监听 `6800` 端口，并同时提供 HTTP POST 与 WebSo
 
 ---
 
-### 3. `aria2.getGlobalStat` — 获取全局实时状态
+### 3. `aria2.addMetalink` — 添加 Metalink 多镜像源任务
+上传以 Base64 编码的 `.metalink` / `.meta4` XML 数据。limedl 内置 RFC 5854 / RFC 6249 解析器与智能镜像评分池，自动并发测速并优选最优镜像下载。
+
+**请求参数**：
+- `params[0]`: 鉴权 Token（可选）
+- `params[1]`: Base64 编码的 Metalink XML 内容字符串
+- `params[2]`: 任务定制选项（可选）：`dir`、`pause`、`max-connection-per-server` 等
+
+**响应示例**：
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req-002",
+  "result": ["a1b2c3d4e5f60718"]
+}
+```
+*(返回包含新创建任务 GID 的数组)*
+
+---
+
+### 4. `aria2.getGlobalStat` — 获取全局实时状态
 获取系统全局的下载/上传实时吞吐及任务统计。
 
 **响应示例**：
@@ -108,20 +131,26 @@ limedl 在本地默认监听 `6800` 端口，并同时提供 HTTP POST 与 WebSo
 
 ---
 
-### 5. 任务控制方法群
+### 6. 任务控制与扩展方法群
+
+limedl 实现了 Aria2 标准全部 36 个 RPC 方法与 `system.listNotifications` 通知，并额外兼容 `aria2.multicall` 别名（共 37 个方法）：
 
 | 方法名 | 参数签名 | 作用说明 |
 | :--- | :--- | :--- |
-| `aria2.pause` | `([secret], gid)` | 暂停指定进行中的任务。 |
-| `aria2.unpause` | `([secret], gid)` | 恢复指定已暂停的任务。 |
-| `aria2.remove` | `([secret], gid)` | 取消并移除任务。 |
+| `aria2.addMetalink` | `([secret], metalink, [options], [position])` | 解析并添加 Metalink 4.0/3.0 多镜像源任务。 |
+| `aria2.pause` / `aria2.forcePause` | `([secret], gid)` | 暂停/强制暂停指定进行中的任务。 |
+| `aria2.unpause` / `aria2.unpauseAll` | `([secret], gid)` | 恢复指定已暂停的任务 / 恢复全部任务。 |
+| `aria2.remove` / `aria2.forceRemove` | `([secret], gid)` | 取消并移除任务。 |
 | `aria2.tellActive` | `([secret], [keys])` | 分页返回当前所有处于活跃传输状态的任务列表。 |
 | `aria2.tellWaiting`| `([secret], offset, num, [keys])` | 分页查询等待队列中的任务。 |
 | `aria2.tellStopped`| `([secret], offset, num, [keys])` | 分页查询已完成或已停止的历史任务（含被内存淘汰的任务）。 |
-| `aria2.changeOption` | `([secret], gid, options)` | 运行期修改单个任务的选项：`pause`、BT 的 `select-file` / `max-download-limit` / `max-upload-limit`；其它选项会明确报错。 |
+| `aria2.changeOption` | `([secret], gid, options)` | 运行期修改单个任务选项（如 `pause`、BT 的 `select-file` / 限速等）。 |
+| `aria2.getOption` / `getGlobalOption` | `([secret], [gid])` | 查询单任务或系统全局配置项（完整对齐 AriaNg 键集）。 |
+| `aria2.changePosition` | `([secret], gid, pos, how)` | 调整等待任务队列位次。 |
 | `aria2.removeDownloadResult` | `([secret], gid)` | 删除单条已停止（完成/失败/已移除）的任务记录（保留文件）。 |
 | `aria2.purgeDownloadResult`| `([secret])` | 清空所有已停止/已完成的任务历史记录。 |
-| `aria2.getVersion` | `([secret])` | 查询 limedl 引擎版本号与已启用的功能列表。 |
+| `aria2.getVersion` | `([secret])` | 查询引擎版本号与已启用的特性列表（广播 `GZip`, `Brotli`, `Zstd`, `Metalink`, `BitTorrent` 等）。 |
+| `system.multicall` / `aria2.multicall`| `([calls])` | 批量打包执行多个 RPC 请求并按序聚合响应。 |
 
 ---
 

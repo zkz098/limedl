@@ -66,10 +66,14 @@ limedl Workspace
 │   ├── main.rs               # Application bootstrapping & event loop
 │   ├── bridge/               # Rust model to Slint UI property mapper
 │   ├── handlers/             # UI callback dispatchers
-│   ├── update.rs             # Minisign cryptographic in-app self-update
+│   ├── update.rs             # Hybrid Minisign + ML-DSA-65 post-quantum self-update
 │   └── ui/                   # Slint component definitions & theme tokens
 │
-└── xtask/                    # Repository tooling: Minisign sign/guard gates
+├── crates/limedl-server/     # Headless daemon (NAS / soft routers / Docker)
+│   ├── main.rs               # CLI parsing, signals & single-instance lock
+│   └── daemon.rs             # Async Aria2 JSON-RPC 2.0 daemon service
+│
+└── xtask/                    # Repository tooling: PQC keys, dual-signing & release gates
 ```
 
 ### Data Flow Diagram

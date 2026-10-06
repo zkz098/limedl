@@ -33,7 +33,7 @@ Major open-source mirror stations (such as Tsinghua University's TUNA mirror `mi
    ```
    Or set a legitimate tool identity:
    ```text
-   limedl/0.3.14
+   limedl/0.5.0
    ```
 4. **IPv4 vs IPv6 Checks**: If 403 persists, the mirror may have rate-limited your ISP's entire IPv4 subnet. Switch to an IPv6 network if available, or try an alternative mirror endpoint (e.g., USTC, Alibaba Cloud, or Huawei Cloud).
 
@@ -123,6 +123,6 @@ If you experience crashes, interrupted downloads, or unexpected errors, inspect 
 ### Submitting a Helpful Issue
 To report a bug, visit [GitHub Issues](https://github.com/zkz098/limedl/issues) with:
 1. Operating system and CPU architecture (e.g., Windows 11 x86_64, macOS 15 M3);
-2. limedl version (e.g., v0.3.14);
+2. limedl version (e.g., v0.5.0);
 3. Type of task (HTTP chunked, Magnet, or Torrent);
 4. Relevant error lines from the log files (please redact private tokens or sensitive URLs).

@@ -128,16 +128,16 @@ sha256sum limedl-native-v0.5.0-linux-x86_64.AppImage
 
 ### 2. Minisign 密码学防篡改验签
 
-limedl 发布流水线为所有构建工件生成 Minisign 签名（`.sig` 文件）。你可以使用标准 `minisign` 工具核对签名：
+limedl 发布流水线对所有构建工件实施 **Minisign (Ed25519) + ML-DSA-65 (NIST FIPS 204 后量子密码学)** 混合双签名（附带 `.sig` 与 `.pqc.sig` 文件）。你可以使用标准 `minisign` 工具核对 Ed25519 签名：
 
 官方发布公钥：
 ```text
-RWTN2zWlB8Qz0bI6Xq4l4p9J7gYQx4fR8uV2kP3m9w0L
+RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7
 ```
 
 执行验签命令：
 ```bash
-minisign -Vm limedl-native-v0.5.0-windows-x86_64-setup.exe -P "RWTN2zWlB8Qz0bI6Xq4l4p9J7gYQx4fR8uV2kP3m9w0L"
+minisign -Vm limedl-native-v0.5.0-windows-x86_64-setup.exe -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
 ```
 若终端输出 `Signature and comment signature verified`，说明文件未受任何篡改且确实由官方流水线签名产出。
 

@@ -11,13 +11,16 @@ limedl implements a highly compliant **Aria2 JSON-RPC 2.0** protocol interface. 
 
 ## Server Endpoints & Authentication
 
-limedl listens on port `6800` by default, providing both HTTP POST and WebSocket endpoints:
+limedl provides full HTTP POST and WebSocket duplex endpoints compliant with Aria2 (listening on port `6800` by default). For local machine security, **the RPC service is disabled by default on clean installations** to prevent unauthorized access. Enable it under **Settings → Aria2 RPC**:
 
 - **HTTP POST**: `http://127.0.0.1:6800/jsonrpc`
 - **WebSocket**: `ws://127.0.0.1:6800/jsonrpc`
 
 ### Authentication Mechanisms
-When a **Secret Token** is enabled in settings, pass it as the first element of the RPC `params` array: `"token:<YOUR_SECRET>"`. Every method requires it (including each layer of `system.multicall`; nested calls may repeat it).
+limedl supports two authentication modes, passed as the first element of the RPC `params` array as `"token:<SECRET>"` per the aria2 standard (required on all calls, including nested calls in `system.multicall`):
+
+1. **Shared Secret Token**: A single global passphrase configured in Settings.
+2. **Per-Client Tokens**: Isolated tokens issued for specific clients (e.g. AriaNg, browser extensions), stored locally using strong **Argon2** password hashing.
 
 > limedl does **not** support RPC authentication through the HTTP `Authorization` header (neither does aria2); an `Authorization` entry in the `header` download option only applies to the download request itself.
 
@@ -69,7 +72,27 @@ Submits Base64-encoded `.torrent` file bytes.
 
 ---
 
-### 3. `aria2.getGlobalStat` — Retrieve Global Stats
+### 3. `aria2.addMetalink` — Add Metalink Multi-Mirror Task
+Uploads Base64-encoded `.metalink` or `.meta4` XML payload. limedl parses RFC 5854 / RFC 6249 metadata, performs lightweight mirror latency and range probing, and dynamically selects the best mirrors.
+
+**Parameters**:
+- `params[0]`: Authentication token (optional)
+- `params[1]`: Base64-encoded Metalink XML string
+- `params[2]`: Options dictionary (`dir`, `pause`, etc.)
+
+**Sample Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req-002",
+  "result": ["a1b2c3d4e5f60718"]
+}
+```
+*(Returns an array of created GIDs)*
+
+---
+
+### 4. `aria2.getGlobalStat` — Retrieve Global Stats
 Fetches real-time global transfer rates and task counts.
 
 **Sample Response**:
@@ -109,20 +132,26 @@ The optional third parameter `keys` restricts the returned fields (supported; BT
 
 ---
 
-### 5. Task Control Methods
+### 6. Task Control & Extended Methods
+
+limedl implements all 36 standard Aria2 RPC methods plus `system.listNotifications`, and also provides the `aria2.multicall` alias (37 methods in total):
 
 | Method | Parameters | Description |
 | :--- | :--- | :--- |
-| `aria2.pause` | `([secret], gid)` | Pauses the specified active task. |
-| `aria2.unpause` | `([secret], gid)` | Resumes the specified paused task. |
-| `aria2.remove` | `([secret], gid)` | Cancels and removes the task. |
+| `aria2.addMetalink` | `([secret], metalink, [options], [pos])` | Parses and adds Metalink 4.0/3.0 multi-mirror task. |
+| `aria2.pause` / `forcePause` | `([secret], gid)` | Pauses or force-pauses the specified active task. |
+| `aria2.unpause` / `unpauseAll` | `([secret], gid)` | Resumes the specified paused task / all tasks. |
+| `aria2.remove` / `forceRemove` | `([secret], gid)` | Cancels and removes the task. |
 | `aria2.tellActive` | `([secret], [keys])` | Returns a list of currently active downloads. |
 | `aria2.tellWaiting`| `([secret], offset, num, [keys])` | Returns tasks waiting in the queue. |
 | `aria2.tellStopped`| `([secret], offset, num, [keys])` | Returns completed or stopped tasks (including results evicted from memory). |
-| `aria2.changeOption` | `([secret], gid, options)` | Changes live task options: `pause`; BT `select-file` / `max-download-limit` / `max-upload-limit`. Other options fail with a clear error. |
-| `aria2.removeDownloadResult` | `([secret], gid)` | Removes a single stopped (complete/error/removed) result, keeping its files. |
+| `aria2.changeOption` | `([secret], gid, options)` | Changes live task options (`pause`, BT `select-file`, rate limits). |
+| `aria2.getOption` / `getGlobalOption` | `([secret], [gid])` | Queries task or global options (fully aligned with AriaNg key sets). |
+| `aria2.changePosition` | `([secret], gid, pos, how)` | Reorders a waiting task in the queue. |
+| `aria2.removeDownloadResult` | `([secret], gid)` | Removes a single stopped result, keeping its files. |
 | `aria2.purgeDownloadResult`| `([secret])` | Clears finished tasks from history. |
-| `aria2.getVersion` | `([secret])` | Returns limedl engine version and enabled features. |
+| `aria2.getVersion` | `([secret])` | Returns engine version and enabled features (truthfully advertises `GZip`, `Brotli`, `Zstd`, `Metalink`, `BitTorrent`). |
+| `system.multicall` / `aria2.multicall`| `([calls])` | Batches multiple RPC calls into a single round-trip. |
 
 ---
 

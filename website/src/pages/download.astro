@@ -145,6 +145,73 @@ const downloads = [
       }
     </div>
 
+    <!-- Headless Server Daemon & NAS Deployment -->
+    <div class="glass-card mb-16 p-6 sm:p-8">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-brand-border">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-lime-500/10 border border-lime-500/20 flex items-center justify-center text-lime-400 shrink-0">
+            <span class="i-ri-server-line w-6 h-6"></span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold text-white">limedl-server 无头服务守护进程</h2>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-lime-500/20 text-lime-400 border border-lime-500/30">NAS / 软路由 / Docker</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">
+              提供标准 Aria2 JSON-RPC 2.0 接口，搭配 AriaNg、Motrix 或脚本实现无桌面常驻运行。
+            </p>
+          </div>
+        </div>
+        <a
+          href="/ecosystem/server-daemon/"
+          class="inline-flex items-center gap-1.5 text-xs text-lime-400 hover:text-lime-300 font-semibold border border-lime-500/30 bg-lime-500/10 hover:bg-lime-500/20 px-3.5 py-2 rounded-lg transition-all"
+        >
+          <span>查看部署与配置文档</span>
+          <span class="i-ri-arrow-right-line w-3.5 h-3.5"></span>
+        </a>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6">
+        <div class="p-4 rounded-xl bg-brand-surface border border-brand-border flex flex-col justify-between space-y-3">
+          <div>
+            <div class="text-sm font-semibold text-slate-200">Linux x86_64 静态二进制包</div>
+            <p class="text-xs text-slate-400 mt-1">musl 全静态编译，适用于 Alpine、OpenWrt、CentOS、Debian 及各类 NAS。</p>
+          </div>
+          <a
+            href={`${baseReleaseUrl}/limedl-server-${version}-x86_64-linux-musl.tar.gz`}
+            class="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-black text-xs font-bold transition-all shadow-sm active:scale-95"
+          >
+            <span class="i-ri-download-2-line w-4 h-4"></span>
+            <span>下载 (.tar.gz)</span>
+          </a>
+        </div>
+
+        <div class="p-4 rounded-xl bg-brand-surface border border-brand-border flex flex-col justify-between space-y-3">
+          <div>
+            <div class="text-sm font-semibold text-slate-200">Linux aarch64 静态二进制包</div>
+            <p class="text-xs text-slate-400 mt-1">ARM64 架构专用，支持各类 ARM NAS、软路由、树莓派等嵌入式设备。</p>
+          </div>
+          <a
+            href={`${baseReleaseUrl}/limedl-server-${version}-aarch64-linux-musl.tar.gz`}
+            class="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-black text-xs font-bold transition-all shadow-sm active:scale-95"
+          >
+            <span class="i-ri-download-2-line w-4 h-4"></span>
+            <span>下载 (.tar.gz)</span>
+          </a>
+        </div>
+
+        <div class="p-4 rounded-xl bg-brand-surface border border-brand-border flex flex-col justify-between space-y-3">
+          <div>
+            <div class="text-sm font-semibold text-slate-200">Docker 多架构镜像</div>
+            <p class="text-xs text-slate-400 mt-1">支持 PUID/PGID 权限映射，一键容器化启动。</p>
+          </div>
+          <div class="p-2 rounded-lg bg-brand-dark border border-brand-border font-mono text-[11px] text-lime-400 select-all overflow-x-auto">
+            docker pull ghcr.io/zkz098/limedl-server:latest
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Security & Checksums Guide -->
     <div class="max-w-4xl mx-auto rounded-2xl bg-brand-surface border border-brand-border p-6 sm:p-8 space-y-6">
       <div class="flex items-center gap-3">
@@ -152,7 +219,7 @@ const downloads = [
         <h3 class="text-lg font-bold text-white">安全与哈希校验指南</h3>
       </div>
       <p class="text-sm text-slate-400 leading-relaxed">
-        为确保你下载的文件未经第三方篡改，每个版本均在 release 资产中附带 <code class="text-lime-300">.sig</code> 签名与哈希清单。
+        为确保你下载的文件未经第三方篡改，每个版本均在 Release 资产中附带 <code class="text-lime-300">.sig</code>（Minisign Ed25519）与 <code class="text-lime-300">.pqc.sig</code>（ML-DSA-65 后量子密码学）双签名与 SHA256 哈希清单。
       </p>
 
       <div class="space-y-3">

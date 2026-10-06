@@ -145,6 +145,73 @@ const downloads = [
       }
     </div>
 
+    <!-- Headless Server Daemon & NAS Deployment -->
+    <div class="glass-card mb-16 p-6 sm:p-8">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-brand-border">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-lime-500/10 border border-lime-500/20 flex items-center justify-center text-lime-400 shrink-0">
+            <span class="i-ri-server-line w-6 h-6"></span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold text-white">limedl-server Headless Daemon</h2>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-lime-500/20 text-lime-400 border border-lime-500/30">NAS / Routers / Docker</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">
+              Serves compliant Aria2 JSON-RPC 2.0 API. Ideal for NAS devices, headless servers, and container setups driven by AriaNg or Motrix.
+            </p>
+          </div>
+        </div>
+        <a
+          href="/en/ecosystem/server-daemon/"
+          class="inline-flex items-center gap-1.5 text-xs text-lime-400 hover:text-lime-300 font-semibold border border-lime-500/30 bg-lime-500/10 hover:bg-lime-500/20 px-3.5 py-2 rounded-lg transition-all"
+        >
+          <span>View Deployment Runbook</span>
+          <span class="i-ri-arrow-right-line w-3.5 h-3.5"></span>
+        </a>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6">
+        <div class="p-4 rounded-xl bg-brand-surface border border-brand-border flex flex-col justify-between space-y-3">
+          <div>
+            <div class="text-sm font-semibold text-slate-200">Linux x86_64 Static Tarball</div>
+            <p class="text-xs text-slate-400 mt-1">Fully static musl binary for Alpine, OpenWrt, CentOS, Debian, and NAS platforms.</p>
+          </div>
+          <a
+            href={`${baseReleaseUrl}/limedl-server-${version}-x86_64-linux-musl.tar.gz`}
+            class="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-black text-xs font-bold transition-all shadow-sm active:scale-95"
+          >
+            <span class="i-ri-download-2-line w-4 h-4"></span>
+            <span>Download (.tar.gz)</span>
+          </a>
+        </div>
+
+        <div class="p-4 rounded-xl bg-brand-surface border border-brand-border flex flex-col justify-between space-y-3">
+          <div>
+            <div class="text-sm font-semibold text-slate-200">Linux aarch64 Static Tarball</div>
+            <p class="text-xs text-slate-400 mt-1">Optimized for ARM64 NAS appliances, Raspberry Pi, and embedded soft routers.</p>
+          </div>
+          <a
+            href={`${baseReleaseUrl}/limedl-server-${version}-aarch64-linux-musl.tar.gz`}
+            class="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-black text-xs font-bold transition-all shadow-sm active:scale-95"
+          >
+            <span class="i-ri-download-2-line w-4 h-4"></span>
+            <span>Download (.tar.gz)</span>
+          </a>
+        </div>
+
+        <div class="p-4 rounded-xl bg-brand-surface border border-brand-border flex flex-col justify-between space-y-3">
+          <div>
+            <div class="text-sm font-semibold text-slate-200">Docker Multi-Arch Image</div>
+            <p class="text-xs text-slate-400 mt-1">Includes PUID/PGID privilege dropping and ca-certificates out of the box.</p>
+          </div>
+          <div class="p-2 rounded-lg bg-brand-dark border border-brand-border font-mono text-[11px] text-lime-400 select-all overflow-x-auto">
+            docker pull ghcr.io/zkz098/limedl-server:latest
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Security & Checksums Guide -->
     <div class="max-w-4xl mx-auto rounded-2xl bg-brand-surface border border-brand-border p-6 sm:p-8 space-y-6">
       <div class="flex items-center gap-3">
@@ -152,7 +219,7 @@ const downloads = [
         <h3 class="text-lg font-bold text-white">Security & Checksum Verification</h3>
       </div>
       <p class="text-sm text-slate-400 leading-relaxed">
-        To guarantee authenticity, each binary artifact is accompanied by a cryptographic <code class="text-lime-300">.sig</code> signature in the release assets.
+        To guarantee authenticity, each binary artifact is dual-signed with <code class="text-lime-300">.sig</code> (Minisign Ed25519) and <code class="text-lime-300">.pqc.sig</code> (ML-DSA-65 Post-Quantum Cryptography) alongside SHA256 hashes.
       </p>
 
       <div class="space-y-3">

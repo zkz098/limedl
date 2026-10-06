@@ -17,6 +17,7 @@ To open the settings panel in the desktop application, click the **Settings** ge
 | :--- | :--- | :--- | :--- |
 | **Language** | 简体中文 / 繁體中文 / English | System Locale | Instantly updates the application's interface language. |
 | **Color Mode** | Dark / Light / Follow System | Follow System | High-contrast native themes with automatic switching matching your OS dark/light mode. |
+| **Color Scheme** | Lime / Violet / Monochrome | Lime | Selects the application primary accent palette and theme personality. |
 | **Close Window Behavior** | Minimize to Tray / Exit App | Minimize to Tray | Determines whether clicking the window close button (`X`) minimizes limedl into the system tray or terminates the process. |
 | **Start on Boot** | Enabled / Disabled | Disabled | Registers autostart entries with `--hidden` to launch silently in the tray on login. |
 | **Suppress System Sleep** | Enabled / Disabled | Enabled | Acquires OS power locks to prevent system sleep during active downloads; releases locks upon completion. |
@@ -71,6 +72,7 @@ Full control over the embedded **Irontide** P2P engine:
 | **Peer Exchange (PEX)**| Enabled | Exchanged known peers directly between connected swarms. |
 | **Local Discovery (LSD)**| Enabled | Broadcasts locally to discover LAN peers for gigabit multi-megabyte transfers. |
 | **Encryption** | Preferred | Protects traffic against ISP deep packet inspection (DPI) while preserving backward compatibility. |
+| **Lightweight BT Mode** | Optional | Unloads the Irontide BT engine when idle or when all torrents are paused, dramatically lowering idle background memory. |
 | **Seeding Ratio Limit**| 1.0 ~ 2.0 | Halts seeding automatically once upload ratio reaches the target multiplier (`0` = seed indefinitely). |
 | **Public Trackers** | List of URLs | Automatically appends healthy public trackers to every new torrent or magnet download. |
 
@@ -78,11 +80,13 @@ Full control over the embedded **Irontide** P2P engine:
 
 ## 6. Aria2 RPC Server
 
-limedl embeds a compliant Aria2 JSON-RPC 2.0 server running by default on startup:
+limedl embeds a compliant Aria2 JSON-RPC 2.0 server. For local system security, it is **disabled by default on fresh installations** to prevent unauthorized local processes or web pages from submitting tasks without a token:
 
-- **Enable Aria2 RPC**: Enabled by default.
+- **Enable Aria2 RPC**: Disabled by default. Turn it on in **Settings → Aria2 RPC**.
 - **Port**: Default is `6800` (can be changed if another Aria2 daemon is running).
-- **Secret Token**: Optional authentication token for secure or remote environments.
+- **Authentication Modes**:
+  - **Shared Secret Token**: Set a global shared passphrase (`token:<SECRET>`).
+  - **Per-Client Tokens**: Issue dedicated tokens with Argon2 password hashing for individual apps and browser extensions.
 - **CORS Support**: Pre-configured out of the box for web control dashboards like AriaNg.
 
 ---

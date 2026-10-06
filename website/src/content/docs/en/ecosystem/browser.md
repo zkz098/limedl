@@ -23,12 +23,12 @@ Using limedl's built-in **Aria2 JSON-RPC 2.0 server**, you can pair popular brow
 
 ## 3-Step Setup Guide
 
-### Step 1: Ensure limedl RPC Server is Active
+### Step 1: Enable limedl RPC Service
 1. Open the limedl desktop client and click the **Settings** icon in the sidebar;
 2. Navigate to the **Aria2 RPC** section:
-   - Ensure **Enable Aria2 RPC** is checked;
+   - Check **Enable Aria2 RPC** (disabled by default on fresh installs for security);
    - Confirm the **RPC Port** (default is `6800`);
-   - Check the **Secret Token**: Leave blank for single-user desktop setups, or set a secure passphrase if desired.
+   - Configure a **Secret Token** or Client Token for secure access.
 
 ### Step 2: Install the Browser Extension
 Install **Aria2 Explorer** from your browser's official store:

@@ -124,14 +124,16 @@ sha256sum limedl-native-v0.5.0-linux-x86_64.AppImage
 
 ### 2. Minisign Verification
 
+The release pipeline dual-signs all build artifacts with **Minisign (Ed25519) + ML-DSA-65 (NIST FIPS 204 Post-Quantum Cryptography)** (publishing `.sig` and `.pqc.sig` files). You can verify the Ed25519 signature using the standard `minisign` CLI:
+
 Official Release Public Key:
 ```text
-RWTN2zWlB8Qz0bI6Xq4l4p9J7gYQx4fR8uV2kP3m9w0L
+RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7
 ```
 
 Verify signature:
 ```bash
-minisign -Vm limedl-native-v0.5.0-windows-x86_64-setup.exe -P "RWTN2zWlB8Qz0bI6Xq4l4p9J7gYQx4fR8uV2kP3m9w0L"
+minisign -Vm limedl-native-v0.5.0-windows-x86_64-setup.exe -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
 ```
 If verified, the command outputs `Signature and comment signature verified`.
 

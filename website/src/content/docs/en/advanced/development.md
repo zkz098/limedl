@@ -71,21 +71,27 @@ limedl enforces strict CI rules: any compiler warning, Clippy lint, or test fail
 Before committing and pushing your code, run the full verification gate locally:
 
 ```powershell
-# 1. Enforce zero-warning policy
-$env:RUSTFLAGS = "-D warnings"
+# 1. Environment configuration
+$env:CARGO_BUILD_WARNINGS = "deny"
 $env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL = "sparse"
 
-# 2. Workspace-wide Clippy static analysis
-cargo clippy --workspace --all-targets
+# 2. Workspace-wide Clippy static analysis (-D warnings)
+cargo clippy --workspace --all-targets -- -D warnings
 
 # 3. Unit and integration tests for download engine and RPC
 cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
 
-# 4. Desktop client test suite
+# 4. Tooling and release guard tests
+cargo nextest run --manifest-path xtask/Cargo.toml
+
+# 5. Desktop client test suite
 cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
+
+# 6. Headless server test suite
+cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
 ```
 
-All four checks must pass cleanly (green) before committing.
+All checks must pass cleanly (green) before committing and pushing.
 
 ---
 

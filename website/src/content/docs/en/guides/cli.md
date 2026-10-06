@@ -22,7 +22,7 @@ Depending on your operating system, the binary is located at:
   - `/Applications/limedl.app/Contents/MacOS/limedl-native`
 - **Linux**:
   - Portable: `./limedl-native`
-  - AppImage: `./limedl-native-v0.3.14-linux-x86_64.AppImage`
+  - AppImage: `./limedl-native-v0.5.0-linux-x86_64.AppImage`
   - DEB: Globally accessible via `/usr/bin/limedl-native`
 
 ---
@@ -64,7 +64,12 @@ limedl-native "magnet:?xt=urn:btih:d2b0e9a72c38e21e64c81979360cb53527655f02&dn=U
 limedl-native "D:\Downloads\linuxmint-22-cinnamon-64bit.iso.torrent"
 ```
 
-#### 4. Native limedl:// Deep Link
+#### 4. Local .metalink / .meta4 File Path
+```bash
+limedl-native "D:\Downloads\fedora-workstation.meta4"
+```
+
+#### 5. Native limedl:// Deep Link
 ```bash
 limedl-native "limedl://download?url=https://example.com/file.zip&filename=file.zip"
 ```

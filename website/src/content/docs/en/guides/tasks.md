@@ -17,12 +17,14 @@ During daily desktop usage, you can initiate downloads via multiple seamless ent
    Copying an HTTP/HTTPS URL or a `magnet:?xt=urn:btih:` link prompts limedl automatically when you switch to its window, parsing the target name and link type on the fly.
 2. **Toolbar & Keyboard Shortcuts**:
    Click the **`+ New Task`** button on the top toolbar or press `Ctrl + N` (`Cmd + N` on macOS) to open the task creation dialog.
-3. **Drag & Drop Torrents**:
-   Drag any `.torrent` file directly into the limedl window to instantly preview its directory tree and select specific files.
+3. **Drag & Drop Torrents & Metalinks**:
+   Drag any `.torrent`, `.metalink`, or `.meta4` descriptor file directly into the limedl window to inspect files or mirror pools.
 4. **Browser Extension Interception**:
    Clicking download links in Chrome, Edge, or Firefox forwards the request directly to limedl via its Aria2 RPC integration.
 5. **Command-Line Invocations**:
-   Launch `limedl-native <URL>` from your shell; limedl's single-instance IPC forwards the payload to the running desktop client in milliseconds.
+   Launch `limedl-native <URL|PATH>` from your shell; limedl's single-instance IPC forwards the payload to the running desktop client in milliseconds.
+6. **Checksum Verification**:
+   Optionally paste expected Blake3, SHA-256, or SHA-512 hashes in the new task dialog (the algorithm is automatically detected by hash length). Downloaded files are verified upon completion.
 
 ---
 
@@ -78,6 +80,24 @@ limedl's **AIMD State Machine** handles concurrency dynamically:
   Upon encountering HTTP 429 (Too Many Requests), HTTP 503, connection timeouts, or socket drops, the engine immediately **halves the active thread allocation (×0.5)** and enters a brief cooldown period to prevent blacklisting.
 - **Mirror Failover**:
   When backup mirrors are configured, chunks stalling on one origin are automatically reassigned to alternate endpoints.
+
+---
+
+## Metalink Multi-Source Mirror Engine (RFC 5854 / RFC 6249)
+
+When submitting `.metalink` or `.meta4` payloads via drag-and-drop or RPC, limedl engages its integrated **Metalink Smart Scheduler**:
+
+- **Full Specification Coverage**: Parses Metalink 4.0 XML (RFC 5854), Metalink 3.0, and HTTP Header Metalink links (RFC 6249 / RFC 3230);
+- **Multi-Factor Mirror Scoring**:
+  Calculates dynamic mirror weights across several dimensions:
+  - **Explicit Priority** and protocol security (HTTPS prioritized over HTTP);
+  - **Geographical Proximity** based on region tags;
+  - **Lightweight Latency Probing**: Fires millisecond HEAD/GET handshake probes across mirrors concurrently;
+  - **Failure Penalties**: Penalizes endpoints that return 5xx errors or connection timeouts.
+- **Dynamic Leasing (`MirrorPool` & `MirrorLease`)**:
+  Uses an RAII `MirrorLease` to balance chunk requests across the fastest nodes while respecting per-server concurrency limits (`max-connection-per-server`), saturating bandwidth without overloading origins;
+- **End-to-End Cryptographic Validation**:
+  Extracts Blake3, SHA-256, and SHA-512 hashes from Metalink manifests and validates data upon completion, ensuring cross-mirror integrity.
 
 ---
 

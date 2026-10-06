@@ -33,7 +33,7 @@ update the default User-Agent in Settings or try another mirror)
    ```
    或者直接填入工具类合法标识：
    ```text
-   limedl/0.3.14
+   limedl/0.5.0
    ```
 4. **IPv4 / IPv6 检查**：若更新 UA 后依然出现 403，说明你的宽带运营商 IPv4 出口网段由于频繁请求已被镜像站整体限流。若你的家庭网络支持 IPv6，尝试通过 IPv6 访问或临时切换备用网络（如中国科学技术大学 USTC、阿里云或华为云镜像源）。
 
@@ -123,6 +123,6 @@ sudo dnf install xdg-desktop-portal xdg-desktop-portal-gtk
 ### 提交有效 Issue
 如果你发现了一个潜在的软件缺陷，欢迎前往 [GitHub Issues](https://github.com/zkz098/limedl/issues) 提交反馈。建议包含以下信息：
 1. 操作系统版本与硬件架构（例如 Windows 11 x86_64 或 macOS 15 M3）；
-2. limedl 的具体版本号（如 v0.3.14）；
+2. limedl 的具体版本号（如 v0.5.0）；
 3. 发生异常时的下载链接类型（HTTP 分块 / 磁力链 / 种子）；
 4. 日志文件中的关键错误堆栈信息（请注意脱敏私密信息如个人 Token 或敏感网址）。

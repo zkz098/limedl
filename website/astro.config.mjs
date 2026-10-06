@@ -22,6 +22,7 @@ const sidebarGroups = [
   ['生态与集成', 'Ecosystem & Integrations', [
     ['浏览器接管插件', 'Browser Extensions', 'ecosystem/browser'],
     ['Aria2 RPC 对接', 'Aria2 RPC', 'ecosystem/aria2-rpc'],
+    ['无头服务端 (NAS / 软路由)', 'Headless Daemon (NAS / Server)', 'ecosystem/server-daemon'],
   ]],
   ['进阶与内幕', 'Advanced & Internals', [
     ['系统架构与技术内幕', 'System Architecture', 'advanced/architecture'],
