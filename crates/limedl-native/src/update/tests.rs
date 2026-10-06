@@ -24,6 +24,7 @@ fn manifest_parses_release_json() {
                     "kind": "installer",
                     "url": "https://example.com/setup.exe",
                     "signature": "c2ln",
+                    "pqcSignature": "cHFjX3NpZw==",
                     "sha256": "abc"
                 },
                 "windows-x86_64-portable": {
@@ -37,6 +38,11 @@ fn manifest_parses_release_json() {
     assert_eq!(m.version, "0.3.0");
     assert_eq!(m.platforms.len(), 2);
     assert_eq!(m.platforms["windows-x86_64"].kind, "installer");
+    assert_eq!(
+        m.platforms["windows-x86_64"].pqc_signature.as_deref(),
+        Some("cHFjX3NpZw==")
+    );
+    assert!(m.platforms["windows-x86_64-portable"].pqc_signature.is_none());
     assert!(m.platforms["windows-x86_64-portable"].sha256.is_none());
 }
 
@@ -113,6 +119,7 @@ fn targz_member_is_found_inside_an_app_bundle() {
             kind: "portable".to_string(),
             url: "https://example.com/x.tar.gz".to_string(),
             signature: String::new(),
+            pqc_signature: None,
             sha256: None,
         },
     };
@@ -154,6 +161,7 @@ fn targz_member_is_found_at_the_archive_root() {
             kind: "portable".to_string(),
             url: "https://example.com/x.tar.gz".to_string(),
             signature: String::new(),
+            pqc_signature: None,
             sha256: None,
         },
     };
@@ -248,6 +256,19 @@ fn unsigned_manifest_bytes_are_rejected() {
         assert!(
             !err.contains("public key"),
             "the embedded PUBKEY_B64 failed to decode: {err}"
+        );
+    }
+}
+
+#[test]
+fn unsigned_pqc_manifest_bytes_are_rejected() {
+    for bogus in ["", "not a signature", "untrusted comment: x\nAAAA\n"] {
+        let err = verify_pqc_signature_text(b"{}", bogus)
+            .expect_err("bogus PQC signature must be rejected")
+            .to_string();
+        assert!(
+            err.contains("signature") || err.contains("decode") || err.contains("invalid length"),
+            "expected a signature error, got: {err}"
         );
     }
 }

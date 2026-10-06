@@ -1,13 +1,13 @@
 name: Signing check
 
 # Proves the update-channel signing secrets work end to end without publishing
-# anything: `sign` decrypts LIMEDL_SIGNING_KEY with its password, and `guard`
-# checks the derived public key against PUBKEY_B64 in the client plus verifies
-# the produced signature. Run it after rotating the key (`cargo xtask
-# generate-key` prints the commands) or any time releases start failing at the
-# "Sign artifacts" step.
+# anything: `sign` decrypts LIMEDL_SIGNING_KEY and derives LIMEDL_PQC_SIGNING_KEY,
+# and `guard` checks the derived public keys against PUBKEY_B64 and PQC_PUBKEY_B64
+# in the client plus verifies the produced signatures. Run it after rotating keys
+# (`cargo xtask generate-key` prints the commands) or any time releases start failing
+# at the "Sign artifacts" step.
 #
-# Nothing secret is printed: xtask reports only the key source and key number.
+# Nothing secret is printed: xtask reports only the key source and key info.
 
 on:
   workflow_dispatch:
@@ -22,6 +22,7 @@ jobs:
     env:
       LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY }}
       LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD }}
+      LIMEDL_PQC_SIGNING_KEY: ${{ secrets.LIMEDL_PQC_SIGNING_KEY }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 

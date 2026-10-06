@@ -742,6 +742,7 @@ jobs:
     env:
       LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY }}
       LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD }}
+      LIMEDL_PQC_SIGNING_KEY: ${{ secrets.LIMEDL_PQC_SIGNING_KEY }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
@@ -777,12 +778,12 @@ jobs:
           name: native-linux-x86_64
           path: dist
 
-      # ── Minisign: the update trust chain ───────────────────────────────
-      # `sign` writes <file>.sig for each artifact; `cargo xtask manifest`
+      # ── Minisign & PQC: the update trust chain ─────────────────────────
+      # `sign` writes <file>.sig and <file>.pqc.sig for each artifact; `cargo xtask manifest`
       # inlines those signatures into the manifest; `guard` then re-verifies
-      # everything AND refuses to continue unless LIMEDL_SIGNING_KEY matches the
-      # PUBKEY_B64 embedded in the client (a rotated secret with a stale
-      # constant would otherwise ship an app that rejects all future updates).
+      # everything AND refuses to continue unless LIMEDL_SIGNING_KEY / LIMEDL_PQC_SIGNING_KEY
+      # match the PUBKEY_B64 / PQC_PUBKEY_B64 embedded in the client (a rotated secret with a
+      # stale constant would otherwise ship an app that rejects all future updates).
       - name: Sign artifacts
         shell: pwsh
         run: |
@@ -862,10 +863,14 @@ jobs:
           files: |
             dist/latest-native.json
             dist/latest-native.json.sig
+            dist/latest-native.json.pqc.sig
             dist/limedl-native-v*-windows-x86_64.msix
             dist/limedl-native-v*-windows-x86_64.msix.sig
+            dist/limedl-native-v*-windows-x86_64.msix.pqc.sig
             dist/limedl-native-v*-linux-x86_64.deb.sig
+            dist/limedl-native-v*-linux-x86_64.deb.pqc.sig
             dist/limedl-native-v*-linux-x86_64.AppImage.sig
+            dist/limedl-native-v*-linux-x86_64.AppImage.pqc.sig
           body: ${{ needs.changelog.outputs.body }}
           prerelease: false
         env:

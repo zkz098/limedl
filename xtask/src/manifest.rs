@@ -102,6 +102,8 @@ struct PlatformEntry {
     kind: String,
     url: String,
     signature: String,
+    #[serde(rename = "pqcSignature", skip_serializing_if = "Option::is_none")]
+    pqc_signature: Option<String>,
     sha256: String,
 }
 
@@ -201,6 +203,22 @@ fn platform_entry(key: &str, entry: &AssetEntry, version: &str, repo: &str) -> R
         .with_context(|| format!("read {}", sig_path.display()))?;
     let signature = BASE64.encode(sig_text.trim().as_bytes());
 
+    let mut pqc_sig_path = entry.path.clone().into_os_string();
+    pqc_sig_path.push(".pqc.sig");
+    let pqc_sig_path = PathBuf::from(pqc_sig_path);
+    let pqc_signature = if pqc_sig_path.is_file() {
+        let pqc_sig_text = fs::read_to_string(&pqc_sig_path)
+            .with_context(|| format!("read {}", pqc_sig_path.display()))?;
+        let raw_b64 = pqc_sig_text
+            .lines()
+            .find(|l| !l.starts_with("untrusted comment:"))
+            .unwrap_or(&pqc_sig_text)
+            .trim();
+        Some(raw_b64.to_string())
+    } else {
+        None
+    };
+
     let bytes = fs::read(&entry.path)
         .with_context(|| format!("read {}", entry.path.display()))?;
     let sha256 = sha256_hex(&bytes);
@@ -215,6 +233,7 @@ fn platform_entry(key: &str, entry: &AssetEntry, version: &str, repo: &str) -> R
         kind: entry.kind.clone(),
         url: format!("https://github.com/{repo}/releases/download/v{version}/{file_name}"),
         signature,
+        pqc_signature,
         sha256,
     })
 }
@@ -370,5 +389,24 @@ mod tests {
         fs::write(&assets, "{}").unwrap();
         let err = run("0.4.1", &assets, "", &dir.join("out.json"), "r").unwrap_err();
         assert!(format!("{err:#}").contains("empty"), "{err:#}");
+    }
+
+    #[test]
+    fn serializes_pqc_signature_when_present() {
+        let fixture = fixture();
+        let app_pqc = fixture.dir.join("app.zip.pqc.sig");
+        fs::write(&app_pqc, "untrusted comment: ml-dsa-65 signature\nQUJDRA==\n").unwrap();
+
+        let out = fixture.dir.join("latest-native.json");
+        run("0.4.1", &fixture.assets, "notes", &out, "zkz098/limedl").unwrap();
+
+        let text = fs::read_to_string(&out).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        let darwin = &value["platforms"]["darwin-aarch64-portable"];
+        assert_eq!(darwin["pqcSignature"], "QUJDRA==");
+
+        // Windows has no setup.exe.pqc.sig, so pqcSignature must be omitted
+        let windows = &value["platforms"]["windows-x86_64"];
+        assert!(windows.get("pqcSignature").is_none());
     }
 }

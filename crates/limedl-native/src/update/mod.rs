@@ -52,6 +52,15 @@ use serde::Deserialize;
 const PUBKEY_B64: &str =
     "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUwQ0I4MjY5M0NFQ0Q0OUUKUldTZTFPdzhhWUxMNEl5MGVSRk4rNDB1bXF4ZDJreGxQb3lnMUFxSmRQQmJsQk1TTURPaEt3KzcK";
 
+/// ML-DSA-65 post-quantum public key (raw 1952 bytes, standard base64).
+/// Public by design — the 32-byte seed private key only lives in the CI secret
+/// `LIMEDL_PQC_SIGNING_KEY`.
+///
+/// `cargo xtask guard` refuses to ship a build whose constant does not match
+/// the key derived from `LIMEDL_PQC_SIGNING_KEY`.
+const PQC_PUBKEY_B64: &str =
+    "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";
+
 /// Repo hosting the release assets; must match the `--repo` default of
 /// `cargo xtask manifest` and the release workflow.
 const RELEASE_REPO: &str = "zkz098/limedl";
@@ -63,6 +72,8 @@ const MANIFEST_URL: &str =
     "https://github.com/zkz098/limedl/releases/latest/download/latest-native.json";
 const MANIFEST_SIG_URL: &str =
     "https://github.com/zkz098/limedl/releases/latest/download/latest-native.json.sig";
+const MANIFEST_PQC_SIG_URL: &str =
+    "https://github.com/zkz098/limedl/releases/latest/download/latest-native.json.pqc.sig";
 
 /// Upper bound for an update download. Installers and portable archives are
 /// tens of megabytes; anything beyond this is a broken or hostile manifest.
@@ -93,6 +104,9 @@ pub struct PlatformAsset {
     pub url: String,
     /// base64(minisign signature text) over the exact artifact bytes.
     pub signature: String,
+    /// base64(ML-DSA-65 post-quantum signature bytes) over the exact artifact bytes.
+    #[serde(default, rename = "pqcSignature")]
+    pub pqc_signature: Option<String>,
     /// Optional secondary integrity check (lowercase hex sha256).
     #[serde(default)]
     pub sha256: Option<String>,
@@ -309,6 +323,21 @@ async fn fetch_manifest(settings: &AppSettings) -> Result<UpdateManifest> {
         .context("update manifest signature is missing — refusing an unsigned manifest")?;
     verify_signature_text(&bytes, &sig_text)
         .context("update manifest signature verification failed")?;
+
+    if !PQC_PUBKEY_B64.is_empty() {
+        match fetch_text(&client, MANIFEST_PQC_SIG_URL).await {
+            Ok(pqc_sig_text) => {
+                verify_pqc_signature_text(&bytes, &pqc_sig_text)
+                    .context("update manifest ML-DSA-65 post-quantum signature verification failed")?;
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "update manifest PQC signature not available ({e:#}); verified classical signature only"
+                );
+            }
+        }
+    }
+
     serde_json::from_slice(&bytes).context("parse update manifest")
 }
 
@@ -439,6 +468,15 @@ pub async fn download_and_verify(
     }
     verify_signature(&bytes, &update.asset.signature)
         .context("minisign signature verification failed (update not authentic)")?;
+
+    if !PQC_PUBKEY_B64.is_empty() {
+        if let Some(pqc_sig) = update.asset.pqc_signature.as_deref() {
+            verify_pqc_signature(&bytes, pqc_sig)
+                .context("ML-DSA-65 post-quantum signature verification failed (update not authentic)")?;
+        } else {
+            tracing::warn!("update asset has no pqcSignature; verified classical signature only");
+        }
+    }
 
     Ok(dest)
 }
@@ -694,6 +732,58 @@ fn verify_signature_text(data: &[u8], signature_text: &str) -> Result<()> {
     pubkey
         .verify(data, &sig, false)
         .map_err(|e| anyhow!("minisign verification rejected artifact: {e}"))
+}
+
+fn verify_pqc_signature(data: &[u8], signature_b64: &str) -> Result<()> {
+    let raw_b64 = signature_b64
+        .lines()
+        .find(|l| !l.starts_with("untrusted comment:"))
+        .unwrap_or(signature_b64)
+        .trim();
+    let sig_bytes = base64::engine::general_purpose::STANDARD
+        .decode(raw_b64)
+        .context("decode base64 ML-DSA-65 signature")?;
+    verify_pqc_signature_bytes(data, &sig_bytes, b"limedl-artifact")
+}
+
+fn verify_pqc_signature_text(data: &[u8], signature_text: &str) -> Result<()> {
+    let raw_b64 = signature_text
+        .lines()
+        .find(|l| !l.starts_with("untrusted comment:"))
+        .unwrap_or(signature_text)
+        .trim();
+    let sig_bytes = base64::engine::general_purpose::STANDARD
+        .decode(raw_b64)
+        .context("decode base64 ML-DSA-65 signature text")?;
+    verify_pqc_signature_bytes(data, &sig_bytes, b"limedl-manifest")
+}
+
+fn verify_pqc_signature_bytes(data: &[u8], sig_bytes: &[u8], context: &[u8]) -> Result<()> {
+    use fips204::ml_dsa_65;
+    use fips204::traits::{SerDes, Verifier};
+
+    if PQC_PUBKEY_B64.is_empty() {
+        return Ok(());
+    }
+
+    let pubkey_bytes = base64::engine::general_purpose::STANDARD
+        .decode(PQC_PUBKEY_B64.trim())
+        .context("decode embedded PQC public key base64")?;
+    let pubkey_array: [u8; ml_dsa_65::PK_LEN] = pubkey_bytes
+        .try_into()
+        .map_err(|_| anyhow!("embedded PQC public key has invalid length (expected {} bytes)", ml_dsa_65::PK_LEN))?;
+    let pubkey = ml_dsa_65::PublicKey::try_from_bytes(pubkey_array)
+        .map_err(|e| anyhow!("parse embedded PQC public key: {e}"))?;
+
+    let sig_array: [u8; ml_dsa_65::SIG_LEN] = sig_bytes
+        .to_vec()
+        .try_into()
+        .map_err(|_| anyhow!("PQC signature has invalid length (expected {} bytes)", ml_dsa_65::SIG_LEN))?;
+
+    if !pubkey.verify(data, &sig_array, context) {
+        bail!("ML-DSA-65 post-quantum verification rejected artifact");
+    }
+    Ok(())
 }
 
 fn verify_sha256(data: &[u8], expected_hex: &str) -> Result<()> {

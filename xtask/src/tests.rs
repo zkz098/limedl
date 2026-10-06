@@ -113,7 +113,7 @@ fn guard_reads_the_embedded_pubkey() {
 #[test]
 fn keygen_writes_files_the_secret_flow_consumes() {
     let dir = temp_dir("keyfiles");
-    generate_key(&dir, "rot", Some("pw-123".into()), false).unwrap();
+    generate_key(&dir, "rot", Some("pw-123".into()), false, false).unwrap();
 
     let sk_b64 = fs::read_to_string(dir.join("rot.key.b64")).unwrap();
     let password = fs::read_to_string(dir.join("rot.password")).unwrap();
@@ -132,8 +132,56 @@ fn keygen_writes_files_the_secret_flow_consumes() {
     assert_eq!(parse_public_key(&printed).unwrap(), pk);
     assert_eq!(parse_public_key(&pub_from_file).unwrap(), pk);
 
+    let pqc_sk_b64 = fs::read_to_string(dir.join("rot.pqc.key.b64")).unwrap();
+    let pqc_pub_from_file = fs::read_to_string(dir.join("rot.pqc.pub")).unwrap();
+    let (_pqc_sk, pqc_pk) = parse_pqc_secret_key(&pqc_sk_b64).unwrap();
+    let expected_pqc_pk = parse_pqc_public_key(&pqc_pub_from_file).unwrap();
+    assert_eq!(pqc_pk.into_bytes(), expected_pqc_pk.into_bytes());
+
     // Regenerating without --force must refuse to clobber a live key.
-    assert!(generate_key(&dir, "rot", Some("other".into()), false).is_err());
+    assert!(generate_key(&dir, "rot", Some("other".into()), false, false).is_err());
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn keygen_pqc_only_writes_only_pqc_files() {
+    let dir = temp_dir("pqc_only_keyfiles");
+    generate_key(&dir, "pqc_only", None, false, true).unwrap();
+
+    assert!(!dir.join("pqc_only.key").exists());
+    assert!(!dir.join("pqc_only.key.pub").exists());
+    assert!(!dir.join("pqc_only.key.b64").exists());
+    assert!(!dir.join("pqc_only.password").exists());
+
+    assert!(dir.join("pqc_only.pqc.key.b64").exists());
+    assert!(dir.join("pqc_only.pqc.pub").exists());
+
+    let pqc_sk_b64 = fs::read_to_string(dir.join("pqc_only.pqc.key.b64")).unwrap();
+    let pqc_pub_from_file = fs::read_to_string(dir.join("pqc_only.pqc.pub")).unwrap();
+    let (_pqc_sk, pqc_pk) = parse_pqc_secret_key(&pqc_sk_b64).unwrap();
+    let expected_pqc_pk = parse_pqc_public_key(&pqc_pub_from_file).unwrap();
+    assert_eq!(pqc_pk.into_bytes(), expected_pqc_pk.into_bytes());
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn pqc_signatures_round_trip_and_reject_tampering() {
+    let dir = temp_dir("pqc_roundtrip");
+    let data_path = dir.join("artifact.bin");
+    let payload = b"pretend installer bytes with PQC".repeat(1024);
+    fs::write(&data_path, &payload).unwrap();
+
+    let (pk, sk) = ml_dsa_65::KG::keygen_from_seed(&[99u8; 32]);
+    sign_file_pqc(&sk, &pk, &data_path).unwrap();
+
+    verify_file_pqc(&pk, &data_path).unwrap();
+
+    // Tampered payload must fail
+    let mut tampered = payload.clone();
+    tampered[0] ^= 0x01;
+    fs::write(&data_path, &tampered).unwrap();
+    assert!(verify_file_pqc(&pk, &data_path).is_err());
     fs::remove_dir_all(&dir).ok();
 }
 
@@ -150,16 +198,25 @@ fn keygen_and_guard_agree_on_the_embedded_value() {
     .unwrap();
     let embedded = pubkey_b64(&keypair.pk).unwrap();
 
+    let (pqc_pk, _) = ml_dsa_65::KG::keygen_from_seed(&[7u8; 32]);
+    let embedded_pqc = BASE64.encode(pqc_pk.into_bytes());
+
     // What generate_key prints is exactly what the guard compares against.
     let update_rs = dir.join("update.rs");
     fs::write(
         &update_rs,
-        format!("const PUBKEY_B64: &str =\n    \"{embedded}\";\n"),
+        format!(
+            "const PUBKEY_B64: &str =\n    \"{embedded}\";\nconst PQC_PUBKEY_B64: &str =\n    \"{embedded_pqc}\";\n"
+        ),
     )
     .unwrap();
     assert_eq!(
         extract_pubkey_b64(&fs::read_to_string(&update_rs).unwrap()).unwrap(),
         embedded
+    );
+    assert_eq!(
+        extract_pqc_pubkey_b64(&fs::read_to_string(&update_rs).unwrap()).unwrap(),
+        embedded_pqc
     );
 
     fs::remove_dir_all(&dir).ok();
@@ -186,6 +243,14 @@ fn default_update_path_declares_the_embedded_pubkey() {
     assert!(
         embedded.starts_with("dW50cnVzdGVkIGNvbW1lbnQ6"),
         "unexpected PUBKEY_B64 value in {}",
+        update_src.display()
+    );
+
+    let embedded_pqc = extract_pqc_pubkey_b64(&src)
+        .unwrap_or_else(|e| panic!("find PQC_PUBKEY_B64 in {}: {e}", update_src.display()));
+    assert!(
+        parse_pqc_public_key(&embedded_pqc).is_ok(),
+        "PQC_PUBKEY_B64 must be a valid ML-DSA-65 public key in {}",
         update_src.display()
     );
 }

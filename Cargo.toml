@@ -72,6 +72,7 @@ irontide = { version = "=1.7.0", default-features = false, features = ["crypto-a
 libc = "0.2"
 open = "5"
 minisign-verify = "0.3"
+fips204 = { version = "0.4.6", default-features = false, features = ["ml-dsa-65", "default-rng"] }
 mimalloc = "0.1"
 clap = { version = "4", features = ["derive"] }
 tempfile = "3"
