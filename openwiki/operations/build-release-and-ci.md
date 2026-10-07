@@ -32,10 +32,10 @@ sources:
     resource: repo://xtask/src/fetch_font.rs
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
-generated: { by: "pi", at: "2026-10-05T02:20:21.738Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-05T02:20:21.738Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Build, Tooling, CI and Release Operations
@@ -65,15 +65,17 @@ Evidence: `repo://AGENTS.md#L3-L21`, `repo://.cargo/config.toml#L1-L96`.
 
 | Command | Purpose |
 | --- | --- |
-| `generate-key --out-dir <dir>` | Create a minisign keypair and print the `PUBKEY_B64` value + `gh secret set` commands |
-| `sign <files...>` | Write minisign `<file>.sig` next to each file |
-| `verify <files...>` | Verify `.sig` against a public key |
-| `guard <files...>` | Release guard: signing key must match the client's `PUBKEY_B64` and every signature must verify |
+| `generate-key --out-dir <dir>` | Create a Minisign keypair and an ML-DSA-65 keypair, print the `PUBKEY_B64`/`PQC_PUBKEY_B64` values + `gh secret set` commands |
+| `sign <files...>` | Write minisign `<file>.sig` and (when `LIMEDL_PQC_SIGNING_KEY` is set) ML-DSA-65 `<file>.pqc.sig` next to each file |
+| `verify <files...>` | Verify `.sig` and `.pqc.sig` against a public key |
+| `guard <files...>` | Release guard: both signing secrets must match the client's `PUBKEY_B64`/`PQC_PUBKEY_B64` and every signature must verify |
 | `manifest --version ...` | Generate the self-update `latest-native.json` |
 | `fetch-font [--verify]` | Fetch/verify the pinned MiSans VF font |
 | `bump-version <patch\|minor\|major>` | Bump version, update Cargo.lock + website, commit, tag and push |
+| `theme generate\|apply\|check` | Generate `theme.slint` from the token tables, apply tokens, or check for unmapped colors |
+| `gen-icons msix\|hicolor\|macos-iconset` | Generate desktop packaging icons |
 
-Evidence: `repo://xtask/src/main.rs#L71-L140`.
+Evidence: `repo://xtask/src/main.rs#L89-L193`.
 
 `bump-version` updates the workspace `Cargo.toml` (first `version = "x.y.z"`),
 every `limedl*` workspace package in `Cargo.lock` and the website, then creates a
@@ -214,7 +216,7 @@ path and clippy cannot share build artifacts with test builds.
 Evidence: `repo://.github/workflows/ci.yml#L148-L336`,
 `repo://.github/workflows/ci.yml#L336-L522`,
 `repo://.github/workflows/aria2-oracle.yml#L1-L45`,
-`repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70`.
+`repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L68`.
 
 ### Cache and RUSTFLAGS contract
 
@@ -269,11 +271,11 @@ Pushing a `v*` tag triggers `.github/workflows/release.yml`:
    `latest` tag is skipped for an alpha/beta/rc release. QEMU is used only for
    the image's Alpine `apk add` layer.
 6. `native-manifest` is the **sole writer** of `latest-native.json`: it runs with
-   `if: always()`, merges only the platform legs that succeeded, signs every
-   artifact, generates and signs the manifest, and runs `cargo xtask guard`. A
-   missing platform key is handled by the client as "no update" instead of an
-   error. It lists `build-server` in `needs` only so it flips the release's
-   `prerelease` flag to `false` last.
+   `if: always()`, merges only the platform legs that succeeded, dual-signs every
+   artifact (Minisign + ML-DSA-65), generates and dual-signs the manifest, and
+   runs `cargo xtask guard`. A missing platform key is handled by the client as
+   "no update" instead of an error. It lists `build-server` in `needs` only so it
+   flips the release's `prerelease` flag to `false` last.
 
 Both `cargo zigbuild` legs install Zig from the PyPI `ziglang` wheel pinned to
 `0.16.0` and pass `pip --only-binary ":all:"`; the wheel ships no `zig` console
@@ -281,19 +283,21 @@ script, so the packaged binary is symlinked onto `PATH` for cargo-zigbuild. The
 pin and the binary-only install are what the supply-chain rules require and what
 keeps a release reproducible.
 
-The signing key never appears in the tree; `cargo xtask guard` fails the release
-if the CI secret's derived public key does not match the client's `PUBKEY_B64`.
+The signing keys never appear in the tree; `cargo xtask guard` fails the release
+if either CI secret's derived public key does not match the client's
+`PUBKEY_B64`/`PQC_PUBKEY_B64`.
 
 Evidence: `repo://.github/workflows/release.yml#L1-L37`,
 `repo://.github/workflows/release.yml#L77-L128`,
-`repo://.github/workflows/release.yml#L517-L592`,
-`repo://.github/workflows/release.yml#L608-L693`,
-`repo://.github/workflows/release.yml#L703-L840`.
+`repo://.github/workflows/release.yml#L548-L639`,
+`repo://.github/workflows/release.yml#L640-L734`,
+`repo://.github/workflows/release.yml#L735-L877`.
 
 The `Signing check` workflow is the manual counterpart: it signs a throwaway file
-and runs `guard` without publishing, so a key rotation can be validated on demand.
+and runs `guard` without publishing, so a rotation of either the Minisign or the
+ML-DSA-65 key can be validated on demand.
 
-Evidence: `repo://.github/workflows/sign-check.yml#L1-L47`.
+Evidence: `repo://.github/workflows/sign-check.yml#L1-L48`.
 
 ### The Linux glibc floor
 
@@ -320,7 +324,7 @@ is `=1.7.0` because the BT backend depends on a wide slice of the engine API and
 upstream's git repository was removed, so crates.io is the only source of truth.
 Moving off it is a migration, not a version bump.
 
-Evidence: `repo://AGENTS.md#L132-L139`, `repo://Cargo.toml#L70-L74`.
+Evidence: `repo://AGENTS.md#L140-L147`, `repo://Cargo.toml#L68-L71`.
 
 Related pages: [Self-Update and Distribution Channels](../desktop/self-update-and-distribution.md),
 [Headless Server Daemon](../integrations/headless-server-daemon.md),

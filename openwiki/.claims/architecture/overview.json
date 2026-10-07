@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:19e0b9d7a031a6d5d2cb9e746fa1bbf6cd14ccf4cec389f473f2f5804e61b7a9",
+  "pageVersion": "sha256:56c83ef2ae811aed966ae0e315688b445425922ae9c71c312a644a4cf7e541bb",
   "claims": [
     {
       "id": "claim_50e14f0840f8483a9aa585a5b612f644",
-      "statement": "The workspace has exactly four members — crates/limedl-core, crates/limedl-native, crates/limedl-server and xtask — inherits version 0.4.8 from the root manifest, and uses Rust edition 2024 in every crate.",
+      "statement": "The workspace has exactly four members — crates/limedl-core, crates/limedl-native, crates/limedl-server and xtask — inherits version 0.5.0 from the root manifest, and uses Rust edition 2024 in every crate.",
       "evidence": [
         {
           "resource": "repo://Cargo.toml#L1-L11",
-          "version": "repo-lines-v1:sha256:36b48d8c6b72e42237d89a66e38d7df583de8c733cc633ca1f91b9d6f77c4c8c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
+          "version": "repo-lines-v1:sha256:b5ac82e19c5d1fb4904a29e2712461b8fd7e24c3b29765d112db3db9abf6e7d4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyNTBhNGU2ZjBjMWFlMDRkMTZkNjI1MjAzMTU5ZDk4ZTY0MTBlNjE1M2I5NjRkMjNmYTQxMGM1Y2I1NmQ1YzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1YjQwMjE1NjIxMGYxNzZiODhhZTRmMzQ3NTg4N2RlYzBhYWJkMDVlYjE5ZjUwN2ZmNDliNDUzZTY1NjUzZGQifQ"
         }
       ]
     },
@@ -21,8 +21,8 @@
           "version": "repo-lines-v1:sha256:c8a752ac91cf01d5da20cb333de79690529e4f07247d4e64b86c9388d0fa7ab4:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyZTdmNTEyMTdmMjI0ZGIxYTZkODc1NDYwYzBkOWQ0YWEwYmM0MDljOTI2MWJhZGY2YjMzNGVmOTRiYzFhNmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0ZmRjMmU3ZjI1NGUzMWZkOTMyNTI3MzAxYzY5MDc4NjQ1MDFmMWU2ZGUwZGYwYjkyYmQ0OTQ1MTZmNWZlNzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE3ZmMxMTI5ZGZmOGExZDhmYzZmMGJjMjU3YmQ2NGE2ZThmOTFkY2Q3ZDA3NjI5YTI5ZDc0NWI5NDFlZDM0YmUifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/lib.rs#L3-L34",
-          "version": "repo-lines-v1:sha256:2bd878ed11e7d585d5006c791afdfdcad06bd71f9ff953771bad29b36aef473e:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4YjQwMWExMDM2NmJlZjRmZTVjYzk0MGJmNGFmZjdjNTljOWE0MzU2YzQwZGFiMDZjM2FiZjhiMjE1ZGY4NWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3ZDQ0ZjJmYjBlZjdmYjc5Y2M4ZjdjMDQ0MzhkMzRiYzI2MmE5OTc3NGFiYjQyN2NkMzEwYmNlYjU2YzcxMDciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0MGNmY2EyMzIzN2UyNjYyNTk4M2UxNWFmN2RmNTBlNWM1NzVhMTIwNTY4Y2EyNGZkM2UwNzEzMDRjNTRlZTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjczMzUyMzJkNTEyNjNiY2Y3YjExMmQ3MzdhODI0NTFkNGVhN2I1MWFkOWQ5OTNhYWI5ZGY5ZDAzYzg0NzdjODcifQ"
+          "resource": "repo://crates/limedl-core/src/lib.rs#L3-L35",
+          "version": "repo-lines-v1:sha256:8b2c3c4b9b1f4f5145ce835d8f75d83c10ec8062d7f052c20560a428e8410328:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4YjQwMWExMDM2NmJlZjRmZTVjYzk0MGJmNGFmZjdjNTljOWE0MzU2YzQwZGFiMDZjM2FiZjhiMjE1ZGY4NWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3ZDQ0ZjJmYjBlZjdmYjc5Y2M4ZjdjMDQ0MzhkMzRiYzI2MmE5OTc3NGFiYjQyN2NkMzEwYmNlYjU2YzcxMDciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0MGNmY2EyMzIzN2UyNjYyNTk4M2UxNWFmN2RmNTBlNWM1NzVhMTIwNTY4Y2EyNGZkM2UwNzEzMDRjNTRlZTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjczMzUyMzJkNTEyNjNiY2Y3YjExMmQ3MzdhODI0NTFkNGVhN2I1MWFkOWQ5OTNhYWI5ZGY5ZDAzYzg0NzdjODcifQ"
         }
       ]
     },
@@ -97,7 +97,7 @@
           "version": "repo-lines-v1:sha256:e37510fe55b4e54ebae6e7736a85ac2aaad8dcb62460095e2834f4a41e13982e:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIzYWM3YzBlMWNhOTA2ZTEwNDBlZjNjM2MwY2ZlNjg0YzQzZTc0MTE0MGU3NzNkMjZiZjQ4NDM5OWJkMDU5YWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRkMDY2OWFkYTYzYTgzMGUxMTU0OTBmMWY5MDY0NjY2MDhmN2U4OWQwODQ0ZWQxMTU5ZWE1NTdiYjExNzdkN2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA1Yjc1N2FiZjEwYmViNGI4OTQyMGM2ODk1M2FjZWM1MGVlOTFkNjFmZGE5OTM1ODZiNDZjNTc2NjhhNjBlZjYifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L200-L240",
+          "resource": "repo://crates/limedl-native/src/main.rs#L199-L239",
           "version": "repo-lines-v1:sha256:e265c9fbc3a06b645aa45641f856638ae40a21949878c496e549da9fb0683389:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzMzdmMjUyMDNiZjEzZDhlNDg3YjYwNjc2ZDQ4OGY2MmYyNmI0NWY5Njk4YjE1NjE3NTE2NDg1YzI4Zjc1M2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU4NWRkZTNhODdhOTJjNjFjMTcwZGY1NmZlYzg1YmE3OGMyZjNhZGU5YjU0MDlmZWY3NzA4MTNhMzNkMTgyZGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY2YzUwY2EzOWEzZjU1Y2Y2YzNiZWY3Y2E3N2I0YzhkMGU0MjI1ZDdkZTUwMzVhZjQxNGY5ODIzYzRhMzI5ZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZhMjQ5OGJkNjgzNDljMDgyYjFmNmMxNmM0NzE1YjNjZDZiZjMyZjA2Y2JkYWU0MGU3OWU5ZGZiZDFkYTQ2MGIifQ"
         }
       ]
@@ -121,11 +121,11 @@
       "statement": "limedl-core defaults to the bt feature; aria2-rpc pulls in axum/tower-http/argon2/subtle and implies bt; test-utils exposes AIMD, buffer-pool and test-harness internals that are private otherwise, and also enables the gzip/brotli/zstd encoders used by the compression test endpoints.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/Cargo.toml#L53-L64",
-          "version": "repo-lines-v1:sha256:dbe54e5a7a8913400d7c8885f546d4c3fcad4a260e8ecf4fef8c7953743410d7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2ZjZjMWM3M2U0Njg1YjZmNTU3OTJhZTUzOTI1NTNmZjc5ZDNjYzA2N2IwYjc0ZTA2ODY5OGY2YjJjNzZiODIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyYTBmNzdmZmVhMzhlZTNkM2ExNzQxZDI1NmJhZjNjOTA2MmI3NWE0NzFiYWQxZDIwMjk4MjJhOTUyZTk4MWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYxNjBhODRhNjk5Njk4NTk1NmIzZWFlYmQ5Yzc2NmY3MmMxZjU1NGEwMDdhODk3MWRmZmFmOTM2MmNmMjU3MzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzNjA5NGE0YWZkYjQzNjE2ZGU3ZmY0NjdhNzFiYTM0YzljNzBlNTZkMmNhZjAyYmE1NTVhYTJkZTQwY2U2NjkifQ"
+          "resource": "repo://crates/limedl-core/Cargo.toml#L54-L64",
+          "version": "repo-lines-v1:sha256:ffde6b10ae5da8d0a02339c72235292fc23941668361a8b18340dcbd5ba2dde9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2ZjZjMWM3M2U0Njg1YjZmNTU3OTJhZTUzOTI1NTNmZjc5ZDNjYzA2N2IwYjc0ZTA2ODY5OGY2YjJjNzZiODIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwMzM4Y2Y2MDc1YzJjYmYyZjI4NWEyYWFiODAyZDNmZGJjY2U1MWYyMWVlN2UyMzZlY2NiNWUwNDkwYzU5ZGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYxNjBhODRhNjk5Njk4NTk1NmIzZWFlYmQ5Yzc2NmY3MmMxZjU1NGEwMDdhODk3MWRmZmFmOTM2MmNmMjU3MzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzNjA5NGE0YWZkYjQzNjE2ZGU3ZmY0NjdhNzFiYTM0YzljNzBlNTZkMmNhZjAyYmE1NTVhYTJkZTQwY2U2NjkifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/lib.rs#L36-L48",
+          "resource": "repo://crates/limedl-core/src/lib.rs#L37-L49",
           "version": "repo-lines-v1:sha256:5653be39a3a488fe2ab3a03e02894a3d0f1519b11b096a9b1ae8e50e78a3f360:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU1OTdlZDk2MGIwOWI1ZGMwY2I0YzlhODM2YmRjZjU4NWUyNTY4NjY5NTBjZDFjZGFlNDY0NjNmOGMyZGM5ZWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNhOGVjOTE3YjhjZjNlMWZkZjBkYTM2YjI2Yzg1MjAzOTg3ZjEyMzA0MzdiNDkwOTkyODNkNzcwYzRhM2FkZjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0NDc1YTkxYjA4ODlkZmE4ZjY5ZGZmNzg0YmEyZWY2OWE4MTUzNTY4MjdjOWFiZDdlYzU5N2JmNDg3YjNkZDQifQ"
         }
       ]
@@ -145,7 +145,7 @@
       "statement": "The workspace release profile optimizes for size (lto=thin, opt-level=s, panic=abort, strip), but limedl-native is overridden to opt-level 3 because Slint rendering is CPU/GPU heavy.",
       "evidence": [
         {
-          "resource": "repo://Cargo.toml#L94-L117",
+          "resource": "repo://Cargo.toml#L95-L118",
           "version": "repo-lines-v1:sha256:5977ebd5effe234e13ff63914167c619100264503edb55fcc49d2cefe05a82cf:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2MWI5OTBhZDhmNDI4NGMzNTRjZDhmOWI2YjFiMGQwMTU2NTAyYWJiMDhhYjI5YWI1MDgyNDk0ZDdhMDc2MGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJkYjM4ZDBjZWM4NzY5MGNlZmM3MDIxMzZjZjlmNTJhZTBjZjM4YTM2M2YzZDgyZmM3YjM4YmY1MDdmZWFkNWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjIzYWE4MzdlYjcwZDgzMWU3Njc2NTExYzMxNjM1MTk3OWFhN2Q0MzMyM2ExZWNjOTczNjA3YzFmZTdhOTQ1NjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzNDM3Y2FlZjBkMjM4OTYwOWQxMzA4ODdjYzVlY2MxNGRjODdiMmMyMmQ4ZTFjMDMzMjcwYTRhMGU4OTE0OTYifQ"
         }
       ]
@@ -208,7 +208,7 @@
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.0",
-    "at": "2026-10-05T02:20:21.738Z"
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-07T03:53:23.435Z"
   }
 }

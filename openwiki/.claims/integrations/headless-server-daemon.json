@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:75a8fd79236e0bdea0e02d570ab5eea9f72ca9845e42a615a7470a7063ada8fb",
+  "pageVersion": "sha256:098705c1b54ed9c1d2f52abed7bb72c5bed63ccd3dfac20da72c2380e6ba874b",
   "claims": [
     {
       "id": "claim_af10e01b4e884401808d8b3bee48e762",
@@ -95,8 +95,8 @@
       "statement": "The release pipeline cross-compiles limedl-server for x86_64 and aarch64 musl with cargo zigbuild, bundles the systemd unit and env example into the tarballs, and uploads them as plain release assets.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L548-L611",
-          "version": "repo-lines-v1:sha256:db018e0cf5e4f9c8cd4e8375df80e0cf97467d82bfbdb5b4858c3f4c70383e75:eyJzZWxlY3RlZExpbmVDb3VudCI6NjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxYjBlN2Q3NDMzNGYwNDA4ZWJkZDU3YWViMDU0OTY1NmM0ZThhYTY5YjdkMGNmODAwYjJmNmYwNTgwNzkzMmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQyNzljMTVmNjQwYjRhN2Q3NDJmNzAxMGYzMDc4ZGFmNTBkODVkNzQ5ZDkzYTBjODNlZWViYzdiNGRkMGQ5NWUifQ"
+          "resource": "repo://.github/workflows/release.yml#L548-L639",
+          "version": "repo-lines-v1:sha256:3df924cee4c8d20d7303807e2952d1bd31cc941b107dae5f22d1a3122359fdef:eyJzZWxlY3RlZExpbmVDb3VudCI6OTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4Y2M2ZjE3MGQxZDA0NTIwNmJmMDRlYzRlNjg5NDdlMTlkMjM3N2Q0ZDA0ZTQ0OWQ2NDYyM2ViZWZhNjU1OTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEyY2MxODU1NTY2YzY2NzFhNjIyODFiMTZjMmY3ODdkN2Y5ZjRkYWE2ZTE1ZTkyOGY5YzlkNjM3Zjg2YjFhNmEifQ"
         }
       ]
     },
@@ -115,7 +115,7 @@
       "statement": "The server-image job assembles the prebuilt static musl binaries into a multi-arch ghcr.io/zkz098/limedl-server image.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L639-L724",
+          "resource": "repo://.github/workflows/release.yml#L640-L725",
           "version": "repo-lines-v1:sha256:950e77a405bc00709580e25bf807eae694b595144efa2300b5e99daf62921e78:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmOGNiODk0Yzc3YzQyNWZjY2Q1OGVhZjJlZGY1MjcwZmFiMjljOGQ5NmFkZjExNmEwNTIyN2I0ZWUxMGM3OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNzAzNzQ5NGU0ZTdmMTM4Mzg1OGYzYzgwOTc5ZTg3OWVlMjBjZWJhYmQ0OGNmYjJhY2UwNGU0MmFiNTdhZTQifQ"
         }
       ]
@@ -140,7 +140,7 @@
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.0",
-    "at": "2026-10-05T01:38:26.934Z"
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-07T03:53:23.435Z"
   }
 }

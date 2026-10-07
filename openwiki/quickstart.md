@@ -58,10 +58,10 @@ sources:
     resource: repo://README.md
   - id: openwiki-source-ca864fd40fa4107ed35f840f
     resource: repo://xtask/src/fetch_font.rs
-generated: { by: "pi", at: "2026-10-04T12:58:25.182Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-05T02:20:21.738Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # limedl Wiki Quickstart
@@ -85,6 +85,7 @@ Evidence: `repo://Cargo.toml#L1-L11`, `repo://crates/limedl-core/src/lib.rs#L1-L
 | Understand thread counts / AIMD | [Scheduler, AIMD and Concurrency Control](workflows/scheduler-and-concurrency.md) | `crates/limedl-core/src/scheduler/mod.rs`, `aimd/mod.rs` |
 | Work on BitTorrent | [BitTorrent Backend](workflows/bit-torrent-backend.md) | `crates/limedl-core/src/bt_backend/` |
 | Work on CDN acceleration | [CDN Acceleration](workflows/cdn-acceleration.md) | `crates/limedl-core/src/cdn/` |
+| Parse Metalink / select mirrors | [Metalink Parsing and Mirror Selection](workflows/metalink-and-mirror-selection.md) | `crates/limedl-core/src/metalink/`, `crates/limedl-core/src/aria2_rpc/download.rs` |
 | Change persistence | [SQLite Persistence and Crash Recovery](systems/persistence-and-recovery.md) | `crates/limedl-core/src/database/`, `persistence.rs` |
 | Change settings | [Settings and Configuration](systems/settings-and-configuration.md) | `crates/limedl-core/src/settings/`, `services/settings_service.rs` |
 | Work on disk I/O / buffers | [Disk I/O, Buffer Pool and Storage Detection](systems/disk-io-and-storage.md) | `crates/limedl-core/src/buffer_pool/`, `file_ops/` |
@@ -158,7 +159,7 @@ Evidence: `repo://AGENTS.md#L99-L131`.
   `repo://crates/limedl-core/src/dispatcher.rs#L293-L348`
 - **The scheduler takes the `core` lock before the `aimd` lock**, and every
   `desired_thread_count` change syncs the snapshot.
-  `repo://crates/limedl-core/src/scheduler/mod.rs#L317-L360`
+  `repo://crates/limedl-core/src/scheduler/mod.rs#L324-L420`
 - **The BT alert bridge is the sole source of BT Aria2 notifications**; the RPC
   handler broadcasts only for HTTP.
   `repo://crates/limedl-core/src/bt_backend/alerts.rs#L100-L200`
@@ -166,7 +167,7 @@ Evidence: `repo://AGENTS.md#L99-L131`.
   `addTorrent([torrent, [], options])`); a new method must add a Tier 1 fixture in
   the real client's request shape.
   `repo://crates/limedl-core/src/aria2_rpc/options.rs#L89-L142`,
-  `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L1-L60`
+  `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L26-L110`
 - **A non-loopback Aria2 RPC bind must carry authentication**; the server refuses
   to start otherwise, because the RPC `dir` option can write outside a download
   root.
@@ -184,7 +185,7 @@ Evidence: `repo://AGENTS.md#L99-L131`.
   `cargo xtask fetch-font`.
   `repo://xtask/src/fetch_font.rs#L44-L57`
 - **`irontide` is pinned exactly** (`=1.7.0`); moving it is a migration.
-  `repo://Cargo.toml#L70-L74`
+  `repo://Cargo.toml#L68-L71`
 
 ## Conventions
 
@@ -204,8 +205,9 @@ Evidence: `repo://AGENTS.md#L99-L131`.
 2. [Bootstrap, SystemContext and Shared Services](architecture/bootstrap-and-services.md)
 3. [Protocol Routing and the Dispatcher Facade](architecture/protocol-routing-and-dispatcher.md)
 4. [HTTP Download Lifecycle](workflows/http-download-lifecycle.md)
-5. [Scheduler, AIMD and Concurrency Control](workflows/scheduler-and-concurrency.md)
-6. [Aria2 JSON-RPC Compatibility Server](integrations/aria2-rpc-server.md)
-7. [Headless Server Daemon](integrations/headless-server-daemon.md)
-8. [Server Deployment and Packaging](operations/server-deployment-and-packaging.md)
-9. [Testing Strategy](testing/testing-strategy.md)
+5. [Metalink Parsing and Mirror Selection](workflows/metalink-and-mirror-selection.md)
+6. [Scheduler, AIMD and Concurrency Control](workflows/scheduler-and-concurrency.md)
+7. [Aria2 JSON-RPC Compatibility Server](integrations/aria2-rpc-server.md)
+8. [Headless Server Daemon](integrations/headless-server-daemon.md)
+9. [Server Deployment and Packaging](operations/server-deployment-and-packaging.md)
+10. [Testing Strategy](testing/testing-strategy.md)

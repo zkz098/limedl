@@ -30,8 +30,8 @@ sources:
     resource: repo://crates/limedl-core/src/services/disk_io.rs
 generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T05:35:23.596Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Disk I/O, Buffer Pool and Storage Detection

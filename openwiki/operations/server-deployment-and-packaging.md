@@ -20,10 +20,10 @@ sources:
     resource: repo://packaging/server/systemd/limedl-server.env.example
   - id: openwiki-source-816a10881eb55b69eaf93236
     resource: repo://packaging/server/systemd/limedl-server.service
-generated: { by: "pi", at: "2026-10-04T12:58:25.182Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-05T01:38:26.934Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Server Deployment and Packaging
@@ -126,8 +126,8 @@ has no self-updater.
 `openwiki/`, `website/` and the 20 MB font. `dist/` is deliberately retained
 because `Dockerfile.release` reads the binary from it.
 
-Evidence: `repo://.github/workflows/release.yml#L517-L592`,
-`repo://.github/workflows/release.yml#L608-L693`,
+Evidence: `repo://.github/workflows/release.yml#L548-L639`,
+`repo://.github/workflows/release.yml#L640-L734`,
 `repo://.dockerignore#L1-L10`.
 
 Related pages: [Headless Server Daemon](../integrations/headless-server-daemon.md),

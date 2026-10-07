@@ -30,10 +30,10 @@ sources:
     resource: repo://crates/limedl-core/src/persistence.rs
   - id: openwiki-source-098d28438aacd15b419786dc
     resource: repo://crates/limedl-core/src/task_lifecycle/mod.rs
-generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-05T01:38:26.934Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # HTTP Download Lifecycle
@@ -124,8 +124,8 @@ Evidence: `repo://crates/limedl-core/src/http_executor/run.rs#L198-L250`.
 - every 30 s: re-check disk space and fail the task when the remaining bytes no
   longer fit;
 - when all chunks are complete: shut workers down, flush, return Finished;
-- compute the target worker count (bounded by half the chunk count) and grow the
-  worker pool;
+- compute the target worker count (the scheduler's current allocation, capped at
+  the chunk count) and grow the worker pool;
 - run the optional **Tail Sprint** (retry stalled tail chunks with fresh
   connections, then split the last unclaimed chunk);
 - join one worker and fold its outcome into a `SupervisorStep`.

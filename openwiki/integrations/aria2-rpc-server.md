@@ -40,10 +40,10 @@ sources:
     resource: repo://crates/limedl-core/src/types/settings.rs
   - id: openwiki-source-3fe9812b75a7522e89f74344
     resource: repo://docs/aria2-interop-testing.md
-generated: { by: "pi", at: "2026-10-04T14:09:40.431Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-05T01:38:26.934Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Aria2 JSON-RPC Compatibility Server
@@ -235,8 +235,8 @@ Evidence: `repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L94-L150`,
 
 ## Method routing
 
-`dispatch_authorized` maps method names to handlers: `addUri`/`addTorrent`,
-`pause`/`forcePause`/`pauseAll`/`forcePauseAll`, `unpause`/`unpauseAll`,
+`dispatch_authorized` maps method names to handlers: `addUri`/`addTorrent`/
+`addMetalink`, `pause`/`forcePause`/`pauseAll`/`forcePauseAll`, `unpause`/`unpauseAll`,
 `remove`/`forceRemove`/`removeDownloadResult`/`purgeDownloadResult`,
 `tellStatus`/`tellActive`/`tellWaiting`/`tellStopped`, `getGlobalStat`,
 `getOption`/`changeOption`, `getGlobalOption`/`changeGlobalOption`, `getFiles`,
@@ -245,15 +245,14 @@ Evidence: `repo://crates/limedl-core/src/aria2_rpc/protocol.rs#L94-L150`,
 `system.listMethods`/`system.listNotifications`. Unknown methods return the
 method-not-found error code.
 
-`handle_list_methods` advertises exactly the routed set — 36 entries. The Tier 1
+`handle_list_methods` advertises exactly the routed set — 37 entries. The Tier 1
 test `interop_list_methods_matches_the_routed_surface` asserts that equality and
 that every advertised method is reachable, so a handler added without a listing
-(or vice versa) fails the suite. `aria2.addMetalink` is the one aria2 method
-still deliberately absent (Metalink is out of scope). A top-level JSON-RPC batch
-is served; the HTTP GET/JSONP transports are not.
+(or vice versa) fails the suite. A top-level JSON-RPC batch is served; the HTTP
+GET/JSONP transports are not.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/dispatch.rs#L44-L86`,
-`repo://crates/limedl-core/src/aria2_rpc/query.rs#L568-L612`.
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/dispatch.rs#L44-L87`,
+`repo://crates/limedl-core/src/aria2_rpc/query.rs#L571-L616`.
 
 ### multicall response shape
 
@@ -311,6 +310,22 @@ Evidence: `repo://crates/limedl-core/src/aria2_rpc/download.rs#L13-L19`,
 `repo://crates/limedl-core/src/aria2_rpc/download.rs#L21-L135`,
 `repo://crates/limedl-core/src/aria2_rpc/options.rs#L89-L142`,
 `repo://crates/limedl-core/src/manager.rs#L402-L444`.
+
+### addMetalink
+
+`aria2.addMetalink` takes a base64-encoded Metalink XML document (Metalink
+4.0/3.0): the handler decodes it, parses it through
+`metalink::parse_metalink_xml`, and starts one HTTP task per document file,
+skipping any file excluded by the 1-based `select-file` option. Each task uses
+the best-priority mirror as its primary URL and passes the remaining mirrors as
+`mirror_urls`, and pairs them with the file's strongest supported hash
+(SHA-512 > SHA-256 > BLAKE3) as the expected checksum. `dir`, `out`, `pause` and
+`position` follow the same rules as `addUri`, and the return value is the array
+of created GIDs. The subsystem itself is documented in
+[Metalink Parsing and Mirror Selection](../workflows/metalink-and-mirror-selection.md).
+
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/download.rs#L219-L316`,
+`repo://crates/limedl-core/src/aria2_rpc/options.rs#L115-L123`.
 
 ## Runtime option changes
 
@@ -430,11 +445,10 @@ Evidence: `repo://crates/limedl-core/src/aria2_rpc/transport.rs#L9-L172`,
 These are documented choices, not bugs, and are tracked alongside the Tier 1/Tier
 2 plan in `docs/aria2-interop-testing.md`:
 
-- `aria2.addMetalink` is not implemented (Metalink is out of scope), and HTTP
-  GET/JSONP transports are not served — POST (including a JSON-RPC batch) and
-  WebSocket are. HTTPS RPC and HTTP Basic auth are likewise not served, so a LAN
-  deployment needs a reverse proxy for TLS; a configurable bind address (aria2's
-  `--rpc-listen-all`) *is* supported, but a non-loopback bind requires
+- HTTP GET/JSONP transports are not served — POST (including a JSON-RPC batch)
+  and WebSocket are. HTTPS RPC and HTTP Basic auth are likewise not served, so a
+  LAN deployment needs a reverse proxy for TLS; a configurable bind address
+  (aria2's `--rpc-listen-all`) *is* supported, but a non-loopback bind requires
   authentication.
 - `changePosition` collapses onto the priority model (above).
 - BitTorrent `tellStatus.dir`/`getOption.dir` report the BT backend's default
@@ -444,8 +458,8 @@ These are documented choices, not bugs, and are tracked alongside the Tier 1/Tie
 - `getOption`/`getGlobalOption` answer AriaNg's full key sets, but several values
   are documented aria2 defaults because the engine has no equivalent. `getVersion`
   is truthful: `Async DNS`, `BitTorrent`, `GZip`, `Brotli`, `Zstd`, `HTTPS`,
-  `Message Digest`, and it deliberately omits aria2's
-  `Metalink`/`SFTP`/`XML-RPC`/`Firefox3 Cookie`.
+  `Message Digest`, `Metalink`, and it deliberately omits aria2's
+  `SFTP`/`XML-RPC`/`Firefox3 Cookie`.
 - Error codes match aria2 (`1` for every domain failure); GID prefix matching is
   supported (a unique prefix resolves, an ambiguous one is refused).
 
@@ -465,8 +479,8 @@ a JSON-RPC batch with an array; a run fails on anything outside those allowlists
 aria2-only differences are printed as allowlisted notes by
 `--success-output=final`.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L60`,
-`repo://docs/aria2-interop-testing.md#L77-L156`,
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L68`,
+`repo://docs/aria2-interop-testing.md#L128-L190`,
 `repo://.github/workflows/aria2-oracle.yml#L1-L45`.
 
 ## Terminal-result visibility
@@ -512,6 +526,7 @@ accessors rather than calling `get_typed` directly.
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/context.rs#L62-L75`.
 
 Related pages: [Protocol Routing and the Dispatcher Facade](../architecture/protocol-routing-and-dispatcher.md),
+[Metalink Parsing and Mirror Selection](../workflows/metalink-and-mirror-selection.md),
 [Headless Server Daemon](headless-server-daemon.md),
 [Settings and Configuration](../systems/settings-and-configuration.md),
 [BitTorrent Backend](../workflows/bit-torrent-backend.md).

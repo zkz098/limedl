@@ -4,8 +4,8 @@ title: Bootstrap, SystemContext and Shared Services
 description: The single canonical initialization sequence that builds SystemContext, DownloadManager, the lazy BT backend, the BackendRegistry, CDN service and Dispatcher, plus the shared services that own global runtime state and the two frontends that consume them.
 tags: [bootstrap, systemcontext, services, initialization, dependency-injection]
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T12:36:56.946Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 sources:
   - id: openwiki-source-2262be0eb4e0dcf867247c95
     resource: repo://crates/limedl-core/src/backend_registry/mod.rs

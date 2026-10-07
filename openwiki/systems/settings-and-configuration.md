@@ -3,9 +3,6 @@ type: system
 title: Settings and Configuration
 description: limedl's configuration single source of truth — the AppSettings shape, SettingsService serialization and atomic persistence, normalize_settings validation, the save fan-out to every backend, and special cases such as disk overrides and the Aria2 RPC bind/auth/CORS settings.
 tags: [settings, configuration, persistence, validation, hot-reload]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T12:36:56.946Z
 sources:
   - id: openwiki-source-fd061a9c15d2a04bc703746d
     resource: repo://crates/limedl-core/src/context.rs
@@ -24,6 +21,9 @@ sources:
   - id: openwiki-source-9f796a37ea60bc20889db159
     resource: repo://crates/limedl-server/src/config.rs
 generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Settings and Configuration

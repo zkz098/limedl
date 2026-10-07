@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:23b01658ae09621f6290a99432aef65bc8e6e8d4acdb0ba9e036ed60d11ad528",
+  "pageVersion": "sha256:24d525bb6db899c2f6f64aff4d7784e6f21191d7224d03ee663b780d78528b0f",
   "claims": [
     {
       "id": "claim_8ae54ce2240f44308d879c9a2c645566",
@@ -149,7 +149,7 @@
       "statement": "The L2 MCP server requires SLINT_EMIT_DEBUG_INFO and SLINT_MCP_PORT, the slint/mcp feature on the command line only, no other running instance, no --hidden flag, and an isolated LIMEDL_DATA_DIR; it binds 127.0.0.1 without authentication.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L37-L37",
+          "resource": "repo://AGENTS.md#L38-L38",
           "version": "repo-lines-v1:sha256:baf79bd4fbced29848f04d50d6193c4a6fa86f2c2f2a4e377ccb343ba1f2773d:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmFmNzliZDRmYmNlZDI5ODQ4ZjA0ZDUwZDYxOTNjNGE2ZmE4NmYyYzJmMmE0ZTM3N2NjYjM0M2JhMWYyNzczZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYmFmNzliZDRmYmNlZDI5ODQ4ZjA0ZDUwZDYxOTNjNGE2ZmE4NmYyYzJmMmE0ZTM3N2NjYjM0M2JhMWYyNzczZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTljMDhmYjYyMDc4MzMxNjdmODQ0YjgzNGYyYjFlNWRiZTk3ZGU5ODYzMzY5MDhhMjc0YjVmOTY4ZTU1YzZmOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjE3ZmRjYTUzNDVkZWU1N2VmOWZhYTdkODE5MWM4MGU1OTc4NzY0OGY4YTFmMzE2YzkwMWU0MWM2OTJkOGZhZSJ9"
         },
         {
@@ -180,7 +180,7 @@
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.0",
-    "at": "2026-10-04T11:42:48.469Z"
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-07T03:53:23.435Z"
   }
 }

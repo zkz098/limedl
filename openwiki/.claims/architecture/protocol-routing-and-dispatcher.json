@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:de55b1073a870eda19b42c1de196a5df3f3acb55f9b1522cd8e1660680b10343",
+  "pageVersion": "sha256:3dab3cd2a1bc1b56139c45539b0655e5b7cb5a6fad3e16f9b54a077907b19312",
   "claims": [
     {
       "id": "claim_b7d86f860be047b09e3a4277227183b0",
@@ -97,7 +97,7 @@
       "statement": "RpcContext::http() and RpcContext::bt() are the only sanctioned get_typed accessors for the aria2 RPC layer, confining protocol-specific reads to two accessors.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L54-L68",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/context.rs#L60-L74",
           "version": "repo-lines-v1:sha256:4e592b27ea6a1d2a89b166a5959f29ecc2e87fa44d7db9f513cc8f7a581f60e0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3N2VkNDRjYmM4MjA4ZGM0NGY0ZjVlMzY5OGE0ZDNkZWE5ZmE1MDc0Yzg1ZmE1OWFhZjkzMjUwOTllMDliMTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdkNTE1YjQ0Y2RjYjhkNTVkMzJkMjU2NmFkMzdhNTgxNjNmNmQ2YmQyZDZhYmRiMGNmOTlkZWVjNmQ3NzU2MTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2NjQ0MzcyMTNjNzMwM2M4MWI3MjI1M2Q5NDg2YWJjMjIxNTEyY2QxM2RmNTMzMTg1YTY1NzU4ZjE3N2ZjZGQifQ"
         }
       ]
@@ -124,7 +124,7 @@
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.0",
-    "at": "2026-10-04T01:52:48.489Z"
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-07T03:53:23.435Z"
   }
 }

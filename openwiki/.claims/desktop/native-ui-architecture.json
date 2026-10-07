@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:10d9cff2bb058658b77aecd366993c2dfdadf3b10d1a04ac6a56c5e0c96d2b7d",
+  "pageVersion": "sha256:e7c4efcc934f41e44725271708a72ba1792eb22592379619e3048b01fe16e9a2",
   "claims": [
     {
       "id": "claim_a3116684fdf845e3bf61d5d54d1ccadf",
@@ -113,7 +113,7 @@
           "version": "repo-lines-v1:sha256:57fe64fd93776dbb9f26cb05aa5988d70a5d950debb60bf60d526f5abd37284b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0NjhhNTQwNTRmZTI4NjJlMWM1ZDhkZTY3NjIwMTk2NTIzNWEwYjJkNmFhZmVkOTdlYTQyNjU1NTlmZWU4MjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlMzhlMDM4ODkzNmIyNDBhZWFkZGJhZGVkZmZhY2E0OTkyOTU1OTVmMTIwN2I3Y2Y0NjIyN2M1YjA5ZjRmMjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY5YmEwOTgwM2VkZWYzNjk2OWQ3ODE0MDc3MzFmMWU5ZGJmYjVhOGQ1ZDU4NjBiOGI0NDkyMjQ3MTdmYjc5NjcifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/settings_sync.rs#L137-L184",
+          "resource": "repo://crates/limedl-native/src/settings_sync.rs#L136-L183",
           "version": "repo-lines-v1:sha256:d5710b36e7cddfae2bb199095b5b58b49383106673726b85c66606303e39a162:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhZTIxMTU4YzI5ODEzMGEzYTQ0M2I0OTNhNGZmZDJhYzU3OTg3ZWVjNmE3YzU5YTQwNWIxOThkZmM1ODkwYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg1MTJkYTNkZGE3YjU5ZmJmMzc1NzZkNzY4NTE5OGJiNGE3N2YwNmRjYTg2ZjNiMzEyODBhZWZhNGEyNTVlODgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
         }
       ]
@@ -176,29 +176,29 @@
     },
     {
       "id": "claim_83d512494b1a4563b7ff6cf30a8c465d",
-      "statement": "Window geometry restoration uses GetWindowPlacement/SetWindowPos and monitor checks on Windows but Slint's size/position plus a MAX_PLAUSIBLE_COORD heuristic elsewhere, and schedule_window_placement_restore retries every 250 ms until the OS window exists.",
+      "statement": "Window geometry restoration uses GetWindowPlacement/SetWindowPos and monitor checks on Windows but Slint's size/position plus a MAX_PLAUSIBLE_COORD (±20000 px) heuristic in platform_win.rs elsewhere, and schedule_window_placement_restore retries ensure_restored_window_placement every 250 ms until the OS window exists.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/platform_win.rs#L553-L675",
-          "version": "repo-lines-v1:sha256:af101e3c34c3f404ed287441dc9567587cb21c6587eb1d47a0addb0e35fc0487:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjMDBkMjAzZjEyMGU1MjcwZTQ3ZDk3OThkZDVjZjI5MDhlZDllOWU5NDhkODc3ODZhYzdmZDdiODI4YmVhMTJiIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIyMzcxOWRlMDE3MzQ2OWU0NmFiMzY0MjgxNzgxOTBjMTI1OWNlOTNhM2EyNzUyYTgyZDViZGVmZTViMGYwMjIxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI4MDcyNmRmOTcyZTFlNzBiNmI3YjM4YzNlYTMwMWUyNzBiOWU5N2ZlNzU4ZjgzZGFhNmU2OTFmN2YyZTA0MmUwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2Y0YWUyZjEyNDQzZmZhYWUwNmUwNDRjN2U2M2RkYjQ5ZmU3MzA2MTk0NjFjYzFlMWZhNzUzOWVjNzg5MjI2In0"
+          "resource": "repo://crates/limedl-native/src/platform_win.rs#L531-L675",
+          "version": "repo-lines-v1:sha256:c344a53b0916ddbe3e782168a7b355bdc5c785fc032dec32cde1e0f35b6e966e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQ1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIxZTBhZjkwZWY5YjJmMTQ0ZTE2YWRkODNmM2U1NWJlOTM0YjFhNjMzMzc1MDhlMTZmZjk5OGE2YWRlZTgxM2Y5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJjMWQxMTQ0N2Y1N2NhNGM2ZmM3NzAyN2IwYzhiOTBhYTc4NzdiMGJkYzUzYmFjYWQ4YzIzZjk3OGQwMjc1NWY2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJhNjk4YTgzNzdkNGIzYjA2ZmIzODM2MWIxYTZiZGQ2OTYxY2U4MjZkMjBiNTY2ZjY3YTljNjg0MDNhYzA5YTYyIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI2YzY2YjA2NmQ1Yzk4M2Q4ZjY3NmYxNzk5MmI5NzBiZjdjNTc4OGIxZTUxOTAyODhmYmE4OWI1YTZjNjJlMTNjIn0"
         },
         {
-          "resource": "repo://crates/limedl-native/src/ui_sync.rs#L250-L302",
-          "version": "repo-lines-v1:sha256:c2c3b1d6a1db4b712bb3f68fc296855ae9d800358b600df82b11c2c39c6f3543:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYyZTYyODE4ZGIwNjI5MGM5Y2NkYWY2OTQ0YjAxNzg4ZWM5ZmY2OTU1NDVhMDI3OTU5MTc5NTg1MTNmMGI1ZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRmYWI3MTBkZGY3ODU5ZTU3NTc2NGE5MTNhMDAyYzc0NTg1ZmZhNzAwMTUxMGNiODgxMWRhODNkMmNmNzRiMzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVjYTRhYThhNzQxMWNkY2Y4NTNjNjUyZmEzZDM4ODM5YWU1YjU0MjhlMDJmMjAyNjRkMzYyNzcyNWVhZjUyNmMifQ"
+          "resource": "repo://crates/limedl-native/src/ui_sync.rs#L353-L382",
+          "version": "repo-lines-v1:sha256:565e1b8125d8680c6bd4877a161e545266d3adaf4c5e15ce9e081f51d0a6689d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY1NGVhZjQ1ODZmYzkzZjY5YzJhN2Y1ZDc0MzRkNGMyY2Y1ZTU2ZjA5YmYwZTJkMmY2NmRjMDk1YTJhZGJlNGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0ZTQyMDhjZDZmZmI4YzRhMzU0N2IyZjU0YWRhMTk5NzhjM2YzNjVlNzhmOTUwMmVmNTE0NWNkZDJhYTg1NDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQwMzVhZjE1NGZjMzcwMGI4YmM2ZmEzZGQ0ZDQ5YTc5ZDlkMGYwY2JmOTgwMjc3NzRmYTQ4NTY3YjQ1ZTUwMDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ1MTQxMzMyNjQxOWYxMDU4OTJjZGQxYTcwMTk2NTIxZWQ5ODVjNGRkYmRhZjRlN2Y3MjQwYzJiMWI0YmM3YTgifQ"
         }
       ]
     },
     {
       "id": "claim_87b9e344bc0c4d72a131f464b0d018b2",
-      "statement": "ui/theme.slint exposes a Theme global whose mode comes from appearance.color_mode and accent from appearance.theme_color, and apply_appearance translates settings into that global plus the OS window theme.",
+      "statement": "ui/theme.slint (generated from xtask/src/theme.rs) exposes a Theme global whose mode comes from appearance.color_mode and accent from appearance.theme_color via the ColorModePref and ThemeAccent (Lime/Amber/Sky/Violet/Monochrome) enums; apply_appearance translates settings into that global plus the OS window theme.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/ui_sync.rs#L304-L319",
-          "version": "repo-lines-v1:sha256:caf4ff62467a890917ffcc5c3b09db45805b6812fb7ba266a0afb2af4c1f9685:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdjY2JmNDZjNWUyYTNhNDRiZThmM2IxMzg0Nzg0ZTMxMjUwZWZmZTU3ZDQ0ZDRmOGIxNzMxNTI0NmUyY2ZkNGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE1OTM3Njc5MWU2OTQ3NmY3YTA3MTg5NmRjMjViOTEzN2VmODQyM2UzZTk2MzQwY2NmYWMzMzIzZDQyY2E1MWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://crates/limedl-native/src/ui_sync.rs#L385-L402",
+          "version": "repo-lines-v1:sha256:c54a8913b94970b38d50573a2fde0e5d4239f40127b8e8d46da30b3127131768:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdjY2JmNDZjNWUyYTNhNDRiZThmM2IxMzg0Nzg0ZTMxMjUwZWZmZTU3ZDQ0ZDRmOGIxNzMxNTI0NmUyY2ZkNGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE1OTM3Njc5MWU2OTQ3NmY3YTA3MTg5NmRjMjViOTEzN2VmODQyM2UzZTk2MzQwY2NmYWMzMzIzZDQyY2E1MWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/ui/theme.slint#L15-L30",
-          "version": "repo-lines-v1:sha256:a627362ad1b4d89bc6f8e13a3750afa0d0ea8b89019affacc3e1df3049feed94:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkyZjRiZmQ1OTEyNmExZjg3MzE3NTQ3NGZhMzM2MjZiNzYzMDA0NjhiNmMwODc3OWI2NWQzYzBhYzBlMTU1ZDAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE0NWNlMTAzMWQwNTJhMzllMzRmYjNiNzM3MDNlOGMxZDU0NjViNzg0ZGIwYzc3Njk1YThkNGVmOTA5MDViZjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE4M2JjNWQ0NmI1YzU4MTIxNjA0NWRlODJhN2M4ZTc4MzFkYzdkNGM4ZTllMDhmZjEwMzQwZmJmMTc4ZjBmNDcifQ"
+          "resource": "repo://crates/limedl-native/ui/theme.slint#L16-L31",
+          "version": "repo-lines-v1:sha256:34de277fd7517cea93909889a34affecb722bb25aac0773f0f759cba262e6ef4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYyMzA1ZmY4ZTM1NGIwNWI0ZDJhZDhiYWUyNmJhZWJiMGU3MDA5MWVhZDNlYzNhNTAwYmRmMmI5OWVhOTJiNWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU2MGQ0MGY1MzEwNTYzMmZjOWFkZGY1YjBiMzA2NWQ4ZWYwZjQ2NWJlMjRlOTkyNGI1MjViMDVjYTEyNjZkZDUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZlYmNmZjNlNGQzMjNkYzI2OTIyNThjODgxOGQxMGFkMzYyZmFhZWIwNTNmYzIyYmY4YzA5NDg3ODI0YjhmNjMifQ"
         }
       ]
     },
@@ -211,7 +211,7 @@
           "version": "repo-lines-v1:sha256:57c0d8e1fb23d8b3489aeb489d9e573e9537be9b6081cd03cf2d94c1b86d716b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxMWU4YjYyZTMzYmM0ODQxYzg2YTUyYmJmZDQyNGFlNDFlMGJiZWE4MjQyMmQxMGUwZDIwYjlmMzA1ZmI0MGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhNTQzMzNlZTNiYWNjYjkzNjhmN2NhMGZiMGMyZjliNGUyZmE0M2RiNjYwMmRlMWU5NGRlMTI2MGM2ZmM4ZDciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI0ZjU5N2E1NjgwNzZmNzk3ZWJmNjViMWEwZDBiNWY4MzE1MTA5MGNlNGI2ZGEwNDM3NWMwN2RjYTUxMDBmYmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYyMTkxMGNhODRmNzU1MTY3NjhhZjRkOGQwODhkNTBhZGM4NzNiOWExNmY4MDliOGQ1ZTVhYzc1MjZjMjlmYmMifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/autostart.rs#L237-L250",
+          "resource": "repo://crates/limedl-native/src/autostart.rs#L233-L246",
           "version": "repo-lines-v1:sha256:2f3d1253a6c9689f7a90bd2320ff8dae37c8d0fbe2062c366e558ea5289e44ed:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MzFkNGI1NmY1MmVhYTBkOGMwZjExYWFjNDk5NjQ3NmQzMDMwMmJlMjg1M2EwYjExZGE5ZTIyMmUxMTIwODUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg3MjNlZGUwMWNkYjg0OWU1OGFhYjViZjFlNmE2NzI4MTgzMDQ3NmZlYTI5NjUzYmE5MWVkZWRlYjNhMGEzOWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQwZGYwYzFlYTBiNWZlMTFlNDIxNjA0NTE2ZDU5NzEyYzljZDhiOWNiMzEyODQ4MTk2MDI3ZDIzZTU0YjhjN2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEzNzIyYmU2ZDU4MmJmMTllNmVjYjViMTJmMDE3MDk5MTMyYTU1N2I5N2RiZjVmY2Y1M2ZjNjI1ODMyNGM4OTcifQ"
         }
       ]
@@ -249,7 +249,7 @@
       "statement": "Building the tray icon is best-effort: a missing StatusNotifier host logs tray_init_failure_message and startup continues, because the window is the primary UI and aborting there would take the window down with it.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L186-L201",
+          "resource": "repo://crates/limedl-native/src/main.rs#L184-L199",
           "version": "repo-lines-v1:sha256:a8d4538c6f5b093ff445e31646ec41c710feeb3c5ab40a97d9291a7069ecda54:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyNTM0MmMxZDU3YWJiMWVkYmZkOGU4MTZmZTFjMjUxM2M5ZmVlNjkwYTJlODY3ZDZkM2YxOTE0N2ZmNTczMWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzMzdmMjUyMDNiZjEzZDhlNDg3YjYwNjc2ZDQ4OGY2MmYyNmI0NWY5Njk4YjE1NjE3NTE2NDg1YzI4Zjc1M2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM4NzdkMGRkNmRhNmViNzQ2NThiZGYzYzA1OWVhNWQyNmNjZDMwMTI3YTAxZTYxZjhiMzc5NTUyZmY5ZmI2YmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRmZjJkYTQ2ZmM2ZGI4NzJmMmE3NGVmYTIyNTQ0YjIzMTNmMjY2MmVkOGRjNzJiYWUzM2EyNzFhYjFkYTk2NDQifQ"
         }
       ]
@@ -259,7 +259,7 @@
       "statement": "On Unix a SIGTERM/SIGINT watcher asks the Slint event loop to quit, so logout, systemctl stop and Ctrl+C run the normal graceful shutdown (buffer flush, manifest persist, WAL checkpoint) instead of killing the process mid-write; Windows has no console to catch.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L287-L345",
+          "resource": "repo://crates/limedl-native/src/main.rs#L286-L344",
           "version": "repo-lines-v1:sha256:2d0780d0eef47f3c9d88c4cde47e1e635c1b26c81af6f604def8d5d34f2f58da:eyJzZWxlY3RlZExpbmVDb3VudCI6NTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIyMDExZTJjZjI2NjYyNzNkZTc0MjYzYzBkNTg1NmY5NDY1NmI0NGE3YjVkYWQ1OGE0NTQ1MzNmZWUwZGY5NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwZmFlNjZjNmFkNDQyMTc3ODY5MjE5Y2QyNzMyZDYwMzgzNzVhY2I4MTIwYTkxMTQ2ZTE3YTg4OWZmMjY4YmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNmNjRkNGI0YTIzYWE1NTM0ZjQ1YTc3YzI1YzNhNGEyYTcyNGVjYjViOTY5N2E3ZDgwMDY3MDA3Mjk5ZTIyM2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiYzk4ZDZiMGRjNDkyYzUwMTZkZjEwODA1YTNhNTRlYjljMTg0YTVhNjEzN2U3ZjRiZWNmYTBjMjIwNTUwZDAifQ"
         }
       ]
@@ -297,7 +297,7 @@
           "version": "repo-lines-v1:sha256:cabadac73ca9a09a545815efe9636433dbb6a9d240e5511efd4e4030ff01b337:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzNzY1N2UwNzZkZWM0NDJlNjhlM2ZjZGFjMGE2NWI5Y2I3NGU0ODI2ZmIyZmQ0NDg3ZWQ4Y2M1MzQ5ZjllZjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjOTdlMzAzNGQ4ODdjY2U0NzI2OGYwN2UwZDhkYTU5MjlkNDIxOWQ1NmU1OTVkNzRhMjYzMDc1MWMxMWY3NzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYzZDM3NDk2MGJiYmY0ZmQ4ZDBkYjVmM2FlZTA0NmYwMjRjZDNmMWY0YzhkOTc4YTIwNTM4ZjJjZWEzYjU5YTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhYmNjNTQwMzQ5MWEzNzc4ZjkzY2ZiODEzYjY3ZDliMGM0NmFmOGNjMGEwOGJjMjllMjI3ZDJmY2EyOTUyZWIifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/ui/components/labs_dialog.slint#L270-L278",
+          "resource": "repo://crates/limedl-native/ui/components/labs_dialog.slint#L273-L281",
           "version": "repo-lines-v1:sha256:f63608e983caf4567057fc316f2468765262299f9b9e2a19de3349bfdc465714:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDQ4ZjE1MTBkZTAxZTE1YTQ4ODdkOWRjNmY5MzhkZDdkMzg1MjU3YTdkY2JkMDU0NTUwYzYyMGRjN2I2YWIxNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWVjMDFjYWMxMGY1M2IzNzgwMzc0NGUzODFhOGNkYzNmODBlOWMyYTU1ODc0MmVkNjBhNTBlYzllZWY5YjE1YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzM1M2NkMTVhZjhhNjA4NGRjMjc3N2Q0ZGY3YjkxNjM5OTRmMDYyNWZiZGU2NDQ0ZjAwNzZkNjY3NDg3ZDY2OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDA4Nzk1YjRkZTE1NmVmYmFiNzY4NWZiNTQ4YjU2MTc4Njg4NGI2ODE5NWI0MThjNWU1ZTY3OWVjNzIyNzAxMiJ9"
         },
         {
@@ -313,10 +313,20 @@
           "version": "repo-lines-v1:sha256:5d186ac129b9af27beed36eb040765269b538be088f574b31ad872b270be712b:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlYzAxY2FjMTBmNTNiMzc4MDM3NDRlMzgxYThjZGMzZjgwZTljMmE1NTg3NDJlZDYwYTUwZWM5ZWVmOWIxNWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc3YWQ0OTI4MmEwMGZhOTI1NjQ0ODgwNWFhOTU1NjBkYjg5ZjQyYjlhYjgyOWZhM2NjNmEyZWVkNThjNmRkZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVhMzVmNDMyZDgzMTBkOWEyM2M2Y2FiNjM5ODA3Nzc2YmY3NDEwNDAxNzRkYTc0ZTA0MzhiZTU3ZGZlZTAxNzQifQ"
         }
       ]
+    },
+    {
+      "id": "claim_15c6e71525b94275a0598eb2394f8b05",
+      "statement": "The desktop task list is reconciled in place: apply_tasks set_row_data-mutates the existing VecModel<TaskItem> model with a same-order fast path and a remove/align general path instead of replacing it, so Slint row components keep hover/double-click state and an open context menu is not dismissed by progress events.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_sync.rs#L131-L205",
+          "version": "repo-lines-v1:sha256:49355861b8b0459a9bb9fff26af1ff68b603afa01692ff4946f069edc8205dc1:eyJzZWxlY3RlZExpbmVDb3VudCI6NzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1NzFmNjY2ZDczZmY2MTYxOWJjNGM1OTgxOTc0NWVkZjliNmNlMGY3ZmE3ODcxNGNiYzRjYTBiZjJlOGEzNDkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUzMjM5NjYwOWYwNDQ3MjhmMGFmZmU4ZjJmMzdmMWMwOGMxNGFiNDQ3OGM5MWU5NTBjMjNhY2Y0ZGZhODEwMTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdhOTljZTQwMDNmNjMzMDRmNjIyNjVlNmYyMDM1ZmVmZDU3ZjFmODk0ODRjMzhjNGI4M2ZlMTQ0ZTFlMjk1MjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcyOTNjM2VhZGIyNWQwOGYzMjk2ZjkwNzQ5MWY4MjI3MmUzOTM0MjFlMmNiNzgwY2JmNjI1NDdlNDI5ZDJiYWMifQ"
+        }
+      ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.0",
-    "at": "2026-10-04T10:20:09.270Z"
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-07T03:53:23.435Z"
   }
 }

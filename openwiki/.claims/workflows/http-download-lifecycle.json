@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:c764004c4bebf0d7219198ce32ff325e03cd293812c3d2df7e64c83aeb0f20d1",
+  "pageVersion": "sha256:907fcbcbe092bfe5579188ff43b5884df7e0e2f744f8136a36f6aa06948e7d7a",
   "claims": [
     {
       "id": "claim_7adfe6bc70df455da96fef56ab373539",
@@ -54,11 +54,11 @@
     },
     {
       "id": "claim_db1300608b5541bfb098778399ba1f1d",
-      "statement": "download_chunked loops with cancellation shutdown and flush, periodic 30s disk checks, completion detection, target worker count bounded by half the chunk count, optional Tail Sprint, and per-worker supervision.",
+      "statement": "download_chunked loops with cancellation shutdown and flush, periodic 30s disk checks, completion detection, a target worker count equal to the scheduler's current allocation capped at the chunk count, optional Tail Sprint, and per-worker supervision.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/http_executor/chunked.rs#L7-L130",
-          "version": "repo-lines-v1:sha256:fc0e14e39f2c55a9951a3421fc6d74908f25322068348f9e291b6fb3abeb9a8e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTI0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5NzE3YTYzZmY4ZWI0MTg4ZGY3ZDc4YTM4MzZmNTU2ZDY1NjNiMGRlN2IyOTBmMjY2ZWI2YmQzMzBkNTA5MjA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJjZjQ0OWZiMjNjNTIyZGFlZTRmMzA2MTU2NDgyOTQ3ZmMxYTEyMjg2YmNlNmU3OTU1YTMyZDhjNGQzMWM4MTA4IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI1ZmE4YmZkZGFhNzU5Y2ZjNWZhZjc5NDZjN2ExOGRhZThlMWIxNTBmOTU4YzZjNTQ1YWY4OTg2NzJkYzFlMWJiIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3ZDIzOTc3ODQyN2EwMjgwYmQwNTI1NzQzY2Q4MzBmODk1ZTZhMjAxMTkzZDNlNDYyZGJiNTJjNzVhZmUyN2E0In0"
+          "resource": "repo://crates/limedl-core/src/http_executor/chunked.rs#L6-L128",
+          "version": "repo-lines-v1:sha256:dfc79fbe17e78af67b39dbad6a0cae0b88b4a3b1975afcff7ecd19eb94ffb876:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI3ZWJmYTA4MmUxNzgzOTU4MGEyMmI1NDBmNTZlOGNjNjcyMDllMjA3Y2ViZTQzN2FmOThjZjQwNGFkMjIxZmE2IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI3YTY0NTRlZmY5ZWM0ZjY1MDRlYzllY2NiNWU0OGIzMDI0NGM4Y2E3ODRlMjVhNzZlMjNhYmFlYjcyMTFkMGYxIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI5MTAxNDMwNTA2MGVjOWRhN2JjMDMwMTk1NjExZjA5NWQyMWZkZmI4OWY3NDY3OWM3Yjg3NGZjMWM4MDk1MTM2In0"
         }
       ]
     },
@@ -184,7 +184,7 @@
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.0",
-    "at": "2026-10-05T01:38:26.934Z"
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-07T03:53:23.435Z"
   }
 }

@@ -18,10 +18,10 @@ sources:
     resource: repo://crates/limedl-core/src/download/managed.rs
   - id: openwiki-source-41f2f85d035ed1edf0c09b2e
     resource: repo://crates/limedl-core/src/persistence.rs
-generated: { by: "pi", at: "2026-10-04T05:35:23.596Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T05:35:23.596Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # SQLite Persistence, Durable Progress and Crash Recovery
@@ -125,7 +125,9 @@ counts, thread-mode fields, state, checksum fields and timestamps) and `chunks`
 keyed by `(download_id, chunk_index)` with a `FOREIGN KEY ... ON DELETE CASCADE`,
 so deleting a download removes its chunks automatically. Later migrations add
 `chunk_size`, mirror columns, `priority`, CDN fields, `expected_checksum` and the
-`bt_tasks` table.
+`bt_tasks` table, delete legacy `sftp:` rows, and create indexes on
+`downloads(state)`, `downloads(created_at_ms DESC)` and `chunks(claimed_by)`;
+`MIGRATIONS` is currently at v10.
 
 Evidence: `repo://crates/limedl-core/src/database/schema.rs#L21-L69`,
 `repo://crates/limedl-core/src/database/schema.rs#L121-L210`.
@@ -266,9 +268,6 @@ operation does not pay for a full vacuum.
 
 Evidence: `repo://crates/limedl-core/src/database/connection.rs#L153-L180`.
 
-<!-- openwiki: broken internal link [/openwiki/workflows/http-download-lifecycle.md] link "/openwiki/workflows/http-download-lifecycle.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [HTTP Download Lifecycle](/openwiki/workflows/http-download-lifecycle.md),
-<!-- openwiki: broken internal link [/openwiki/workflows/bit-torrent-backend.md] link "/openwiki/workflows/bit-torrent-backend.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[BitTorrent Backend](/openwiki/workflows/bit-torrent-backend.md),
-<!-- openwiki: broken internal link [/openwiki/integrations/aria2-rpc-server.md] link "/openwiki/integrations/aria2-rpc-server.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Aria2 JSON-RPC Compatibility Server](/openwiki/integrations/aria2-rpc-server.md).
+Related pages: [HTTP Download Lifecycle](../workflows/http-download-lifecycle.md),
+[BitTorrent Backend](../workflows/bit-torrent-backend.md),
+[Aria2 JSON-RPC Compatibility Server](../integrations/aria2-rpc-server.md).

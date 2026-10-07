@@ -3,9 +3,6 @@ type: workflow
 title: Scheduler, AIMD and Concurrency Control
 description: limedl's background scheduler loop and adaptive thread allocation — per-task thread-mode resolution, the AIMD throughput tuner, traditional vs automatic rebalancing, per-host connection caps, and the slot guards that bound HTTP and BT concurrency.
 tags: [scheduler, aimd, concurrency, threads, rebalancing]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-0087afceb8965d051cbaa6fa
     resource: repo://crates/limedl-core/src/aimd/mod.rs
@@ -21,7 +18,10 @@ sources:
     resource: repo://crates/limedl-core/src/speed_tracker.rs
   - id: openwiki-source-098d28438aacd15b419786dc
     resource: repo://crates/limedl-core/src/task_lifecycle/mod.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Scheduler, AIMD and Concurrency Control
@@ -66,21 +66,28 @@ Evidence: `repo://crates/limedl-core/src/download/shared.rs#L20-L68`.
 
 `AimdState` tracks the last sample bytes/time, last throughput, cooldown,
 consecutive good/bad samples, a `recent_penalty` flag, cumulative/peak
-throughput, and oscillation state (`last_direction`, `oscillation_count`,
-`hysteresis_lock_until`). `sample_throughput` computes bytes-per-second since the
-last sample; `record_sample` ignores non-positive/non-finite values.
+throughput, oscillation state (`last_direction`, `oscillation_count`,
+`hysteresis_lock_until`), and the probe/settling state added by the
+proactive-probing fix (`settling_until`, `stable_cycles`, `is_probing_up`,
+`probe_pre_throughput`, `probe_pre_threads`). `sample_throughput` computes
+bytes-per-second since the last sample; `record_sample` ignores
+non-positive/non-finite values.
 
-Profile helpers:
+`aimd/mod.rs` exposes three pure profile helpers:
 
-| Profile | Initial threads (fraction of cap) | Decrease factor | Cooldown |
+| Profile | `initial_desired_threads` (fraction of cap) | `reduce_threads` factor | `cooldown_for_profile` |
 | --- | --- | --- | --- |
 | Conservative | 0.5 | 0.7 | 4 s |
 | Balanced | 0.75 | 0.5 | 3 s |
 | Aggressive | 1.0 | 0.5 | 2 s |
 
-Decreases never go below `min_threads`.
+Decreases never go below `min_threads`. The scheduler adds its own thresholds per
+profile (`AdaptiveThresholds::for_profile`): `degrade` / `increase` fractions,
+`consecutive_good_samples` needed, and `probe_stable_cycles` before a proactive
+probe (Conservative 3, Balanced/Aggressive 2).
 
-Evidence: `repo://crates/limedl-core/src/aimd/mod.rs#L6-L90`.
+Evidence: `repo://crates/limedl-core/src/aimd/mod.rs#L6-L95`,
+`repo://crates/limedl-core/src/scheduler/mod.rs#L282-L300`.
 
 ### One adaptive decision
 
@@ -95,21 +102,52 @@ otherwise each task goes through `update_one_adaptive`.
 the same order as every other scheduler path, and it must not be reversed. It
 only acts on adaptive tasks that are `Downloading` with range support, then:
 
-- returns early during a penalty cooldown (clearing `recent_penalty`) or while
-  the hysteresis lock is active (continuing to record throughput);
-- decreases when throughput dropped by the profile's degrade threshold (plus
-  `recent_penalty` for Conservative);
+- returns early during a penalty cooldown (clearing `recent_penalty`), the
+  hysteresis lock, or the post-change settling window, while still recording
+  throughput;
+- if a proactive probe is in flight, waits for the allocation to catch up and
+  then either keeps the raised target or rolls it back (see below);
+- decreases only when degradation is confirmed (a severe drop, two consecutive
+  bad samples, or `recent_penalty`; Conservative treats the penalty flag as
+  sufficient);
 - otherwise attempts an increase: `maybe_increase` requires the allocation to
-  have caught up with the target, improved throughput, and enough consecutive
-  good samples; the step is +2 (Conservative), `current/4` (Balanced) or
-  `current/3` (Aggressive), capped at `max_threads_per_task`.
+  have caught up with the target, then either improved throughput with enough
+  consecutive good samples (step +1 Conservative, `current/4` Balanced,
+  `current/3` Aggressive) or a stable-transfer proactive probe.
 
 Every change to `desired_thread_count` calls `sync_snapshot_with_manifest` before
 returning, so the exposed "target thread count" never lags the manifest.
 
-Evidence: `repo://crates/limedl-core/src/scheduler/mod.rs#L87-L120`,
-`repo://crates/limedl-core/src/scheduler/mod.rs#L317-L410`,
-`repo://crates/limedl-core/src/scheduler/mod.rs#L432-L486`.
+Evidence: `repo://crates/limedl-core/src/scheduler/mod.rs#L97-L120`,
+`repo://crates/limedl-core/src/scheduler/mod.rs#L324-L490`.
+
+### Proactive probing and the cascading-decrease fix
+
+The tuner used to be able to deadlock at a low thread count: a single small
+throughput wobble could trigger a decrease, and once the target bottomed out
+there was no path back up. Two changes break that:
+
+- **Decrease confirmation.** A decrease is applied only once degradation is
+  confirmed — a severe drop (below 50 % of the last sample), two consecutive bad
+  samples, or `recent_penalty` (Conservative additionally treats the penalty flag
+  as sufficient). A single noisy sample no longer cascades into repeated
+  decreases.
+- **Proactive probing.** When throughput is steady for `probe_stable_cycles`,
+  `maybe_increase` raises the target *without* waiting for a throughput
+  improvement and records `is_probing_up`, `probe_pre_throughput` and
+  `probe_pre_threads`. The next decision (after settling, once allocation caught
+  up) keeps the higher concurrency if throughput improved by at least the
+  profile's `increase` fraction; otherwise it rolls back to `probe_pre_threads`,
+  applies a 2× cooldown and a settling window, and rebases the throughput
+  baseline. This turns "no change" into a measured experiment instead of a
+  permanent stall.
+
+`settling_until` suspends decisions right after any thread change (recording
+samples), and `hysteresis_lock_until` suspends them for four cooldowns after
+oscillation (≥3 direction flips), where the target is clamped to 70 % of the
+current value. All three gates record throughput while they skip decisions.
+
+Evidence: `repo://crates/limedl-core/src/scheduler/mod.rs#L324-L650`.
 
 ## Rebalancing
 
@@ -185,9 +223,6 @@ pause/cancel/restart (`reset_progress`). ETA is derived from the same speed.
 Evidence: `repo://crates/limedl-core/src/speed_tracker.rs#L13-L130`,
 `repo://crates/limedl-core/src/task_lifecycle/mod.rs#L478-L500`.
 
-<!-- openwiki: broken internal link [/openwiki/workflows/http-download-lifecycle.md] link "/openwiki/workflows/http-download-lifecycle.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [HTTP Download Lifecycle](/openwiki/workflows/http-download-lifecycle.md),
-<!-- openwiki: broken internal link [/openwiki/systems/settings-and-configuration.md] link "/openwiki/systems/settings-and-configuration.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Settings and Configuration](/openwiki/systems/settings-and-configuration.md),
-<!-- openwiki: broken internal link [/openwiki/workflows/bit-torrent-backend.md] link "/openwiki/workflows/bit-torrent-backend.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[BitTorrent Backend](/openwiki/workflows/bit-torrent-backend.md).
+Related pages: [HTTP Download Lifecycle](http-download-lifecycle.md),
+[Settings and Configuration](../systems/settings-and-configuration.md),
+[BitTorrent Backend](bit-torrent-backend.md).

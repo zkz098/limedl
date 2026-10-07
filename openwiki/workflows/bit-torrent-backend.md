@@ -3,9 +3,6 @@ type: workflow
 title: BitTorrent Backend
 description: The irontide-backed BitTorrent subsystem — lazy session startup and the restartable engine slot, task identity and snapshots, the alert bridge as the sole Aria2 event source, upload-policy and anti-leech loops, lightweight mode with the bt_tasks index, blocklist handling and shutdown ordering.
 tags: [bittorrent, irontide, lazy-startup, alerts, anti-leech, uploads]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-093388d09b520118fa26ce32
     resource: repo://crates/limedl-core/src/bt_backend/alerts.rs
@@ -23,7 +20,10 @@ sources:
     resource: repo://crates/limedl-core/src/bt_backend/uploads.rs
   - id: openwiki-source-f0a925ac2758f1bac742ca91
     resource: repo://crates/limedl-core/src/database/bt_task_repo.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # BitTorrent Backend
@@ -33,7 +33,7 @@ The BT backend is `LazyBtBackend` (registered as the `TaskKind::Bt` backend) plu
 pinned to `=1.7.0` because the engine is frozen and moving off it is a migration,
 not a version bump.
 
-Evidence: `repo://Cargo.toml#L70-L74`.
+Evidence: `repo://Cargo.toml#L68-L71`.
 
 ## Lazy startup and the restartable engine slot
 
@@ -222,11 +222,7 @@ pending disk writes; and finally shut the session down.
 Evidence: `repo://crates/limedl-core/src/bt_backend/lazy.rs#L442-L472`,
 `repo://crates/limedl-core/src/bt_backend/session.rs#L154-L200`.
 
-<!-- openwiki: broken internal link [/openwiki/architecture/bootstrap-and-services.md] link "/openwiki/architecture/bootstrap-and-services.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Bootstrap, SystemContext and Shared Services](/openwiki/architecture/bootstrap-and-services.md),
-<!-- openwiki: broken internal link [/openwiki/integrations/aria2-rpc-server.md] link "/openwiki/integrations/aria2-rpc-server.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Aria2 JSON-RPC Compatibility Server](/openwiki/integrations/aria2-rpc-server.md),
-<!-- openwiki: broken internal link [/openwiki/systems/persistence-and-recovery.md] link "/openwiki/systems/persistence-and-recovery.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[SQLite Persistence and Crash Recovery](/openwiki/systems/persistence-and-recovery.md),
-<!-- openwiki: broken internal link [/openwiki/workflows/scheduler-and-concurrency.md] link "/openwiki/workflows/scheduler-and-concurrency.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Scheduler, AIMD and Concurrency Control](/openwiki/workflows/scheduler-and-concurrency.md).
+Related pages: [Bootstrap, SystemContext and Shared Services](../architecture/bootstrap-and-services.md),
+[Aria2 JSON-RPC Compatibility Server](../integrations/aria2-rpc-server.md),
+[SQLite Persistence and Crash Recovery](../systems/persistence-and-recovery.md),
+[Scheduler, AIMD and Concurrency Control](scheduler-and-concurrency.md).

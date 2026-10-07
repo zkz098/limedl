@@ -30,6 +30,8 @@ sources:
     resource: repo://crates/limedl-core/src/http_executor/tests.rs
   - id: openwiki-source-9fa813eab6e27ac3f5fdbf1d
     resource: repo://crates/limedl-core/src/manifest.rs
+  - id: openwiki-source-60ceefd6554ff8fc9f67e129
+    resource: repo://crates/limedl-core/src/metalink/tests.rs
   - id: openwiki-source-e2995ec6bf7ff16128c760b6
     resource: repo://crates/limedl-core/src/test_harness/mod.rs
   - id: openwiki-source-37ca19c9c77c5d1241db1782
@@ -58,10 +60,10 @@ sources:
     resource: repo://docs/aria2-interop-testing.md
   - id: openwiki-source-feafbe9db788653e845840b8
     resource: repo://sonar-project.properties
-generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-05T01:38:26.934Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Testing Strategy
@@ -234,6 +236,9 @@ Evidence: `repo://crates/limedl-core/src/tests/resume_corruption_tests.rs#L99-L1
   including the stale-claim test.
 - `checksum_e2e_tests.rs`, `mirror_e2e_tests.rs`, `cdn_e2e_tests.rs`,
   `retry_tests.rs`, `settings_roundtrip_tests.rs`, `disk_detect_test.rs`.
+- `metalink/tests.rs` — Metalink 4.0/3.0 and Metalink/HTTP header parsing
+  (including the `best_checksum` and `sorted_mirror_urls` helpers), mirror
+  scoring, and pool leasing/concurrency limits.
 
 Evidence: `repo://crates/limedl-core/src/tests/mod.rs#L1-L27`.
 
@@ -281,13 +286,15 @@ Evidence: `repo://crates/limedl-core/src/tests/dispatcher_tests.rs#L1-L12`,
 `bootstrap()` `CoreSystems` on a random port and drives it with real HTTP POST
 requests: the handler matrix, `system.multicall` response shape, secret gating on
 every method, CORS fallback **and wildcard**, magnet-to-BT routing,
-`changeOption` matrices, `keys` filtering, `getUris`, and the terminal-task
-eviction scenario. Because the CORS test now covers `allow_any_origin`, it also
-asserts that a wildcard origin is never paired with
+`addMetalink` (a base64 Metalink document creates one task per file and reports
+status), `changeOption` matrices, `keys` filtering, `getUris`, and the
+terminal-task eviction scenario. Because the CORS test now covers
+`allow_any_origin`, it also asserts that a wildcard origin is never paired with
 `Access-Control-Allow-Credentials`.
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L1-L20`,
-`repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L1211-L1315`.
+`repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L1211-L1315`,
+`repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L2404-L2460`.
 
 ### Aria2 interoperability fixtures (Tier 1)
 
@@ -301,7 +308,7 @@ green.
 
 The suite asserts:
 
-- `system.listMethods` equals the routed handler set exactly (36 entries), and
+- `system.listMethods` equals the routed handler set exactly (37 entries), and
   every advertised method is reachable (a routed method's error must not be
   method-not-found; since every domain error is code 1, that is recognized by
   its message).
@@ -327,8 +334,8 @@ It is pure Rust with no external binary, so it runs inside the normal
 (real `aria2c` oracle) and Tier 3 (AriaNg smoke test) layers, together with the
 list of intentional deviations, live in `docs/aria2-interop-testing.md`.
 `interop_get_version_is_truthful` additionally locks `aria2.getVersion` to the
-real version and the truthful feature list (no XML-RPC/Firefox3 Cookie/Metalink/
-SFTP; GZip/Brotli/Zstd present).
+real version and the truthful feature list (no XML-RPC/Firefox3 Cookie/SFTP;
+Metalink, GZip, Brotli and Zstd present).
 
 Evidence: `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L1-L60`,
 `repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L78-L380`,
@@ -360,10 +367,10 @@ until `aria2c` binds its port: it calls a non-panicking `rpc_try` (returning
 `child.try_wait()` each round so an early child exit fails with the real status
 instead of a readiness timeout.
 
-Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70`,
+Evidence: `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L68`,
 `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L94-L170`,
 `repo://.github/workflows/aria2-oracle.yml#L1-L45`,
-`repo://docs/aria2-interop-testing.md#L77-L154`.
+`repo://docs/aria2-interop-testing.md#L128-L190`.
 
 ### BT backend tests
 
@@ -424,5 +431,7 @@ Evidence: `repo://.github/workflows/ci.yml#L451-L472`,
 
 Related pages: [Slint UI Testing](slint-ui-testing.md),
 [Headless Server Daemon](../integrations/headless-server-daemon.md),
+[Aria2 JSON-RPC Compatibility Server](../integrations/aria2-rpc-server.md),
+[Metalink Parsing and Mirror Selection](../workflows/metalink-and-mirror-selection.md),
 [Build, Tooling, CI and Release Operations](../operations/build-release-and-ci.md),
 [HTTP Download Lifecycle](../workflows/http-download-lifecycle.md).

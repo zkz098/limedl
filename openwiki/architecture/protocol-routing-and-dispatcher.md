@@ -3,9 +3,6 @@ type: architecture
 title: Protocol Routing and the Dispatcher Facade
 description: The protocol abstraction layer of limedl — the DownloadBackend trait, BackendRegistry routing by TaskId, and the Dispatcher facade that unifies lifecycle, settings, disk, concurrency and protocol-specific operations while auto-emitting state events.
 tags: [protocol, dispatcher, backend-registry, routing, facade]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-8ec1f0436491ce5daa75720b
     resource: repo://crates/limedl-core/src/aria2_rpc/context.rs
@@ -15,7 +12,10 @@ sources:
     resource: repo://crates/limedl-core/src/dispatcher.rs
   - id: openwiki-source-91b6ee5086a47115791aca3c
     resource: repo://crates/limedl-core/src/protocol.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Protocol Routing and the Dispatcher Facade
@@ -123,8 +123,7 @@ Evidence: `repo://crates/limedl-core/src/dispatcher.rs#L247-L259`.
 (`detect_disk_type`, `detect_all_disk_types`, `get_io_status`, `toggle_game_mode`,
 `game_mode`, `get_overclock_mode`, `toggle_overclock_mode`) to the optional
 services. The detailed settings fan-out is documented on the
-<!-- openwiki: broken internal link [/openwiki/architecture/bootstrap-and-services.md] link "/openwiki/architecture/bootstrap-and-services.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Bootstrap and services page](/openwiki/architecture/bootstrap-and-services.md).
+[Bootstrap and services page](bootstrap-and-services.md).
 
 `fetch_tracker_list` uses the dispatcher's own HTTP client when present and falls
 back to a plain client in minimal environments; it normalizes the fetched text
@@ -167,9 +166,6 @@ Evidence: `repo://crates/limedl-core/src/dispatcher.rs#L466-L505`,
 - A new protocol-specific accessor for Aria2 must go through
   `RpcContext::http()`/`bt()`.
 
-<!-- openwiki: broken internal link [/openwiki/architecture/bootstrap-and-services.md] link "/openwiki/architecture/bootstrap-and-services.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Bootstrap, SystemContext and Shared Services](/openwiki/architecture/bootstrap-and-services.md),
-<!-- openwiki: broken internal link [/openwiki/workflows/http-download-lifecycle.md] link "/openwiki/workflows/http-download-lifecycle.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[HTTP Download Lifecycle](/openwiki/workflows/http-download-lifecycle.md),
-<!-- openwiki: broken internal link [/openwiki/integrations/aria2-rpc-server.md] link "/openwiki/integrations/aria2-rpc-server.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Aria2 JSON-RPC Compatibility Server](/openwiki/integrations/aria2-rpc-server.md).
+Related pages: [Bootstrap, SystemContext and Shared Services](bootstrap-and-services.md),
+[HTTP Download Lifecycle](../workflows/http-download-lifecycle.md),
+[Aria2 JSON-RPC Compatibility Server](../integrations/aria2-rpc-server.md).

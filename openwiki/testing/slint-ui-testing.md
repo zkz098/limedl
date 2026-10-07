@@ -26,8 +26,8 @@ sources:
     resource: repo://docs/manual-smoke-testing.md
 generated: { by: "pi", at: "2026-10-04T11:42:48.469Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T11:42:48.469Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Slint UI Testing

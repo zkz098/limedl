@@ -1,7 +1,7 @@
 ---
 type: desktop
 title: Self-Update and Distribution Channels
-description: How the limedl desktop client detects its install channel, verifies and installs signed updates across portable/NSIS/MSIX/macOS/Linux channels, and how the release pipeline signs artifacts and builds the single latest-native.json manifest.
+description: How the limedl desktop client detects its install channel, verifies and installs hybrid Minisign + ML-DSA-65 signed updates across portable/NSIS/MSIX/macOS/Linux channels, and how the release pipeline signs artifacts and builds the single latest-native.json manifest.
 tags: [self-update, release, minisign, distribution, packaging]
 sources:
   - id: openwiki-source-4d1d392666be6dfdd7a91a2e
@@ -22,18 +22,18 @@ sources:
     resource: repo://xtask/src/main.rs
   - id: openwiki-source-c74f60d1c3f2961e83a2a521
     resource: repo://xtask/src/manifest.rs
-generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-05T01:38:26.934Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Self-Update and Distribution Channels
 
-The desktop client updates itself in-app through a minisign-signed manifest. The
-implementation lives in `crates/limedl-native/src/update/mod.rs`, the release
-tooling in `xtask/`, and the release workflow in
-`.github/workflows/release.yml`.
+The desktop client updates itself in-app through a manifest dual-signed with
+Minisign (Ed25519) and ML-DSA-65 (FIPS 204 post-quantum). The implementation lives
+in `crates/limedl-native/src/update/mod.rs`, the release tooling in `xtask/`, and
+the release workflow in `.github/workflows/release.yml`.
 
 ## Install-channel detection
 
@@ -56,12 +56,13 @@ permanently named URL `.../releases/latest/download/latest-native.json` with its
 sidecar `.sig`. GitHub excludes drafts and prereleases from `latest`, so stable
 users never see rc/alpha builds and `api.github.com` quota is not consumed.
 
-The client trusts exactly one key: the `PUBKEY_B64` constant in `update/mod.rs`
-(a minisign public key). Downloads are capped at `MAX_UPDATE_BYTES` (512 MiB) and
-the manifest signature is mandatory — a missing `.sig` aborts the check rather
-than trusting the JSON.
+The client trusts two embedded public keys in `update/mod.rs`: `PUBKEY_B64`
+(minisign/Ed25519, always enforced) and `PQC_PUBKEY_B64` (ML-DSA-65, enforced
+whenever it is non-empty). Downloads are capped at `MAX_UPDATE_BYTES` (512 MiB)
+and the classical manifest signature is mandatory — a missing `.sig` aborts the
+check rather than trusting the JSON.
 
-Evidence: `repo://crates/limedl-native/src/update/mod.rs#L30-L50`.
+Evidence: `repo://crates/limedl-native/src/update/mod.rs#L30-L63`.
 
 Keys are `{os}-{arch}` with macOS spelled `darwin`, and `-portable` is appended
 for the portable/Store channel:
@@ -78,7 +79,7 @@ Evidence: `repo://crates/limedl-native/src/update/mod.rs#L212-L232`.
 ## Check flow
 
 `check_for_update(settings)` refuses to run for Store installs (the OS owns that
-channel), fetches and **verifies the manifest signature before parsing it**, then:
+channel), fetches and **verifies the manifest's signatures before parsing it**, then:
 
 - compares `manifest.version` against the compiled `CARGO_PKG_VERSION` and
   returns `None` when not newer;
@@ -153,23 +154,40 @@ Evidence: `repo://crates/limedl-native/src/handlers/updater.rs#L296-L344`,
 
 ## The signing chain
 
-Everything is minisign-signed with in-repo tooling:
+Every release artifact and the manifest are **dual-signed**: Minisign (Ed25519)
+and ML-DSA-65 (FIPS 204 post-quantum, via `fips204`). `cargo xtask sign <files>`
+writes `<file>.sig` (minisign) and, when `LIMEDL_PQC_SIGNING_KEY` is configured,
+`<file>.pqc.sig` (ML-DSA-65); `cargo xtask manifest` inlines both into the
+manifest as the asset's `signature` and `pqcSignature`.
 
 | Layer | Signed by | Verified by |
 | --- | --- | --- |
-| `latest-native.json` | `cargo xtask sign` → `latest-native.json.sig` | `verify_signature_text` before parsing |
-| each artifact | `cargo xtask sign` → `<file>.sig`, also inlined as `signature` | `verify_signature` over the exact downloaded bytes |
+| `latest-native.json` | `cargo xtask sign` → `.sig` + `.pqc.sig` | `verify_signature_text` before parsing, then `verify_pqc_signature_text` |
+| each artifact | `cargo xtask sign` → `<file>.sig` + `<file>.pqc.sig`, inlined as `signature`/`pqcSignature` | sha256 (when present), `verify_signature`, then `verify_pqc_signature` over the exact downloaded bytes |
 
-`cargo xtask guard <files>` is the release safety net: it derives the public key
-from the `LIMEDL_SIGNING_KEY` secret, asserts it equals the `PUBKEY_B64` constant
-extracted from `update/mod.rs`, and then re-verifies every produced signature.
-Without it, rotating the CI secret while leaving the constant stale would ship a
-client that rejects every future update. There is **no key-rollover chain**, so a
-new key must be rotated into `PUBKEY_B64` *before* the first release that ships
-it.
+ML-DSA-65 signatures are domain-separated by context (`limedl-manifest` for the
+manifest, `limedl-artifact` for binaries). The classical Minisign signature is
+always mandatory (a missing `.sig` aborts); the PQC check is enforced whenever
+`PQC_PUBKEY_B64` is non-empty, but if the `.pqc.sig` sidecar or the asset's
+`pqcSignature` field is missing the client logs a warning and accepts the
+classical-only verification.
 
-Evidence: `repo://xtask/src/main.rs#L1-L22`,
-`repo://xtask/src/main.rs#L401-L441`.
+`cargo xtask guard <files>` is the release safety net: it derives the Minisign
+public key from `LIMEDL_SIGNING_KEY`, derives the ML-DSA-65 public key from
+`LIMEDL_PQC_SIGNING_KEY`, asserts each equals the corresponding constant
+(`PUBKEY_B64`, `PQC_PUBKEY_B64`) extracted from `update/mod.rs`, and then
+re-verifies every produced signature. When the PQC secret is unset it prints a
+notice and skips the PQC half. Without it, rotating the CI secret while leaving
+the constant stale would ship a client that rejects every future update. There is
+**no key-rollover chain**, so new keys must be rotated into the constants *before*
+the first release that ships them; `cargo xtask generate-key` emits both keypairs
+and prints the exact `gh secret set` commands, and the manual `sign-check`
+workflow proves the round-trip without publishing.
+
+Evidence: `repo://xtask/src/main.rs#L401-L470`,
+`repo://xtask/src/main.rs#L594-L655`,
+`repo://crates/limedl-native/src/update/mod.rs#L711-L790`,
+`repo://docs/update-signing-key.md#L1-L64`.
 
 ## The release pipeline
 
@@ -206,8 +224,9 @@ what keeps the release reproducible and satisfies the supply-chain scanner.
 `native-manifest` is the **sole writer** of `latest-native.json`. It runs on
 `windows-latest` with `if: always()`, downloads only the artifacts whose platform
 leg succeeded, builds the asset map from what actually exists, signs each
-artifact, generates the manifest with `cargo xtask manifest`, signs the manifest,
-then runs `cargo xtask guard` over all of it. A missing platform key is reported
+artifact with both keys, generates the manifest with `cargo xtask manifest`,
+signs the manifest with both keys, then runs `cargo xtask guard` over all of it.
+A missing platform key is reported
 by the client as "no update" instead of an error, which is why a partial release
 still updates the platforms that did build. `/P /R` NSIS flags and the
 `SilentInstall normal` directive keep the installer usable silently and

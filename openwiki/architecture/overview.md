@@ -3,9 +3,6 @@ type: architecture
 title: Workspace and System Architecture
 description: Repository layout and runtime topology of limedl — the core engine, Slint desktop and headless server crates, protocol routing by TaskId, the typed EventBus fan-out, and the cross-cutting serialization and build conventions.
 tags: [architecture, workspace, crates, routing, event-bus, conventions]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-05T02:20:21.738Z
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
     resource: repo://.cargo/config.toml
@@ -43,7 +40,10 @@ sources:
     resource: repo://crates/limedl-server/Cargo.toml
   - id: openwiki-source-2d1753b77bfe7d551752205e
     resource: repo://crates/limedl-server/src/lib.rs
-generated: { by: "pi", at: "2026-10-05T02:20:21.738Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Workspace and System Architecture
@@ -53,7 +53,7 @@ download engine, lib name `limedl_core`), `crates/limedl-native` (the Slint desk
 client binary), `crates/limedl-server` (the headless daemon binary that serves the
 Aria2 JSON-RPC API), and `xtask` (repository tooling for version bumps, font
 fetching and release signing). All crates use Rust edition 2024 and the workspace
-version (`0.4.8`) is inherited from the root manifest.
+version (`0.5.0`) is inherited from the root manifest.
 
 Evidence: `repo://Cargo.toml#L1-L11`.
 
@@ -61,7 +61,7 @@ Evidence: `repo://Cargo.toml#L1-L11`.
 
 The defining split is that the engine knows nothing about the UI. `limedl-core`
 declares its public modules (manager, http_executor, scheduler, bt_backend, cdn,
-aria2_rpc, database, settings, …) and depends on no GUI crate; the desktop client
+metalink, aria2_rpc, database, settings, …) and depends on no GUI crate; the desktop client
 and the headless server are both frontends over it. Both call the same
 `bootstrap(state_dir)`, which is why the core maintains this boundary.
 
@@ -176,7 +176,7 @@ Evidence: `repo://crates/limedl-native/src/main.rs#L176-L179`,
   AIMD/buffer-pool/test-harness internals that are private in release builds; it
   also enables the gzip/brotli/zstd encoders the compression test endpoints use
   (the decoder side is always on through reqwest).
-  Evidence: `repo://crates/limedl-core/Cargo.toml#L53-L64`,
+  Evidence: `repo://crates/limedl-core/Cargo.toml#L54-L64`,
   `repo://crates/limedl-core/src/lib.rs#L36-L48`.
 - **Target flags**: `.cargo/config.toml` adds `target-cpu=x86-64-v3` (desktop)
   and `--cfg reqwest_unstable` for every target; the HTTP/3 feature in reqwest

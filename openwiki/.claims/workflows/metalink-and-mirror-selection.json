@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:8cc3e2c5709a1a0249ddf7ebc863c23d40fe76cb9687242e0da4b5467d7417e8",
+  "claims": [
+    {
+      "id": "claim_eef8a019cfa64bdd8ce429c971aed805",
+      "statement": "limedl-core's Metalink subsystem is the metalink module, which re-exports parse_metalink_xml, parse_metalink_headers, MirrorPool/MirrorLease/MirrorStatusSnapshot, probe_mirrors, MirrorScoringConfig/calculate_mirror_score and the document/types.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/mod.rs#L1-L21",
+          "version": "repo-lines-v1:sha256:08b9e3db22159b456c647f6346df260694913010de693afaaa7f0e6d41c93b63:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhMGRmNDRiZTQ5NzNkM2EyZDNhZDJlNTNkYjhiNzdlNjEzNmQzNmMxOTVjMGI0YWJjODY4ODI5NWU5ODdlNjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2YzYwNjU2NTdhYjI5NmMyNmI5YjBlZDI4YjQxNzJlNTJlMzNjNjA3NjE5NDAwZGM4ZWZiZGJiMGQ2OTA0YmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_891ba9c347c94eb8b6faad3729686e4a",
+      "statement": "parse_metalink_xml rejects payloads over 10 MiB and documents with no <file> entries, sanitizes the file name to a basename, normalizes priority so 1 is highest (explicit priority or inverted preference), routes bittorrent/non-HTTP URLs to metaurls and HTTP(S) URLs to resources, and recognizes only SHA-256/SHA-512/BLAKE3.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/xml_parser.rs#L12-L234",
+          "version": "repo-lines-v1:sha256:6258683fb9c306c775ed0bed3e01489f2be9a256a2bf53f890e3ce89ab7f0805:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmMjFiMzFmZmI5MWU0ZTA0NzMwMmUzZWNmNDc5YjM2OWVjNTEzNzM3ZmVkYTdmNWM3MDUyZTdlNzgxNDYxN2UzIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI2NDc1ZTk0YTkwNGFjNDliMzE1NGQ0NjcyYTY2ZTg2MjliODZkYWM3NGUzZTI5MzdiZTY5MjdhZTNkYTExYzUzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwM2NkYzExZDdkYjk3MjQyNDIyMGMzOWNmMDIwMTBiMmI5MDUzNTUwMGY5NmZjYThjN2NjOTEwMWRhNGVlOGQ4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJjYjgzZDkxZWRkMzk3MzA2NDIwZDMwYWY0NTg5MGRhMmM5NWJmY2RmZjA1MGYxMmQzZjg4Y2QzNDQyODUyYTk0In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_1e7feafd72204ec5aa9bcd391ac8dc14",
+      "statement": "parse_metalink_headers turns Link rel=duplicate into mirrors (pref clamps priority to <=10), Link rel=describedby into metalink_document_url, and Digest SHA-256/SHA-512 entries into lowercase-hex ChecksumEntry values.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/http_link.rs#L1-L134",
+          "version": "repo-lines-v1:sha256:08a2fefd6d3ef5da73a987c15df9a53e1a1e806b9f715b516b48ec2c2859e72d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTM0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI2M2ZhNTIyMDlhZGQyNmM5N2Q3OWIyODhiOWY5ZjVjOTQzMzk5ODM2ZTFiYzM3ZjVjYzk3NTUzM2M4ZTY3OGFlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_1cf12d193c05447e83386d6384a9de87",
+      "statement": "MetalinkFile::best_checksum prefers SHA-512 over SHA-256 over BLAKE3, and sorted_mirror_urls orders resources by ascending priority (lowest number first).",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/types.rs#L28-L66",
+          "version": "repo-lines-v1:sha256:ba0e1004d284c47f9de195f3bc18471205beb3c1104e1ac0023e9ca539c7ffc2:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmOGZhNmYwZDgyNTQ3ZDhlY2MzMzhhZWE5ZTM4M2YyYmE0Y2Q4NmY5NjI1MGY3MDI5YzEzYWU5ZGUzZTA0N2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkxZWRkYmMyZDEwNjVhMGMwODA5MDJjMjI2ODg2MzcwZWZmOWJlYTA4ZTBkZGZlZDBhNDMzOTRlYzU5OTYyYWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzMGI0ZmE4MTkxZDI4NWZiNDUyNjhjMGMwNGQ3NWY5ZDEyNzU4YjQ0MjI1ZGFjYzdkYzkwYjIwNzE2MjY5NjQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f8675b4d187d49dd839458587fac2ad1",
+      "statement": "calculate_mirror_score weights server priority (100/priority), a preferred HTTPS protocol (+15), exact region match (+50) or nearby region (+25), RTT tiers from 80 down to 0, and -40 per consecutive error.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/scorer.rs#L1-L90",
+          "version": "repo-lines-v1:sha256:7302d439cbc387e5b1cdb96965df4910d2555d624cde202fa3ce2d695281802a:eyJzZWxlY3RlZExpbmVDb3VudCI6OTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ3NTA0NzM2MGRkODk2ZjQyMGE5Yzk5YjA2NjExOGMxMWNiNjQ2MzQ2MTRlYTI1NmQwY2QzOTllYTFjNDUzNGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkMGMwMWM1ODFhYjBmYTkxZDhlNGZhM2ZmMjM5ODU0ZDUwYmEzOWExNTI2NDEzYmJlMmVjMjhiMjNhMmI2NjIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8595600c018a4bd2b539bb9f88f579fa",
+      "statement": "MirrorPool leases the highest-scoring mirror that is not cooling down and is under its max_connections (falling back to the fewest active connections), MirrorLease releases the connection slot on drop, report_failure applies exponential backoff of 2^min(errors,6) seconds capped at 60 s, and report_corrupted_piece adds five errors and a 300 s isolation.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/pool.rs#L1-L305",
+          "version": "repo-lines-v1:sha256:0da6d49aa0799df75dbb9422224159d348c1e5601a3e34ec2dc12b213fbda2c7:eyJzZWxlY3RlZExpbmVDb3VudCI6MzA1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5NTNkOWE2MDkyODQ2ZjZlNjliYjQyZjMzYmVlNjNhMTQ0NWQwMDRkNWQyNDhjNmNjNzc3MWJjMmUwYmNiY2FjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_c5da4da3cb584495ba37fa38996ea854",
+      "statement": "probe_mirrors concurrently probes candidate mirrors with GET Range: bytes=0-0 under a bounded concurrency limit and per-probe timeout, reporting reachability, RTT and whether the mirror answered 206 or advertised Accept-Ranges: bytes.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/prober.rs#L1-L105",
+          "version": "repo-lines-v1:sha256:0edb22b2071c92ea540e67d1f9af7200244d555b1731d1cca4e08b6b74ca8175:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5NTNkOWE2MDkyODQ2ZjZlNjliYjQyZjMzYmVlNjNhMTQ0NWQwMDRkNWQyNDhjNmNjNzc3MWJjMmUwYmNiY2FjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_9a0a45d2bda244419d517afd8a77abec",
+      "statement": "aria2.addMetalink decodes a base64 Metalink document, parses it, honours the 1-based select-file option, and starts one HTTP task per selected file using the best-priority mirror as primary with the remaining sorted mirrors as mirror_urls and best_checksum as the expected checksum, returning the created GIDs.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/download.rs#L219-L316",
+          "version": "repo-lines-v1:sha256:7b49ab7559c5be0c603e8d44454c733b61ebf7486e5692e40e23b5a53f3fbcd1:eyJzZWxlY3RlZExpbmVDb3VudCI6OTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5NjA3NWEwYzFmNWM3NTY5YmJmMGQ3ZDBlYWRlNTkwYmNiNWZhMDJhYjM4OTY5MzUzMTc5OTZhMmVmY2Y0NGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNmNGUwY2I1NTRiMzBiNThiN2Y1MThkMTMwMTY3NDBkNWZmODNiYjg1ZTg2OTRjMTAyZjM3MTA0ZDA2ZWRkODEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNkYTY4NzBjYmYzZmM1MTJlZjc5MDY2MDJiMmM3ZjMzYTA1YWE5NTQwMDU0YWM5NzEwMjgyYjIwZjYxMzQ0MmYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b27438429204489aaa7e12fd22eeeece",
+      "statement": "Dispatcher::start fills mirror_urls from the URL-rewrite settings through resolve_mirror_urls when the caller supplied none, and aria2.addUri stores the URIs after element 0 as mirror_urls.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/download.rs#L21-L135",
+          "version": "repo-lines-v1:sha256:4560f8af58e9942b8a82b269eb2cfc8a2a2c4940ec0415074dd66e2f4af4fc9b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMTVhZjQ5MWMzYjFmYzJiNzU3MmIyMjhlYTljZDdlZjNjYzA0NTJjYjA1MjIyYTNmZWQwZGMwMGRjYjEyMTRlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJlNDY2OTRkMzcyZjE3MzU4OWRjODI1NzlhNjEyNzUwM2E1MDcwY2IwODFmYzIwOGI1Yzk4NDU4NTBiOTYzNWY2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIwNTUxNTM0NDg3OGMxNmNiNjZhODE0MjYwM2IwOGMxZmZlMDYyM2JmNWM0OTRlYmQwMzgyMzhlODg0MjZlZWI4In0"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L148-L170",
+          "version": "repo-lines-v1:sha256:8172cd9699b43bc5956ff12ed72f445f3608bda49fb86f1aa942e2118dea7c6e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhNjBkMDM1YzU2MWYwOTJiMWI3OGVhYWMzOWM4OTM5OWQ3ZWU4OWY1OTRiMGE5N2Q0YmU1NzY5MWVmZmI3OTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgyM2U2N2U3ZDY3ODg1ZmQwYjAxOGJjYmY1OWFiMzU3ODQ1NTllNDM5NjNkMGE0ZTc1YjVjMjI5YWU4N2JhNDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVjMDEwYWE3YTYyOTU5NDdlMDM2NDE4NmJkNWViODZlNDhkNTQ0ZDVkYTFmOGQ2NjQ5ZDJmZjc0OGViMzAwODYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0d7648e976a64538a64e4854bce0def4",
+      "statement": "spawn_download walks manifest.mirror_urls from current_mirror_index, uses one retry per URL when more than one mirror exists, fails over to the next candidate only on a network-class error, and records the index and mirror URL on the manifest and snapshot before each attempt.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/task_lifecycle/mod.rs#L85-L200",
+          "version": "repo-lines-v1:sha256:b19064a098fa9f9ac18ed21cbb9401f254e3649976b19eac2753174c13857b1d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE2LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5ZTRlOTQ1MWI2YTQ3ZDJiNmNmYzI1YWYzZGMzYTk4YWI3OGRkZTM0Y2ViNmI2NzlhOTk3NDIwMDY4NTEwMTNkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJiZjZmNDZmZTI2YTZjNmFiN2VhMmE1MzZmNDQ5M2QxZDY1Njk5Njk5MTAyNDA5NTU1MGExZWE1NGI0ZmZiODRlIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlYWRhNTY4ZGI1YzVmYzEwMTRhZWJlMzlmZjM1ZjUwNmUzYmI2N2ZlMGY5ZWI1OTNjMzZiZDczNmM4ZjA5MzdhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJjNWRkOTgwNTUwNDMxMzEwZTJlZWZkNjU3ODZhNWE1Y2Y1Njg3MDhlOGUwNTE3NWRiYWE4NGI4ZDRkMzk3OGQ1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_d5797004346d40d7b145f6a62bcdf6f7",
+      "statement": "Mirror state is persisted on the downloads row as mirror_url, a JSON mirror_urls column and current_mirror_index (migration v3), and the manifest exposes the same fields.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/database/schema.rs#L112-L140",
+          "version": "repo-lines-v1:sha256:5ade01f5a52522336237c0a03bdcdd3786c486271ecc3bd1de4edef381a4fdae:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVlYTVjMTI2NWFiMzBiY2ExNTAyOTg2NTQ0ZWMzN2I5NTUxMDAxYmQ1YzgwOGFhMDdiMjY1ZDY3YTM1MGNiODAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlNjczYWJkNDU3YTk3ZWVhMTdhNjAwNjJlYjBmYWVhNmJkZjA5NDg2OGNjNmI4ZjhjMGViZGEyZjYxZWQ0MmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRmMjQxMzI0ZjFhNmM1NTdjYjk0NmJkODg2MTQ2ZDdjYWNkNDgyYzI4NTI2ZDE1ZDJiYjhjN2FkNjBiZDZlZDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc0ZTY2OWU4MDQzOGE5ZDY4OTM1NmFlMjNhZDFjZTYwYzA4YjVhNGNhN2E0OTNiMTczZmEwNjFjYjYxYjY5MTAifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/manifest.rs#L54-L62",
+          "version": "repo-lines-v1:sha256:565b2d96eea420e0699466f77353b71cf2b2faa932e80891069b9e3ee07d3671:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzJmZGJkYTZiOGU0MTY5NDA1NThkYWQ5MWRmODk5NDc5ZjczYTFkODFiNTkxM2Y4NTVlZjEzNmFmMjFlZDM3OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2Q2ZTg2ZTNjZjAyZDM0YTQ1ZjdmNDFkMTAzZTBjOGI0YjI0OWE1OTI3ZTRhZWM1M2Q5OGM5NmExMjE3YTI1MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTYzM2VmMTliNmM1OGZkNWU5MzgzM2U5Zjk0NDAzZDQ0OGI5NWNiMDEzZWVmODkzMTllMzg5MzA3ODRmMmM2YSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_b04b207c4567403e8386b875c33d99e2",
+      "statement": "MirrorPool, probe_mirrors and parse_metalink_headers are implemented and unit-tested but not yet wired into the HTTP executor, which selects and fails over using the ordered mirror_urls list instead of leasing from a pool.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/mod.rs#L1-L21",
+          "version": "repo-lines-v1:sha256:08b9e3db22159b456c647f6346df260694913010de693afaaa7f0e6d41c93b63:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhMGRmNDRiZTQ5NzNkM2EyZDNhZDJlNTNkYjhiNzdlNjEzNmQzNmMxOTVjMGI0YWJjODY4ODI5NWU5ODdlNjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2YzYwNjU2NTdhYjI5NmMyNmI5YjBlZDI4YjQxNzJlNTJlMzNjNjA3NjE5NDAwZGM4ZWZiZGJiMGQ2OTA0YmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/task_lifecycle/mod.rs#L85-L200",
+          "version": "repo-lines-v1:sha256:b19064a098fa9f9ac18ed21cbb9401f254e3649976b19eac2753174c13857b1d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE2LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5ZTRlOTQ1MWI2YTQ3ZDJiNmNmYzI1YWYzZGMzYTk4YWI3OGRkZTM0Y2ViNmI2NzlhOTk3NDIwMDY4NTEwMTNkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJiZjZmNDZmZTI2YTZjNmFiN2VhMmE1MzZmNDQ5M2QxZDY1Njk5Njk5MTAyNDA5NTU1MGExZWE1NGI0ZmZiODRlIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlYWRhNTY4ZGI1YzVmYzEwMTRhZWJlMzlmZjM1ZjUwNmUzYmI2N2ZlMGY5ZWI1OTNjMzZiZDczNmM4ZjA5MzdhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJjNWRkOTgwNTUwNDMxMzEwZTJlZWZkNjU3ODZhNWE1Y2Y1Njg3MDhlOGUwNTE3NWRiYWE4NGI4ZDRkMzk3OGQ1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_a6a3d3de488b42e79e34855591f86124",
+      "statement": "metalink/tests.rs covers Metalink 4.0/3.0 and Metalink/HTTP parsing, mirror scoring and pool leasing, and the Aria2 E2E test e2e_add_metalink_creates_downloads_and_reports_status covers aria2.addMetalink.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L2404-L2447",
+          "version": "repo-lines-v1:sha256:3d451c441df31d8a1547430f3a32c0154ed5a860967eadb7a8aebbb335af4d3f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE3NmQ5MTZlZjAxZDExZWMxZWE5NTZjZjU2NjNmYzA4YTFmZjA1OTc3OTRhODAxMDY5NGJjYTExZGNkMDA0OTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQxNjI4MDMxZTQ3MmNhZTAyYzJkMmExOTFkMzk5NjhiY2MyNjQ1MTQ5YzBmMWMwMmVhZjVjZGJlZTk1MTI0OWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/tests.rs#L1-L222",
+          "version": "repo-lines-v1:sha256:5bd153d4692cd1c7e9c41384f5177cfd2809d6c26466991a5c689e8a4b34615c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjNzU0NTI0NjllZTEyOTFlZjM2Njk4ZTgyZjE1YmVkNDY3NzViMjAyOGEyNTI5MTYyOTAzNzdhNTM3MDI1YWEzIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-07T03:53:23.435Z"
+  }
+}

@@ -22,10 +22,10 @@ sources:
     resource: repo://packaging/server/Dockerfile
   - id: openwiki-source-816a10881eb55b69eaf93236
     resource: repo://packaging/server/systemd/limedl-server.service
-generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-05T01:38:26.934Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Headless Server Daemon (`limedl-server`)
@@ -160,8 +160,8 @@ with operational guidance (systemd, reverse-proxy TLS, security trade-offs) in
 `docs/server-daemon.md`.
 
 Evidence: `repo://crates/limedl-server/Cargo.toml#L13-L22`,
-`repo://.github/workflows/release.yml#L517-L592`,
-`repo://.github/workflows/release.yml#L608-L693`,
+`repo://.github/workflows/release.yml#L548-L639`,
+`repo://.github/workflows/release.yml#L640-L734`,
 `repo://.cargo/config.toml#L28-L38`.
 
 ## Testing

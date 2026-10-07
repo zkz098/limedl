@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:e61fc9f73e4a9f2ef0365a2ac6dc32fe916040aaa744aef85e86dac16de275e4",
+  "pageVersion": "sha256:86a030fb00a3264272627d877e8678a7826af47f3e250879ac9803dc6aafb0d4",
   "claims": [
     {
       "id": "claim_6719a8b6ce264d6fa5e8103236b5336c",
-      "statement": "limedl is a four-member Cargo workspace at version 0.4.8: crates/limedl-core (engine library limedl_core), crates/limedl-native (Slint desktop binary), crates/limedl-server (headless daemon binary) and xtask (repository tooling).",
+      "statement": "limedl is a four-member Cargo workspace at version 0.5.0: crates/limedl-core (engine library limedl_core), crates/limedl-native (Slint desktop binary), crates/limedl-server (headless daemon binary) and xtask (repository tooling).",
       "evidence": [
         {
           "resource": "repo://Cargo.toml#L1-L8",
-          "version": "repo-lines-v1:sha256:fad56516f7c4abb55ef9fab469ef816473edd999a789caf46493a4a98d073472:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDM0ZTEwMmM4NjFmOTk0ZDJhYWNlOTExNGQzOTJkYmMxNjIxOTBlMDBiZThmZTM1N2Q0NzIxNTBjYTQzOTYxNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNjMDcxM2FlMGI0MTEzZmQwN2U0ZTg5MGZhZjQwZTdjYTc2YzliZjZhZGUzMmE3ZWI4YjUyZTgxOWEyNjBjZCJ9"
+          "version": "repo-lines-v1:sha256:ab231b9be70ff0527b3520445ee8a78a1579f4e563eb72059ccea0d5c8896aca:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDM0ZTEwMmM4NjFmOTk0ZDJhYWNlOTExNGQzOTJkYmMxNjIxOTBlMDBiZThmZTM1N2Q0NzIxNTBjYTQzOTYxNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNjMDcxM2FlMGI0MTEzZmQwN2U0ZTg5MGZhZjQwZTdjYTc2YzliZjZhZGUzMmE3ZWI4YjUyZTgxOWEyNjBjZCJ9"
         },
         {
-          "resource": "repo://crates/limedl-core/src/lib.rs#L1-L34",
-          "version": "repo-lines-v1:sha256:2c6aa498c3212340d2172cd5c6b8426c98ccda7c95390db93de4449553adf0ad:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMGMyN2UwYjE4NWFkN2Q0YWZjYThlZDkxODM2Y2VmMWM1NTQ3NDRjOGY3MjY2YTcwMTdkZGQzMDg5NjNkZDkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3ZDQ0ZjJmYjBlZjdmYjc5Y2M4ZjdjMDQ0MzhkMzRiYzI2MmE5OTc3NGFiYjQyN2NkMzEwYmNlYjU2YzcxMDciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjczMzUyMzJkNTEyNjNiY2Y3YjExMmQ3MzdhODI0NTFkNGVhN2I1MWFkOWQ5OTNhYWI5ZGY5ZDAzYzg0NzdjODcifQ"
+          "resource": "repo://crates/limedl-core/src/lib.rs#L3-L36",
+          "version": "repo-lines-v1:sha256:67b6db2704181bb2b115c0efc1c3d4988478231adf0e65db6e75c596e6c21f52:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4YjQwMWExMDM2NmJlZjRmZTVjYzk0MGJmNGFmZjdjNTljOWE0MzU2YzQwZGFiMDZjM2FiZjhiMjE1ZGY4NWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI0NDhmNDgxOWU1MmUyYjgzM2Q3MmUwMTI2ODU2Yzc4ZTJjOTA0NGY4YjUwNGU3NzU0ZmMwYTc4NjFhZWE4MWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0MGNmY2EyMzIzN2UyNjYyNTk4M2UxNWFmN2RmNTBlNWM1NzVhMTIwNTY4Y2EyNGZkM2UwNzEzMDRjNTRlZTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2OTk5YzY3MjRmMTU2MzMyNTk5M2M1OWY0N2ZlYmNiMzJiZDlhMDYyMWU3NzUxNTg2NDE3MDAwMzM0YThlZjQifQ"
         }
       ]
     },
@@ -85,8 +85,8 @@
       "statement": "The scheduler takes the core lock before the aimd lock in update_one_adaptive and syncs the snapshot after every desired_thread_count change.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L317-L360",
-          "version": "repo-lines-v1:sha256:6e99ce5dd8361947425cdc5a9a5edcd8f00ce934a00106d60fea28f2f522ba04:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVlMmE3ZmVlY2U1Njc0ODY5NzU5MjI1YzEzZWE1ZjY5Mzk4NjdkODYxYmYzYTAxNDQxZWRjNWQ3YzhhZjIzZTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0NGY1ZDdlYmJmOGM0NmQyYWY1NDdkMzlkOWEzZGU5M2E4MzQzY2E0YzhkM2Y5NThmMjc1ZDMzM2RhNTg3MmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdkOWIwZjcxZDE3ODUyNDQ3MzA2ZjlmZTNkNDZmN2Y1YTlmMWNhMDhiZDlhNDc3YTQwMTZmYjU5N2UxZTRjODEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxZDA3ZTkwZGFmYjU2YTJkYjVkZTZmOTRkM2FjMjE0OTgzMzI0ZjNmODkwYzY5NGFhMjMxZDVkNjAxMTU3M2UifQ"
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L324-L420",
+          "version": "repo-lines-v1:sha256:0dbbd76863ce8ac57fbe0e3bf762c5f86d8419d731b5856bae78a1122440ca2d:eyJzZWxlY3RlZExpbmVDb3VudCI6OTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyNTcyNjZmOGY4ZDY5ZjJiNDYxM2RjNmM1N2Y1NmM3NjIxZTI4ZTQzNjUyNDRhMzk5NWMzMDUyMGIwYTg5ODEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmNGZmMmZhYzI5YzQxZGJiNzA0M2I2NDU5OTNkMDBmMmVlNWUwNWFlMDcxZmY3ZTY0MTMwYzZjNDQ2ODg0ZjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg2MjU0NjA1ZWQ1MDIwNmNhYTY0ZDkzMjIxYmY1YWJjOWM1OTMwMGNlODJlNWQ0ZjQ3ODAxZjM4NTg0MzE2N2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzNDVlZjExYzUzMWQ5ZTk5YTExNGFkMzc0ZmU4NGRjNDJhOGRjODExYTNhZDU4Y2RmYTcwMWE5NjE0ZGYxYmMifQ"
         }
       ]
     },
@@ -145,8 +145,8 @@
       "statement": "irontide is pinned to exactly =1.7.0 because upstream's git repository was removed and the BT backend depends on a wide engine API, so upgrading is a migration.",
       "evidence": [
         {
-          "resource": "repo://Cargo.toml#L79-L83",
-          "version": "repo-lines-v1:sha256:8358413bd2c4e67dc79bd275d785bd5868db516eac386f621badb76124b61982:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzgzMzlhNmY4NmZiZTMxMDZmNGZjMTFiNGYyNmRjY2I2MGRhZTUzZTZjMTFkMDQyMjA0ZDdiMzBiNGRlYzkzMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDc5NGJhNzljZTJhNTFlODAwYmZlNDM3OGYzZjM1ZDhmZjQxZmFkZWE4OTMzMWM0YjViYzQ0NGE0NDE5NWIzZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDE3NjMyZGNkY2QzMTUyNWE1MDUzYWRkY2JiMmI3MzZmZjFhZDc3Y2EzOTgwYWE1OTY1NWMwM2ZhNjdjOTA2YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2IwNGUwMjlhNTkyOGI1NDI2Yzk2ZmYwNGQ2NTJhN2VlZjcxY2U4OWNmZjI3MmJiZGFmYjk5OGY1NWRlZDM0ZSJ9"
+          "resource": "repo://Cargo.toml#L68-L71",
+          "version": "repo-lines-v1:sha256:3e52a5c94cce0c7ecc87a2969a41efdd8c82699ba53167f320efa8b0ae196343:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjIxNGU4M2I1ZGRiZTlhYmJjODc2YzVmNGMzZTVlYmNiY2NlNTcwOGQ4NDQ1OGUzY2I3NmQ5NjY2NTBmY2IxYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTA1MjlhNGFkNzhkZGFlMTM3NjQ0MzcyNWMzNWFlMGE0YjY2YWE3ZWUwYmJlYjQzMWE5NmUwYjJiNzYzNTVhYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzFlNGZjMzM0NWM2NGJhZGFiNjAyYjBkMzgyOWE1NzM3Y2NlOGU5ZjY4ZTllZDVjNjlmZDFkNjBjODFiNjFlNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTUwNzI5YTZjNjlhMjM4NDMyM2RkZjc2MDlmMjFlMzk5YzgxMTdlMzRlZjgyZTQxMzk3NDUxN2RlZjQ4Y2I0NyJ9"
         }
       ]
     },
@@ -189,8 +189,8 @@
       "statement": "Aria2 RPC request arguments are parsed by JSON type rather than position (AriaNg sends addTorrent([torrent, [], options])), so a new RPC method must add a Tier 1 fixture in the real client's request shape.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L1-L60",
-          "version": "repo-lines-v1:sha256:ca020dd21413e291241876df9c99aed9e0627044d72604f19e604601402826e1:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlYjE1ZDE3NDk1MmUzYjkxMWEzNGIxM2JjNTEyODRjYzIwMDhlNDdkMGI0NGM4ZTNlOTA1ZDQyNmY4MGEzMWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmMWVmNzhkMDZhMTQzMjc5Mzc4MzMxNzQ0NjY1NWJmODRhOWZiOWQwZmQ4MzNhMGQyZTY0Y2ZkMDE3N2ZjMTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4OGRjYzJiZjE5MzY2YTVkOWY1NDcyMTJlNzIwMGQyYWY5ZTk3ODVhNGY4ODBiZDNhNzI3M2MwYzRhZjdiZjAifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L26-L110",
+          "version": "repo-lines-v1:sha256:7b5d9f4e89870851cf32e7af9a37a4b6c29d38b0191ac66f8558fcb587ed5d90:eyJzZWxlY3RlZExpbmVDb3VudCI6ODUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1YzI3ZDFiYWEwNzA1YjA3OGFlMDQ1NGViNjdjYTRkZTEwYjU5MDM3NjlhZjk1NDMyNmNlNmM4NDk1MzcyYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiNTcwMWU4MzY1OWI3MzI2NzAzNmNhYzE2NWVjZjlkYzMxZDRkY2I2NThkNmRiYzVjN2Q3MTNmN2M1ODU3ZmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdmZjkwZTdhMDBlYTNiYjBiOGM5ZjA5NzViM2RkMGNlYmNlNjA5MzA1YzM5ODRiMzM1NGFiNmQ4ZDhjNGY4OTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMwNWEzYzhjMWExNzZmZjg1YzM1YWMzMTIxMGY4YWQyNWViYTdkMzIzYjMyNjQ2ODQyNTE2NjNkMDRkZjllN2QifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/aria2_rpc/options.rs#L301-L354",
@@ -207,8 +207,8 @@
           "version": "repo-lines-v1:sha256:edc98e81ed7cfcbec229484bc6762121ba13c111593c66a0855f1a973d304730:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3NjRkNGZkYTkyOTUxNzZlNGQwODdlYjYzYTRkNzhiZGRiOGRjZDZkNTEwNDRkY2Q4YzQxM2UwNzYwNmM5YzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY4NjhmNjM2OTc2ZDVlZjljYzEwOGY1YzIwNjQ4MDY0YzNkY2VmZjNlNzRhOTViNjY3MjQ5MTA1MTQ5OGU2N2QifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70",
-          "version": "repo-lines-v1:sha256:c598104d93dcdeb27dd9ad728142a9bf45812a70282561a2c26d2791a75f879b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1YzVjNmIxNWJmYmU4Yjg1ZDAwZjA3MGQ5YWZhMjFkODg1YzJkNGRlNGY3NTE5YTczZjAyODVmZGQzYWVmYWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFiM2FmZDY3MmQyYTkxNWZhMGEyODdmNjhkYjFlMDEwZDVlMDcyZmEyY2RlZDgwNDdlYWVjMjk0YjU3NzVlNmUifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L68",
+          "version": "repo-lines-v1:sha256:fa9b589aaeb9988b810d6b5a617f9e187c74f8931df03a57d56a69dd8562e822:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0NzM3ODZhMmUyZTcxZjRhZTk3N2EwZTUwM2UxZmJmYWQyYWRiMGJmYWVkNzAzMTQ3NjAyNGUxMWFjODQ4ZjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0OTVlZDczYzRiZGE1NDU2ZTdjZTA0NzcyN2UwMDhmZTIyZDk4MzUwNWMyZTNkZjcyODdkYTgxY2E2N2EwYzUifQ"
         }
       ]
     },
@@ -266,7 +266,7 @@
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.0",
-    "at": "2026-10-05T02:20:21.738Z"
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-07T03:53:23.435Z"
   }
 }

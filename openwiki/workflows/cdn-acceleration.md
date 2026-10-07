@@ -3,9 +3,6 @@ type: workflow
 title: CDN Acceleration
 description: How limedl probes a CDN's anycast IPs and rewrites DNS for a faster download path — the CdnAccelerator state machine, the provider abstraction, the DNS-rewritten client, CdnService event monitoring, and how DownloadManager consumes it.
 tags: [cdn, acceleration, cloudflare, speed-test, dns]
-verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-04T01:52:48.489Z
 sources:
   - id: openwiki-source-fd95ce7448707ad4ddaa3b43
     resource: repo://crates/limedl-core/src/bootstrap.rs
@@ -23,7 +20,10 @@ sources:
     resource: repo://crates/limedl-core/src/manager.rs
   - id: openwiki-source-e4fbb1ee7bbda6133fb042fc
     resource: repo://crates/limedl-native/src/handlers/labs/cdn.rs
-generated: { by: "pi", at: "2026-10-04T01:52:48.489Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # CDN Acceleration
@@ -155,9 +155,6 @@ Evidence: `repo://crates/limedl-native/src/handlers/labs/cdn.rs#L111-L180`,
 `repo://crates/limedl-native/src/handlers/labs/cdn.rs#L340-L360`,
 `repo://crates/limedl-core/src/dispatcher.rs#L308-L313`.
 
-<!-- openwiki: broken internal link [/openwiki/systems/networking-and-rate-control.md] link "/openwiki/systems/networking-and-rate-control.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [Networking, HTTP Clients and Rate Control](/openwiki/systems/networking-and-rate-control.md),
-<!-- openwiki: broken internal link [/openwiki/desktop/native-ui-architecture.md] link "/openwiki/desktop/native-ui-architecture.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Native Desktop UI (Slint)](/openwiki/desktop/native-ui-architecture.md),
-<!-- openwiki: broken internal link [/openwiki/workflows/http-download-lifecycle.md] link "/openwiki/workflows/http-download-lifecycle.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[HTTP Download Lifecycle](/openwiki/workflows/http-download-lifecycle.md).
+Related pages: [Networking, HTTP Clients and Rate Control](../systems/networking-and-rate-control.md),
+[Native Desktop UI (Slint)](../desktop/native-ui-architecture.md),
+[HTTP Download Lifecycle](http-download-lifecycle.md).

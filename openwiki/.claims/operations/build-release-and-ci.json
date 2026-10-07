@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:936f2d1a8623ebd0bf729424d82b2bc0ad816e31ce874862a8e395a602b5ffeb",
+  "pageVersion": "sha256:e2e39f2c577bf0ea918a5eb5e440de59f0af50da5a7b10199b0f0962d0aa0d77",
   "claims": [
     {
       "id": "claim_ebf902f2ec634cfda5a0a6f0ae54d147",
@@ -24,11 +24,11 @@
     },
     {
       "id": "claim_973c7d5d1bd94d10a0b05449f47227c8",
-      "statement": "cargo xtask provides generate-key, sign, verify, guard, manifest, fetch-font and bump-version subcommands for the update channel, release manifest and font.",
+      "statement": "cargo xtask provides generate-key, sign, verify, guard, manifest, fetch-font, bump-version, theme and gen-icons subcommands covering the hybrid update-channel signing, release manifest, font, version and theme/icon tooling.",
       "evidence": [
         {
-          "resource": "repo://xtask/src/main.rs#L73-L142",
-          "version": "repo-lines-v1:sha256:e536982f8a530d1823841867f2c4cbe8197b98c108574bb28076cc9baad36667:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjYTgwZTJlYmI3ZTBlZTkwMDM2Njc4NThkNjk1YzhmZDY1MDJjMWM1NTExMGRjZGMwOTUwMTdjZjQ4OGY2NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlYjY3YjFlNDc0NTM5ZDNkNjU3YTI2Mjc0ZGY3YzNiNzhjODgxNTBlM2IxZjhkOTIwNDI5YzEzOWY0MDAyNTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA4NDBlZWE4NjZlOTI2NzEwZTU4ZmY4YTVmZGM1YzVlMWQzNmMyNjY1NDhjNjIxY2NhMDgxNWJkMGE3ZTMxNTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAzY2I4ODdmOWE4YWIxMTRhYzQ0OWVhYjcwOTNjZDA5NGYyNTZjNGU5MTg1ODlmZmJkNzgyYTQ1Y2NhNTIzYTgifQ"
+          "resource": "repo://xtask/src/main.rs#L89-L193",
+          "version": "repo-lines-v1:sha256:787a8dbe567059810cc13a5d1403d627b63ceb6149a4485ef640b15e6cfdfe1d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzNzQwYjRiMWNiYjJhNWRlNDZlY2JiODIyYzU4YjE0NGI0ZmEzZTQ1MjVjZDFjOWVkZDBlOWE1Zjg4ZDhlMmFlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI4ZDk2OGI0OGQxMDExY2VkYWUwMDVmNzJjNDU0NzY2ZWM5NjY0YjMyYTAxYjg4OGRlNTE0YjU5YmQ2NTA0ZTUwIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIyMzc0Y2EzZmZhODY4MWNmYTY4Zjk1Njk1YTRlM2ViMDcxZDQ1MDk4ZWVkN2ExYmJlN2FhNzRhMDY0ZTMzYWI2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI2NGViNWJhMjg0MWM1ODQ2OTgwM2MwZGE0MzkxMmE5Njk5NjNjYjM2MDM4Y2FjNGE3ZDE1ZmJmZWFjZGQzMGJkIn0"
         }
       ]
     },
@@ -126,23 +126,23 @@
     },
     {
       "id": "claim_c9c800411f5f4eba8eb475683cf575c1",
-      "statement": "A v* tag triggers the release: font fetches once, changelog generates the body with git-cliff from Conventional Commits, three desktop platform jobs build and upload artifacts, build-server cross-compiles static musl limedl-server tarballs with cargo zigbuild after installing the pinned ziglang 0.16.0 wheel, server-image publishes a multi-arch GHCR image from those binaries, and native-manifest is the sole writer of latest-native.json, running with if: always() and merging only succeeded platforms before signing and guarding.",
+      "statement": "A v* tag triggers the release: font fetches once, changelog generates the body with git-cliff from Conventional Commits, three desktop platform jobs build and upload artifacts, build-server cross-compiles static musl limedl-server tarballs with cargo zigbuild after installing the pinned ziglang 0.16.0 wheel, server-image publishes a multi-arch GHCR image from those binaries, and native-manifest is the sole writer of latest-native.json, running with if: always() and merging only succeeded platforms before dual-signing and guarding.",
       "evidence": [
         {
           "resource": "repo://.github/workflows/release.yml#L1-L37",
           "version": "repo-lines-v1:sha256:8fa480337946ae15abd285511de7073b89f7e1493e9af9ab2fef02be97c361ae:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZWVmOTAzMGQwYzcwMjkwMTBjNDYzNTY4OWY1ODMyOGQxMDllNmE4NWVkMWE5MjQ1YjIwZjM5NTViN2RiMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5ZWNlZGMxOGVjYWYxZGFmOWU3YmVmYjlmZDc5ZTJjM2NmMTU1OTllNTNlNzljZGJkOTAxZWU2ZTJjOTc5ZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5YTBjOGM1NTM1MTczOGM0Y2FjMTdiMTIzMzVkY2NjMWVkY2YzZDJkNjBlYWJlMGExMDljMTA0NDA1Y2Q2YTkifQ"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L548-L625",
-          "version": "repo-lines-v1:sha256:af98b4ef9c000b7f9d5898ed2088d99299c7eeace5f4957cc2b8f7df94a9fbff:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzYmY0M2U4NjViOWVhZDEyZWVkM2M4YTIyNTBhNDMyYWQ2YWZiYTZiZGYzMDdmM2E4MDgyMWI0MjliZmUwMzYifQ"
+          "resource": "repo://.github/workflows/release.yml#L548-L639",
+          "version": "repo-lines-v1:sha256:3df924cee4c8d20d7303807e2952d1bd31cc941b107dae5f22d1a3122359fdef:eyJzZWxlY3RlZExpbmVDb3VudCI6OTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4Y2M2ZjE3MGQxZDA0NTIwNmJmMDRlYzRlNjg5NDdlMTlkMjM3N2Q0ZDA0ZTQ0OWQ2NDYyM2ViZWZhNjU1OTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEyY2MxODU1NTY2YzY2NzFhNjIyODFiMTZjMmY3ODdkN2Y5ZjRkYWE2ZTE1ZTkyOGY5YzlkNjM3Zjg2YjFhNmEifQ"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L639-L724",
-          "version": "repo-lines-v1:sha256:950e77a405bc00709580e25bf807eae694b595144efa2300b5e99daf62921e78:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmOGNiODk0Yzc3YzQyNWZjY2Q1OGVhZjJlZGY1MjcwZmFiMjljOGQ5NmFkZjExNmEwNTIyN2I0ZWUxMGM3OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNzAzNzQ5NGU0ZTdmMTM4Mzg1OGYzYzgwOTc5ZTg3OWVlMjBjZWJhYmQ0OGNmYjJhY2UwNGU0MmFiNTdhZTQifQ"
+          "resource": "repo://.github/workflows/release.yml#L640-L734",
+          "version": "repo-lines-v1:sha256:bc0812355904395a5bb07709d3ffa0a11563a3256564d4807579b7f967e681e0:eyJzZWxlY3RlZExpbmVDb3VudCI6OTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4Y2M2ZjE3MGQxZDA0NTIwNmJmMDRlYzRlNjg5NDdlMTlkMjM3N2Q0ZDA0ZTQ0OWQ2NDYyM2ViZWZhNjU1OTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhkMTMxYzBkODJkMDUzMDQ4N2JiN2ZkMTc1M2Y2NjBkYjFjMGY1YWQ0MWU2MDRlZWUwNWViZWIzYTg0OGU5MzkifQ"
         },
         {
-          "resource": "repo://.github/workflows/release.yml#L734-L871",
-          "version": "repo-lines-v1:sha256:9690c3e2a0f7dd13c62b9597dc013742a3fcfa571ed3799ee72ca87786c16dc4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTM4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI2NDdjYjZjOTRkOTZlMzY4OGRjNWI5MTM0OTAwNTIwNDhhMTdiNmJkYjE1YzExMjdiMjc5OTA4YjY5MzdhYzA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI5MmQ2MWVkMDc4NzM0ZTMzNmRiMmFlOWIyMmE2OGYzZjk2ZTRlMTE0NzAxN2JkMWQ2ZTc4OTQwMDk2MGM3NzkwIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJkYzBmYmZhM2NlNDk3YjY2ZmQzMDYyZjg3M2NmZjk1YzQwOTI2NjNjN2VhMzI3OGYxYWQ2MTYwNTUyZmU1NzY0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+          "resource": "repo://.github/workflows/release.yml#L735-L877",
+          "version": "repo-lines-v1:sha256:d552ff0eef126072ac94645e95f20d5660ec6f37cf9b6b9018e45c9ffe334463:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI2NDdjYjZjOTRkOTZlMzY4OGRjNWI5MTM0OTAwNTIwNDhhMTdiNmJkYjE1YzExMjdiMjc5OTA4YjY5MzdhYzA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI5MmQ2MWVkMDc4NzM0ZTMzNmRiMmFlOWIyMmE2OGYzZjk2ZTRlMTE0NzAxN2JkMWQ2ZTc4OTQwMDk2MGM3NzkwIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJkYzBmYmZhM2NlNDk3YjY2ZmQzMDYyZjg3M2NmZjk1YzQwOTI2NjNjN2VhMzI3OGYxYWQ2MTYwNTUyZmU1NzY0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
         },
         {
           "resource": "repo://.github/workflows/release.yml#L77-L128",
@@ -152,11 +152,11 @@
     },
     {
       "id": "claim_b9f380a84faf4adeb37ce4e735e18c9a",
-      "statement": "The manual Signing check workflow signs a throwaway file and runs cargo xtask guard to validate the stored signing secret against PUBKEY_B64 without publishing anything.",
+      "statement": "The manual Signing check workflow signs a throwaway file and runs cargo xtask guard to validate both the Minisign and ML-DSA-65 signing secrets against PUBKEY_B64 / PQC_PUBKEY_B64 without publishing anything.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/sign-check.yml#L1-L47",
-          "version": "repo-lines-v1:sha256:40482b8727e78a70ef1b0353a80df69793ad4f3f41b3dda379d4b7b98ad57203:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhkODY0MWQyN2YwMWU5ZTQwMjk1ZjAxYzBiYjAxYmFjMWU5ZDYwOWEwN2ZjM2UyYTVlZGVkNzk0ZDMyODA4MDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdkOTVlMzNiNjI5NjU2NTQwZjlkYjg3NjNhYTZlZDIyMDNkMGI0OTc3NTViYTdhOTM3YjQ5YzQ5ZTBkMWVlMGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://.github/workflows/sign-check.yml#L1-L48",
+          "version": "repo-lines-v1:sha256:77e4ebf5696671d148a6b7da522dcc852f739a7b2b238ffb30eaa9a89014d91f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhkODY0MWQyN2YwMWU5ZTQwMjk1ZjAxYzBiYjAxYmFjMWU5ZDYwOWEwN2ZjM2UyYTVlZGVkNzk0ZDMyODA4MDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdkOTVlMzNiNjI5NjU2NTQwZjlkYjg3NjNhYTZlZDIyMDNkMGI0OTc3NTViYTdhOTM3YjQ5YzQ5ZTBkMWVlMGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
@@ -169,8 +169,8 @@
           "version": "repo-lines-v1:sha256:859c481a159eaa7d362fd4cfad8c752a6977f2baa88167530e2af59af7e7aa80:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTNjYzRhNzEwYmYzMWEyN2Q3MTk2MDRmYTdkYTEyZWJhNGY5MTY4ZTZjYzRkOWY4NmQ4YjJjOTE5NTYzYzRjZCJ9"
         },
         {
-          "resource": "repo://Cargo.toml#L79-L83",
-          "version": "repo-lines-v1:sha256:8358413bd2c4e67dc79bd275d785bd5868db516eac386f621badb76124b61982:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzgzMzlhNmY4NmZiZTMxMDZmNGZjMTFiNGYyNmRjY2I2MGRhZTUzZTZjMTFkMDQyMjA0ZDdiMzBiNGRlYzkzMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDc5NGJhNzljZTJhNTFlODAwYmZlNDM3OGYzZjM1ZDhmZjQxZmFkZWE4OTMzMWM0YjViYzQ0NGE0NDE5NWIzZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDE3NjMyZGNkY2QzMTUyNWE1MDUzYWRkY2JiMmI3MzZmZjFhZDc3Y2EzOTgwYWE1OTY1NWMwM2ZhNjdjOTA2YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2IwNGUwMjlhNTkyOGI1NDI2Yzk2ZmYwNGQ2NTJhN2VlZjcxY2U4OWNmZjI3MmJiZGFmYjk5OGY1NWRlZDM0ZSJ9"
+          "resource": "repo://Cargo.toml#L68-L71",
+          "version": "repo-lines-v1:sha256:3e52a5c94cce0c7ecc87a2969a41efdd8c82699ba53167f320efa8b0ae196343:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjIxNGU4M2I1ZGRiZTlhYmJjODc2YzVmNGMzZTVlYmNiY2NlNTcwOGQ4NDQ1OGUzY2I3NmQ5NjY2NTBmY2IxYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTA1MjlhNGFkNzhkZGFlMTM3NjQ0MzcyNWMzNWFlMGE0YjY2YWE3ZWUwYmJlYjQzMWE5NmUwYjJiNzYzNTVhYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzFlNGZjMzM0NWM2NGJhZGFiNjAyYjBkMzgyOWE1NzM3Y2NlOGU5ZjY4ZTllZDVjNjlmZDFkNjBjODFiNjFlNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTUwNzI5YTZjNjlhMjM4NDMyM2RkZjc2MDlmMjFlMzk5YzgxMTdlMzRlZjgyZTQxMzk3NDUxN2RlZjQ4Y2I0NyJ9"
         }
       ]
     },
@@ -183,8 +183,8 @@
           "version": "repo-lines-v1:sha256:edc98e81ed7cfcbec229484bc6762121ba13c111593c66a0855f1a973d304730:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3NjRkNGZkYTkyOTUxNzZlNGQwODdlYjYzYTRkNzhiZGRiOGRjZDZkNTEwNDRkY2Q4YzQxM2UwNzYwNmM5YzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY4NjhmNjM2OTc2ZDVlZjljYzEwOGY1YzIwNjQ4MDY0YzNkY2VmZjNlNzRhOTViNjY3MjQ5MTA1MTQ5OGU2N2QifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70",
-          "version": "repo-lines-v1:sha256:c598104d93dcdeb27dd9ad728142a9bf45812a70282561a2c26d2791a75f879b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1YzVjNmIxNWJmYmU4Yjg1ZDAwZjA3MGQ5YWZhMjFkODg1YzJkNGRlNGY3NTE5YTczZjAyODVmZGQzYWVmYWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFiM2FmZDY3MmQyYTkxNWZhMGEyODdmNjhkYjFlMDEwZDVlMDcyZmEyY2RlZDgwNDdlYWVjMjk0YjU3NzVlNmUifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L68",
+          "version": "repo-lines-v1:sha256:fa9b589aaeb9988b810d6b5a617f9e187c74f8931df03a57d56a69dd8562e822:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0NzM3ODZhMmUyZTcxZjRhZTk3N2EwZTUwM2UxZmJmYWQyYWRiMGJmYWVkNzAzMTQ3NjAyNGUxMWFjODQ4ZjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0OTVlZDczYzRiZGE1NDU2ZTdjZTA0NzcyN2UwMDhmZTIyZDk4MzUwNWMyZTNkZjcyODdkYTgxY2E2N2EwYzUifQ"
         }
       ]
     },
@@ -213,8 +213,8 @@
       "statement": "The build-server release job cross-compiles limedl-server for x86_64 and aarch64 musl with cargo zigbuild, bundles the systemd unit and env example into the tarballs, and uploads plain release assets that are not signed and not part of the update manifest.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L548-L611",
-          "version": "repo-lines-v1:sha256:db018e0cf5e4f9c8cd4e8375df80e0cf97467d82bfbdb5b4858c3f4c70383e75:eyJzZWxlY3RlZExpbmVDb3VudCI6NjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxYjBlN2Q3NDMzNGYwNDA4ZWJkZDU3YWViMDU0OTY1NmM0ZThhYTY5YjdkMGNmODAwYjJmNmYwNTgwNzkzMmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQyNzljMTVmNjQwYjRhN2Q3NDJmNzAxMGYzMDc4ZGFmNTBkODVkNzQ5ZDkzYTBjODNlZWViYzdiNGRkMGQ5NWUifQ"
+          "resource": "repo://.github/workflows/release.yml#L548-L639",
+          "version": "repo-lines-v1:sha256:3df924cee4c8d20d7303807e2952d1bd31cc941b107dae5f22d1a3122359fdef:eyJzZWxlY3RlZExpbmVDb3VudCI6OTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YmIxMDlhYzkxMjBhYTIzNjQ4YjI3ZWFiMjI5Y2ViYTI5YmEzYjAwYzhhM2Q4ZjA1M2RiNmYzY2NlNTA2NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4Y2M2ZjE3MGQxZDA0NTIwNmJmMDRlYzRlNjg5NDdlMTlkMjM3N2Q0ZDA0ZTQ0OWQ2NDYyM2ViZWZhNjU1OTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWRhZTQxOTRmNWRiN2RhYTA3MDdhYWUxYjBiZWI5ZjE5MzAzNDMyNmU0ZmVjNmJlYmYxYTg0OTI2M2EzZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEyY2MxODU1NTY2YzY2NzFhNjIyODFiMTZjMmY3ODdkN2Y5ZjRkYWE2ZTE1ZTkyOGY5YzlkNjM3Zjg2YjFhNmEifQ"
         }
       ]
     },
@@ -223,7 +223,7 @@
       "statement": "The server-image job assembles the prebuilt static musl binaries into a thin Alpine image, pushes per-architecture images, and merges them into a multi-arch ghcr.io/zkz098/limedl-server manifest, skipping the latest tag for a prerelease.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/release.yml#L639-L724",
+          "resource": "repo://.github/workflows/release.yml#L640-L725",
           "version": "repo-lines-v1:sha256:950e77a405bc00709580e25bf807eae694b595144efa2300b5e99daf62921e78:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YTI1ZThjYTAyNzRjMWFiNWM3MDg4YjQxYzI0MDI0OTdiZjRmYjI4MGM5NDFiNzU4YWI3MjQ4M2FkMGJkYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmOGNiODk0Yzc3YzQyNWZjY2Q1OGVhZjJlZGY1MjcwZmFiMjljOGQ5NmFkZjExNmEwNTIyN2I0ZWUxMGM3OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzYjJjNjhiYThmZmNlNzQxODk5OTFmY2UwMzUwYmNjMWRmMWE5M2MyNmFmYmNkNzJjMGQ5YmFjZWU1MGY3NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxNzAzNzQ5NGU0ZTdmMTM4Mzg1OGYzYzgwOTc5ZTg3OWVlMjBjZWJhYmQ0OGNmYjJhY2UwNGU0MmFiNTdhZTQifQ"
         }
       ]
@@ -250,7 +250,7 @@
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.0",
-    "at": "2026-10-05T02:20:21.738Z"
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-07T03:53:23.435Z"
   }
 }

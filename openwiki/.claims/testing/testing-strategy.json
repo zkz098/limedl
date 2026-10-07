@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:b04d25afd0c0b7cac709c73b1fde6332f13819c59900891c5ef0d943da67932e",
+  "pageVersion": "sha256:29403c5eb5fc9d749b3cf66728c56407bb16aa947e9c80edff821d847449dc2b",
   "claims": [
     {
       "id": "claim_65bbce20cdb64f53960b988322db9037",
@@ -202,11 +202,15 @@
     },
     {
       "id": "claim_78733ab8941545979611ef3fb9b3a314",
-      "statement": "aria2_rpc/interop_tests.rs is a pure-Rust Tier 1 client-contract suite in the normal nextest core gate; it asserts system.listMethods equals the 36-entry routed set (with reachability recognized by the method-not-found message), real client request/reply shapes, the AriaNg getGlobalOption/getOption key sets, JSON-RPC batch response shape and unique-GID-prefix resolution.",
+      "statement": "aria2_rpc/interop_tests.rs is a pure-Rust Tier 1 client-contract suite in the normal nextest core gate; it asserts system.listMethods equals the 37-entry routed set (including addMetalink, with reachability recognized by the method-not-found message), real client request/reply shapes, the AriaNg getGlobalOption/getOption key sets, JSON-RPC batch response shape and unique-GID-prefix resolution.",
       "evidence": [
         {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L26-L110",
+          "version": "repo-lines-v1:sha256:7b5d9f4e89870851cf32e7af9a37a4b6c29d38b0191ac66f8558fcb587ed5d90:eyJzZWxlY3RlZExpbmVDb3VudCI6ODUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1YzI3ZDFiYWEwNzA1YjA3OGFlMDQ1NGViNjdjYTRkZTEwYjU5MDM3NjlhZjk1NDMyNmNlNmM4NDk1MzcyYjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiNTcwMWU4MzY1OWI3MzI2NzAzNmNhYzE2NWVjZjlkYzMxZDRkY2I2NThkNmRiYzVjN2Q3MTNmN2M1ODU3ZmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdmZjkwZTdhMDBlYTNiYjBiOGM5ZjA5NzViM2RkMGNlYmNlNjA5MzA1YzM5ODRiMzM1NGFiNmQ4ZDhjNGY4OTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMwNWEzYzhjMWExNzZmZjg1YzM1YWMzMTIxMGY4YWQyNWViYTdkMzIzYjMyNjQ2ODQyNTE2NjNkMDRkZjllN2QifQ"
+        },
+        {
           "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L78-L380",
-          "version": "repo-lines-v1:sha256:977de495483c382e94935146a0ada6ddfb4a7b9f9b9d3ff2288bfba44b1cabe7:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjNDBmMjk0ZDg2N2FhNDc2MWU2NDZmNGZiYWJlNGRjOWUwOTU4Yjk2ZTAyOTAwNzI2MjI4ZTk1YWMwM2IxMDk5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJlZjI5Y2ZiNjNkMWU2NzQ5OWVkMDNjZTExMDQyYTM5NWJhNDhiNzJmYjYxZmQzZmE5YjYwMDViZGJmYjk5ZjYxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI2MTU1Njc4ZmZjZDkzYmY2NWY3NDVkNmRiMDM0Njk1MzM1MGNhMTQ4MDRjOTAxNmNhOWQxZGU4Njk4MzEwNTllIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI0YjYwMTg3OTU3OWFjNDE1Y2U0ZjE5Mjg0MDY5YmMxOTlhYTFhZmY0ZTMwZDQ4NTI3YjU3ZTVhYTU2YmVjZWE0In0"
+          "version": "repo-lines-v1:sha256:8df868a32e54eba389cb5b554f0c27a0fd4dd9623d0d819ad9f04f9b9ce6d117:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJiNTgwZDg5ZmM3ODYxMDRlZjFmMTdkNTNiMzA0YTgwZjFmN2IyZWE1MTE0YzNhNWUxNWYxNjU5OTM3MGVmZGI2IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI4NGU0MjA4Y2Q2ZmZiOGM0YTM1NDdiMmY1NGFkYTE5OTc4YzNmMzY1ZTc4Zjk1MDJlZjUxNDVjZGQyYWE4NTQzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlNzUwZTYwNmI0OGU1NTc1NTM0MzRiOGQ0ZDQxOThlYWQzZWFjMWIyZTRkM2Q2MmNlNWQxMGZkYWY4MzI5M2QyIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlMjlkNTZjNjY2YjZlYTcwM2YzZGRmODg1YTQxZDFjODE5YmU1MTU2NjhjYTY0ZTY1YTg5M2U3MGY0YzY0ODE5In0"
         },
         {
           "resource": "repo://docs/aria2-interop-testing.md#L1-L76",
@@ -223,7 +227,7 @@
           "version": "repo-lines-v1:sha256:bd752ab896eb77a3fb333f29f9f173214b251d2349fabe38acce9832706c1c97:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzNjEwNWY0Zjg3ZjU3ZWM1YTQ2NDA0ZmVmYjNmMDk1NzUwYzg0ZjlkN2UxZTJlMDNmMTg0YTAxMDc4ODM2MjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFmM2IzNjFmNDg4M2E5NmFmYWY0OGNiNDI4MTYxZjJiYTJkNTJjNDEyNDgzZmFmZTM2OTc4YzNhZmI0NDY0NmMifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L164-L216",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/interop_tests.rs#L165-L217",
           "version": "repo-lines-v1:sha256:0369d05d693a600ab2bea6568654b358e47cf9ae293b293c82d1da2e552607e3:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5Y2EzZjI5YzQ4YjdmMGVhODY2ZDMwZmY0NTg3NjdlNjIyYTJhNmFmOTE1MDhhNzJhYjc5Mjg2ZTYwZWQyNmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU4MmE3MjVlNGJmNTA2MDFlNmQ1ODQyZTQzNTNiY2E2MDRiYjNlNGFlZTc2ZmUzOWI3OThjNTkwMGY1NDYwYTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUzY2U2MzlkODYyY2U3NmVhODgzOTZhMzg2NDVkNDRkMWRhYWQ0MGZkNjQ0MDc5MTIzMTk0MjIzZDZiNThkOWIifQ"
         }
       ]
@@ -237,12 +241,12 @@
           "version": "repo-lines-v1:sha256:edc98e81ed7cfcbec229484bc6762121ba13c111593c66a0855f1a973d304730:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZWZjZmZlMTM3YTg1YWM4NGNjYTM2ZGI2ZmZkZDZmMTQzY2JmMzIzMjc5MjFiNWEwYmUyMzA3MTVkODlhNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3NjRkNGZkYTkyOTUxNzZlNGQwODdlYjYzYTRkNzhiZGRiOGRjZDZkNTEwNDRkY2Q4YzQxM2UwNzYwNmM5YzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY4NjhmNjM2OTc2ZDVlZjljYzEwOGY1YzIwNjQ4MDY0YzNkY2VmZjNlNzRhOTViNjY3MjQ5MTA1MTQ5OGU2N2QifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L70",
-          "version": "repo-lines-v1:sha256:c598104d93dcdeb27dd9ad728142a9bf45812a70282561a2c26d2791a75f879b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1YzVjNmIxNWJmYmU4Yjg1ZDAwZjA3MGQ5YWZhMjFkODg1YzJkNGRlNGY3NTE5YTczZjAyODVmZGQzYWVmYWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFiM2FmZDY3MmQyYTkxNWZhMGEyODdmNjhkYjFlMDEwZDVlMDcyZmEyY2RlZDgwNDdlYWVjMjk0YjU3NzVlNmUifQ"
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L68",
+          "version": "repo-lines-v1:sha256:fa9b589aaeb9988b810d6b5a617f9e187c74f8931df03a57d56a69dd8562e822:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjI5NjUxNDM5NDI0NmY2NzRhOWNhZGMwOTVhOTdmYzJjZTgwZDY5NTkxNzVjZDljZmE3NzFjNjZmMTk5MzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0NzM3ODZhMmUyZTcxZjRhZTk3N2EwZTUwM2UxZmJmYWQyYWRiMGJmYWVkNzAzMTQ3NjAyNGUxMWFjODQ4ZjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0OTVlZDczYzRiZGE1NDU2ZTdjZTA0NzcyN2UwMDhmZTIyZDk4MzUwNWMyZTNkZjcyODdkYTgxY2E2N2EwYzUifQ"
         },
         {
-          "resource": "repo://docs/aria2-interop-testing.md#L77-L170",
-          "version": "repo-lines-v1:sha256:7577209849b2c6e1c35f0320fb1997aae95bdd93731e76785976f71b2d7826f0:eyJzZWxlY3RlZExpbmVDb3VudCI6OTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0MzhmMmU1OGJiZGYwMjdlZjMzODMxMTkwNjcyNmUzODIwOWU4ZWVjN2I5MzgzZTBlNDcyOGI2Yjc5M2QyMGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3OTU3MDcxN2MzZmM0Y2M4NjhjNjczYzdhMDEyY2RmODUwNGZjNGY5OWJkZDMzMjAwNWNmN2U5NDY5NGRmYjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlN2VlMGI4YTBlMmEwMDRjYTgyYzRjN2Y3ZjAwMjNkNzA5YjFmMzc1NWFlMDM0MzM5OGVhMTEyZTAwYzVlY2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJjOTlhZTZlY2IzZTdlYzI5M2U3NGI2NWEwZWMwYTBkNTBjNjkxYzdiZDE0NDk4ZWY5NWZmYTczZDY1YmRkYmQifQ"
+          "resource": "repo://docs/aria2-interop-testing.md#L128-L190",
+          "version": "repo-lines-v1:sha256:779c2b096bb42c4a67673fde143831efde9eda37c9a283a9c124f8885f61839f:eyJzZWxlY3RlZExpbmVDb3VudCI6NjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmMmYzMTM2ZjYyMjJjZDU4Y2QwMmY0ZDYwZDYyYTRiYTdjMjZmNWY0MWQyOTZlMDA1NzQwZTRkMjFlMDYzNmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNiMzA0ZTJjYTBiNWM4OGM1ZGI5ZjQwMmM4OWRjNjFkMWZlNzcyYzU5NmI5MDQ5NWYwMjczOTVkOTI0NDBkNTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg1N2FhZjJmOTcyOWJjMzFjZDIzZThlNjhkOTU0ZjkyMTZhNWVmYjNiZDJkYTE3ODc0ZDE4N2JlYWZhZDk2NGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQzNThiOTM2NWRkZDFlOWE5YzQ3OTEzNWRiYzkwYzA3YmNjOGI1NDI4YTgyN2UzZGY2YTJlNmQ4ODY4MThlMTAifQ"
         }
       ]
     },
@@ -265,7 +269,7 @@
       "statement": "The Tier 2 Aria2 oracle readiness poll uses a non-panicking rpc_try that returns None on transport or parse errors (connection-refused is the expected state until aria2c binds its port) and checks child.try_wait() each round, so an early child exit is reported with its real exit status instead of as a readiness timeout.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L108-L184",
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L107-L183",
           "version": "repo-lines-v1:sha256:66710e83e6c99b5219a1aaf31a20a2c61109aae6802f71307f4c9c85ec696e8b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmOTU4ZDNlYTIxYWRjNTNiOWExOTJiNTNmMDdmOGYxNTNkNTQzMDgxZjdmZmNjY2M2OTA4ZDg0ZDAxMjA4OWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUzZDgwYzhjYTJlMTljOGIxNjg0ZTM3MzYzYjI4NTVlYjJlY2E0Yjg5NDM5ZTQwODc0YjU4ZDA5YjM0NTQyYjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI2ZGVkYWQyMWQ3MmVlNDNmMzhmZGI3MTEyNDA0ZWRmNTUwY2YwZWRjMWMzZjE2NGU1MTU4ZWU1ZTE5ZmFhMDMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFjMDA5OTc1Mzc4NTM0Nzg3NzNhMzY3NDc0MDU1ZWE0MzcxNjE3ZDE0NGRmZTE2YTQ4ZWVjNjNlODQyOWNkMmQifQ"
         }
       ]
@@ -309,10 +313,24 @@
           "version": "repo-lines-v1:sha256:afdae785d599c9d6309fed5e2729e18530c6a71f42fe0d150a484198bd25dafc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5ZDQwYTVhMGU4ODkxYjZkZWQxNmI0MmFjNzkzNTM4MWU1M2QyN2I0NTM1MDE3MGUwNzRjN2RkNGJlOWQzZWI2IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMjQ1Y2VkYWJmZTlhNGYyZmI5MDc2MmU1ZjBlN2JjODZhZDliMzdmNzFiYTc0Mjk0NWFkNDgyNzc3NWU5MWEyIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI2NjM5NTkyYTAzNmY5MzM5ODY5M2JhODk0NjM1M2IxZDE4NWYzMDAwN2U3NWM0NGZlNDA2NmYyYjkxMDExNjMyIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI1MDRhMzQ3NDQ4NGIzOWU0ZjIwYWNmNGE2YzViOWI4OTIzYjRlNjU1OTNjZTk0YTZjYmE1NDMzNTdhOThhZDRjIn0"
         }
       ]
+    },
+    {
+      "id": "claim_df21c9f34852403790feb2ddac969988",
+      "statement": "Metalink support is covered by module tests in crates/limedl-core/src/metalink/tests.rs (Metalink 4.0/3.0 and Metalink/HTTP parsing, mirror scoring, pool leasing) and by the Aria2 E2E test e2e_add_metalink_creates_downloads_and_reports_status, which calls aria2.addMetalink and checks the created downloads' status.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/aria2_rpc/e2e_tests.rs#L2404-L2447",
+          "version": "repo-lines-v1:sha256:3d451c441df31d8a1547430f3a32c0154ed5a860967eadb7a8aebbb335af4d3f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE3NmQ5MTZlZjAxZDExZWMxZWE5NTZjZjU2NjNmYzA4YTFmZjA1OTc3OTRhODAxMDY5NGJjYTExZGNkMDA0OTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQxNjI4MDMxZTQ3MmNhZTAyYzJkMmExOTFkMzk5NjhiY2MyNjQ1MTQ5YzBmMWMwMmVhZjVjZGJlZTk1MTI0OWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/tests.rs#L1-L222",
+          "version": "repo-lines-v1:sha256:5bd153d4692cd1c7e9c41384f5177cfd2809d6c26466991a5c689e8a4b34615c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjNzU0NTI0NjllZTEyOTFlZjM2Njk4ZTgyZjE1YmVkNDY3NzViMjAyOGEyNTI5MTYyOTAzNzdhNTM3MDI1YWEzIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.0",
-    "at": "2026-10-05T01:38:26.934Z"
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-07T03:53:23.435Z"
   }
 }

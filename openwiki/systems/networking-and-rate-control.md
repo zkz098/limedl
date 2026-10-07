@@ -32,10 +32,10 @@ sources:
     resource: repo://crates/limedl-core/src/types/settings.rs
   - id: openwiki-source-191c52d830a19ec45ce7e929
     resource: repo://crates/limedl-core/src/url_rewrite/mod.rs
-generated: { by: "pi", at: "2026-10-05T01:38:26.934Z" }
+generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
 verified:
-  - by: openwiki/0.7.0
-    at: 2026-10-05T01:38:26.934Z
+  - by: openwiki/0.7.1
+    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Networking, HTTP Clients and Rate Control
@@ -271,11 +271,7 @@ Evidence: `repo://crates/limedl-core/src/url_rewrite/mod.rs#L41-L90`,
 `repo://crates/limedl-core/src/url_rewrite/mod.rs#L100-L200`,
 `repo://crates/limedl-core/src/dispatcher.rs#L148-L170`.
 
-<!-- openwiki: broken internal link [/openwiki/workflows/http-download-lifecycle.md] link "/openwiki/workflows/http-download-lifecycle.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Related pages: [HTTP Download Lifecycle](/openwiki/workflows/http-download-lifecycle.md),
-<!-- openwiki: broken internal link [/openwiki/workflows/cdn-acceleration.md] link "/openwiki/workflows/cdn-acceleration.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[CDN Acceleration](/openwiki/workflows/cdn-acceleration.md),
-<!-- openwiki: broken internal link [/openwiki/workflows/scheduler-and-concurrency.md] link "/openwiki/workflows/scheduler-and-concurrency.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Scheduler, AIMD and Concurrency Control](/openwiki/workflows/scheduler-and-concurrency.md),
-<!-- openwiki: broken internal link [/openwiki/desktop/self-update-and-distribution.md] link "/openwiki/desktop/self-update-and-distribution.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[Self-Update and Distribution Channels](/openwiki/desktop/self-update-and-distribution.md).
+Related pages: [HTTP Download Lifecycle](../workflows/http-download-lifecycle.md),
+[CDN Acceleration](../workflows/cdn-acceleration.md),
+[Scheduler, AIMD and Concurrency Control](../workflows/scheduler-and-concurrency.md),
+[Self-Update and Distribution Channels](../desktop/self-update-and-distribution.md).
