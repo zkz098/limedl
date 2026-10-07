@@ -48,8 +48,7 @@ pub fn setup_platform_integration(
 fn setup_windows_hooks(ctx: &AppContext) {
     use std::rc::Rc;
     use std::time::Duration;
-    use slint::{ComponentHandle, SharedString};
-    use crate::i18n;
+    use slint::ComponentHandle;
     use crate::platform_win;
 
     let main_window = &ctx.ui;
@@ -73,74 +72,14 @@ fn setup_windows_hooks(ctx: &AppContext) {
                 restore_and_show_window(&ui, Some(&store_for_restore.lock()));
             }
         });
-        if files.len() == 1 {
-            open_new_task_with_payload(
-                &files[0],
-                &ui_weak_drop,
-                &dispatcher_drop,
-                &store_drop,
-                &entries_cache_drop,
-                &included_cache_drop,
-            );
-        } else if !files.is_empty() {
-            let torrent_count = files
-                .iter()
-                .filter(|f| f.to_lowercase().ends_with(".torrent"))
-                .count();
-            if torrent_count == 1
-                && let Some(tf) = files.iter().find(|f| f.to_lowercase().ends_with(".torrent"))
-            {
-                open_new_task_with_payload(
-                    tf,
-                    &ui_weak_drop,
-                    &dispatcher_drop,
-                    &store_drop,
-                    &entries_cache_drop,
-                    &included_cache_drop,
-                );
-                return;
-            }
-            let metalink_count = files
-                .iter()
-                .filter(|f| {
-                    let l = f.to_lowercase();
-                    l.ends_with(".metalink") || l.ends_with(".meta4")
-                })
-                .count();
-            if metalink_count == 1
-                && let Some(mf) = files.iter().find(|f| {
-                    let l = f.to_lowercase();
-                    l.ends_with(".metalink") || l.ends_with(".meta4")
-                })
-            {
-                open_new_task_with_payload(
-                    mf,
-                    &ui_weak_drop,
-                    &dispatcher_drop,
-                    &store_drop,
-                    &entries_cache_drop,
-                    &included_cache_drop,
-                );
-                return;
-            }
-            let joined = files.join("\n");
-            let count = files.len();
-            let ui_weak = ui_weak_drop.clone();
-            let store = store_drop.clone();
-            let _ = slint::invoke_from_event_loop(move || {
-                if let Some(ui) = ui_weak.upgrade() {
-                    let lang = store.lock().language();
-                    ui.set_new_task_batch_text(SharedString::from(&joined));
-                    ui.set_new_task_batch_mode(true);
-                    ui.set_new_task_batch_count_text(SharedString::from(
-                        i18n::format_batch_count(count, lang),
-                    ));
-                    ui.set_new_task_batch_submitting(false);
-                    ui.set_new_task_batch_status_text(SharedString::default());
-                    ui.set_show_new_task_dialog(true);
-                }
-            });
-        }
+        open_dropped_files(
+            &files,
+            &ui_weak_drop,
+            &dispatcher_drop,
+            &store_drop,
+            &entries_cache_drop,
+            &included_cache_drop,
+        );
     };
 
     let ui_weak_copydata = ui_weak.clone();
@@ -207,6 +146,95 @@ fn setup_windows_hooks(ctx: &AppContext) {
                 }
             },
         );
+    }
+}
+
+/// Route a multi-file drop: one file opens directly, a sole `.torrent` or
+/// `.metalink`/`.meta4` among many opens that file, otherwise the whole list
+/// becomes a batch.
+#[cfg(windows)]
+fn open_dropped_files(
+    files: &[String],
+    ui_weak: &slint::Weak<MainWindow>,
+    dispatcher: &std::sync::Arc<limedl_core::dispatcher::Dispatcher>,
+    store: &std::sync::Arc<parking_lot::Mutex<crate::bridge::TaskStore>>,
+    entries_cache: &std::sync::Arc<
+        parking_lot::Mutex<Vec<limedl_core::types::TorrentFileEntry>>,
+    >,
+    included_cache: &std::sync::Arc<parking_lot::Mutex<Vec<bool>>>,
+) {
+    use slint::SharedString;
+
+    if files.len() == 1 {
+        open_new_task_with_payload(
+            &files[0],
+            ui_weak,
+            dispatcher,
+            store,
+            entries_cache,
+            included_cache,
+        );
+        return;
+    }
+    if files.is_empty() {
+        return;
+    }
+
+    if let Some(tf) = sole_file_with_suffix(files, &[".torrent"]) {
+        open_new_task_with_payload(
+            &tf,
+            ui_weak,
+            dispatcher,
+            store,
+            entries_cache,
+            included_cache,
+        );
+        return;
+    }
+    if let Some(mf) = sole_file_with_suffix(files, &[".metalink", ".meta4"]) {
+        open_new_task_with_payload(
+            &mf,
+            ui_weak,
+            dispatcher,
+            store,
+            entries_cache,
+            included_cache,
+        );
+        return;
+    }
+
+    let joined = files.join("\n");
+    let count = files.len();
+    let ui_for_ui: slint::Weak<MainWindow> = (*ui_weak).clone();
+    let store_for_ui = (*store).clone();
+    let _ = slint::invoke_from_event_loop(move || {
+        if let Some(ui) = ui_for_ui.upgrade() {
+            let lang = store_for_ui.lock().language();
+            ui.set_new_task_batch_text(SharedString::from(&joined));
+            ui.set_new_task_batch_mode(true);
+            ui.set_new_task_batch_count_text(SharedString::from(
+                crate::i18n::format_batch_count(count, lang),
+            ));
+            ui.set_new_task_batch_submitting(false);
+            ui.set_new_task_batch_status_text(SharedString::default());
+            ui.set_show_new_task_dialog(true);
+        }
+    });
+}
+
+/// Return the file when exactly one entry matches one of `suffixes`.
+#[cfg(windows)]
+fn sole_file_with_suffix(files: &[String], suffixes: &[&str]) -> Option<String> {
+    let matched: Vec<&String> = files
+        .iter()
+        .filter(|f| {
+            let lower = f.to_lowercase();
+            suffixes.iter().any(|suffix| lower.ends_with(suffix))
+        })
+        .collect();
+    match matched.as_slice() {
+        [only] => Some((*only).clone()),
+        _ => None,
     }
 }
 

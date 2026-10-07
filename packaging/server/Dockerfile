@@ -15,7 +15,7 @@ FROM rust:1-alpine AS builder
 # per-target rustflags (including the `--cfg reqwest_unstable` reqwest's HTTP/3
 # feature needs) apply.
 ARG TARGETARCH
-RUN apk add --no-cache build-base cmake perl linux-headers
+RUN apk add --no-cache build-base cmake linux-headers perl
 WORKDIR /src
 COPY . .
 RUN set -eux; \

@@ -65,40 +65,13 @@ pub fn open_new_task_with_payload(
             .unwrap_or(false);
 
     if is_torrent_file {
-        let full_path = path
-            .canonicalize()
-            .unwrap_or_else(|_| path.to_path_buf())
-            .to_string_lossy()
-            .to_string();
-        let file_name = path
-            .file_name()
-            .map(|name| name.to_string_lossy().to_string())
-            .unwrap_or_default();
-
-        {
-            let ui_weak = ui_weak.clone();
-            let store = store.clone();
-            let path_for_ui = full_path.clone();
-            let _ = slint::invoke_from_event_loop(move || {
-                with_ui(&ui_weak, |ui| {
-                    restore_and_show_window(&ui, Some(&store.lock()));
-                    ui.set_new_task_url(SharedString::from(&path_for_ui));
-                    if !file_name.is_empty() {
-                        ui.set_new_task_filename(SharedString::from(&file_name));
-                    }
-                    ui.set_new_task_batch_mode(false);
-                    ui.set_show_new_task_dialog(true);
-                });
-            });
-        }
-
-        preview_torrent(
+        open_torrent_file_payload(
             ui_weak,
             dispatcher,
             store,
             entries_cache,
             included_cache,
-            full_path,
+            path,
         );
         return;
     }
@@ -213,4 +186,50 @@ pub fn open_new_task_with_payload(
             });
         }
     }
+}
+
+/// Open the new-task dialog for a local `.torrent` payload and kick off the
+/// torrent preview. Split out of [`open_new_task_with_payload`] to keep that
+/// function's branching manageable.
+fn open_torrent_file_payload(
+    ui_weak: &slint::Weak<MainWindow>,
+    dispatcher: &Arc<Dispatcher>,
+    store: &Arc<Mutex<TaskStore>>,
+    entries_cache: &Arc<Mutex<Vec<TorrentFileEntry>>>,
+    included_cache: &Arc<Mutex<Vec<bool>>>,
+    path: &std::path::Path,
+) {
+    let full_path = path
+        .canonicalize()
+        .unwrap_or_else(|_| path.to_path_buf())
+        .to_string_lossy()
+        .to_string();
+    let file_name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    let ui_for_ui = ui_weak.clone();
+    let store_for_ui = store.clone();
+    let path_for_ui = full_path.clone();
+    let _ = slint::invoke_from_event_loop(move || {
+        with_ui(&ui_for_ui, |ui| {
+            restore_and_show_window(&ui, Some(&store_for_ui.lock()));
+            ui.set_new_task_url(SharedString::from(&path_for_ui));
+            if !file_name.is_empty() {
+                ui.set_new_task_filename(SharedString::from(&file_name));
+            }
+            ui.set_new_task_batch_mode(false);
+            ui.set_show_new_task_dialog(true);
+        });
+    });
+
+    preview_torrent(
+        ui_weak,
+        dispatcher,
+        store,
+        entries_cache,
+        included_cache,
+        full_path,
+    );
 }

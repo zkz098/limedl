@@ -402,30 +402,30 @@ fn update_one_adaptive(
             );
             sync_snapshot_with_manifest(&mut core);
             return;
-        } else {
-            // Probe did not yield throughput gain: rollback to pre-probe threads
-            let rollback_target = pre_threads.max(min_threads);
-            manifest.desired_thread_count = Some(rollback_target);
-            manifest.updated_at_ms = now_ms();
-            aimd.cooldown_until = Some(now + thresholds.cooldown * 2);
-            aimd.settling_until = Some(now + thresholds.cooldown);
-            aimd.last_throughput = Some(pre_throughput.max(throughput));
-            aimd.stable_cycles = 0;
-            aimd.consecutive_bad_samples = 0;
-            aimd.recent_penalty = false;
-            aimd.record_sample(throughput);
-            track_direction(&mut aimd, Direction::Down);
-            check_oscillation(
-                &mut aimd,
-                manifest,
-                current,
-                min_threads,
-                now,
-                &thresholds.cooldown,
-            );
-            sync_snapshot_with_manifest(&mut core);
-            return;
         }
+
+        // Probe did not yield throughput gain: rollback to pre-probe threads
+        let rollback_target = pre_threads.max(min_threads);
+        manifest.desired_thread_count = Some(rollback_target);
+        manifest.updated_at_ms = now_ms();
+        aimd.cooldown_until = Some(now + thresholds.cooldown * 2);
+        aimd.settling_until = Some(now + thresholds.cooldown);
+        aimd.last_throughput = Some(pre_throughput.max(throughput));
+        aimd.stable_cycles = 0;
+        aimd.consecutive_bad_samples = 0;
+        aimd.recent_penalty = false;
+        aimd.record_sample(throughput);
+        track_direction(&mut aimd, Direction::Down);
+        check_oscillation(
+            &mut aimd,
+            manifest,
+            current,
+            min_threads,
+            now,
+            &thresholds.cooldown,
+        );
+        sync_snapshot_with_manifest(&mut core);
+        return;
     }
 
     let throughput_drop = aimd
