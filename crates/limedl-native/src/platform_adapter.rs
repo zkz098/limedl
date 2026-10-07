@@ -2,6 +2,8 @@ use crate::context::AppContext;
 use crate::handlers::new_task::open_new_task_with_payload;
 use crate::protocol;
 use crate::ui_sync::restore_and_show_window;
+#[cfg(windows)]
+use crate::MainWindow;
 
 pub fn setup_platform_integration(
     ctx: &AppContext,
@@ -205,7 +207,7 @@ fn open_dropped_files(
 
     let joined = files.join("\n");
     let count = files.len();
-    let ui_for_ui: slint::Weak<MainWindow> = (*ui_weak).clone();
+    let ui_for_ui = (*ui_weak).clone();
     let store_for_ui = (*store).clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_for_ui.upgrade() {
