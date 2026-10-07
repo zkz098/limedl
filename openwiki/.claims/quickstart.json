@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:86a030fb00a3264272627d877e8678a7826af47f3e250879ac9803dc6aafb0d4",
+  "pageVersion": "sha256:ef6ae9bd9352f6a060f6cb422a6a59df7cbbce4fb22aadfa36810b74fa1009c9",
   "claims": [
     {
       "id": "claim_6719a8b6ce264d6fa5e8103236b5336c",
@@ -85,8 +85,8 @@
       "statement": "The scheduler takes the core lock before the aimd lock in update_one_adaptive and syncs the snapshot after every desired_thread_count change.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L324-L420",
-          "version": "repo-lines-v1:sha256:0dbbd76863ce8ac57fbe0e3bf762c5f86d8419d731b5856bae78a1122440ca2d:eyJzZWxlY3RlZExpbmVDb3VudCI6OTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyNTcyNjZmOGY4ZDY5ZjJiNDYxM2RjNmM1N2Y1NmM3NjIxZTI4ZTQzNjUyNDRhMzk5NWMzMDUyMGIwYTg5ODEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmNGZmMmZhYzI5YzQxZGJiNzA0M2I2NDU5OTNkMDBmMmVlNWUwNWFlMDcxZmY3ZTY0MTMwYzZjNDQ2ODg0ZjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg2MjU0NjA1ZWQ1MDIwNmNhYTY0ZDkzMjIxYmY1YWJjOWM1OTMwMGNlODJlNWQ0ZjQ3ODAxZjM4NTg0MzE2N2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzNDVlZjExYzUzMWQ5ZTk5YTExNGFkMzc0ZmU4NGRjNDJhOGRjODExYTNhZDU4Y2RmYTcwMWE5NjE0ZGYxYmMifQ"
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L324-L498",
+          "version": "repo-lines-v1:sha256:cd130954472b2eca5d6d3670267cce19eb037bf47f070ad535df4601a67fcc84:eyJzZWxlY3RlZExpbmVDb3VudCI6MTc1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwMjU3MjY2ZjhmOGQ2OWYyYjQ2MTNkYzZjNTdmNTZjNzYyMWUyOGU0MzY1MjQ0YTM5OTVjMzA1MjBiMGE4OTgxIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJlMjJmYWE1MzViZDJlYTNkNTJlNzQxZWQ0NTQ0MzViN2ZlNDllODM1ODZlOTQzZDk4ZDgyYmJmYjI0ZDFmNWM1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI4NjI1NDYwNWVkNTAyMDZjYWE2NGQ5MzIyMWJmNWFiYzljNTkzMDBjZTgyZTVkNGY0NzgwMWYzODU4NDMxNjdlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI4OGIwOTA3NjBhMDQyMjVhMDFkZDJmMTA1NjMxYjFjOTQ3YjIzOGIxYTMzZTNkOTAzZThkZjQ3ZGE4MzMxYzZlIn0"
         }
       ]
     },
@@ -256,7 +256,7 @@
       "evidence": [
         {
           "resource": "repo://packaging/server/Dockerfile#L1-L42",
-          "version": "repo-lines-v1:sha256:e4968bfea860a4e622a7d3f626df3c352339f113fdf57e88d853597d1810fd56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjQ4YmQ3NThhMDRiMjU4MGM2MDIxYTg2ZGZiY2UyMTFmMDE1YTFkZDVjYzRmMzljMTNiNmVjZmUxNTcyOTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2ZTI3MjY1MjQ5MmEzZWVhMTQ4YWFmODdmZGE0NTQwNjFkMWRlNjAzNDZlNzRlZmFlMmU4YWVjZjQ0ODc0ZmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2YzhlNTYxYjI0MjlkYTg5YTJlZTc0YjZkNzM2ODEyYTQ5Zjk0ZmI1NzU2YTFhODkxMWE0Zjg5NWI1YjcyN2EifQ"
+          "version": "repo-lines-v1:sha256:e5094c108fe6b7c8e4d5d3f166ec2304bc7f0581b6bef7430e82c8ac90e21c42:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjQ4YmQ3NThhMDRiMjU4MGM2MDIxYTg2ZGZiY2UyMTFmMDE1YTFkZDVjYzRmMzljMTNiNmVjZmUxNTcyOTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2ZTI3MjY1MjQ5MmEzZWVhMTQ4YWFmODdmZGE0NTQwNjFkMWRlNjAzNDZlNzRlZmFlMmU4YWVjZjQ0ODc0ZmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2YzhlNTYxYjI0MjlkYTg5YTJlZTc0YjZkNzM2ODEyYTQ5Zjk0ZmI1NzU2YTFhODkxMWE0Zjg5NWI1YjcyN2EifQ"
         },
         {
           "resource": "repo://packaging/server/systemd/limedl-server.service#L1-L38",
@@ -267,6 +267,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.1",
-    "at": "2026-10-07T03:53:23.435Z"
+    "at": "2026-10-07T04:23:45.747Z"
   }
 }

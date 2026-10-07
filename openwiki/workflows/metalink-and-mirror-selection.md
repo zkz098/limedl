@@ -3,9 +3,6 @@ type: workflow
 title: Metalink Parsing and Mirror Selection
 description: limedl's Metalink subsystem — Metalink 4.0/3.0 and Metalink/HTTP parsing, best-checksum and priority selection, the scored MirrorPool with leasing and cooldown, latency probing, and how aria2.addMetalink and addUri mirror_urls feed the HTTP download failover loop.
 tags: [metalink, mirrors, failover, parsing, aria2, download]
-verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
 sources:
   - id: openwiki-source-4d67c2a24e4b561bd4166816
     resource: repo://crates/limedl-core/src/aria2_rpc/download.rs
@@ -35,7 +32,10 @@ sources:
     resource: repo://crates/limedl-core/src/metalink/xml_parser.rs
   - id: openwiki-source-098d28438aacd15b419786dc
     resource: repo://crates/limedl-core/src/task_lifecycle/mod.rs
-generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+generated: { by: "pi", at: "2026-10-07T04:23:45.747Z" }
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-07T04:23:45.747Z
 ---
 
 # Metalink Parsing and Mirror Selection
@@ -54,7 +54,10 @@ Evidence: `repo://crates/limedl-core/src/metalink/mod.rs#L1-L21`,
 ## XML parsing (`parse_metalink_xml`)
 
 `parse_metalink_xml(xml)` streams the document with `quick-xml` and builds a
-`MetalinkDocument`. Rules that matter:
+`MetalinkDocument`. It is a small state machine: the public function owns the
+reader, enforces the size limit and delegates each `Start`/`Text`/`End` event to
+`MetalinkBuilder` (`on_start`/`on_text`/`on_end`), with per-element attributes
+held in `MetalinkAttrs`. Rules that matter:
 
 - Payloads above 10 MiB are rejected up front with `InvalidRequest`, so a hostile
   or accidental large body cannot exhaust memory.
@@ -77,7 +80,9 @@ Evidence: `repo://crates/limedl-core/src/metalink/mod.rs#L1-L21`,
 Only SHA-256, SHA-512 and BLAKE3 are recognized (`parse_algo`); anything else
 parses to `ChecksumMode::None` and is ignored by selection.
 
-Evidence: `repo://crates/limedl-core/src/metalink/xml_parser.rs#L1-L260`.
+Evidence: `repo://crates/limedl-core/src/metalink/xml_parser.rs#L12-L39`,
+`repo://crates/limedl-core/src/metalink/xml_parser.rs#L93-L290`,
+`repo://crates/limedl-core/src/metalink/xml_parser.rs#L306-L314`.
 
 ## Metalink/HTTP headers (`parse_metalink_headers`)
 

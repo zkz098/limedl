@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:3af874d7781a85f71d1ada89e1dbd7041a7f8c5d1ac1ab1126c6b6623d755e07",
+  "pageVersion": "sha256:3fd0f1952d8898639de42a91b17317e4bca8841af72c3003b2b7a3be7dd3cfb6",
   "claims": [
     {
       "id": "claim_535768c797ab40d6ba62c8e2c73de651",
@@ -57,8 +57,8 @@
       "statement": "update_one_adaptive takes the core lock before the aimd lock, acts only on adaptive downloading range tasks, returns early during a penalty cooldown, hysteresis lock or settling window, evaluates a pending proactive probe, decreases only on confirmed degradation, and calls sync_snapshot_with_manifest after every desired_thread_count change.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L324-L490",
-          "version": "repo-lines-v1:sha256:d8cc6856c778ccb10c6065a4b030a625a206522d162771f58915a0eacef25a66:eyJzZWxlY3RlZExpbmVDb3VudCI6MTY3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwMjU3MjY2ZjhmOGQ2OWYyYjQ2MTNkYzZjNTdmNTZjNzYyMWUyOGU0MzY1MjQ0YTM5OTVjMzA1MjBiMGE4OTgxIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJiYjAxNmJmNjZkMzQ4ZDQ0ZjU5OTgxMTgyNDBjYWU1M2Y2YTRiMTNjOWQ3NjkwNzRmOTRiMGFkODA4ZGM4YTI5IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI4NjI1NDYwNWVkNTAyMDZjYWE2NGQ5MzIyMWJmNWFiYzljNTkzMDBjZTgyZTVkNGY0NzgwMWYzODU4NDMxNjdlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI1MTliOTUxZDA4ODQzY2FkNWQwMTcwMmJkOTVmMTIwMjQ4OTk1OTE0YjE2ZDA3MjVmYmQzMjY1NzYzOTdhMTBjIn0"
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L324-L498",
+          "version": "repo-lines-v1:sha256:cd130954472b2eca5d6d3670267cce19eb037bf47f070ad535df4601a67fcc84:eyJzZWxlY3RlZExpbmVDb3VudCI6MTc1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwMjU3MjY2ZjhmOGQ2OWYyYjQ2MTNkYzZjNTdmNTZjNzYyMWUyOGU0MzY1MjQ0YTM5OTVjMzA1MjBiMGE4OTgxIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJlMjJmYWE1MzViZDJlYTNkNTJlNzQxZWQ0NTQ0MzViN2ZlNDllODM1ODZlOTQzZDk4ZDgyYmJmYjI0ZDFmNWM1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI4NjI1NDYwNWVkNTAyMDZjYWE2NGQ5MzIyMWJmNWFiYzljNTkzMDBjZTgyZTVkNGY0NzgwMWYzODU4NDMxNjdlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI4OGIwOTA3NjBhMDQyMjVhMDFkZDJmMTA1NjMxYjFjOTQ3YjIzOGIxYTMzZTNkOTAzZThkZjQ3ZGE4MzMxYzZlIn0"
         }
       ]
     },
@@ -155,18 +155,18 @@
       "statement": "A proactive probe raises desired_thread_count and records is_probing_up plus the pre-probe throughput/threads; the next decision keeps the higher target only if throughput improved by at least the profile's increase fraction, otherwise it rolls back to probe_pre_threads with a 2x cooldown and a settling window, which breaks the low-thread AIMD deadlock.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L372-L420",
-          "version": "repo-lines-v1:sha256:caa3b9b653855974541263b916e8a2c298a8b78e122db1eafc388e0c9c8d3f84:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlYTQ3ZjgyMGE4ZDBjYzljYWNlNWYzOTYwYWY1YjljY2Q3MDQzMzc5YjhhOTk4YWEyNmM0MGE2NDZkNGJjNDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmNGZmMmZhYzI5YzQxZGJiNzA0M2I2NDU5OTNkMDBmMmVlNWUwNWFlMDcxZmY3ZTY0MTMwYzZjNDQ2ODg0ZjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU5ZWE3NzJkMWQ1YTMxMzhiYTFhNGVmZWYwZGEzZDhmNjdiZjllYTgxM2MwZGJlM2E5Yzc0ZjJkOWFhNTIxYzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzNDVlZjExYzUzMWQ5ZTk5YTExNGFkMzc0ZmU4NGRjNDJhOGRjODExYTNhZDU4Y2RmYTcwMWE5NjE0ZGYxYmMifQ"
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L373-L429",
+          "version": "repo-lines-v1:sha256:cdf5821d89d19d695a99444b7e9757bd07e33cfa1dddc0b21c64cc8bb409f617:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5NTI4MjMwYmJmYjJmNmJiZDMxNjRkY2FjNzNhMjVlZjNhMjdlYjdmNDE1ZDEwN2VlNGFiMTBmZWMzOWQ1MjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAxZTczYzY3YTdjMDA0ZGNiYWQxNjI4MGE1YjgxOWM2YWE0MTViNDU4MGQ4ZGNjMmJkNGZhOWFhZDdkZTRkZTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxZDA3ZTkwZGFmYjU2YTJkYjVkZTZmOTRkM2FjMjE0OTgzMzI0ZjNmODkwYzY5NGFhMjMxZDVkNjAxMTU3M2UifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L626-L650",
-          "version": "repo-lines-v1:sha256:0afb9ca346522613c08a4b83792e471e6475165da7b065e4d463d32509c165b5:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYxMjFhMWU5Yjk0ZDA4OTUyYzU1YTk2N2Q3ZWJhMjg5OWQ5ODIyNWEyZjQ2NDIxM2E2M2MzYzZiZTE3YTU1N2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwM2Y2NjliNmY4NjRhZjI3ZTcxNmQ5NDkzZjFjMmM3NjM2MDUzM2NiNDE1M2NjYTIxZDE3OTM0NzIwZTYwZWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBjMjI3MjAxNzI1OWQ3ZWVlNTFjMTIzZWI2ZDhjMTA4N2YwNjkzYzRmNzc0ZGI3Mzg4ZmVlN2U1MGRjY2IwZmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFmYTc1ZDY5NjRhZWU5ZmI1YWY5YzM2NmIyYjQ5NDQyYWZhZmY2YThlNjM4ZTg0OGMyMGFhYjc5NzhkZTZkZTEifQ"
+          "resource": "repo://crates/limedl-core/src/scheduler/mod.rs#L626-L648",
+          "version": "repo-lines-v1:sha256:48c75ad018cdb3257796af3bdd2f060408d965e7d6bab7e138f509cc5dd58b34:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYxMjFhMWU5Yjk0ZDA4OTUyYzU1YTk2N2Q3ZWJhMjg5OWQ5ODIyNWEyZjQ2NDIxM2E2M2MzYzZiZTE3YTU1N2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBjMjI3MjAxNzI1OWQ3ZWVlNTFjMTIzZWI2ZDhjMTA4N2YwNjkzYzRmNzc0ZGI3Mzg4ZmVlN2U1MGRjY2IwZmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIwMmFkMmMyZjNiY2M4MjRiZDk1NTAwYjJkMDE1MWU3YzgxZmQxZGM0ZjAyMzhlNzI5NzI3NzdiM2QzYjU2NmEifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.1",
-    "at": "2026-10-07T03:53:23.435Z"
+    "at": "2026-10-07T04:23:45.747Z"
   }
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:8cc3e2c5709a1a0249ddf7ebc863c23d40fe76cb9687242e0da4b5467d7417e8",
+  "pageVersion": "sha256:af75c3fba98261ffe8600e6c6b2698f2c9d98bc25825fe5faf4f892993c8a172",
   "claims": [
     {
       "id": "claim_eef8a019cfa64bdd8ce429c971aed805",
@@ -17,8 +17,16 @@
       "statement": "parse_metalink_xml rejects payloads over 10 MiB and documents with no <file> entries, sanitizes the file name to a basename, normalizes priority so 1 is highest (explicit priority or inverted preference), routes bittorrent/non-HTTP URLs to metaurls and HTTP(S) URLs to resources, and recognizes only SHA-256/SHA-512/BLAKE3.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/metalink/xml_parser.rs#L12-L234",
-          "version": "repo-lines-v1:sha256:6258683fb9c306c775ed0bed3e01489f2be9a256a2bf53f890e3ce89ab7f0805:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmMjFiMzFmZmI5MWU0ZTA0NzMwMmUzZWNmNDc5YjM2OWVjNTEzNzM3ZmVkYTdmNWM3MDUyZTdlNzgxNDYxN2UzIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI2NDc1ZTk0YTkwNGFjNDliMzE1NGQ0NjcyYTY2ZTg2MjliODZkYWM3NGUzZTI5MzdiZTY5MjdhZTNkYTExYzUzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwM2NkYzExZDdkYjk3MjQyNDIyMGMzOWNmMDIwMTBiMmI5MDUzNTUwMGY5NmZjYThjN2NjOTEwMWRhNGVlOGQ4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJjYjgzZDkxZWRkMzk3MzA2NDIwZDMwYWY0NTg5MGRhMmM5NWJmY2RmZjA1MGYxMmQzZjg4Y2QzNDQyODUyYTk0In0"
+          "resource": "repo://crates/limedl-core/src/metalink/xml_parser.rs#L12-L39",
+          "version": "repo-lines-v1:sha256:ec93076019b3c4f3e86aec12c4148ed4bb7de86223c79717c228a82397d79a99:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyMWIzMWZmYjkxZTRlMDQ3MzAyZTNlY2Y0NzliMzY5ZWM1MTM3MzdmZWRhN2Y1YzcwNTJlN2U3ODE0NjE3ZTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAzY2RjMTFkN2RiOTcyNDI0MjIwYzM5Y2YwMjAxMGIyYjkwNTM1NTAwZjk2ZmNhOGM3Y2M5MTAxZGE0ZWU4ZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRmMDcyZWE3MmJlYjAyOGZkOTFlZTMyYzMxMGM5Y2JhMzE4Y2U3MGZjZTA5MzVjMjA2YTMwMjY4YWI3OGFjZWQifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/xml_parser.rs#L306-L314",
+          "version": "repo-lines-v1:sha256:8d4ffbda15fc30c83c55ea7c0458646d567bd5e9726621fa7d9d5529cd5efefb:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMGJhMjYyN2M5ZTU0OGM4OTk5N2ExOWMxYTQ2OWE1MmEwZTIzNGJmNTYwYTI5ZjFlMDViYmU3Y2IzYjBkNzM0NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTllNzYzNTVjZjExOTk0ODBjM2Y5OTgzNmIxNDg2Yzg0MWQ4OTFmYWFkOTA0YzYwOGUwOTMwMjJkMzc1N2FlZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2ZhYWZmZTgyZWZiODU5ZThiM2JhNWI5YjM3MzJkNTA1NWI2YzcyNWIwZThkYzdlZTJkODUxNDUwOGEzNDFlZSJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/metalink/xml_parser.rs#L93-L290",
+          "version": "repo-lines-v1:sha256:2d20cee2bc7c63ed79ecf84c18be67263689a417fc4d521d27784e67b0e03ea9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTk4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI1NzQ3ZTA1YTMzOWQ0MDMyYThkYTQxNmZmMjkzYmIwOTZhOGNmOWY0MGI0MjdkMTY2ZTMzYjA5NTRhOTFjNmExIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJhYTVhZjk4MGQ4YTEyMjU5ZTM1YjgyZTY5MjczMGYyYzVmODFjNTg4ZWIyNjhlMzBhMDdhNDY5NjJkMjZlMmIzIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJmYjU2OTg3ZmYxNmFiZjc2YTQzZDNmNTU2M2Q5MzMxMDI1NjgxNzVmZTkxYTBlZmVlMWQ4MWM4Y2RkMmE3OWYzIn0"
         }
       ]
     },
@@ -151,6 +159,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.1",
-    "at": "2026-10-07T03:53:23.435Z"
+    "at": "2026-10-07T04:23:45.747Z"
   }
 }

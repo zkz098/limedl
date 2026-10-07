@@ -58,10 +58,10 @@ sources:
     resource: repo://README.md
   - id: openwiki-source-ca864fd40fa4107ed35f840f
     resource: repo://xtask/src/fetch_font.rs
-generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+generated: { by: "pi", at: "2026-10-07T04:23:45.747Z" }
 verified:
   - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
+    at: 2026-10-07T04:23:45.747Z
 ---
 
 # limedl Wiki Quickstart
@@ -159,7 +159,7 @@ Evidence: `repo://AGENTS.md#L99-L131`.
   `repo://crates/limedl-core/src/dispatcher.rs#L293-L348`
 - **The scheduler takes the `core` lock before the `aimd` lock**, and every
   `desired_thread_count` change syncs the snapshot.
-  `repo://crates/limedl-core/src/scheduler/mod.rs#L324-L420`
+  `repo://crates/limedl-core/src/scheduler/mod.rs#L324-L498`
 - **The BT alert bridge is the sole source of BT Aria2 notifications**; the RPC
   handler broadcasts only for HTTP.
   `repo://crates/limedl-core/src/bt_backend/alerts.rs#L100-L200`
