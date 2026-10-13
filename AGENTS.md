@@ -62,18 +62,8 @@ release if a dependency raises it again.
 
 Architecture and mechanism documentation lives in the generated OpenWiki
 (`openwiki/`); start at `openwiki/quickstart.md`. Operational runbooks live in
-`docs/` (index: `docs/README.md`).
-
-**After finishing a task, update this repository's OpenWiki for changes since its
-last successful run** — start an OpenWiki `update` run (the `openwiki_begin`
-update flow; CLI: `openwiki code --update`). OpenWiki is **not** refreshed by CI
-in this repository, so the agent must run the update itself; the wiki would
-otherwise drift from the code just changed.
-
-- OpenWiki pages are **generated** — do not hand-edit them; update source code
-  and re-run the update so they are regenerated.
-- `docs/` runbooks are hand-maintained — update them **after** changing the
-  behavior they describe.
+`docs/` (index: `docs/README.md`); `docs/` runbooks are hand-maintained — update
+them **after** changing the behavior they describe.
 
 | Topic | Where |
 | --- | --- |
