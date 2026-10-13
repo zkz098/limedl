@@ -532,18 +532,6 @@ jobs:
       # need to *compile* it — which the workspace clippy step already does via
       # `--all-targets`.
       - run: cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
-      # rust-cache P3 probe (temporary). `cargo llvm-cov` defaults its build tree
-      # to `target/llvm-cov-target` (CARGO_LLVM_COV_TARGET_DIR / BUILD_DIR), and
-      # rust-cache caches the whole `target/` dir, so the Linux entry measured
-      # 2917 MiB — 1.75x the Windows entry — and may hold the instrumented
-      # dependency graph next to the normal one. These are pre-clean sizes (the
-      # save step prunes workspace crates afterwards); once the split decision
-      # is recorded in docs/ci-operations.md, delete this step.
-      - name: Measure cached target composition (rust-cache probe)
-        if: github.ref == 'refs/heads/main'
-        run: |
-          du -sh target target/llvm-cov-target target/debug 2>/dev/null || true
-          du -sh target/debug/build target/debug/deps 2>/dev/null || true
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

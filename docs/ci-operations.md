@@ -73,14 +73,27 @@ and `.github/workflows/sign-check.yml`. Read this before editing a job.
   changing the GC, keep two invariants: never delete the newest entry per prefix,
   and never select outside `v0-rust-` (the `Linux-sonar` and `misans-vf` entries
   are rolling caches with their own lifecycle).
-- **`check-rust` also runs a `du` probe** (`Measure cached target composition`),
-  main-only, that records the pre-clean sizes of `target`, `target/debug` and
-  `target/llvm-cov-target`. Its purpose is to decide whether to move
-  `CARGO_LLVM_COV_TARGET_DIR` / `CARGO_LLVM_COV_BUILD_DIR` (both default to
-  `<target>/llvm-cov-target`, which rust-cache caches because it caches all of
-  `target/`) into their own cache entry: the Linux entry measured 2917 MiB vs
-  1197 MiB on Windows and 1660 MiB on macOS, and the instrumented tree is a
-  suspected 1.3 GB of that. Delete the probe once the decision is recorded here.
+- **The Linux `ci-debug` entry is legitimately the largest** (2917 MiB vs
+  1197 MiB on Windows and 1660 MiB on macOS). `cargo llvm-cov` defaults its build
+  tree to `<target>/llvm-cov-target` (`CARGO_LLVM_COV_TARGET_DIR` /
+  `CARGO_LLVM_COV_BUILD_DIR`), and rust-cache caches the whole `target/` dir.
+  That tree is **not** a duplicate of `target/debug`: coverage runs with
+  `--cargo-profile dev` while every other nextest step uses the default `test`
+  profile, and `[profile.test] debug = false` makes their dependency artifacts
+  hash differently, so the two directories hold different profiles. The dev
+  graph is required to link the instrumented test binaries, and cargo-llvm-cov
+  v0.9.0's rustc wrapper only adds instrumentation flags for workspace members
+  (`__CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES`, from `src/wrapper.rs`), never
+  for dependencies. Measured 2026-10-13: `target` = 12 G pre-clean, of which
+  `target/debug/deps` = 5.4 G and the rest is the dev graph. Pointing
+  `CARGO_LLVM_COV_TARGET_DIR` / `BUILD_DIR` at `target/` would therefore *move*
+  the dev rlibs into `target/debug` without removing bytes — only the duplicated
+  `build/` and `.fingerprint` entries (~0.2-0.3 GiB) would go, at the cost of a
+  one-time full dev rebuild. Rejected on 2026-10-13. The only real size lever is
+  running the `limedl-native` / `limedl-server` nextest steps with
+  `--cargo-profile dev` so they reuse the coverage graph, which trades away the
+  `[profile.test] debug = false` link-time win and runs instrumented test
+  binaries (`.profraw` litter). Do not re-open this without new measurements.
 - **Desktop release builds are deliberately uncached.** They were once warmed by
   `.github/workflows/warm-release-cache.yml` on `main`, but that workflow cost
   ~50 min per crates-changing push for two legs while the measured release gain
