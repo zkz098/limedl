@@ -36,10 +36,51 @@ and `.github/workflows/sign-check.yml`. Read this before editing a job.
   about Skia's duplicate ICU symbol `ubrk_getLocaleByType` (converged with
   `/FORCE:MULTIPLE`); both the Skia dependency and the renderer are gone, so the
   exception and the flag were removed with them.
-- The rust-cache key is composed of the Rust toolchain + the RUST*/CARGO*/CC*/
-  CFLAGS*/CXX*/CMAKE* environment variables + `.cargo/config.toml` + external
-  dependency hashes, and **does not include source**. It is only written back
-  when the restore is incomplete (key mismatch); a full hit is not overwritten.
+- The rust-cache key is `v0-rust-<shared-key>-<os>-<arch>-<envHash>-<lockHash>`.
+  `envHash` covers the installed Rust toolchain versions plus every
+  `RUST*`/`CARGO*`/`CC*`/`CFLAGS*`/`CXX*`/`CMAKE*` environment variable, and
+  **does not include source**. `lockHash` hashes each workspace member's
+  `Cargo.toml` (with `package.version` normalised to `0.0.0` and path
+  dependencies blanked), the external packages of `Cargo.lock` (also parsed, not
+  read as bytes), and the **raw bytes** of `.cargo/config.toml` /
+  `rust-toolchain*`. Consequences worth remembering:
+  - A version bump does **not** invalidate the cache (`0.0.0` normalisation).
+  - A `Cargo.lock`/dependency change appends a new `lockHash`, so rust-cache
+    writes a **new generation** while the old one survives only until GitHub's
+    repository-wide LRU eviction. The restore is a prefix match
+    (`restoreKey` = key minus `lockHash`), so dependencies are reused rather than
+    rebuilt cold.
+  - Because `.cargo/config.toml` is hashed as raw bytes, Windows CRLF checkout
+    gives Windows a different `lockHash` than Linux/macOS on the same commit
+    (measured `75a17e6d` vs `73b11a8a`, run 37568494078): harmless today because
+    each OS keeps its own entries, but do not expect cross-OS key equality.
+  - The cache is only written back when the restore is incomplete (key
+    mismatch); a full hit is not overwritten.
+- **Every writer passes `cache-on-failure: true`.** The action's post step is
+  gated on `success() || CACHE_ON_FAILURE == 'true'`; without the flag a run that
+  changes the lockfile and then fails a test pays the multi-minute save twice
+  (once red, once on the fix). The Windows save alone measured 127-179 s for
+  ~1.2 GB. A failing test does not invalidate dependency artifacts, so caching
+  them stays correct.
+- **Superseded generations are collected by the `prune-cache` job** in
+  `ci.yml`. It runs only on `main` (the only ref that saves anyway), after all
+  three writers (`always()`, so a failed writer still leaves the previous
+  generation as the newest), and keeps only the most recently created entry per
+  key prefix — the only entry a bare prefix restore can ever pick — deleting the
+  rest through the `actions/cache` REST API. `actions: write` is scoped to that
+  job. Measured 2026-10-07 before the job existed: 5 `v0-rust-*` entries /
+  8.54 GB against the 10 GB ceiling, of which 2.73 GB were superseded. When
+  changing the GC, keep two invariants: never delete the newest entry per prefix,
+  and never select outside `v0-rust-` (the `Linux-sonar` and `misans-vf` entries
+  are rolling caches with their own lifecycle).
+- **`check-rust` also runs a `du` probe** (`Measure cached target composition`),
+  main-only, that records the pre-clean sizes of `target`, `target/debug` and
+  `target/llvm-cov-target`. Its purpose is to decide whether to move
+  `CARGO_LLVM_COV_TARGET_DIR` / `CARGO_LLVM_COV_BUILD_DIR` (both default to
+  `<target>/llvm-cov-target`, which rust-cache caches because it caches all of
+  `target/`) into their own cache entry: the Linux entry measured 2917 MiB vs
+  1197 MiB on Windows and 1660 MiB on macOS, and the instrumented tree is a
+  suspected 1.3 GB of that. Delete the probe once the decision is recorded here.
 - **Desktop release builds are deliberately uncached.** They were once warmed by
   `.github/workflows/warm-release-cache.yml` on `main`, but that workflow cost
   ~50 min per crates-changing push for two legs while the measured release gain

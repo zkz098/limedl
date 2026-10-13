@@ -56,6 +56,21 @@ concurrency:
 # - Every writer also gates on `github.ref == 'refs/heads/main'`: a cache saved
 #   on a PR branch is scoped to that branch and still counts against the same
 #   10 GB ceiling.
+# - Every writer passes `cache-on-failure: true` (the action's post
+#   `post-if: success() || CACHE_ON_FAILURE == 'true'`). A run that changes the
+#   lockfile and then fails a test otherwise pays the save twice — once on the
+#   failure, again on the fix — and the Windows save alone measured 127-179 s
+#   for ~1.2 GB. Dependency artifacts stay valid when a test fails, so caching
+#   them is safe.
+#
+# Stale generations are collected by the `prune-cache` job at the bottom of
+# this file. Each Cargo.toml/Cargo.lock/rust-toolchain change appends a new
+# `lockHash` segment to the key, and the previous generation survives only
+# until GitHub's repository-wide LRU eviction — the same pressure that once
+# evicted the Linux entry and cold-compiled the coverage leg. Measured
+# 2026-10-07: 5 rust entries / 8.54 GB, of which 2.73 GB were superseded.
+# `prune-cache` keeps the newest entry per key prefix (the only one a prefix
+# restore can pick) and deletes the rest.
 #
 # `rustflags: ""` leaves RUSTFLAGS unset so `.cargo/config.toml` stays the single
 # source of truth for codegen/linker flags (x86-64-v3, and rust-lld +
@@ -263,6 +278,9 @@ jobs:
           # the top).
           shared-key: ci-debug
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          # Dependency artifacts survive a test failure, so a red run still
+          # refreshes the entry instead of making the fixing run redo the save.
+          cache-on-failure: true
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: nextest@0.9.144
@@ -306,6 +324,7 @@ jobs:
           # branches out of the ceiling.
           shared-key: ci-debug
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
         with:
           tool: nextest@0.9.144
@@ -364,6 +383,7 @@ jobs:
           # own writer; the key is shared for consistency with the other OSes.
           shared-key: ci-debug
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       # Slint's font stack probes pkg-config for fontconfig
       # (`yeslogic-fontconfig-sys`); the tray no longer needs any GTK package.
       - run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
@@ -512,6 +532,18 @@ jobs:
       # need to *compile* it — which the workspace clippy step already does via
       # `--all-targets`.
       - run: cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
+      # rust-cache P3 probe (temporary). `cargo llvm-cov` defaults its build tree
+      # to `target/llvm-cov-target` (CARGO_LLVM_COV_TARGET_DIR / BUILD_DIR), and
+      # rust-cache caches the whole `target/` dir, so the Linux entry measured
+      # 2917 MiB — 1.75x the Windows entry — and may hold the instrumented
+      # dependency graph next to the normal one. These are pre-clean sizes (the
+      # save step prunes workspace crates afterwards); once the split decision
+      # is recorded in docs/ci-operations.md, delete this step.
+      - name: Measure cached target composition (rust-cache probe)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          du -sh target target/llvm-cov-target target/debug 2>/dev/null || true
+          du -sh target/debug/build target/debug/deps 2>/dev/null || true
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -549,3 +581,72 @@ jobs:
         with:
           tool: cargo-audit
       - run: cargo audit
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # rust-cache generation GC (contract at the top of the file).
+  #
+  # Every Cargo.toml/Cargo.lock/rust-toolchain change appends a new trailing
+  # `lockHash` to the cache key, so rust-cache writes a *new* generation while
+  # the previous one lingers until GitHub's repository-wide LRU reclaims it at
+  # the 10 GB ceiling. Measured 2026-10-07: 5 `v0-rust-*` entries / 8.54 GB, of
+  # which 2.73 GB were superseded generations — exactly the pressure that once
+  # evicted the Linux entry and made the coverage leg cold-compile.
+  #
+  # Running after the three writer jobs means their freshly written generation
+  # is the newest for its prefix; a bare prefix restore (`restoreKey` = key
+  # minus the lockHash) can only ever pick the most recently created match, so
+  # anything older is unreachable. `always()` keeps the GC working on runs whose
+  # writers failed — a failed job leaves the previous generation as the newest.
+  #
+  # `actions: write` is needed to delete cache entries and is scoped to this job
+  # rather than granted workflow-wide.
+  # ═══════════════════════════════════════════════════════════════════════
+  prune-cache:
+    name: Prune stale rust-cache generations
+    # Only main saves entries (`save-if` in every writer), so only main prunes.
+    if: always() && github.ref == 'refs/heads/main'
+    needs: [test-windows-native, check-macos, check-rust]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Delete superseded rust-cache generations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Keys look like
+          #   v0-rust-ci-debug-<os>-<arch>-<envHash>-<lockHash>
+          # so dropping the trailing 8-hex lockHash yields the prefix that a
+          # restore-key match is scoped to. Keep the newest `created_at` per
+          # prefix, delete every older entry.
+          gh api --paginate "repos/$REPO/actions/caches?per_page=100" \
+            --jq '.actions_caches[] | [.key, .created_at, (.id | tostring)] | @tsv' \
+          | awk -F'\t' '
+              $1 !~ /^v0-rust-/ { next }
+              {
+                prefix = $1
+                sub(/-[0-9a-f]{8}$/, "", prefix)
+                n++
+                pfx[n] = prefix; ky[n] = $1; crt[n] = $2; id[n] = $3
+                if (!(prefix in newest) || $2 > newest[prefix]) newest[prefix] = $2
+              }
+              END {
+                for (i = 1; i <= n; i++) {
+                  if (crt[i] != newest[pfx[i]]) print id[i] "\t" ky[i]
+                }
+              }
+            ' \
+          | while IFS="$(printf '\t')" read -r id key; do
+              echo "deleting superseded $key"
+              # A concurrent run (or GitHub's own eviction) can remove the entry
+              # between the listing and the delete; that is not a CI failure.
+              gh api -X DELETE "repos/$REPO/actions/caches/$id" >/dev/null \
+                || echo "  (already gone or delete failed)"
+            done
+          echo "remaining v0-rust entries:"
+          gh api --paginate "repos/$REPO/actions/caches?per_page=100" \
+            --jq '.actions_caches[] | select(.key | startswith("v0-rust-")) | "  \(.key)  \(.size_in_bytes / 1048576 | floor) MiB"'
