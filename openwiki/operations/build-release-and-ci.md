@@ -1,7 +1,7 @@
 ---
 type: operations
 title: Build, Tooling, CI and Release Operations
-description: The operational surface of limedl — build prerequisites and rustflags, the xtask tooling, the mandatory pre-commit gate and its Windows blind spot, the CI job graph with nextest/coverage/sonar/supply-chain, and the tag-driven release pipeline including the static musl server artifacts.
+description: The operational surface of limedl — build prerequisites and rustflags, the xtask tooling, the mandatory pre-commit gate and its Windows blind spot, the CI job graph with nextest/coverage/sonar/supply-chain, the rust-cache key/restore contract with its generation GC job, and the tag-driven release pipeline including the static musl server artifacts.
 tags: [operations, build, ci, release, xtask, tooling]
 sources:
   - id: openwiki-source-4905fab56ecf9fa5e1ebbf3f
@@ -22,6 +22,8 @@ sources:
     resource: repo://Cargo.toml
   - id: openwiki-source-cb3b278da9fc4917fdb881e9
     resource: repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs
+  - id: openwiki-source-1b7168c42d51ca8892c63dbe
+    resource: repo://docs/ci-operations.md
   - id: openwiki-source-6824d268ea5edfcd81cb1a8b
     resource: repo://scripts/check-glibc-floor.sh
   - id: openwiki-source-feafbe9db788653e845840b8
@@ -32,10 +34,10 @@ sources:
     resource: repo://xtask/src/fetch_font.rs
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
-generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+generated: { by: "pi", at: "2026-10-13T18:15:25.443Z" }
 verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
+  - by: openwiki/0.7.2
+    at: 2026-10-13T18:15:25.443Z
 ---
 
 # Build, Tooling, CI and Release Operations
@@ -189,6 +191,13 @@ Evidence: `repo://AGENTS.md#L113-L131`.
 | `check-macos` | macOS | clippy → core nextest → native nextest |
 | `check-rust` | Linux | coverage (core + native lcov) → clippy → SonarCloud → native nextest → `limedl-server` nextest |
 | `supply-chain` | Linux | `cargo deny check -W rejected bans licenses sources` + `cargo audit` |
+| `prune-cache` | Linux | main-only GC of superseded `v0-rust-*` cache generations; `needs` the three rust-cache writers |
+
+`prune-cache` is a bookkeeping job, not a test: it runs after `test-windows-native`,
+`check-macos` and `check-rust` (with `always()`, so a failed writer still leaves
+the previous generation as the newest per prefix) and deletes every cache entry
+older than the newest for its key prefix. It is the only job that asks for
+`actions: write`, scoped to the job rather than the workflow.
 
 `limedl-server` is exercised **only** on the Linux leg. Its end-to-end test binds
 a real port and bootstraps the engine, so running it on the Windows/macOS legs
@@ -224,24 +233,69 @@ Every job passes `cache: false` to `actions-rust-lang/setup-rust-toolchain`
 (because it runs rust-cache internally) and then runs `swatinem/rust-cache`
 explicitly exactly once. The Rust jobs share one `ci-debug` key per OS via
 `shared-key`; rust-cache still appends the runner OS/arch, so Windows, Linux and
-macOS stay separate.
+macOS stay separate and only ever compare entries within one OS.
+
+**Key shape.** `v0-rust-<shared-key>-<os>-<arch>-<envHash>-<lockHash>`:
+
+- `envHash` covers the installed Rust toolchain versions plus every
+  `RUST*`/`CARGO*`/`CC*`/`CFLAGS*`/`CXX*`/`CMAKE*` environment variable present
+  on the cache step. A job-scoped variable such as `CARGO_BUILD_WARNINGS` is
+  therefore part of the key, which is why it is attached to the steps that need
+  it rather than the job when key sharing matters.
+- `lockHash` hashes each workspace member's `Cargo.toml` with `package.version`
+  normalised to `0.0.0` and path dependencies blanked, the external packages of
+  `Cargo.lock` (parsed, not read as bytes), and the **raw bytes** of
+  `.cargo/config.toml` / `rust-toolchain*`. Two consequences: a version bump does
+  not invalidate the cache, and a Windows CRLF checkout gives Windows a different
+  `lockHash` than Linux/macOS on the same commit (measured `75a17e6d` vs
+  `73b11a8a`, run 37568494078) — harmless while each OS keeps its own entries,
+  but it rules out cross-OS key equality.
+- Source is not hashed, and rust-cache caches dependency artifacts only. In
+  `check-rust` that includes the instrumented `target/llvm-cov-target` tree that
+  `cargo llvm-cov` writes *under* `target/`, which is why the Linux entry is the
+  largest (2917 MiB vs 1197 MiB on Windows and 1660 MiB on macOS).
+
+**Restore semantics.** A full key match is not written back. When only the
+prefix matches (`restoreKey` = key minus `lockHash`), rust-cache restores the
+previous generation, keeps its dependency artifacts (the save-side cleanup only
+prunes workspace crates and anything older than a week), and writes a new
+generation under the new `lockHash` — so a lockfile bump is an incremental
+rebuild, not a cold one.
 
 Additional rules:
 
-- **Exactly one writer per shared key**, gated on `github.ref == 'refs/heads/main'`;
-  everyone else passes `save-if: false`. Multiple writers race after a lockfile
-  bump and recreate duplicate entries, which is what pushed the repo against
-  GitHub's 10 GB ceiling and caused LRU eviction of the Linux caches.
+- **Exactly one writer per shared key** (`test-windows-native` for Windows,
+  `check-rust` for Linux, `check-macos` for macOS), gated on
+  `github.ref == 'refs/heads/main'`; everyone else passes `save-if: false`.
+  Multiple writers race after a lockfile bump and recreate duplicate entries,
+  which is what pushed the repo against GitHub's 10 GB ceiling and caused LRU
+  eviction of the Linux caches.
+- Every writer also passes **`cache-on-failure: true`**. The action's post step is
+  gated on `success() || CACHE_ON_FAILURE == 'true'`; without it a run that
+  changes the lockfile and then fails a test pays the save twice (once red, once
+  on the fix). The Windows save measured 127-179 s for ~1.2 GB, and a failing
+  test does not invalidate dependency artifacts.
+- **Superseded generations are collected by the `prune-cache` job** (main-only,
+  `needs` the three writers with `always()`). Each lockfile change otherwise
+  leaves the previous generation until GitHub's repository-wide LRU reclaims it.
+  The job keeps only the most recently created entry per key prefix — the only
+  entry a bare prefix restore can ever pick — and deletes the rest through the
+  `actions/cache` REST API. Measured 2026-10-07 before it existed: 5 `v0-rust-*`
+  entries / 8.54 GB, of which 2.73 GB were superseded.
 - `rustflags: ""` leaves RUSTFLAGS unset so `.cargo/config.toml` stays
-  authoritative. A job-scoped env var such as `CARGO_BUILD_WARNINGS` splits the
-  cache key, so it is attached to steps rather than the job when key sharing
-  matters.
+  authoritative.
 - Windows jobs exclude build paths from Defender real-time scanning
   (best-effort), which is the dominant Windows-vs-Linux build penalty.
+- A main-only `du` probe in `check-rust` records the pre-clean sizes of `target`,
+  `target/debug` and `target/llvm-cov-target`. It exists to decide whether the
+  coverage build tree should move to `CARGO_LLVM_COV_TARGET_DIR` /
+  `CARGO_LLVM_COV_BUILD_DIR` plus its own cache entry, and is intended to be
+  deleted once that decision is recorded.
 
-Evidence: `repo://.github/workflows/ci.yml#L40-L93`,
-`repo://.github/workflows/ci.yml#L148-L336`,
-`repo://.github/workflows/ci.yml#L336-L515`.
+Evidence: `repo://.github/workflows/ci.yml#L29-L107`,
+`repo://.github/workflows/ci.yml#L163-L400`,
+`repo://.github/workflows/ci.yml#L528-L553`,
+`repo://.github/workflows/ci.yml#L584-L649`.
 
 ## Release pipeline
 
