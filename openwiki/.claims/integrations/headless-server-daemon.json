@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:5c2dd35e33d36800de5e3e6ea6759fe3b0c60c8c6217b2da685692492d7a975e",
+  "pageVersion": "sha256:b3cbb86e5cb977f567f96c7a9aae4eed5d69a0d700b263cb39fbd6e165a4117b",
   "claims": [
     {
       "id": "claim_af10e01b4e884401808d8b3bee48e762",
@@ -105,7 +105,7 @@
       "statement": "The limedl-server test suite runs in the Linux check-rust job, while the Windows/macOS legs only compile it through the workspace clippy.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/ci.yml#L507-L514",
+          "resource": "repo://.github/workflows/ci.yml#L527-L534",
           "version": "repo-lines-v1:sha256:7c488ac9a3bb089f539c081b07d8818547cfb5f9f8c56021af63ae6cdc4e7fbe:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZGUyMDNiOTU1N2VhNjVjYzE3ZGI4NGZlZjkwZTEzNzdkNjRkMzhiOWQyOWUwOGNjY2UyOWViNjNkZWQ1MzYyYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTc5NjA0OTdkZjZmNTdkN2ZmODIzYzgxOWI4ZWJlYTkyYTg3ZWEzYTc1OWNmMzMwMjEzOGFlYzg5MTIyMzFjZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmU0MzJlNTRmNDc1MzkyYjhhNjA1YmM1ZTVhNGQ1Mjc3NGU1YmE0NjYwYjhhYTlhODFkYTgxMzE3ZGMwMjkzZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzc3ODIwZTUwNDMxYzljYWE0Y2NiYjU4ZWFlMDZjMjg4NjZjNTk3OWYyMjliNDNmNTA1Mzk4NDYyODEwNzk1ZiJ9"
         }
       ]
@@ -137,10 +137,38 @@
           "version": "repo-lines-v1:sha256:c371323756e5f8a4539f6ff64c7ef39b167bc41431a63d14a20cedf5b40cee94:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlNmM2M2NmZjMzYmNmYTNiNmEyZDZkMGM5ZGQxOTUyMWRlZGFhMzUxMTQ2YjFhNjQyZDJiZmM5Y2Y1YTFlMWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1ODBiYTBmYThmNjhkODllMGRkNjc0YTcxMWJiYmVlYTA3ZjkzNDc2NmZjZjEwN2IyZjZmNThhZTJjYjYzMDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhhMzQzNTc1ZWQ2MDNlNjFjOTg0MzkwMjA5NzliNmQ2ZDRiMTQ3MmUyN2E1NDljZWVmYjZiY2U4NzhmYmE4YzYifQ"
         }
       ]
+    },
+    {
+      "id": "claim_4cca1fb9e4674abe8b4dc7174cda1150",
+      "statement": "limedl-server stores settings.json including power.preventSleep but never performs host power management: the crate declares no power-related dependency and contains no power API call, which is documented as a deliberate boundary because a container is a guest that must not decide host suspend policy and a NAS is expected to stay up.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/Cargo.toml#L12-L24",
+          "version": "repo-lines-v1:sha256:1d95c90d791752e62f237b25029f09ccbca8a59d0c80086b554bddb2d7bbe832:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3MjExYjc4ZTFhZDliZTcxNDMxMmJkODkyZTBiYjljY2IyZDEyNTMxNjU4MTJmZTk2ZDMzMGU5NWFiNTJiZjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3OTFiN2QwNDAyYTJjNWE5NGRmNGUwNzE3ZTUzNDc0YjNjNWZmOWE0NTk5NDc0NTNjZTY3YjMxMWJhZDc4MDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY0OTExNGY5NmU4N2YwZDIyMjM2ZjRjYjY3N2NkNzcxMDY1OWE4YWFiMjcwNjkzOGRhMmFiOTJhMmQ4NmQ4OWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJhZTEyMjhlNGRlYzY4YzIyZGVjOTE4YjU5NWRjMzQyOTBkNmUxZmFiMWQ3ZmYyOTVkMmYxYWY0NjQzM2EwZmIifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L78-L118",
+          "version": "repo-lines-v1:sha256:71b01906114b4f49ffa535683e5c6cc4693b6b39c51f90ee042ed79cff7fac56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhMTNkZWYxYzk4ZjYxNGMzNzA3MGM3YWVlYTVjYjJkYmFkYmM4OTg4Y2RmNTVhMWJjM2QyNWM1NjU0ODkwOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlYTBiOGUyZDUwYWRiYjBkZGY5YjkzMzdjMjEwOTdkNWE1M2JmOTA5MzFlMDQ5YTgwYzI0OTA5ODcwYTU5NzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIzYTU1ZjZlN2VmM2Q1MDczMzQwYmU4Y2Q0OTQ0ZTI4MjFhZmYyNzljZWVjNzUyMmM3MzdiYjlhZGI3YjEyYTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNmOGRmY2NiNmYxNWNmYjhlOTc5N2M0ZDY4Nzc4YjJmMTk3ZDQ3ZGJlMmYzODJlYmZkZjY4ODFiNzgzN2E0Y2QifQ"
+        },
+        {
+          "resource": "repo://docs/server-daemon.md#L227-L231",
+          "version": "repo-lines-v1:sha256:7747fe4bb180a8747a22b320a69d671c72e04cf193c2340577f023cf054d6a23:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTFlMmExOTBkYTVlNjJhYTYwNGMxNDAxNDI5MjdlMGJlNWU5YzM4ZTEzNWEwZDU1ZjZhNzgxMTkwNTg3MWVjOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNmJhMTgzZTljMmRmNTc1YTFhZWFhYTRlNTlhZDY3YmUxMzk3NDcyOTYwNTA0N2NlYmQ4NzQ4YzUyNTc4ZjI2ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTZiYjhlOWYxYWRkZjg2MDY2MDhkMDlmZTBmODMxNjU5MDVmNTNkY2I0NTc2M2ZhYzNiNzY3OTc4YjNlNGMyYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_8a5a47b7e5e549369eee2c26df126430",
+      "statement": "The daemon's documented limitation list covers the missing HTTPS/WSS transport, the aria2 surface gaps, single-address binding and the absent host power management, and tells operators who need the host awake to pause the queue or disable idle suspend on the host itself.",
+      "evidence": [
+        {
+          "resource": "repo://docs/server-daemon.md#L218-L231",
+          "version": "repo-lines-v1:sha256:1826355a42291ca36795cb991c0e91b6830fc7806ec7a52f2aaf524327b9da84:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyY2FiY2E4NGRjYjI3NjhlNjE0NGRlZTMzN2YzZTIxZTkxMDdkMWI3YWI5MmI2Yjg0MzBhYjFjZjhlYzg0YzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZiYTE4M2U5YzJkZjU3NWExYWVhYWE0ZTU5YWQ2N2JlMTM5NzQ3Mjk2MDUwNDdjZWJkODc0OGM1MjU3OGYyNmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkwNmUyODcyNzYyMTBmZDVjM2Y1OWVlYTJiNjE0NzUyMWI1ZDE3NWU1ZjU0MWYxZmFmODBhYWMzZWRkOTYwNmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.1",
-    "at": "2026-10-07T04:23:45.747Z"
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T09:19:57.024Z"
   }
 }

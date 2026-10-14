@@ -8,6 +8,8 @@ sources:
     resource: repo://.github/workflows/ci.yml
   - id: openwiki-source-4d1d392666be6dfdd7a91a2e
     resource: repo://.github/workflows/release.yml
+  - id: openwiki-source-d276c8311d32ca61eb9edb7d
+    resource: repo://crates/limedl-server/Cargo.toml
   - id: openwiki-source-9f796a37ea60bc20889db159
     resource: repo://crates/limedl-server/src/config.rs
   - id: openwiki-source-2d1753b77bfe7d551752205e
@@ -16,16 +18,18 @@ sources:
     resource: repo://crates/limedl-server/src/main.rs
   - id: openwiki-source-12b12baa98b75281cf2fd260
     resource: repo://crates/limedl-server/tests/daemon.rs
+  - id: openwiki-source-600bf3367c4599b56dc1a044
+    resource: repo://docs/server-daemon.md
   - id: openwiki-source-7ae9f72a70d7b68c2986edb0
     resource: repo://packaging/server/docker-compose.yml
   - id: openwiki-source-7003b6883ff44b1304d949e8
     resource: repo://packaging/server/Dockerfile
   - id: openwiki-source-816a10881eb55b69eaf93236
     resource: repo://packaging/server/systemd/limedl-server.service
-generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
 verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T04:23:45.747Z
+  - by: openwiki/0.7.2
+    at: 2026-10-14T09:19:57.024Z
 ---
 
 # Headless Server Daemon (`limedl-server`)
@@ -106,6 +110,28 @@ anonymous endpoint. `Aria2RpcServer::shutdown_notify()` is cloned out before
 
 Evidence: `repo://crates/limedl-server/src/lib.rs#L78-L118`,
 `repo://crates/limedl-core/src/aria2_rpc/server.rs#L51-L59`.
+
+## No host power management
+
+The daemon stores `settings.json` verbatim — including the desktop's
+`power.preventSleep` — but nothing in the server acts on it: the crate declares no
+power-related dependency and contains no power API call at all. That is a
+deliberate boundary rather than a missing feature:
+
+- In the container image the daemon is the *guest*. `org.freedesktop.login1`
+  belongs to the host's system bus, and whether the host may suspend is the host
+  operator's decision, not a download client's.
+- A NAS or 软路由 exists to stay up and serve; a keep-awake lock there would mask
+  a host misconfiguration instead of fixing it.
+
+Operators who need the host to stay awake while the queue runs arrange it on the
+host — pause the queue, or disable idle suspend there. The desktop client's
+implementation of the same setting is described in
+[Native Desktop UI (Slint)](../desktop/native-ui-architecture.md).
+
+Evidence: `repo://crates/limedl-server/Cargo.toml#L12-L24`,
+`repo://crates/limedl-server/src/lib.rs#L78-L118`,
+`repo://docs/server-daemon.md#L227-L231`.
 
 ## Instance lock
 

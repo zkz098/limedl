@@ -12,18 +12,24 @@ sources:
     resource: repo://crates/limedl-core/src/services/settings_service.rs
   - id: openwiki-source-836a4b1e280dffbb2f0ca060
     resource: repo://crates/limedl-core/src/settings/mod.rs
+  - id: openwiki-source-aba388c31b4b4517aa27497e
+    resource: repo://crates/limedl-core/src/settings/tests.rs
   - id: openwiki-source-7ef10e5bb7f9bf65c86b6285
     resource: repo://crates/limedl-core/src/types/settings.rs
   - id: openwiki-source-ec243741e58f29f41733a43b
     resource: repo://crates/limedl-native/src/context.rs
   - id: openwiki-source-711bab97935422a9dd5fabf4
     resource: repo://crates/limedl-native/src/paths.rs
+  - id: openwiki-source-2eeefaa5bac4b0e28bfe7d6e
+    resource: repo://crates/limedl-native/src/settings_sync.rs
   - id: openwiki-source-9f796a37ea60bc20889db159
     resource: repo://crates/limedl-server/src/config.rs
-generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
+  - id: openwiki-source-600bf3367c4599b56dc1a044
+    resource: repo://docs/server-daemon.md
+generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
 verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
+  - by: openwiki/0.7.2
+    at: 2026-10-14T09:19:57.024Z
 ---
 
 # Settings and Configuration
@@ -35,8 +41,8 @@ is the only supported write path.
 ## AppSettings
 
 `AppSettings` is a flat struct of `#[serde(default)]` sub-settings:
-`appearance`, `proxy`, `scheduler`, `download`, `bt`, `logging`, `aria2_rpc`,
-`cdn_acceleration`, `url_rewrite`, `global_speed_limit_bps`,
+`appearance`, `proxy`, `power`, `scheduler`, `download`, `bt`, `logging`,
+`aria2_rpc`, `cdn_acceleration`, `url_rewrite`, `global_speed_limit_bps`,
 `speed_limit_schedule`, `notifications`, `io_baseline`, `autostart`,
 `setup_completed`, `last_setup_step`, `double_click` and
 `max_in_memory_downloads`. Because every field has a serde default, a partial or
@@ -45,7 +51,7 @@ hand-edited file still loads and unknown keys are ignored.
 Structs use `#[serde(rename_all = "camelCase")]` and enums use `snake_case`, so
 the on-disk JSON is camelCase.
 
-Evidence: `repo://crates/limedl-core/src/types/settings.rs#L419-L460`,
+Evidence: `repo://crates/limedl-core/src/types/settings.rs#L474-L517`,
 `repo://crates/limedl-core/src/settings/mod.rs#L380-L428`.
 
 ## Where settings.json lives
@@ -145,9 +151,43 @@ key validation point:
   template are dropped, and `order` is reassigned to the filtered positions.
 - `max_in_memory_downloads` is 0 (unlimited) or clamped to 10..=10000.
 
-Evidence: `repo://crates/limedl-core/src/settings/mod.rs#L19-L125`,
+Evidence: `repo://crates/limedl-core/src/settings/mod.rs#L45-L123`,
 `repo://crates/limedl-core/src/settings/mod.rs#L128-L170`,
 `repo://crates/limedl-core/src/settings/mod.rs#L330-L378`.
+
+## Power settings (`power.preventSleep`)
+
+`power` is the one sub-setting whose *default* carries the most weight.
+`PowerSettings { prevent_sleep }` uses `#[serde(default = "default_true")]` and
+an `impl Default` that returns `true`, so a fresh install, a partial file and a
+`settings.json` written before the section existed all end up with sleep
+inhibition **on**. It is the current example of the "missing key keeps the
+intended default, unknown keys are ignored" contract above.
+
+The promise the flag makes is deliberately narrow, because the desktop's
+`PowerGuard` is the only thing acting on it: a keep-awake lock is held **only**
+while a task is running and released when the last one finishes, the display may
+still turn off, the lid and an explicit suspend request are never overridden, and
+turning the setting off leaves the OS power policy completely untouched rather
+than holding a lock with no effect.
+
+`normalize_settings` carries the section through unchanged — a boolean needs no
+clamping — and tests pin both directions: a file without the key keeps the
+default, and an explicit `false` survives a save/load round trip.
+
+Only `limedl-native` acts on the value. `limedl-server` persists and reads the
+same `settings.json` verbatim but performs no host power management (a container
+cannot decide its host's suspend policy), so a daemon deployment keeps the host
+awake through host configuration. The desktop half — one RAII backend per
+platform, where the setting is applied, and the best-effort failure behavior —
+is in [Native Desktop UI (Slint)](../desktop/native-ui-architecture.md); the
+daemon half in
+[Headless Server Daemon](../integrations/headless-server-daemon.md).
+
+Evidence: `repo://crates/limedl-core/src/types/settings.rs#L445-L469`,
+`repo://crates/limedl-core/src/settings/mod.rs#L81-L90`,
+`repo://crates/limedl-core/src/settings/tests.rs#L553-L588`,
+`repo://crates/limedl-native/src/settings_sync.rs#L146-L161`.
 
 ## Aria2 RPC authentication and bind settings
 

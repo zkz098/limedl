@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:ef6ae9bd9352f6a060f6cb422a6a59df7cbbce4fb22aadfa36810b74fa1009c9",
+  "pageVersion": "sha256:7e8beafae60d5d777e4031260ea223348c506276bd3513c9b9b029af6da39d8d",
   "claims": [
     {
       "id": "claim_6719a8b6ce264d6fa5e8103236b5336c",
@@ -45,7 +45,7 @@
       "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native; limedl-server) under CARGO_BUILD_WARNINGS=deny, and it cannot compile non-Windows code from a Windows host.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L105-L137",
+          "resource": "repo://AGENTS.md#L95-L127",
           "version": "repo-lines-v1:sha256:198b24932e772845e2aa0c4bfc9953598faa535c19bead2dff7788577827b162:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5YjEyNGMxOThmZWVmNzUxZjNmOTcwNGU1NThhOWI0MDMyOGU2MmU0ODllZWM0NWFmM2IzNjQ0OWRkNTdjNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNmZjVkZTBkNjc5ZjEyYzE0NzM4YWRjZGFkNjM2ODA3YTA3MjU3NTg4NWMxYjgwN2NiM2E3NDFmYzMyN2ExY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg5ZjhjMjI1N2MzOGYwNWYzYjdmZjQ0MGZhNjBiMWE3NmY1NGQ0MTU1MmU4MTBiMjlhYTQyMzgzY2NlMDYzOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYwODViMDMwMTMyYzRmODcxZDEyNDE1YWI5YTU5MzkyMDFjZGQ5NTQwN2FmZDQ4MjhiN2Y1YjZiNDZiNWU5NWEifQ"
         }
       ]
@@ -179,7 +179,7 @@
       "statement": "Dependency changes must have their Cargo.lock updates committed, or CI cache misses and stale dependency resolution follow.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L140-L147",
+          "resource": "repo://AGENTS.md#L130-L137",
           "version": "repo-lines-v1:sha256:859c481a159eaa7d362fd4cfad8c752a6977f2baa88167530e2af59af7e7aa80:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTNjYzRhNzEwYmYzMWEyN2Q3MTk2MDRmYTdkYTEyZWJhNGY5MTY4ZTZjYzRkOWY4NmQ4YjJjOTE5NTYzYzRjZCJ9"
         }
       ]
@@ -241,8 +241,12 @@
       "statement": "The headless daemon is deployable both as a local process requiring --rpc-listen 0.0.0.0 plus a secret and as the ghcr.io/zkz098/limedl-server container image with the secret and volume mounts, as documented in the deployment runbook.",
       "evidence": [
         {
-          "resource": "repo://docs/server-daemon.md",
-          "version": "repo-file-v1:sha256:ff9821292079243809774cc1c70a23937d1424eaf52b38b8d380820d9aedda0c"
+          "resource": "repo://docs/server-daemon.md#L167-L202",
+          "version": "repo-lines-v1:sha256:124e110e7de75eee78d21c04d7d24b146005b546c12c040d9d80576603ca868a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiZmMxYTlhYTE5YTAwMjM3YzVjNjAzZDYxMTgyMjJiNWEzNTgzYjU5MDY2ODEwMmE3ZmVhMTNjOTRjYjYzMmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQyMzQ3NGU3NmIyYjcxYzZiYTU4Y2E3ODQ2N2YzN2VhYzBjNjIzZTI5OGQ2ODQyYmE3YTRkNTY3NTNlNGFiZmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE0Y2Q3ZTc2YThmYzIzMTRmZTJhM2MzYzZiM2YxYWViOWU4NTZmY2Y2MzY4ZGFhOWEyMzk0YWRhNWU2ZTdjMzkifQ"
+        },
+        {
+          "resource": "repo://docs/server-daemon.md#L51-L67",
+          "version": "repo-lines-v1:sha256:91a3ef05157edce90598b897e9f545f6907bcb425f81581754b1d25f639be26f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1M2ZiMjQ5MTZhYTk5ZDZkNTdiMTI2NzM1ZDVjZDNlNGJkOWVlNmQwNGU3YTFhYzViYTE5MjNhNGQxMTJhMGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI3ZmQxM2NkMDQyN2MzZDdhYTdkODBlYjE1NjFjM2MxMGNkNmFmMWRhODU3ZjU4YjIwY2VmNzYwMmZkNDlmMDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNlMTI2NzZjMWM0YWNkNGNjOGY1MGM2ZDZjNDRjMzY3NmY1ZDRiYmQzMjMwMTI0M2NiNWMxMzU2NzdjYzNiYjEifQ"
         },
         {
           "resource": "repo://packaging/server/docker-compose.yml#L1-L25",
@@ -263,10 +267,64 @@
           "version": "repo-lines-v1:sha256:c371323756e5f8a4539f6ff64c7ef39b167bc41431a63d14a20cedf5b40cee94:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlNmM2M2NmZjMzYmNmYTNiNmEyZDZkMGM5ZGQxOTUyMWRlZGFhMzUxMTQ2YjFhNjQyZDJiZmM5Y2Y1YTFlMWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1ODBiYTBmYThmNjhkODllMGRkNjc0YTcxMWJiYmVlYTA3ZjkzNDc2NmZjZjEwN2IyZjZmNThhZTJjYjYzMDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhhMzQzNTc1ZWQ2MDNlNjFjOTg0MzkwMjA5NzliNmQ2ZDRiMTQ3MmUyN2E1NDljZWVmYjZiY2U4NzhmYmE4YzYifQ"
         }
       ]
+    },
+    {
+      "id": "claim_4a52b30397ae44a3b31fd4496b6d35d7",
+      "statement": "A keep-awake lock is held only while a download is running: power.preventSleep gates it, the UI's download count drives it, an idle queue never holds an OS power lock, and a denied platform call is logged once instead of failing the download.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L101-L142",
+          "version": "repo-lines-v1:sha256:43358034b5cdb3c4b0ea0cfbd2e66eec00f2c50a333ab9858a630f0b781c3a99:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRlYmU0NmQyMTFlMjY2OTdmYzA3NTY4OGZjZTA4Yjc5YTEwYTg3YmZlMWY3ZDhmNWFmMGY2NzhlNDQ3ZjQyYzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjNWIxNTVmYWI0MWY2YzYyMmUzMGMzOGJmOGY5ZjNmNmMzMmYzNzAyOWJlZjI4ZTBiNDMzNjkwMjYxYzA4ZTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBmMDBiNmEzN2NkOTNiNDc0MDdjYTIyY2E1MzI2Mjg1MTI2ZDRiYjQ3MWI2MzVjODdiZWViOWM5YTFiZDljZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMyY2FmOWEyNDYxZDc1ZTE0MDBmYjk4NWFmNDhkODQ0YmFhYTczZWNiYzA4ZDNlM2MzMTQyMTY0MjQ0NmFmNTEifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/settings_sync.rs#L146-L161",
+          "version": "repo-lines-v1:sha256:27a8baf563165b811e7a4faef542cfe15018aed2932eb32928b7e25191db621b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNiM2Q4NWQ2MTQ1NDQ0NTVhZjdhNDQ0NmRjZGU5ZDE0MTc5ZmRkYWE3MTZjYWIxMWY5YWY0MDVlM2YzNzZjMGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2MzUwMjAzNGQ5N2UwNTk4MDg0YWI0NjFkMWM4ODhkY2FkZjAzZTlkMWFmMWE4ZDk4NTYzMGQ0OTBjZWJjMzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFlMTkxZTljMzA2MmQ5NDY5NzUzMjkwNmZjZTEzNzIzM2M4MDc2OGI2ZGQ1NGU1NjM0MTJjMzJmNTY3MTM5MDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJiZjVhOGQ4M2QwOWNjN2E3MGY4NGE1M2U4NTdiNjlmNWE2MzY2ODc1ODA1ZDUxNTY5YjY0ZGU4NDVmYzM5M2UifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_boot.rs#L142-L148",
+          "version": "repo-lines-v1:sha256:05bef8f7adda04b1596a8e944937d68581e96274b90f84b75042e2eff730e90d:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmUzNjU1YzE5NmVmMWFiYThmZTI1M2NkMWIxZGI0MDU5YjUxYTgxYjZmYTcyZDI0NzNiOGE0N2M4MjI0NDkxNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZDQwNGZmODU2MjlkMzZhZDdiOTBiNjhmNGRjN2I4YWE2NTZiZmVhN2E1YWE4NGU4NjkwOTE4Y2MwMjc3MjY4MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzQ4MjhiOGYyYzQ2NjJmMTY3NGEzMTI5Y2Q4NWM2ZTUyNzI2NTJjZmIyMTNkMzI0MzFkZGYzNGEzNWY4OTAzNCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d244fa61ab9243f2bc1d90119ff1834d",
+      "statement": "limedl-server never manages host power, so settings.json's power.preventSleep is the desktop client's alone — a container must not decide its host's suspend policy, and a daemon deployment keeps the host awake through host configuration.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L78-L118",
+          "version": "repo-lines-v1:sha256:71b01906114b4f49ffa535683e5c6cc4693b6b39c51f90ee042ed79cff7fac56:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhMTNkZWYxYzk4ZjYxNGMzNzA3MGM3YWVlYTVjYjJkYmFkYmM4OTg4Y2RmNTVhMWJjM2QyNWM1NjU0ODkwOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlYTBiOGUyZDUwYWRiYjBkZGY5YjkzMzdjMjEwOTdkNWE1M2JmOTA5MzFlMDQ5YTgwYzI0OTA5ODcwYTU5NzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIzYTU1ZjZlN2VmM2Q1MDczMzQwYmU4Y2Q0OTQ0ZTI4MjFhZmYyNzljZWVjNzUyMmM3MzdiYjlhZGI3YjEyYTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNmOGRmY2NiNmYxNWNmYjhlOTc5N2M0ZDY4Nzc4YjJmMTk3ZDQ3ZGJlMmYzODJlYmZkZjY4ODFiNzgzN2E0Y2QifQ"
+        },
+        {
+          "resource": "repo://docs/server-daemon.md#L227-L231",
+          "version": "repo-lines-v1:sha256:7747fe4bb180a8747a22b320a69d671c72e04cf193c2340577f023cf054d6a23:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTFlMmExOTBkYTVlNjJhYTYwNGMxNDAxNDI5MjdlMGJlNWU5YzM4ZTEzNWEwZDU1ZjZhNzgxMTkwNTg3MWVjOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNmJhMTgzZTljMmRmNTc1YTFhZWFhYTRlNTlhZDY3YmUxMzk3NDcyOTYwNTA0N2NlYmQ4NzQ4YzUyNTc4ZjI2ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTZiYjhlOWYxYWRkZjg2MDY2MDhkMDlmZTBmODMxNjU5MDVmNTNkY2I0NTc2M2ZhYzNiNzY3OTc4YjNlNGMyYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_24677249af1d4f8ab0f0ea2b09d1aa67",
+      "statement": "The quickstart routes aria2c-command and batch-input work to the task-input page, keeps the pre-commit gate and Cargo.lock conventions as the only repository-wide obligations it states (AGENTS.md no longer mandates an OpenWiki update step), and carries the keep-awake rule in its invariant list.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L130-L134",
+          "version": "repo-lines-v1:sha256:03ce9fe787af9d6116b18d3759e71c89ddf31b3da7e514dcf1edde2816c84fac:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzM2ZGM3MmM5YTk5OWIwNjM0N2Q4YzQxMDE2NmFkNGUwZjZkMTc0NGMwMDA3YjUxYmI5MTk3NmFkMTg2MjE3YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZWIxYmM1YmM0YTIzN2Y1NzhlNmFmNGE0MTVkMDY0N2Y5OTEwYjAzYjM2NGUxZTI3YzFmMWRiYWE3NDNkMDNiYSJ9"
+        },
+        {
+          "resource": "repo://AGENTS.md#L85-L128",
+          "version": "repo-lines-v1:sha256:466380c1e88edc4a0ae3d95d57fa2fe49eab17d4ed17e2b489d7db93c4ac659f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwOGE2Y2Y2OWI1N2E0NjQ0MWJkOGEwMGEyODg5ZmJhMmI4ZjMyMDNhNmVhMjFiZmUzNjI4N2JlMWNhZWM2NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNlZjcxZWIwNGI3NjJmYTZjNmZhMDA4YjIwYTFhNjY1NDhkMDBhMmQ0NjZiYjhiMTk2MmUyOTY0NTlkMmIwYzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUxNjgwODAxNmY5MjgzZTRlMmE1ZjQ0OTZhMWVhMjkzYjA2YjAwZTNlZTJjMjdjOGE3MmI2ZDY3NjNlZDFjY2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc1YTM4NWQ1YTVkZmE1Yjc1OTRiN2U3NWMyODU0MzJjZDZmNDVmNzUxZGQ0NmJlM2QwMDE0NTQ0Mjc0M2RkZjQifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/aria2_cli.rs#L1-L16",
+          "version": "repo-lines-v1:sha256:6edf4a55b1ddd332660aabe7c6ee54cce7388483843ddea42a155e1c187b0b8d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwYzQwMzkzYjExYWJhY2ZiM2I5NDIzNWUzMGQ5ZTg3Zjc2NWUzZTY5MjcwYTE3YTIwMmI1MmJjZmJiOTE5NzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIzYWUzZTI1NmRkNTcyOWNmYzE1OGEzYmQxM2I3MWQwNGU1MzNmY2M2ZTdjNjI2NTMzZDEwYTEzMDZkZDkzNWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZhMzc4YmI1MzMwZDYxOWY1YWRkZWJlMmY0ZTQ0ZWUwN2I5YTE3OTBlYTZmMGMyN2JiOTdiYjY4MTJkNmVmMDUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L1-L28",
+          "version": "repo-lines-v1:sha256:085c217d7c199ff155f13b7a41c4cf347ae06c5f41ff274206cfdee31a55c5cc:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhYzEyZDJmZGNjYzU2NjIxNWY1MjI1YzE3NmM2MzA4MmJlNmE3ZTA2ODNjNzA1MTA5NTNjNjhkNDk3Y2M0ZTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFiMmMyM2ViMGM4ZmM0MzFlNjdjZTIwYTZiNjEzMjVlZmQ4N2EyNzMxNGIxYmYwMThhNjgyODlkODg3ZGZmZjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIxOGI2NTQwZmI4MmYxYWQ3ZTExZDIyY2EwYzBhYmMwZDA4OTFjMmFjMzY2N2NhNjE4NTExNWQ2ZjI4ZjcxM2QifQ"
+        }
+      ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.1",
-    "at": "2026-10-07T04:23:45.747Z"
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T09:19:57.024Z"
   }
 }

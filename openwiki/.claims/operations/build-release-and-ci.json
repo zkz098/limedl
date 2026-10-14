@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:56d869bb55c437a486da4a68a5f0728c02f985b139e5a50eca6a1ef8a88655ac",
+  "pageVersion": "sha256:fc7a0e7b2eb570d41eb8a239dd572217deed7756f2a967c36ed45d534a033c33",
   "claims": [
     {
       "id": "claim_ebf902f2ec634cfda5a0a6f0ae54d147",
@@ -75,7 +75,7 @@
       "statement": "The mandatory pre-commit gate is clippy --workspace --all-targets -- -D warnings plus per-crate nextest runs (limedl-core with test-utils,aria2-rpc; xtask; limedl-native; limedl-server) with CARGO_BUILD_WARNINGS=deny, not RUSTFLAGS, so .cargo/config.toml's flags stay authoritative.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L105-L118",
+          "resource": "repo://AGENTS.md#L95-L108",
           "version": "repo-lines-v1:sha256:fe54dc780e70e89b17ccbed15bc279a7d8b9a1900b91da62b308774803ce975a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5YjEyNGMxOThmZWVmNzUxZjNmOTcwNGU1NThhOWI0MDMyOGU2MmU0ODllZWM0NWFmM2IzNjQ0OWRkNTdjNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5MjJjYTRkOTg2ODU3MTFjODY2ZjMyOGFjYWQ1ZTYyYTYyM2IzMjM2MThjOTEyNGUyZTNjMDVhZWQwMWRmNTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg5ZjhjMjI1N2MzOGYwNWYzYjdmZjQ0MGZhNjBiMWE3NmY1NGQ0MTU1MmU4MTBiMjlhYTQyMzgzY2NlMDYzOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMzYzhmZGMwYmIzMzhiZDY3OTRmMWU1YTI2Y2VkNGU2Mjc3YjY5YzYyYWMwNmVhZWQ2MDY2YzA2NTc5ODllYWMifQ"
         }
       ]
@@ -95,7 +95,7 @@
       "statement": "On a Windows host the gate never compiles cfg(not(windows)) code, so non-Windows-only unused imports, Windows-only build.rs dependencies, missing dependency features and missing -dev packages can only be caught by the first tagged release; the project mitigates this by preferring #[cfg] over runtime target checks.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L120-L139",
+          "resource": "repo://AGENTS.md#L110-L129",
           "version": "repo-lines-v1:sha256:bfe2bd0cccc2c1d00dac3f446b5f00cbb488b8bdb8d69d5cadb8d676359f4635:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMTUzYjFlNTAzZDMyMDhlOTc3NGMxZmYzNGRjNDIyYzg1ZjM4MDY5YjFkNTdmYjQ5ZGZmYzg1N2JiMTJjYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExMTdlYjgxOTRhZTAyNWFjYWM5ZWE1YzE1ZDNlNTM1NjU3YjM2ZTAyMDVhMjUwYmJjZDMzMzZmZmY0ZWQ2MzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ5NDgxZjg1MzFkOWUyZTc2OGU3NmFlMmZjYzExZGRjM2UyZjk2OGEwMDU0NTdlODcyMzdlZDgwNzAwY2VkMjUifQ"
         }
       ]
@@ -105,8 +105,8 @@
       "statement": "CI runs font, check-windows (clippy), test-windows-core (core + xtask nextest), test-windows-native, check-macos (clippy + core + native nextest), check-rust (coverage, clippy, SonarCloud, native nextest + limedl-server nextest), supply-chain (cargo deny check -W rejected bans licenses sources plus cargo audit), and a main-only prune-cache job that deletes superseded rust-cache generations after the three writer jobs.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/ci.yml#L109-L649",
-          "version": "repo-lines-v1:sha256:0b3cdcba6c5b98bdf7fe96ea54bbc208431f89d77c9e914f15184888d8d557b8:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlOWQ4MDE1NGVkNDJmYzVjNzc5YjEzMzE1NzhiNThiODljODAxZWFjZTc0ZjI0Y2Q0OGViNGEyMzU3OTQwYTk1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI5OTU2MGZmNGIyYjE3MjVlZjAxYmFmOTlhMGY5NTI2ODRhNWM5NzQ4YWZiMzEwZGE5YzMwYmMyYjQ3MmM1MWMyIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI3YzFmMTllMDQyMDRiYzg2NTVmZTMwMDZkMjAzYzYxMjk0NTQwMzFiODUxM2FhNzNkN2JhMzJmZmJhMmE0N2Y3IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+          "resource": "repo://.github/workflows/ci.yml#L109-L640",
+          "version": "repo-lines-v1:sha256:37520dc86a9cf83fa15d4b15b65dd2ae4c6676267b8c2d0ca850459cf69684b6:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlOWQ4MDE1NGVkNDJmYzVjNzc5YjEzMzE1NzhiNThiODljODAxZWFjZTc0ZjI0Y2Q0OGViNGEyMzU3OTQwYTk1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI5OTU2MGZmNGIyYjE3MjVlZjAxYmFmOTlhMGY5NTI2ODRhNWM5NzQ4YWZiMzEwZGE5YzMwYmMyYjQ3MmM1MWMyIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI3YzFmMTllMDQyMDRiYzg2NTVmZTMwMDZkMjAzYzYxMjk0NTQwMzFiODUxM2FhNzNkN2JhMzJmZmJhMmE0N2Y3IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
         }
       ]
     },
@@ -119,8 +119,8 @@
           "version": "repo-lines-v1:sha256:3ffd24386ce02092545920080cb7acc687fb57bf803d2f31f61fbf5ce544c11a:eyJzZWxlY3RlZExpbmVDb3VudCI6NzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNjMWM3YjdmN2MyOGFlNmUwYmQyMmNkMzUzNzViMTk1OGYyNzg2MTg2YTgzMTZkY2JmNWU5YmE5OTk1YWYxN2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNjMWM3YjdmN2MyOGFlNmUwYmQyMmNkMzUzNzViMTk1OGYyNzg2MTg2YTgzMTZkY2JmNWU5YmE5OTk1YWYxN2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM1MzA5OGEyNjYwZGFkN2I3YzgxYjg1MmYyYzk2YWExMjIxNzMzNWVlZTgyZDI4NDFmZTI1YWUwZWI0NTZlZDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJhMTBkNGEyMjYwZGM0ODBlNWVkNzIyNTBiNTM3NTljOTJkNDFjNmU4ZmYzMjViYmJhNWYxOTI1ZThjOTRkMzIifQ"
         },
         {
-          "resource": "repo://.github/workflows/ci.yml#L584-L649",
-          "version": "repo-lines-v1:sha256:88eb34aaef21ceb84f9c4781263f81e35c7ed7cd6f8ace444b9177c221969787:eyJzZWxlY3RlZExpbmVDb3VudCI6NjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5NTYwZmY0YjJiMTcyNWVmMDFiYWY5OWEwZjk1MjY4NGE1Yzk3NDhhZmIzMTBkYTljMzBiYzJiNDcyYzUxYzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNhYzVjODRmOWJiMTg4NzZhYjg1YzYwYzFiZDdkYjhhMTkzMGViMDU0ZjNmYTUyZTMyMjFhODc0YTZhY2IwZTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://.github/workflows/ci.yml#L592-L640",
+          "version": "repo-lines-v1:sha256:1b4a7b30a72caf52367ef4882666d13222f7d1d620f535b0e896f4db9c8cb5bb:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YzI4NjI0YmQyMDlhNGNkYWFiMGEyOWMyNTdkYTA0ODJhZGFhYzgyMTY0ODMxM2NmODQ3ZDE4NzY1OWFjZDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5NTYwZmY0YjJiMTcyNWVmMDFiYWY5OWEwZjk1MjY4NGE1Yzk3NDhhZmIzMTBkYTljMzBiYzJiNDcyYzUxYzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEwNGE2MTBlMDVkZmViN2E2OTEwMDBiZmQ3Yzk1YTEwMTVjOWI4OTA4OGQzYmQ2MTAyYmUyZTk1YmQ1MmZkYjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
@@ -165,7 +165,7 @@
       "statement": "Lockfile changes after cargo update/add/remove must be committed, and irontide is pinned exactly to =1.7.0 because the BT backend depends on a wide engine API and upstream's git repository was removed, making crates.io the only source of truth.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L140-L147",
+          "resource": "repo://AGENTS.md#L130-L137",
           "version": "repo-lines-v1:sha256:859c481a159eaa7d362fd4cfad8c752a6977f2baa88167530e2af59af7e7aa80:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI1NzBkMjM3ZmUwMmYzNzI2ZWVjOTAzMjU0YTJiM2Y1YTVlNzBmY2U0NjA3YTUwZmM1Njg5ZDczZjg0OTdlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTQ4Y2I1YzE0ZTY0ZmQwZjdmOTYzZWI5NGU2MTQ4NTkwZjQxZjQ0NzBlMjZkZTFhNWNlYmQ2NDkxZjQ5ZmVhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTNjYzRhNzEwYmYzMWEyN2Q3MTk2MDRmYTdkYTEyZWJhNGY5MTY4ZTZjYzRkOWY4NmQ4YjJjOTE5NTYzYzRjZCJ9"
         },
         {
@@ -302,35 +302,35 @@
     },
     {
       "id": "claim_6468c05e10a74e90a2238c399c063a24",
-      "statement": "The prune-cache job runs only on main, waits for the three writer jobs with always(), and deletes every v0-rust-* cache entry that is not the newest for its key prefix through the actions/cache REST API using an actions:write permission scoped to that job; measured 2026-10-07 the repository held 5 v0-rust-* entries / 8.54 GB, of which 2.73 GB were superseded.",
+      "statement": "The prune-cache job runs only on main, waits for the three writer jobs with always(), and deletes every v0-rust-* cache entry that is not the newest for its key prefix through the GitHub caches REST endpoint (gh api repos/$REPO/actions/caches) using an actions:write permission scoped to that job; it never deletes the newest entry per prefix and never selects outside v0-rust-, so the rolling Linux-sonar and misans-vf caches keep their own lifecycle. Measured 2026-10-07 the repository held 5 v0-rust-* entries / 8.54 GB, of which 2.73 GB were superseded.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/ci.yml#L584-L649",
-          "version": "repo-lines-v1:sha256:88eb34aaef21ceb84f9c4781263f81e35c7ed7cd6f8ace444b9177c221969787:eyJzZWxlY3RlZExpbmVDb3VudCI6NjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5NTYwZmY0YjJiMTcyNWVmMDFiYWY5OWEwZjk1MjY4NGE1Yzk3NDhhZmIzMTBkYTljMzBiYzJiNDcyYzUxYzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNhYzVjODRmOWJiMTg4NzZhYjg1YzYwYzFiZDdkYjhhMTkzMGViMDU0ZjNmYTUyZTMyMjFhODc0YTZhY2IwZTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://.github/workflows/ci.yml#L592-L640",
+          "version": "repo-lines-v1:sha256:1b4a7b30a72caf52367ef4882666d13222f7d1d620f535b0e896f4db9c8cb5bb:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YzI4NjI0YmQyMDlhNGNkYWFiMGEyOWMyNTdkYTA0ODJhZGFhYzgyMTY0ODMxM2NmODQ3ZDE4NzY1OWFjZDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5NTYwZmY0YjJiMTcyNWVmMDFiYWY5OWEwZjk1MjY4NGE1Yzk3NDhhZmIzMTBkYTljMzBiYzJiNDcyYzUxYzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEwNGE2MTBlMDVkZmViN2E2OTEwMDBiZmQ3Yzk1YTEwMTVjOWI4OTA4OGQzYmQ2MTAyYmUyZTk1YmQ1MmZkYjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         },
         {
-          "resource": "repo://docs/ci-operations.md#L65-L79",
-          "version": "repo-lines-v1:sha256:011190f57b890592717220283ee21029809b4b8e1f7f2e6cf7f8c39ec98853b0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxYWRhNDk0ZjJkOThlZjc1OTY2N2ExNjVhNThkNzkzMGZlNmFhOTQ5ZWFkZWRlYzM3NzNiZGY1NWM5OTNkYmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc0MDE1MTFhMGI3N2Q3NTVmNDY4N2ZkYzg5ZjI1Nzk2YTMwNGQ0NzdmYjZkMDc0MDQyMGUxOWRjODM4MWNhN2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg2NGRhMjYxNWU5YmI1OGI1ODU4MGZmOTRmNmJjODc1MzQ5MTdiODVhYWNkODY4M2Y0NmIxNTdhZjZjYzkxZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY1MTBkYmRlOWMwYmY4ODIwMWQ1MTMyMjliOTU0YTVhNzZiZjFlMzExZTlhY2Y2OTk1ZWZmYmMzODcwMGQ4OTgifQ"
+          "resource": "repo://docs/ci-operations.md#L65-L75",
+          "version": "repo-lines-v1:sha256:f050160212f5c61100744643ae83b2e9bce0a3fbe5fd8820ff585ca1078381ea:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxYWRhNDk0ZjJkOThlZjc1OTY2N2ExNjVhNThkNzkzMGZlNmFhOTQ5ZWFkZWRlYzM3NzNiZGY1NWM5OTNkYmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwYjAwNWUyNGQ2YjQ4OGNkNzliYzFjNTdlMDIyNzhiNGUzNzNlMjExOTZlOGMxZDI4YjY4ZjA5YmIxOWUyNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg2NGRhMjYxNWU5YmI1OGI1ODU4MGZmOTRmNmJjODc1MzQ5MTdiODVhYWNkODY4M2Y0NmIxNTdhZjZjYzkxZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjliMzBkMjgxZjU1Y2E0YWNhYmVlYTFkMWY1MmJhYTUzY2QyMmQ5ZDlhZjJiNzQwMDBkYzk5NDNjMWY1NzJmNzYifQ"
         }
       ]
     },
     {
-      "id": "claim_3f1f6cd374fb4264acba0515a9e849f6",
-      "statement": "check-rust runs a main-only du probe over target, target/debug and target/llvm-cov-target to quantify how much of the Linux cache entry is cargo-llvm-cov's separate instrumented build tree, feeding a decision on whether CARGO_LLVM_COV_TARGET_DIR/BUILD_DIR should move into their own cache entry; the Linux entry measured 2917 MiB versus 1197 MiB on Windows and 1660 MiB on macOS.",
+      "id": "claim_61d2e4542c5040299eaf3c6f88daffec",
+      "statement": "The temporary main-only du probe in check-rust is gone, and the question it existed for has a recorded answer: relocating the coverage build tree with CARGO_LLVM_COV_TARGET_DIR/CARGO_LLVM_COV_BUILD_DIR was measured on 2026-10-13 and rejected because cargo llvm-cov runs with --cargo-profile dev while the other nextest steps use the default test profile, so pointing it at target/ would move the dev rlibs rather than remove bytes; the remaining lever (running the native/server nextest steps with --cargo-profile dev) stays closed without new measurements.",
       "evidence": [
         {
-          "resource": "repo://.github/workflows/ci.yml#L535-L546",
-          "version": "repo-lines-v1:sha256:4ece177806595f77d08f77e59c59fb0316461107d00d9a9e010666e68036bc1a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg3MThiMzUxNjhjNjExM2FjNThmMjAxMTk0YTNkZmYwMDdmNTljMmEzZTM1YWQzNDBmZDdlMzI3YTMxODgxMWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlkYjZiZDhiMWQzMjhhZjdkYmZmZmZiZjIzODg1NTFmNGExZWFjNjg3MzU0ZWY0N2EyOWU4NTI5NDhiNWEyZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE1NDcwMTNkZDAzZWQzMDNhM2RmMjQwMjA3Yzg0MTdhZjQxMDhjOTQyMmQ3MzcyYjVhZjJhZWMxN2ZmYWU5NmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM3NzgyMGU1MDQzMWM5Y2FhNGNjYmI1OGVhZTA2YzI4ODY2YzU5NzlmMjI5YjQzZjUwNTM5ODQ2MjgxMDc5NWYifQ"
+          "resource": "repo://.github/workflows/ci.yml#L498-L545",
+          "version": "repo-lines-v1:sha256:58aba55a8d7856141b801cc9d478fe394a2be678cc93c1bd34d7b09529db6403:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFkZDY2MjEwODk1ODI1MjhkYTU2NjdkZDE5OTM0YzgzNTcwNjI0NDFlOGZjNDYzNmEwZDllODFiNjBmNWE0OWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmMDEzODE0NWVhNDgyYjkyOWZmMDJjYWUxYjZmODBjYWU1Y2Y4ZGFkMWJjZmQxMzlmNzVkZDhlYmM0MzQ0NzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM1ZDY3YWM1NGY4MDRhYTk0ZTZlZTdmYzRkZDI3ZGI4MzQyMTdjNjAzZTY2MTVhZTkyMDA1MTQ2MWIyODI0OTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFlODFiNTcxNzgxY2YzMTljZjExMzEzZTQ2NzY2Njc4ZTIxNTMzZDNmOWNhOGRhYzI0MmRiYmY5YTY5ODM4N2UifQ"
         },
         {
-          "resource": "repo://docs/ci-operations.md#L80-L87",
-          "version": "repo-lines-v1:sha256:af539f1e24f02ac38b6875cc20b048e1e748e98790f8a036d6a1736a4a69d71e:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDdkZDkyZTUyZTc1ZGJkOWExZWZlN2EzY2E5MWVmNTBjMzQxODIwYzM0YmMxOWIxYWJjNjFhZDUwMTgzYzRhYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYmMyMmM5ZjMxNTcyM2YyZjgwOGU3NjQ1MjU3ODQ3NTA3NWFhNjMzOWIxMDJlNmQxMDBlODg4MzhhNTQ3NDljNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTE4MzUxMzM0ZTQ0ZmM3OGYwMzZiNjA3ODJmNDYzZjYyZDQ5MTRlOTM4MTc3MGY4NTAxYjIyMmMwZGY5NjZmYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTMwODQ2MWZiM2ZjN2Q4YjVkZDBlODQ4YzAzMjc3NjVkZGZiZjdiOTgwZWM0NTA5YjVmOGMzODUxNzJkNGZiYiJ9"
+          "resource": "repo://docs/ci-operations.md#L76-L96",
+          "version": "repo-lines-v1:sha256:f64860500ea1059aee56208eb4aff5d3fbb2c6a8d1ae92055d1b4cc6a34eb5c0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjExMmQ3ZDdiNmVhMjFhMDk2ZWE0MDQxMmZkNjA3NmQzMWY1ZDVkMDQ1MDJkMzc4MmY0YTc0N2IxYjcxMTVhZTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUwM2QxNzQ3NGNhZDdjNTk3MjhjYWQ3ZDQ4ZDA0ZWE5NzE5M2RmN2I5ZjNmOTc4OWU0NGIzMGZmYWQ3N2YyYWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5MzRiMTQ2MTY1YmE3NzZjZWRmMDczMjEzYmIxN2YwOWNjNzI1NTUzZjhhYmYzNmEzMmNkNmI5ZjdhNTc3NDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4ZDJjYzFhNGM4NGY3MmE3MmEyNWRlYTUwZTlkNWFjZDgzNjFmMzkyNTQ0MWRlYjRjOGQ2ZTljYzdjOGY5YWIifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-13T18:15:25.443Z"
+    "at": "2026-10-14T09:19:57.024Z"
   }
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:a587678265ff14ea4630bc34c22808a193022a04fcc1d03d01e0c66cc8acc075",
+  "pageVersion": "sha256:28e8e1d7418546dbc3baaf0ae98ace9d1e51118bda1c0ff5dc9003081fea6755",
   "claims": [
     {
       "id": "claim_24c465519c404fbabca57aaa31be9867",
@@ -79,10 +79,34 @@
           "version": "repo-lines-v1:sha256:5af1635dbcfeade7d4443c24f89a1a64d332a39661f930889fe846bf9c5ca861:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNjNGVjNzRjNjlkYzNiMDk2NTFjOTZmYzZjMjA2NjQyNjQzY2RkMjI0NTlhM2FlNmNlMGI2ZDQxYjE5OTYyMTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI3NGEwYzA4ZjA3ZDU3OGJhYjQwMDk5ZGNkZjFmOGFhNDhiOGUzMDMxYTAwOWYxYmFlZTY0ODQ2ODY4NzVkYjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQzYmU2MWZmZGQxMDE2MWYzZWJhMTU4MjkzY2Y1MGQ0YzRhYzkwYWY1YmM3YmI1NGQwYTU0MjI1MjI2ZWEwNjEifQ"
         }
       ]
+    },
+    {
+      "id": "claim_5c9648190cc34a27b8673032d8c57f29",
+      "statement": "The from-source server Dockerfile's builder stage is rust:1-alpine with build-base cmake linux-headers perl, maps BuildKit's TARGETARCH to the matching *-unknown-linux-musl triple and passes it to cargo build --target so .cargo/config.toml's per-target rustflags apply, and its runtime stage is alpine:3.20 plus ca-certificates, su-exec and tzdata.",
+      "evidence": [
+        {
+          "resource": "repo://packaging/server/Dockerfile#L12-L29",
+          "version": "repo-lines-v1:sha256:bff56f70012397388195fecfbb0efa46127b1ae84e64eaa765b0108f2d1d4e1d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyNjVmNzQzZDhlMTNiYThlNDAzNjEyZDM2YTJmN2MxZTE3Y2NhMzU4NDE4NTUwMjk5YmE5ZDA2ZmM3MzEzNGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1YTJmM2I0ZTUzMmI2NTVmYWYxYmUzZTcwZmNiZjZhN2RkOTUyYWU4MjYwN2Y3MDAzNTU1M2Q4NzQwM2FiNjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA4MWJkZmVmM2QzYzIwNGY0YTFkNWRlYmE0N2NmYWVkYTI3YjY1ODczY2Y5ZTcxM2IwMDYwODY5NjUzY2E4YzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBmZTdiMDM2NWI4NWJmYTJkZGY5MzA3MjBkMzc3YmExNGVmNzA4ZTE4Zjc1OTJkNDZjY2U2MzIxMzc5MDk5YWQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_12b343766294462088b312360c11ac2f",
+      "statement": "A deployed container does not keep its host awake: the daemon performs no host power management, so a host that suspends on idle stalls the queue regardless of the container, and operators keep the NAS up through host configuration (pausing the queue or disabling idle suspend).",
+      "evidence": [
+        {
+          "resource": "repo://docs/server-daemon.md#L227-L231",
+          "version": "repo-lines-v1:sha256:7747fe4bb180a8747a22b320a69d671c72e04cf193c2340577f023cf054d6a23:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTFlMmExOTBkYTVlNjJhYTYwNGMxNDAxNDI5MjdlMGJlNWU5YzM4ZTEzNWEwZDU1ZjZhNzgxMTkwNTg3MWVjOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNmJhMTgzZTljMmRmNTc1YTFhZWFhYTRlNTlhZDY3YmUxMzk3NDcyOTYwNTA0N2NlYmQ4NzQ4YzUyNTc4ZjI2ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTZiYjhlOWYxYWRkZjg2MDY2MDhkMDlmZTBmODMxNjU5MDVmNTNkY2I0NTc2M2ZhYzNiNzY3OTc4YjNlNGMyYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        },
+        {
+          "resource": "repo://packaging/server/docker-entrypoint.sh#L1-L19",
+          "version": "repo-lines-v1:sha256:bde8fb2f03dac81b114e29ee236f9e887d087b589bb90d4909506361079e4364:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4MDc2ZDNkMjhkMjFlMDIwMTJiMjBlYWY3ZGJmNzU0MDlhNjI3NzEzNDQzOTAyNWYyODJlMzY4ZTMzMDVhYmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVkZGU4YjE2Yzc2MzY0ODFiMTc1YTk3ZTVhOGQ2MjJiMDkyMzVjNjgxODkzMmExMThmMzAxMmQ2ZmI3M2QyNGQifQ"
+        }
+      ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.1",
-    "at": "2026-10-07T04:23:45.747Z"
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T09:19:57.024Z"
   }
 }

@@ -8,6 +8,8 @@ sources:
     resource: repo://.dockerignore
   - id: openwiki-source-4d1d392666be6dfdd7a91a2e
     resource: repo://.github/workflows/release.yml
+  - id: openwiki-source-600bf3367c4599b56dc1a044
+    resource: repo://docs/server-daemon.md
   - id: openwiki-source-7ae9f72a70d7b68c2986edb0
     resource: repo://packaging/server/docker-compose.yml
   - id: openwiki-source-d968ee8eed27c8e3566040b5
@@ -20,10 +22,10 @@ sources:
     resource: repo://packaging/server/systemd/limedl-server.env.example
   - id: openwiki-source-816a10881eb55b69eaf93236
     resource: repo://packaging/server/systemd/limedl-server.service
-generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
 verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T04:23:45.747Z
+  - by: openwiki/0.7.2
+    at: 2026-10-14T09:19:57.024Z
 ---
 
 # Server Deployment and Packaging
@@ -80,12 +82,19 @@ read-only mount does not abort startup.
 The container command already passes `--rpc-listen 0.0.0.0`, so
 `LIMEDL_RPC_SECRET` is required exactly as it is for the systemd unit.
 
-Evidence: `repo://packaging/server/docker-entrypoint.sh#L1-L19`.
+Leaving the container running says nothing about the *host's* power state: the
+daemon never inhibits sleep, so a host that suspends on idle will stall the queue
+whatever the container is doing. Keeping the machine awake is the host operator's
+job — pause the queue or disable idle suspend on the NAS itself (see the daemon's
+[deliberate boundary](../integrations/headless-server-daemon.md)).
+
+Evidence: `repo://packaging/server/docker-entrypoint.sh#L1-L19`,
+`repo://docs/server-daemon.md#L227-L231`.
 
 ### Two Dockerfiles
 
 - `packaging/server/Dockerfile` builds from source. Its builder stage is
-  `rust:1-alpine` with `build-base cmake perl linux-headers` (the C toolchain
+  `rust:1-alpine` with `build-base cmake linux-headers perl` (the C toolchain
   `aws-lc-sys` pulls in). It reads BuildKit's `TARGETARCH`, maps it to the
   matching `*-unknown-linux-musl` triple and passes it to `cargo build
   --target`, which is what makes `.cargo/config.toml`'s per-target rustflags

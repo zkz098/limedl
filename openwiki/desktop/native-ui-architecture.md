@@ -16,6 +16,8 @@ sources:
     resource: repo://crates/limedl-native/src/crash.rs
   - id: openwiki-source-62650ee8fbcfd9713b6c1fa1
     resource: repo://crates/limedl-native/src/event_stream/bus.rs
+  - id: openwiki-source-91d7f5a44cf6de989b322c62
+    resource: repo://crates/limedl-native/src/event_stream/tray.rs
   - id: openwiki-source-57b792082fe069747cfd4458
     resource: repo://crates/limedl-native/src/handlers/common.rs
   - id: openwiki-source-fd6be2a9af9417e7143ee8cb
@@ -54,10 +56,14 @@ sources:
     resource: repo://crates/limedl-native/ui/components/toast_stack.slint
   - id: openwiki-source-90185777dff572d79a3b452d
     resource: repo://crates/limedl-native/ui/theme.slint
-generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
+  - id: openwiki-source-46a21b26289c6917924c2c22
+    resource: repo://docs/desktop-build-and-packaging.md
+  - id: openwiki-source-24da63931d7b260f1749f6ef
+    resource: repo://docs/troubleshooting.md
+generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
 verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T04:23:45.747Z
+  - by: openwiki/0.7.2
+    at: 2026-10-14T09:19:57.024Z
 ---
 
 # Native Desktop UI (Slint)
@@ -91,9 +97,10 @@ written anywhere — the process has no console (`windows_subsystem = "windows"`
   lookup as **already-resolved inputs** (settings, language, default directory,
   base directory, RPC shutdown handle, install kind). It is deliberately **not
   async and free of timers**: it builds the real `MainWindow`, applies
-  translation and appearance, constructs `AppContext` and calls
-  `handlers::register_all`. That is exactly the seam that lets the in-process UI
-  tests drive the same window and callbacks headlessly.
+  translation and appearance, arms sleep inhibition from the loaded settings
+  (`POWER_GUARD.set_enabled(settings.power.prevent_sleep)`), constructs
+  `AppContext` and calls `handlers::register_all`. That is exactly the seam that
+  lets the in-process UI tests drive the same window and callbacks headlessly.
 
 Evidence: `repo://crates/limedl-native/src/main.rs#L54-L130`,
 `repo://crates/limedl-native/src/ui_boot.rs#L8-L16`,
@@ -264,11 +271,16 @@ wizard. It provides `commit` (tray limit flag), `sync_autostart` (only when the
 flag changed), `sync_aria2_rpc` (stop the old server, restart when enabled) and
 `push_ui`, which marshals to the UI thread and applies language, tray menu,
 appearance, default directory, task list, optional inspector refresh and dialog
-closing. `push_ui` also resets `reset_confirm` on close — the About tab's
-two-stage factory-reset gate is disarmed on every close path so Escape or Cancel
-cannot leave the app one click from wiping the data directory.
+closing. `push_ui` also re-applies `power.prevent_sleep` to `POWER_GUARD` —
+deliberately inside the `invoke_from_event_loop` closure rather than on the
+calling thread, because the Windows keep-awake flag is thread-local and must be
+held by the same thread that reports the download count. It then resets
+`reset_confirm` on close — the About tab's two-stage factory-reset gate is
+disarmed on every close path so Escape or Cancel cannot leave the app one click
+from wiping the data directory.
 
-Evidence: `repo://crates/limedl-native/src/settings_sync.rs#L1-L184`.
+Evidence: `repo://crates/limedl-native/src/settings_sync.rs#L1-L29`,
+`repo://crates/limedl-native/src/settings_sync.rs#L136-L188`.
 
 ## Internationalization
 
@@ -342,7 +354,7 @@ Evidence: `repo://crates/limedl-native/src/autostart.rs#L11-L42`,
 `repo://crates/limedl-native/src/autostart.rs#L225-L266`,
 `repo://crates/limedl-native/src/autostart.rs#L380-L394`.
 
-### Tray and power
+### Tray
 
 The tray menu (show, pause all, resume all, speed-limit check, game mode, open
 download dir, quit) is built with `muda` and updated on the UI thread by
@@ -351,13 +363,77 @@ download dir, quit) is built with `muda` and updated on the UI thread by
 (GNOME without the AppIndicator extension, a bare window manager) makes `build()`
 fail, and `main` logs `tray_init_failure_message` and keeps going instead of
 aborting the launch before the window is shown — the window is the primary UI,
-the tray is an extra.
-
-`PowerGuard` uses `SetThreadExecutionState` on Windows to keep the system awake
-while downloads run and is a no-op elsewhere.
+the tray is an extra. The quit item releases the power lock before asking the
+event loop to stop.
 
 Evidence: `repo://crates/limedl-native/src/tray.rs#L1-L102`,
-`repo://crates/limedl-native/src/power.rs#L1-L113`.
+`repo://crates/limedl-native/src/event_stream/tray.rs#L116-L144`.
+
+### Sleep inhibition
+
+`power.rs` owns the one process-wide `PowerGuard` (`POWER_GUARD`, a `LazyLock` in
+`main.rs`), and it is a two-input state machine rather than a boolean: the
+desired state is `enabled && running downloads > 0`, where `enabled` is
+`AppSettings::power.prevent_sleep` and the count is the same number the UI
+counters show.
+
+- `update(active_downloads)` is called from `refresh_ui` and from the store
+  mutation path in `event_stream/bus.rs`, so the lock follows the visible task
+  state.
+- `set_enabled(bool)` applies the setting; `release()` drops the lock
+  unconditionally (quit, factory reset) and may be followed by a re-acquire if
+  downloads are still running.
+- `GuardState::desired` is what keeps this cheap: only a *change* of desire
+  touches the OS API. Recomputing per UI refresh would re-issue the platform call
+  several times a second, and a rejected logind call would retry — and log a
+  warning — on every frame. A failed acquire therefore stays latched off until
+  the next rising edge, and the lock liveness is decided under one mutex, so
+  racing callers cannot take two locks or release one another's.
+
+The held lock is one RAII guard per platform, acquired on construction and
+released on `Drop`. Every path is best effort — a failure is logged once and the
+download continues:
+
+- **Windows**: `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED |
+  ES_AWAYMODE_REQUIRED)`, which keeps the system (and so the network stack)
+  running while the display may go dark. The flag is per **thread**, so the guard
+  records the thread that took it and logs an error if it is ever dropped by
+  another; the toggle is applied on the UI thread for that reason.
+- **macOS**: an IOKit `PreventUserIdleSystemSleep` assertion
+  (`IOPMAssertionCreateWithName`/`IOPMAssertionRelease`), named
+  `limedl: active downloads` so `pmset -g assertions` shows the holder. The
+  idle-*system* assertion rather than `PreventUserIdleDisplaySleep` is what keeps
+  the transfer alive without pinning the screen.
+- **Linux**: `org.freedesktop.login1.Manager.Inhibit("idle:sleep", "limedl",
+  "Downloading", "block")` on the system bus. logind releases the inhibit when
+  the returned pipe fd is closed, so the fd *is* the lock and the guard only has
+  to hold it; the D-Bus connection that created it is dropped immediately. No
+  systemd-logind, or a polkit denial because the session is not active (WSL, a
+  headless SSH login), makes the call fail — logged once per download session,
+  and the download proceeds.
+- **Other targets** keep the no-op guard, so the setting and the state machine
+  behave identically while the machine's own power policy is left alone.
+
+The setting itself (`power.preventSleep`, default on) is armed at boot by
+`build_ui` and re-applied by `SettingsSync::push_ui` after a save; the switch is
+`prevent_sleep_toggle` in `tab_appearance.slint`, next to autostart. What none of
+this does: override the lid, `shutdown -h`, or a privileged suspend request — and
+none of it keeps the display on.
+
+Evidence: `repo://crates/limedl-native/src/power.rs#L1-L28`,
+`repo://crates/limedl-native/src/power.rs#L36-L58`,
+`repo://crates/limedl-native/src/power.rs#L80-L174`,
+`repo://crates/limedl-native/src/power.rs#L182-L240`,
+`repo://crates/limedl-native/src/power.rs#L243-L302`,
+`repo://crates/limedl-native/src/power.rs#L304-L372`,
+`repo://crates/limedl-native/src/power.rs#L374-L393`,
+`repo://crates/limedl-native/src/ui_sync.rs#L131-L134`,
+`repo://crates/limedl-native/src/event_stream/bus.rs#L52-L63`,
+`repo://crates/limedl-native/src/settings_sync.rs#L146-L161`,
+`repo://crates/limedl-native/src/ui_boot.rs#L142-L148`,
+`repo://crates/limedl-native/src/main.rs#L33-L36`,
+`repo://crates/limedl-native/ui/components/settings/tab_appearance.slint#L170-L183`,
+`repo://docs/desktop-build-and-packaging.md#L91-L110`.
 
 ### Window geometry
 
@@ -403,6 +479,7 @@ Evidence: `repo://crates/limedl-native/ui/theme.slint#L16-L31`,
 `repo://xtask/src/theme.rs#L235-L285`.
 
 Related pages: [Workspace and System Architecture](../architecture/overview.md),
+[Task Input Surfaces and aria2c Command Parsing](task-input-and-aria2c-parsing.md),
 [Settings and Configuration](../systems/settings-and-configuration.md),
 [Self-Update and Distribution Channels](self-update-and-distribution.md),
 [Slint UI Testing](../testing/slint-ui-testing.md).

@@ -1,28 +1,28 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:ff4d6ff44d439deae36f965fc46da62195a798d76059573630d2ef924bdddc05",
+  "pageVersion": "sha256:be6a5136f4adb30a7a502efd588b6ac3ab1a5b69fa44b5604530931d87597094",
   "claims": [
     {
       "id": "claim_a3116684fdf845e3bf61d5d54d1ccadf",
       "statement": "main() is a thin wrapper that awaits run() and reports a fatal error through crash::report_startup_failure; run() owns OS-facing startup: CLI parsing, data directory, single-instance claim, panic hook, logging with defaults, bootstrap(), logging with the configured settings, autostart, optional Aria2 RPC, then UI construction.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L54-L130",
+          "resource": "repo://crates/limedl-native/src/main.rs#L55-L131",
           "version": "repo-lines-v1:sha256:bafc23070c6582daa68211d97ba7b8f4add62658f66d5ab59c8a7f01c9e29018:eyJzZWxlY3RlZExpbmVDb3VudCI6NzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRkMWE3M2FkMWQ0NmRjYmFlYzAwZDA2ODMxMDc4N2UyODg4NmRjOWM2MTdjODAwMWM3NzNlZTgwNDJiMGIyOWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkMjViOGY1YjZmMDljNDQ2Y2M1MGQxYjI5Y2U2ZDgxMTlkOWFmM2E3MjUzYTNmZWJmYTZlZThkNTJjOTc0ZmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFhNzAwZmQxZTM2YjM2ZGM2ZDE0ODM0MjUwZjllZWI1OThlMTI3MTc4ZDY2ZDIwOTFiYjQ0YTc4OTdhOWJkMjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZiYWRlOTk4ODA2YzcwYTI2MTA5OGJhYzEyZWJkYWRhNGY3ZTQyN2UwYjRiNmExODBjMDc4OGRlM2E5M2MwYjMifQ"
         }
       ]
     },
     {
       "id": "claim_aefda1d73fc14e4a915c790f6f75a351",
-      "statement": "build_ui is deliberately synchronous and timer-free, taking pre-resolved UiBootInputs; it builds the real MainWindow, applies translation and appearance, constructs AppContext and registers all handlers, which is the seam that makes headless UI tests possible.",
+      "statement": "build_ui is deliberately synchronous and timer-free, taking pre-resolved UiBootInputs; it builds the real MainWindow, applies translation and appearance, arms sleep inhibition from the loaded settings, constructs AppContext and registers all handlers, which is the seam that makes headless UI tests possible.",
       "evidence": [
-        {
-          "resource": "repo://crates/limedl-native/src/ui_boot.rs#L62-L224",
-          "version": "repo-lines-v1:sha256:78099d57f3ca47d8fa7389123f15986e6962cb9a0e423d7762917b4a080c82c9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlYWNhOTBhYTJiMTgyMzE4NDNkZjM0NGFjZDc1OGIxM2RlMmI4OWE3NjkwODkxZTI5YWFmOTMwZGEzMzBjMjhiIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
-        },
         {
           "resource": "repo://crates/limedl-native/src/ui_boot.rs#L8-L16",
           "version": "repo-lines-v1:sha256:cafff0ffc3809540561d439ad0f47b257b76985f9b2951c9bb90c7df5c15b11b:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWJjM2QwZTUxN2ZhNjZjODNjOWI1MTE3YmNjNjY0ZGFmYTRiZTcwNWRmN2E2NTE2NmZkZjAzNzk1YzZlYzFiZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjc5Y2RkMzU5MWFiZmFjOTlmN2MzMzE0NmUyNzI0OWZiZWZhYmQ4N2Q5ZjE2MWFjNTVlNWExYjQ0ZWExMmEwOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjhjMzgxNDNlYTZmN2ZhMjkyNDI5NGI2MWI3MGE0NTZjOGJkNjU3NTQ2MzliOTFlMDI1MDgyN2IyZDAxZDM4ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGI4YjJlYTFhMGFhNWE2NDU2ZDgxM2JhNjFkM2VkMDJjN2U1YjE2YjIzZTEzZGIwYWY4NjZiZjYzZGQwOWFhZSJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_boot.rs#L98-L148",
+          "version": "repo-lines-v1:sha256:68f3c73b1d3ec736b7d2c85adcb4807f236a719a166458f6e8d95d213c7cf8a7:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY1MWJiNWFjYjhjNGE0YjU5MTRhOWNjZWUyYTYxYmIyYjUyM2JmMjQzMTVmZGNiMzdiNjJkZDM1YzdjM2I3MmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRlYWU5MzI0MzUwOTRlYjkwMWQ4YzZiYmU4NDE5OWU2M2JhOGRkZTZhNTIzNWE3YjI0ZjEwOTliNmRhOGYxYWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0ODI4YjhmMmM0NjYyZjE2NzRhMzEyOWNkODVjNmU1MjcyNjUyY2ZiMjEzZDMyNDMxZGRmMzRhMzVmODkwMzQifQ"
         }
       ]
     },
@@ -106,15 +106,15 @@
     },
     {
       "id": "claim_4bd66ed7e78c4f9083f2739685f646ee",
-      "statement": "settings_sync::SettingsSync centralizes post-save side effects shared by the settings dialog and setup wizard — autostart sync, Aria2 RPC hot reload, and push_ui for language/tray/appearance/default directory — and push_ui disarms reset_confirm on every close path.",
+      "statement": "settings_sync::SettingsSync centralizes post-save side effects shared by the settings dialog and setup wizard — autostart sync, Aria2 RPC hot reload, and push_ui for language/tray/appearance/default directory plus the power.prevent_sleep re-application — and push_ui disarms reset_confirm on every close path.",
       "evidence": [
         {
           "resource": "repo://crates/limedl-native/src/settings_sync.rs#L1-L29",
           "version": "repo-lines-v1:sha256:57fe64fd93776dbb9f26cb05aa5988d70a5d950debb60bf60d526f5abd37284b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0NjhhNTQwNTRmZTI4NjJlMWM1ZDhkZTY3NjIwMTk2NTIzNWEwYjJkNmFhZmVkOTdlYTQyNjU1NTlmZWU4MjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlMzhlMDM4ODkzNmIyNDBhZWFkZGJhZGVkZmZhY2E0OTkyOTU1OTVmMTIwN2I3Y2Y0NjIyN2M1YjA5ZjRmMjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY5YmEwOTgwM2VkZWYzNjk2OWQ3ODE0MDc3MzFmMWU5ZGJmYjVhOGQ1ZDU4NjBiOGI0NDkyMjQ3MTdmYjc5NjcifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/settings_sync.rs#L136-L183",
-          "version": "repo-lines-v1:sha256:d5710b36e7cddfae2bb199095b5b58b49383106673726b85c66606303e39a162:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhZTIxMTU4YzI5ODEzMGEzYTQ0M2I0OTNhNGZmZDJhYzU3OTg3ZWVjNmE3YzU5YTQwNWIxOThkZmM1ODkwYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg1MTJkYTNkZGE3YjU5ZmJmMzc1NzZkNzY4NTE5OGJiNGE3N2YwNmRjYTg2ZjNiMzEyODBhZWZhNGEyNTVlODgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+          "resource": "repo://crates/limedl-native/src/settings_sync.rs#L136-L188",
+          "version": "repo-lines-v1:sha256:a7b71b872dce80d019d2989a7f858d576080ed3297c900809b540f8a63d5c0ea:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhZTIxMTU4YzI5ODEzMGEzYTQ0M2I0OTNhNGZmZDJhYzU3OTg3ZWVjNmE3YzU5YTQwNWIxOThkZmM1ODkwYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg1MTJkYTNkZGE3YjU5ZmJmMzc1NzZkNzY4NTE5OGJiNGE3N2YwNmRjYTg2ZjNiMzEyODBhZWZhNGEyNTVlODgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
         }
       ]
     },
@@ -127,7 +127,7 @@
           "version": "repo-lines-v1:sha256:da6cd5b9d17b9254919b35209d63cee0ce7b72c0e27d4370ef750866b7879b2c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIxMTI0MTVhNGQ4MmU4NzQxZWVlNzQwOTFiY2Y3NmZiZWY4OWViM2VhYWRmNTc1Y2VjZjNmMjRiMjMxMjNjNDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MDkwN2E5YTM4ZmUyYzQ2N2VkMTE2OTgxMTE3MGQ5OWE4ZjY5MTM3ZTQ5MDZkMzM4N2RiOGYxYWZlZTU0ZGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxM2FhNGY5MjM0YzQ5N2QyZGQ0YTk4NWY0MDQ3MzBkODkxYjk1MDUyYTQ5Yjk3MDUyN2RjZGJiNzllMzhhNDYifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/i18n/tests.rs#L258-L283",
+          "resource": "repo://crates/limedl-native/src/i18n/tests.rs#L279-L304",
           "version": "repo-lines-v1:sha256:e4e1bc9ef683b641cbed97fac24aa2dce2f5ee6a7bfc555151ee2ba9459658a8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI4NWRjNDk5MzE4MmNkMDEyMzZiYWM0OWIzN2NiYTQ4YmJkZTkwMTYxNzlkODJjY2NhNDBjNGQ3YWI2NTA3ZjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
@@ -157,20 +157,6 @@
         {
           "resource": "repo://crates/limedl-native/src/autostart.rs#L1-L46",
           "version": "repo-lines-v1:sha256:03f4979b41a1e946faf43925349959f39fc981cf522dc99ebd6b1167c918e18b:eyJzZWxlY3RlZExpbmVDb3VudCI6NDYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE3ZTZiOGNjNTc3YmQzOTVmMTA0MTE1NzNmMWQ5M2FjMWUyYTA2OGY1NzU4MmIxODE4ZjBiOWM4YmU4N2UzYWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg1ZmU5ZDFiOTUzOWZmNDA5ZGEzMWEyMzBhNzBhYWJmZjFkOTI1MjQ5OWJlY2UzMzVlOTVkZWY2OTBmNjY0ODgifQ"
-        }
-      ]
-    },
-    {
-      "id": "claim_71f807de3c114c16b5706c10d6eb08a8",
-      "statement": "The tray menu is built with muda and refreshed on the UI thread, while PowerGuard uses SetThreadExecutionState on Windows to keep the system awake during downloads and is a no-op on other platforms.",
-      "evidence": [
-        {
-          "resource": "repo://crates/limedl-native/src/power.rs#L1-L70",
-          "version": "repo-lines-v1:sha256:98321726f8705baa3b29781232d5b7c49ed1b2f92e0adca0c5083da43403fd7b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyNmZhYjM5ODI4MDdhYzgyNGU5MmM0ZWJlY2EyNDk2MTNhNTk5NGM0NDJhNjAwYjQ0MTUwNDRiODhhOTdiOTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1NWIyZGI4MWFiYmE1NmU5MjQ3YmI2MDhkZmI5OTg5NDI4YWRjZDgwYzc3MDRkYmU3NjVlODNmZTE1OTU1MDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhZjNjZjFhY2E0NmFkMmQ2ZGUzYjYzNTg2ZjBjOGI5MDRjMzExMWQ1YzY5NjI3MDY3NTgwZjRmYmEzYjIzMDIifQ"
-        },
-        {
-          "resource": "repo://crates/limedl-native/src/tray.rs#L1-L50",
-          "version": "repo-lines-v1:sha256:3679b3ae1fbc966d8b82d420f5aad789e6183ae2dfe82e7bc611a8625c088278:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFiY2ZkMjhhMTIxN2RmNmM2NDg2ZTEzMjlkODE2NWY2OGIwZjBiZDkyMDVkNWIxYjY5YThmZGRkZjUwMTVmYTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU3NDE5Y2M5ZDBhYWExNGRjOTEyZGRkOGFkZTVhNzhmNGVhOGIwNmFhYTM3YTA0ZGE2MTVmMWU2MTdmMTc2MTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVjMTkzMTIyZmRkYWQ0ZTI5MDNkMzE4OTkwNTU1ZmIxMTFjMDk3YTRlMDk5OWRlYmQ2ZTgwNjg3NjFiNWI2ODUifQ"
         }
       ]
     },
@@ -225,7 +211,7 @@
           "version": "repo-lines-v1:sha256:abe6933280a7798d424bf08b077abf058b8e773abc52ea4f34b41a61cda864c0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzODQ4M2JiOGYxMmQzM2MyYzVmOWQ2ODlmY2NkNmFjY2I1YzYxNDIzYmExOGY2ZDQ0ZjdhNzRjNjM4ZGRiMzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4YTM5MzM3ZjYwOWI0Yjc1ZGMwYjkyZDI4MTIyYTI2YjM3NDU2Y2IxNWJhMjM4ZTg4NTZiODY5NDkyNTc1MjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjczZWRiNDYzMzhjYzdlYWNiY2IxMTk4YzlkM2ZlZTk4OWRjNGZlYjg3MGRmZmI5MzI3NGY2NGE3ZmU3ZDViOWEifQ"
         },
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L54-L63",
+          "resource": "repo://crates/limedl-native/src/main.rs#L55-L64",
           "version": "repo-lines-v1:sha256:b1b67ba1bebef3a5709b65a82dca61cab38a9ea77dee430401a6416ba449cc0c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRkMWE3M2FkMWQ0NmRjYmFlYzAwZDA2ODMxMDc4N2UyODg4NmRjOWM2MTdjODAwMWM3NzNlZTgwNDJiMGIyOWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFhNzAwZmQxZTM2YjM2ZGM2ZDE0ODM0MjUwZjllZWI1OThlMTI3MTc4ZDY2ZDIwOTFiYjQ0YTc4OTdhOWJkMjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY5ZjhlYWI4OGU0OTRjZWU4M2NhMTI1ZjhkMzk0NjQ5Nzg3NDE5MDgyNGE2ZjQ4ZDUxNmI2MGQzM2I0NGY3NzQifQ"
         }
       ]
@@ -249,7 +235,7 @@
       "statement": "Building the tray icon is best-effort: a missing StatusNotifier host logs tray_init_failure_message and startup continues, because the window is the primary UI and aborting there would take the window down with it.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L184-L199",
+          "resource": "repo://crates/limedl-native/src/main.rs#L185-L200",
           "version": "repo-lines-v1:sha256:a8d4538c6f5b093ff445e31646ec41c710feeb3c5ab40a97d9291a7069ecda54:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyNTM0MmMxZDU3YWJiMWVkYmZkOGU4MTZmZTFjMjUxM2M5ZmVlNjkwYTJlODY3ZDZkM2YxOTE0N2ZmNTczMWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzMzdmMjUyMDNiZjEzZDhlNDg3YjYwNjc2ZDQ4OGY2MmYyNmI0NWY5Njk4YjE1NjE3NTE2NDg1YzI4Zjc1M2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM4NzdkMGRkNmRhNmViNzQ2NThiZGYzYzA1OWVhNWQyNmNjZDMwMTI3YTAxZTYxZjhiMzc5NTUyZmY5ZmI2YmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRmZjJkYTQ2ZmM2ZGI4NzJmMmE3NGVmYTIyNTQ0YjIzMTNmMjY2MmVkOGRjNzJiYWUzM2EyNzFhYjFkYTk2NDQifQ"
         }
       ]
@@ -259,7 +245,7 @@
       "statement": "On Unix a SIGTERM/SIGINT watcher asks the Slint event loop to quit, so logout, systemctl stop and Ctrl+C run the normal graceful shutdown (buffer flush, manifest persist, WAL checkpoint) instead of killing the process mid-write; Windows has no console to catch.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L286-L344",
+          "resource": "repo://crates/limedl-native/src/main.rs#L287-L345",
           "version": "repo-lines-v1:sha256:2d0780d0eef47f3c9d88c4cde47e1e635c1b26c81af6f604def8d5d34f2f58da:eyJzZWxlY3RlZExpbmVDb3VudCI6NTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIyMDExZTJjZjI2NjYyNzNkZTc0MjYzYzBkNTg1NmY5NDY1NmI0NGE3YjVkYWQ1OGE0NTQ1MzNmZWUwZGY5NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwZmFlNjZjNmFkNDQyMTc3ODY5MjE5Y2QyNzMyZDYwMzgzNzVhY2I4MTIwYTkxMTQ2ZTE3YTg4OWZmMjY4YmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNmNjRkNGI0YTIzYWE1NTM0ZjQ1YTc3YzI1YzNhNGEyYTcyNGVjYjViOTY5N2E3ZDgwMDY3MDA3Mjk5ZTIyM2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiYzk4ZDZiMGRjNDkyYzUwMTZkZjEwODA1YTNhNTRlYjljMTg0YTVhNjEzN2U3ZjRiZWNmYTBjMjIwNTUwZDAifQ"
         }
       ]
@@ -323,10 +309,108 @@
           "version": "repo-lines-v1:sha256:49355861b8b0459a9bb9fff26af1ff68b603afa01692ff4946f069edc8205dc1:eyJzZWxlY3RlZExpbmVDb3VudCI6NzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1NzFmNjY2ZDczZmY2MTYxOWJjNGM1OTgxOTc0NWVkZjliNmNlMGY3ZmE3ODcxNGNiYzRjYTBiZjJlOGEzNDkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUzMjM5NjYwOWYwNDQ3MjhmMGFmZmU4ZjJmMzdmMWMwOGMxNGFiNDQ3OGM5MWU5NTBjMjNhY2Y0ZGZhODEwMTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdhOTljZTQwMDNmNjMzMDRmNjIyNjVlNmYyMDM1ZmVmZDU3ZjFmODk0ODRjMzhjNGI4M2ZlMTQ0ZTFlMjk1MjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcyOTNjM2VhZGIyNWQwOGYzMjk2ZjkwNzQ5MWY4MjI3MmUzOTM0MjFlMmNiNzgwY2JmNjI1NDdlNDI5ZDJiYWMifQ"
         }
       ]
+    },
+    {
+      "id": "claim_4d76536bbbf5421bbb0245d8e9d7828d",
+      "statement": "The tray menu is built with muda and refreshed on the UI thread by update_tray_menu_and_tooltip, and on Linux it is a D-Bus StatusNotifierItem whose icon build is best-effort so a missing host degrades to window-only operation instead of failing the launch.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/event_stream/tray.rs#L116-L144",
+          "version": "repo-lines-v1:sha256:dff293b2cf71f8fef578bedd58e1a2fc791fbd3dc4c53b2c9e13e18ac3755035:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJlNTY5YjE2NGMxMWNlZjhlOTgwZTUzZDc1NDY0NzczMjlkM2JkYTEwOTBjZmUzZjRhNmEwYjg1OTUwYWY5YzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MjJjNDJjZDE5YzZkMDNkODA4YzQ1MjcyMDU1MjgyNWI3ZWExYzViNDkxYjIxODUxMWNhYzc0MTVjZjlkOWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhOGViZWNhZWQ2MzdlZTk1ZGVkN2QxMDcxMGY4ZTE0YTljOWY2Zjc3MDUxMTNhNGY5MzlmYjhhNzFiMjE3ODgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk2NGNkZGI2NDg4MTVmYmI1YzEzNWRkYmQ2ZjcyZjdmODYyYWVkNmIxMTE0MmRiOTlmOGRjM2M1MWQ0YjkxZmEifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/tray.rs#L1-L102",
+          "version": "repo-lines-v1:sha256:5691c108a1a5cd370c5a43ed39e17aa8aed3e56ef2a6436aa33313dd74470515:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJhYmNmZDI4YTEyMTdkZjZjNjQ4NmUxMzI5ZDgxNjVmNjhiMGYwYmQ5MjA1ZDViMWI2OWE4ZmRkZGY1MDE1ZmE2IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_804bcfcb802a457d872d6cd2ec81f16f",
+      "statement": "power.rs keeps one process-wide PowerGuard whose desired state is `enabled && active downloads > 0`, latched behind a single mutex so that only a change of desire reaches the OS API — a rejected acquire is therefore logged once per rising edge instead of retried on every UI refresh, and racing callers cannot take two locks or release each other's.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L1-L28",
+          "version": "repo-lines-v1:sha256:085c217d7c199ff155f13b7a41c4cf347ae06c5f41ff274206cfdee31a55c5cc:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhYzEyZDJmZGNjYzU2NjIxNWY1MjI1YzE3NmM2MzA4MmJlNmE3ZTA2ODNjNzA1MTA5NTNjNjhkNDk3Y2M0ZTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFiMmMyM2ViMGM4ZmM0MzFlNjdjZTIwYTZiNjEzMjVlZmQ4N2EyNzMxNGIxYmYwMThhNjgyODlkODg3ZGZmZjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIxOGI2NTQwZmI4MmYxYWQ3ZTExZDIyY2EwYzBhYmMwZDA4OTFjMmFjMzY2N2NhNjE4NTExNWQ2ZjI4ZjcxM2QifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L36-L58",
+          "version": "repo-lines-v1:sha256:27638e09052f76bae0e006eed6a0bba5841394fdc89592a475d8bed4b824ff9d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNjZDNiMWQwMTQ1NzJiY2Q2OWNmYTg4YTgwMzA2MjM0NDljZDY5NGRlNDEwNjkzNDMxYTk2MTE3ZDcyODI5NjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJjNzRkMWQ0YzgzNTU1OWVkY2M1NGMyOWYwZWFmM2U1MjU3Y2FjZGEwMGZjYzRlZDZjNzI1ZWQ1MzQ3ZGEyMjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ5ZDNhMzQ4NjJhYmQ0YjA3OGE5ZjlmNmYyZGMwNzAwOWViNTg5MjBjMDFlZjY2NDQ2YTZhM2MwZGZlYjg1MzAifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L80-L174",
+          "version": "repo-lines-v1:sha256:7d20de4bc4a2c37f94feb42cea2076d25b0c4989e718cea42da80d6067dd2ed2:eyJzZWxlY3RlZExpbmVDb3VudCI6OTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2OTdmNGVlM2NmMzRjM2RiMmZlOTEyNWJkYmM1YjUyODQ3ZjBjYWZhZjlmMTQyMWFkODc3NzVkN2VhN2JhOTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxMGY3MDgwN2E2M2M2YWI2NGM2MzZhNmJmOTE5ZWNjYmRhZDM3ZTU4YWM3OTY3ODVkZjM1ZTMxMGJjOTgyMTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_603637f991534abfb6da73ecb44d5ecc",
+      "statement": "Each desktop platform has its own RAII keep-awake backend: Windows SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED|ES_AWAYMODE_REQUIRED) with the acquiring thread recorded (the flag is thread-local), macOS an IOKit PreventUserIdleSystemSleep power assertion, and Linux logind Inhibit(\"idle:sleep\", ..., \"block\") whose returned pipe fd is the lock; other targets keep a no-op guard.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L182-L240",
+          "version": "repo-lines-v1:sha256:139f16782c3e13986836d252076a4f2983a2f6a85bceb0cc9842b4d1767c62a7:eyJzZWxlY3RlZExpbmVDb3VudCI6NTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5Yzg4MWM2YzBhM2MwMGVlNWRkN2YwOGU5NGJmNjI4YWYzMGJjOTZlZmZhYWE0MzcwZDExNzI1N2U5ZWM2NzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA5NTM5YmMwMTg0ZjZiMzU0NzZjMzlmMjkzZTA0NDNjNjlmMDhlYTVlOTJkZDgzNzk4ODM1ODMyZGNhMjhhZGUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L243-L302",
+          "version": "repo-lines-v1:sha256:e417cb51996a246e22ab75921103f0f86f6eb07c398f446ee5addc9e7214a0ef:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2NjhhZWFjYTU4OWQxM2M2ZTc1YjBhOTYyNDBkZDYxMWM0ZDgyMDc3ZTczNzBmYjI4MDJiNGEyNzE1ZDEwNjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJjMDYyYzY4NDdhOTk1MjkyMmY3MzJiMzc0ZGE2ZTBlMzA1ZjMzZmM5OWI1MmE3Yzg2NmU4MjJhZWIyY2Q2OGQifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L304-L372",
+          "version": "repo-lines-v1:sha256:f55b7518f2a559cfc997f8bd8cac1c91fa64643ae039924b90ef1ff33597a95e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2NjczOTgyOTJjMmUzYTYyNDVkNTI3NzY5ZDc4MTA5OTRkNzhlMWYxZTAyN2ZmZmQxNDU2Nzc5ZWM0YzExODQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjOTNiMDMzYTZkOGE2MGQwNTYxMGM0ZDFjMjBmMzVkNmU5ZGVjOTU0NTUzNTJlM2I4YTEwNTZhMGIwNjk3MzYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L374-L393",
+          "version": "repo-lines-v1:sha256:9863c637e4117e0953d6faf950c0f4b70874d4c65a1763ef9cda1b3f121e9bc1:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhYjZiNzc1N2UwNTZkNjc2ODBiNjlmNTZjOTg2MjI4OTNkYzFjYjYzN2U0YzFiMWMzNTBjZTUxMzY1ZTU3MGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiYzk4ZDZiMGRjNDkyYzUwMTZkZjEwODA1YTNhNTRlYjljMTg0YTVhNjEzN2U3ZjRiZWNmYTBjMjIwNTUwZDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_32e7a3a2a3654e878a86c611ae2f9b4e",
+      "statement": "The keep-awake lock is driven by two inputs only — the download count reported by refresh_ui/event_stream::bus and power.prevent_sleep, which is armed at boot by build_ui and re-applied by SettingsSync::push_ui on the UI thread because the Windows flag is thread-local; release() is called on the exit paths.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/event_stream/bus.rs#L52-L63",
+          "version": "repo-lines-v1:sha256:dcb741b57a37aaca48d659acd531f044aefae5e595d9a7d77d6c8484bbd8fcaa:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5N2UyMWE2NTNjMDljNDk5MTY0NzI5OThjYmEyMTNlY2Y2YjBhOWM5NWM1NTU3M2JiYTNlZDY5MDZlOThlZTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY5MGY4ZTA1YWI5MzJkNzczMDUyZDBjODQ0ZDVhZTkzYTQzZjhhMDJjNmI5ZTA2OGJmYjRlOGFkMTVlMzE1ZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg3OTNlZWYyYjQ1ZWVkNmMwYTU0OWNkNGNkOGEwYjE3NjA0ZWM0OTVkZmYzNWNlMDJjMjlhZmZiNzVmZTU0NTYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/main.rs#L33-L36",
+          "version": "repo-lines-v1:sha256:ce6777d1934bc2e9e0b2635f053fe2533c61ff1c998667a28b4f69b29ccb06e4:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2JkMWUyYjU0OTEyMDFkNGJjNTE4NTBiYjgwNGUxNDQ5MmFmMDhiYjUxYzkyMDYyODNhNzgwOWIwNjA4ZTU0MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGRmZWRkYzZlMzNmOGZlMjJlZmQ1ZDQ2MjU0Y2QwNzUwNmRhMTNkNmM0ZGFmMDlmNTY2YmE1Y2E3YjVkZDNkYyJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/settings_sync.rs#L146-L161",
+          "version": "repo-lines-v1:sha256:27a8baf563165b811e7a4faef542cfe15018aed2932eb32928b7e25191db621b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNiM2Q4NWQ2MTQ1NDQ0NTVhZjdhNDQ0NmRjZGU5ZDE0MTc5ZmRkYWE3MTZjYWIxMWY5YWY0MDVlM2YzNzZjMGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2MzUwMjAzNGQ5N2UwNTk4MDg0YWI0NjFkMWM4ODhkY2FkZjAzZTlkMWFmMWE4ZDk4NTYzMGQ0OTBjZWJjMzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFlMTkxZTljMzA2MmQ5NDY5NzUzMjkwNmZjZTEzNzIzM2M4MDc2OGI2ZGQ1NGU1NjM0MTJjMzJmNTY3MTM5MDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJiZjVhOGQ4M2QwOWNjN2E3MGY4NGE1M2U4NTdiNjlmNWE2MzY2ODc1ODA1ZDUxNTY5YjY0ZGU4NDVmYzM5M2UifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_boot.rs#L142-L148",
+          "version": "repo-lines-v1:sha256:05bef8f7adda04b1596a8e944937d68581e96274b90f84b75042e2eff730e90d:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmUzNjU1YzE5NmVmMWFiYThmZTI1M2NkMWIxZGI0MDU5YjUxYTgxYjZmYTcyZDI0NzNiOGE0N2M4MjI0NDkxNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZDQwNGZmODU2MjlkMzZhZDdiOTBiNjhmNGRjN2I4YWE2NTZiZmVhN2E1YWE4NGU4NjkwOTE4Y2MwMjc3MjY4MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzQ4MjhiOGYyYzQ2NjJmMTY3NGEzMTI5Y2Q4NWM2ZTUyNzI2NTJjZmIyMTNkMzI0MzFkZGYzNGEzNWY4OTAzNCJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_sync.rs#L131-L134",
+          "version": "repo-lines-v1:sha256:d316e50d2091645c42a2ba5ca1760b8a802ecfd0ebaad80ad7d96156aa8e31cb:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTU3MWY2NjZkNzNmZjYxNjE5YmM0YzU5ODE5NzQ1ZWRmOWI2Y2UwZjdmYTc4NzE0Y2JjNGNhMGJmMmU4YTM0OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTI1NzYzNWEzYWMzZTA5MzUzY2M0OTAyZTYxOTcwNDQ1YzRhZmJhMmVjZGU1NGFmYzYzZThiYTk3YTQzOGRlYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2E5OWNlNDAwM2Y2MzMwNGY2MjI2NWU2ZjIwMzVmZWZkNTdmMWY4OTQ4NGMzOGM0YjgzZmUxNDRlMWUyOTUyNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGRmZWZkNzE5YTNkYjM1MTlkMDY2MzliZTgxYjc5NzgzOTdhMDdmYTQ3MWYxNTRjMjUyN2JmMzIyYWRmODRmZSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_cfa93f4bdf02446ba814a5d3a6b90845",
+      "statement": "Sleep inhibition never overrides the lid, a shutdown request or a privileged suspend, never keeps the display on, and degrades to a logged warning without stopping the download when the platform service refuses (for example a logind polkit denial on a session that is not active).",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/power.rs#L21-L23",
+          "version": "repo-lines-v1:sha256:9babe919977eeb445e2282d66da9de4d44a78e0bd7a832d4cd94af6803660dbd:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDBhNGYyMDdmMzRlZDJkMzUwNGQ3Y2U5NTA1YTY4MDRiN2EwNDgzMjQ4OTc5YTJmMDE5YjJiY2Y1YjIzMWNkYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGJjYzhlYTMxYzQ0NDI2OGQ2YTNkZThkYjQ0YTIwNTgwMjUxMjZmYTMwODFmNTkzZjlkZDJmNDljOGUyYzk1YSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjRkYTZjZTZmZDk4OTEyOGIzZGE3OGZjMzY4Y2FjZmJiM2VmMWM1ODI5ODIzNmE2MjVmY2NiYmYwZjU2YzFlNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzQyY2FhZTc0YjYzYzllYzJhYzhhNzFiY2E0NmRlYmZjMTM1YzBmMjAwYTA4M2Q1OGU5NTNkMDAzNDZkMDE4YSJ9"
+        },
+        {
+          "resource": "repo://docs/desktop-build-and-packaging.md#L91-L110",
+          "version": "repo-lines-v1:sha256:0d8fac2243300f347f6bb380c11e401eac6eb1d173c8e31b8abad44cf5dfefd0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1ZjIwYmRiMmVmN2QzOTU2Zjk0MjQ2OGE4YWViZWU1ZWJhMTk3N2U3ZjkxZjYyZjFjZjVkMmIyYjE3ZjRjNDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjMTRmMmI3OWY1MmE0ZjBhOTE2MzczZWYwZDZlYjU3NGUwNDgzNWQ0YjZhZTJhZDY4NmQ2YWZiMjIwYWZlZDAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRiOWMyYmYzZDJkZjBjODNmNzAyMjdjMGQ3YjkxNzFjOTQyMDZjNWFlZWFmMTg4NmI3NDU0NDg1MWFkNmE0NWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://docs/troubleshooting.md#L133-L158",
+          "version": "repo-lines-v1:sha256:174e5dd29ab57af3fb7b79e5368a6bc165d3a79c5cbd62ec941894d139b3ce2d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdkODg4ZTg3NDU5ZDI3OTg2NTViNTM4ZTk5MTYzYWE5NDZkNDM0Yjg1ZTEwMTBlMzA1ZDE2MGEwYTQxMjBkMWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlkOTE2NGRmMzdiYTBhYmRkN2JiYjIzNmViMTUyNmRjMGRkY2NmN2M4MGI3MWVkYzRmMTJiZGUyYTg2MWZlOGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZmMDQ0MzFjYTkxMmVmYTU3M2IyMGYyNTQ2MmY1MmIwMDZmMWI3MmYyZTYyZjcyMTA2OGZmZmMwYmQ1ODRlNTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE2MmE3OTAyOTc4MDRmMzFiZDU3Mzc1MjZjYTBjZDAxOTE1YzA1NDBjM2EzZjYwNmIxNDEzOGE5YzM0YzRiYWIifQ"
+        }
+      ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.1",
-    "at": "2026-10-07T04:23:45.747Z"
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T09:19:57.024Z"
   }
 }

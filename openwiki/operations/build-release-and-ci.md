@@ -34,10 +34,10 @@ sources:
     resource: repo://xtask/src/fetch_font.rs
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
-generated: { by: "pi", at: "2026-10-13T18:15:25.443Z" }
+generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
 verified:
   - by: openwiki/0.7.2
-    at: 2026-10-13T18:15:25.443Z
+    at: 2026-10-14T09:19:57.024Z
 ---
 
 # Build, Tooling, CI and Release Operations
@@ -222,8 +222,7 @@ allowlisted notes.
 Windows is split into three parallel jobs because its native job is the critical
 path and clippy cannot share build artifacts with test builds.
 
-Evidence: `repo://.github/workflows/ci.yml#L148-L336`,
-`repo://.github/workflows/ci.yml#L336-L522`,
+Evidence: `repo://.github/workflows/ci.yml#L109-L640`,
 `repo://.github/workflows/aria2-oracle.yml#L1-L45`,
 `repo://crates/limedl-core/src/aria2_rpc/oracle_tests.rs#L1-L68`.
 
@@ -280,22 +279,33 @@ Additional rules:
   leaves the previous generation until GitHub's repository-wide LRU reclaims it.
   The job keeps only the most recently created entry per key prefix — the only
   entry a bare prefix restore can ever pick — and deletes the rest through the
-  `actions/cache` REST API. Measured 2026-10-07 before it existed: 5 `v0-rust-*`
-  entries / 8.54 GB, of which 2.73 GB were superseded.
+  GitHub caches REST endpoint (`gh api repos/$REPO/actions/caches`). Two
+  invariants keep it safe: it never deletes the newest entry per prefix, and it
+  never selects outside `v0-rust-`, so the rolling `Linux-sonar` and `misans-vf`
+  caches keep their own lifecycle. Measured 2026-10-07 before it existed: 5
+  `v0-rust-*` entries / 8.54 GB, of which 2.73 GB were superseded.
 - `rustflags: ""` leaves RUSTFLAGS unset so `.cargo/config.toml` stays
   authoritative.
 - Windows jobs exclude build paths from Defender real-time scanning
   (best-effort), which is the dominant Windows-vs-Linux build penalty.
-- A main-only `du` probe in `check-rust` records the pre-clean sizes of `target`,
-  `target/debug` and `target/llvm-cov-target`. It exists to decide whether the
-  coverage build tree should move to `CARGO_LLVM_COV_TARGET_DIR` /
-  `CARGO_LLVM_COV_BUILD_DIR` plus its own cache entry, and is intended to be
-  deleted once that decision is recorded.
+- The Linux entry's size is **measured, not gated**: the temporary `du` probe in
+  `check-rust` was removed once the question it existed for was answered. The
+  recorded decision (2026-10-13) is that pointing `CARGO_LLVM_COV_TARGET_DIR` /
+  `CARGO_LLVM_COV_BUILD_DIR` at `target/` would *move* the coverage dev rlibs
+  into `target/debug` rather than remove bytes — `cargo llvm-cov` runs with
+  `--cargo-profile dev` while the other nextest steps use the default `test`
+  profile, so the two trees are not duplicates — at the cost of a full dev
+  rebuild; it was rejected. The remaining size lever (running the native/server
+  nextest steps with `--cargo-profile dev`) trades away `[profile.test] debug =
+  false` and runs instrumented test binaries, so it stays closed without new
+  measurements.
 
 Evidence: `repo://.github/workflows/ci.yml#L29-L107`,
 `repo://.github/workflows/ci.yml#L163-L400`,
-`repo://.github/workflows/ci.yml#L528-L553`,
-`repo://.github/workflows/ci.yml#L584-L649`.
+`repo://.github/workflows/ci.yml#L503-L545`,
+`repo://.github/workflows/ci.yml#L544-L570`,
+`repo://.github/workflows/ci.yml#L592-L640`,
+`repo://docs/ci-operations.md#L65-L96`.
 
 ## Release pipeline
 

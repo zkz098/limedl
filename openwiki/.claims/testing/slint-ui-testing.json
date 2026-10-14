@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:24d525bb6db899c2f6f64aff4d7784e6f21191d7224d03ee663b780d78528b0f",
+  "pageVersion": "sha256:85891addd170811d276e92414d3690b224016abd6d428b3c270b2df06bc30f33",
   "claims": [
     {
       "id": "claim_8ae54ce2240f44308d879c9a2c645566",
@@ -92,11 +92,15 @@
     },
     {
       "id": "claim_5a210798d400428cb19b925a632f23fa",
-      "statement": "RecordingBackend records every engine call the UI makes; mutating calls return NotFound to reach the failure path without publishing events, start returns a synthetic Ok id to reach the success path, and starts()/settings_pushes() assert the exact submit payloads and settings saves.",
+      "statement": "RecordingBackend records every engine call the UI makes; mutating calls return NotFound to reach the failure path without publishing events, start returns a synthetic Ok id to reach the success path, and starts()/settings_pushes() assert the exact submit payloads — url, destination dir, file name, checksum, expected checksum, selected file indices, headers, user agent and mirror urls — and the settings saves.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/ui_tests/recording.rs#L1-L130",
-          "version": "repo-lines-v1:sha256:cc144cedbffd98e9b17cedad62da34f983607a1de8a56a420c4f049efc618bcb:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzN2I3ODdhOTkwNTNiMDMwMzA5ZDdlODFlY2NjNjVjZjIxMDhmMWFjZTYyYWRkYTIzMTQ4NzMyNjQ2NzRjM2UwIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI5ODE4ZWE2N2E0MzE2MDY1M2NkY2FiYzEwMDJmODIyNjJmMTBmODU5OWI5MDBiYjNjNzZiZjNmNzU5YTQ1NzNiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJmYjkyYWU4ZjMwZTRiYjYxMjIzNDdkMmQ3ZWViZjMyMWFiNjYzMmZjYWM2NGI4ZGJlZTE3YjFkMjY5MTM0NDJmIn0"
+          "resource": "repo://crates/limedl-native/src/ui_tests/recording.rs#L22-L42",
+          "version": "repo-lines-v1:sha256:ac3e8ea4db5413a49d72b89f6974c1a99017cadab3bb1ce6160e1a30b4c743cc:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ3OWM5YmU1MWNkZTI5ODRkYWM3NTkyZTYyNjM1ZWIwYjdiMzY1NTBlNjg3YTAyMDU3NjQ5ZTMyZmJjNmJjNTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3MjNjNGM0ZjI1ZjFjZTMyZmNhZGQ5OTFjMDcyMjIwNDcwYmY4MzA1MWJkNWFkNWYyOTM5ZDgxMWNkNzcwMTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA5YThiZTA0MTk1M2RkNmYxZWMyMDcxNjNkNDI3NTU1MzAzY2U3ZGU5YjdlMzgzNWI5MmZiYTE0NDljMGYzYTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJhOTE3NzBiMWZlNjU4ZjUyNDUwZWU2NzIyY2RiOGNkZThiODJmODdjMTg1YTUzMmI1MjhkY2RmOTc1MWJlOGEifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/recording.rs#L288-L301",
+          "version": "repo-lines-v1:sha256:fe627608f0124ce724b58461c6b2dbcff82f7601d143b5d030a8c1cc69c55541:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI0OGNiMjI1MzZkOGM4MjBhODVhYmRkZWZhYTc1OTg0YTg0NzA4NWI0NzA5NWE5MDJiZmYxYjIwYTAzY2RhMGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRkMDljNjNkMjlkMjQwZTE0NTQ3NDQzMDcwODNhOTRkYmM2ZmIzMjdiZmVhOTkxZTg3YzViNGYzNmQ0OTk4MDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjIyNzAyMjA3ZmU4NzZlZDI3ZjViZjBlZWYxYTY0OTNjOGQyMmYzMDZiNjc5OGQ4OTc5NzNiNmU1NjMyOGVlNTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZiNTE4ZmY3OWVhYzc4NGY0NGRiNGJlNDdkNWUxNGVlNzkyM2U3NTQ0NTRjODQ3M2I4NTRhMGZlYWFiZWQwMmMifQ"
         }
       ]
     },
@@ -177,10 +181,28 @@
           "version": "repo-lines-v1:sha256:176e85256f33850e929592b173ff09e35d5d858df80ee56db9abc5533506b4c2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwZGQzY2UxYjk0MDFmYzlmMDM4NTkwMzgyOTQ2YjI0YzIxMjNmMzFhYmUxNmIzYmVlM2ZmZTJkZTdlNzRhOTI2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
         }
       ]
+    },
+    {
+      "id": "claim_d826eff6a29f46388d6bb39f1b186a34",
+      "statement": "Two contract styles decide whether a UI test can catch a regression: clicking the real widget through a multi-hop <=> binding chain (the sleep-inhibition ToggleSwitch three components deep, with the window enlarged because the row sits below the fold) and typing into the real input before asserting the dialog's own model and the recorded StartCall payload (the aria2c command, batch counter and long-URL layout tests).",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/async_contracts/new_task.rs#L1-L93",
+          "version": "repo-lines-v1:sha256:0374eeae92db318507a94affc837a36a0d84c24e1ed979df0778153489cc0f30:eyJzZWxlY3RlZExpbmVDb3VudCI6OTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0OGY0OWQ2YjQ4MDY5ZjlhY2RhNTZiYWM0YzVkY2VlMGQzMTJlY2EwYWU0MWYyNWQ5ZjVjMDhkOTJjODlhYTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNmZGNkY2RkYWI1Y2NmZjcxMmEyMmM4N2QzMGVlNmJjOGE5ODA1NGYzZTI0NDJlOTk4MjBiZTlmYzhmNjgwM2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZkMzcyZWJmNDA0Yzg0Nzg4NWMyMDBlZGJlZjUwZGY1YzkwYTc4NDM4YTFmNWI0MGU1MDJlZDk3NDhkMzM1MzQifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/new_task.rs#L165-L258",
+          "version": "repo-lines-v1:sha256:aa9d9f269c84163d635ae2e395505cbaefc044e26c21d0e6a7001a24cedade25:eyJzZWxlY3RlZExpbmVDb3VudCI6OTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYwOWM5YzAyMGI1ZmE0NmM1MjJlOWU3MGMzMzRjZTc4YzhmZGI2NzNkNmU5ZmE3YTkwMzZiYWZjZjgxOWI4ZjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-native/src/ui_tests/settings.rs#L274-L306",
+          "version": "repo-lines-v1:sha256:56e37efbb90393cb52e8d689aebeb08fd2bc76751762b1946b9c6817cd0de15c:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3NGNjMjlkZGM5ZTRhZTk5MDAyMGUyOTIzNTBmYjYzYzU4NzQzMWRiNjRhNjZhZDY4YmRkZTljMTA5ZDYwYjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBmMTkyY2MwNTQxZTU1YjVmNWRiYTA2MWJlM2Q5ZTUyODk1M2RiZmFjMTY5MmZjODIzMGJmYmRiYWFhNzJhYmEifQ"
+        }
+      ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.1",
-    "at": "2026-10-07T03:53:23.435Z"
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T09:19:57.024Z"
   }
 }

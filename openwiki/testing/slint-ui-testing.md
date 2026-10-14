@@ -12,22 +12,28 @@ sources:
     resource: repo://crates/limedl-native/src/ui_tests/async_contracts/dialogs.rs
   - id: openwiki-source-609f1f96cd2144c685b84607
     resource: repo://crates/limedl-native/src/ui_tests/async_contracts/mod.rs
+  - id: openwiki-source-1d83227c25eb79148f5cda17
+    resource: repo://crates/limedl-native/src/ui_tests/async_contracts/new_task.rs
   - id: openwiki-source-19236607c3fd169ba329ef60
     resource: repo://crates/limedl-native/src/ui_tests/layout.rs
   - id: openwiki-source-d4153d1b0168cae501e8c53a
     resource: repo://crates/limedl-native/src/ui_tests/mod.rs
+  - id: openwiki-source-bd701500362548a90e23770f
+    resource: repo://crates/limedl-native/src/ui_tests/new_task.rs
   - id: openwiki-source-cb1d26941bd1e33067df4677
     resource: repo://crates/limedl-native/src/ui_tests/recording.rs
+  - id: openwiki-source-3445dfb45e3963d1d6a01c5f
+    resource: repo://crates/limedl-native/src/ui_tests/settings.rs
   - id: openwiki-source-4c401762f2250ca52aba8325
     resource: repo://crates/limedl-native/src/ui_tests/toast.rs
   - id: openwiki-source-031df146f1a4c52e00c3f83b
     resource: repo://crates/limedl-native/src/ui_tests/updater.rs
   - id: openwiki-source-f1911c421777843811200186
     resource: repo://docs/manual-smoke-testing.md
-generated: { by: "pi", at: "2026-10-04T11:42:48.469Z" }
+generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
 verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
+  - by: openwiki/0.7.2
+    at: 2026-10-14T09:19:57.024Z
 ---
 
 # Slint UI Testing
@@ -162,12 +168,38 @@ ids and silently skips unparseable ones.
 - `start` is the exception: it returns `Ok` with a synthetic id because the
   success path clears the URL and closes the dialog.
 - `starts()` returns the `StartCall` payloads (url, destination dir, file name,
-  checksum, expected checksum, selected file indices) — the only way to assert
-  that what the form collected really became a `StartDownloadRequest`.
+  checksum, expected checksum, selected file indices, headers, user agent and
+  mirror urls) — the only way to assert that what the form collected really
+  became a `StartDownloadRequest`.
 - `settings_pushes()` counts `UpdateSettings` calls, shared by the settings, labs
   and wizard save paths.
 
-Evidence: `repo://crates/limedl-native/src/ui_tests/recording.rs#L1-L130`.
+Evidence: `repo://crates/limedl-native/src/ui_tests/recording.rs#L22-L42`,
+`repo://crates/limedl-native/src/ui_tests/recording.rs#L288-L301`.
+
+### Click the real widget, type into the real input
+
+Two contract styles decide whether a UI test can actually catch a regression:
+
+- **Click the widget, not the callback.** A `ToggleSwitch` sits three components
+  deep (`MainWindow` → `SettingsDialog` → `SettingsTabAppearance`), so the sleep
+  inhibition setting is tested by clicking
+  `SettingsTabAppearance::prevent_sleep_toggle` and reading the value back out of
+  `SettingsFormData` — the only way to prove the whole `<=>` chain carries it,
+  since writing the form directly would pass even with a one-way binding. The row
+  is below the appearance tab's fold, so the test sets a taller window first (see
+  "clipped means absent" above).
+- **Type into the input, then assert the model.** The new-task tests type an
+  `aria2c` command into `NewTaskDialog::nt_url_input` and assert the derived
+  fields, the hint and the resulting `StartCall` payload, which is what pins
+  parser→dialog wiring rather than the parser alone; the batch counter and the
+  long-URL test read the dialog's own model (`new_task_batch_count_text`,
+  `assert_inside_window`, `has("ScrollView::horizontal-bar")`) instead of
+  re-deriving the expected result.
+
+Evidence: `repo://crates/limedl-native/src/ui_tests/settings.rs#L274-L306`,
+`repo://crates/limedl-native/src/ui_tests/new_task.rs#L165-L258`,
+`repo://crates/limedl-native/src/ui_tests/async_contracts/new_task.rs#L1-L93`.
 
 ### Accessibility assertions
 
@@ -244,5 +276,6 @@ Evidence: `repo://docs/manual-smoke-testing.md#L1-L50`,
 `repo://AGENTS.md#L35`.
 
 Related pages: [Native Desktop UI (Slint)](../desktop/native-ui-architecture.md),
+[Task Input Surfaces and aria2c Command Parsing](../desktop/task-input-and-aria2c-parsing.md),
 [Testing Strategy](testing-strategy.md),
 [Build, Tooling, CI and Release Operations](../operations/build-release-and-ci.md).
