@@ -272,6 +272,38 @@ fn the_media_override_editor_edits_rows_in_place_and_removes_only_the_one_asked_
     });
 }
 
+/// The keep-awake toggle is a `<=>` binding chain three components deep
+/// (`MainWindow` -> `SettingsDialog` -> `SettingsTabAppearance` -> the task
+/// switch), so clicking the real widget is the only thing that proves a click
+/// reaches `SettingsFormData` — and therefore the Save path that persists it.
+#[test]
+fn the_prevent_sleep_toggle_reaches_the_settings_form() {
+    with_ui(|ui| {
+        // The appearance tab is a long ScrollView; at the default window size the
+        // row sits below the fold, where element queries prune it.
+        ui.set_window_size(1280.0, 1400.0);
+        ui.window.invoke_open_settings();
+        ui.window.invoke_set_settings_tab(0);
+
+        let mut form = ui.window.get_settings_form();
+        form.prevent_sleep = true;
+        ui.window.set_settings_form(form);
+
+        ui.click("SettingsTabAppearance::prevent_sleep_toggle");
+        assert!(
+            !ui.window.get_settings_form().prevent_sleep,
+            "clicking the toggle must flip the field the save path reads"
+        );
+
+        // Clicking again goes back: the switch tracks the form rather than
+        // latching its own copy.
+        ui.click("SettingsTabAppearance::prevent_sleep_toggle");
+        assert!(ui.window.get_settings_form().prevent_sleep);
+
+        ui.window.invoke_close_settings();
+    });
+}
+
 #[test]
 fn switching_tabs_does_not_disturb_the_form_or_the_open_state() {
     with_ui(|ui| {

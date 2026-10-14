@@ -171,6 +171,22 @@ export component SettingsTabAppearance inherits ScrollView {
             alignment: space-between;
             VerticalLayout {
                 spacing: 2px;
+                Text { text: @tr("Prevent Sleep While Downloading"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Keep the system awake while a download is running, so a long transfer is not stalled by sleep. The screen may still turn off, and a manual sleep request is untouched. Turn this off to leave the system's power settings alone."); }
+                    } }
+                Text { text: @tr("Inhibit system sleep only while downloads are active"); color: #6b7280; font-size: 11px; }
+            }
+            prevent_sleep_toggle := ToggleSwitch {
+                checked: root.settings_form.prevent_sleep;
+                toggled => { root.settings_form.prevent_sleep = !root.settings_form.prevent_sleep; }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
                 Text { text: @tr("System Notifications"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
                 Text { text: @tr("Show desktop notification on task completion/failure"); color: #6b7280; font-size: 11px; }
             }

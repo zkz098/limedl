@@ -552,6 +552,38 @@ fn test_load_settings_valid_json_full_fields() {
     let result = load_settings(&path).unwrap();
     assert_eq!(result.proxy.mode, ProxyMode::Manual);
     assert_eq!(result.proxy.manual_url, "http://proxy:8080");
+    assert!(
+        result.power.prevent_sleep,
+        "a settings.json written before the power section existed must keep the \
+         download keep-awake default"
+    );
+}
+
+#[tokio::test]
+async fn test_load_settings_reads_power_section() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    fs::write(&path, br#"{"power": {"preventSleep": false}}"#).unwrap();
+
+    let result = load_settings(&path).unwrap();
+    assert!(!result.power.prevent_sleep);
+
+    // ...and the flag survives a save/load round trip.
+    persist_settings(&path, &result).await.unwrap();
+    assert!(!load_settings(&path).unwrap().power.prevent_sleep);
+}
+
+#[test]
+fn test_normalize_keeps_prevent_sleep() {
+    let mut settings = AppSettings::default();
+    settings.power.prevent_sleep = false;
+    assert!(
+        !normalize_settings(settings)
+            .unwrap()
+            .power
+            .prevent_sleep,
+        "normalize_settings must carry the power section through unchanged"
+    );
 }
 
 // -----------------------------------------------------------------------

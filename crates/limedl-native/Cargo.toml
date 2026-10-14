@@ -154,6 +154,27 @@ windows-future = { version = "0.3", default-features = false, features = ["std"]
 flate2 = "1"
 tar = "0.4"
 
+# Sleep inhibition is a per-platform OS API, so each backend's dependency is
+# scoped to its own target and stays out of the other graphs:
+#
+# - Linux: `org.freedesktop.login1.Manager.Inhibit` over the system D-Bus. zbus
+#   is already in every Linux build (its quiet StatusNotifierItem backend), and
+#   its default features are exactly what this needs: `blocking-api` for the
+#   `zbus::blocking` calls and `async-io` for the executor behind them (async-io
+#   runs its own little reactor, which is what makes a blocking call from the
+#   Slint event-loop thread safe). Naming zbus directly keeps the version ours
+#   rather than an accident of tray-icon's feature set.
+# - macOS: the IOKit power-assertion API. `objc2-io-kit`/`objc2-core-foundation`
+#   are madsmtm's typed bindings (no C shim, no `-l` to install), and the
+#   `pwr_mgt`/`CFString` features pull in exactly the assertion functions and
+#   string type this uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = "5"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-foundation = { version = "0.3", features = ["CFString"] }
+objc2-io-kit = { version = "0.3", features = ["pwr_mgt"] }
+
 [build-dependencies]
 slint-build = { workspace = true }
 

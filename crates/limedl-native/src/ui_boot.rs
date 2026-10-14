@@ -142,6 +142,9 @@ pub fn build_ui(inputs: UiBootInputs) -> anyhow::Result<UiState> {
     window.set_default_download_dir(SharedString::from(&default_download_dir));
     window.set_new_task_dir(SharedString::from(&default_download_dir));
     ui_sync::apply_view_preferences(&window, &settings);
+    // Arm or disarm sleep inhibition before the first download can start; the
+    // lock itself is only taken once `refresh_ui` reports a running task.
+    crate::POWER_GUARD.set_enabled(settings.power.prevent_sleep);
 
     let toast_queue = Arc::new(Mutex::new(Vec::new()));
     let game_mode_active = Arc::new(Mutex::new(dispatcher.game_mode()));

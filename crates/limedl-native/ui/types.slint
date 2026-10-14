@@ -207,6 +207,8 @@ export struct SettingsFormData {
     appearance_column_seeds: bool,
     appearance_column_eta: bool,
     autostart: bool,
+    // Hold a system power lock while downloads run (AppSettings.power.preventSleep)
+    prevent_sleep: bool,
     notifications_enabled: bool,
     double_click_completed_idx: int, // index into combo::DOUBLE_CLICK_COMPLETED
     double_click_uncompleted_idx: int, // index into combo::DOUBLE_CLICK_UNCOMPLETED

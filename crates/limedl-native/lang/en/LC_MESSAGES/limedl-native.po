@@ -1006,6 +1006,15 @@ msgstr "Launch on Startup"
 msgid "Automatically launch limedl-native upon user login"
 msgstr "Automatically launch limedl-native upon user login"
 
+msgid "Prevent Sleep While Downloading"
+msgstr "Prevent Sleep While Downloading"
+
+msgid "Inhibit system sleep only while downloads are active"
+msgstr "Inhibit system sleep only while downloads are active"
+
+msgid "Keep the system awake while a download is running, so a long transfer is not stalled by sleep. The screen may still turn off, and a manual sleep request is untouched. Turn this off to leave the system's power settings alone."
+msgstr "Keep the system awake while a download is running, so a long transfer is not stalled by sleep. The screen may still turn off, and a manual sleep request is untouched. Turn this off to leave the system's power settings alone."
+
 msgid "System Notifications"
 msgstr "System Notifications"
 

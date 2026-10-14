@@ -155,6 +155,36 @@ The durable fix is to give the accelerator injectable range/speed-test strategie
 (and run these two tests against a local fixture server). Until then, treat a
 failure here as environment-sensitive and re-run before investigating.
 
+## A download keeps the machine awake (or sleep is not inhibited)
+
+`settings.json` → `power.preventSleep` (default on, Settings → Appearance) holds
+an OS keep-awake lock **only while a task is running**: the last task to finish
+releases it, and the display is free to turn off throughout. It never covers the
+laptop lid or a manual suspend.
+
+If the machine will not sleep after the queue drains, the lock is still held —
+check with `systemd-inhibit --list` (Linux, `WHO` is `limedl`),
+`pmset -g assertions` (macOS, `limedl: active downloads`) or `powercfg /requests`
+(Windows, as administrator). On Windows the flag is per-thread, so an
+`ES_SYSTEM_REQUIRED` requirement that outlives its release means the lock was
+taken and released by different threads; `power.rs` logs an error in that case.
+
+In the other direction, nothing is logged as broken when sleep is simply *not*
+inhibited on Linux:
+
+```
+系统电源管理: 申请防休眠锁失败，下载将继续但系统可能休眠: logind Inhibit:
+org.freedesktop.DBus.Error.AccessDenied: Permission denied
+```
+
+That is logind refusing the `Inhibit` lock (polkit's `inhibit-block-sleep` /
+`inhibit-block-idle` needs an *active* local session), not a limedl bug —
+`systemd-inhibit --what=idle:sleep --why=test sleep 1` fails the same way in the
+same session (reproduced under WSL2, where the session is not active). It is
+logged once per download session, and the download continues regardless. There is
+also no fallback for a system without logind: such a host keeps its own power
+policy.
+
 ## Accepted warnings (do not need fixing)
 
 These used to be documented here and all came from the retired Tauri shell

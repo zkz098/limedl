@@ -100,6 +100,7 @@ pub fn app_settings_to_form(
         appearance_column_seeds: column_is_visible(&settings.appearance.visible_columns, "seeds"),
         appearance_column_eta: column_is_visible(&settings.appearance.visible_columns, "eta"),
         autostart: settings.autostart,
+        prevent_sleep: settings.power.prevent_sleep,
         notifications_enabled: settings.notifications.enabled,
         double_click_completed_idx: combo::idx_of(
             combo::DOUBLE_CLICK_COMPLETED,

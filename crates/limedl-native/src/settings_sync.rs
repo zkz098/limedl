@@ -146,6 +146,10 @@ impl SettingsSync {
         let color_mode = saved.appearance.color_mode.clone();
         let theme_color = saved.appearance.theme_color.clone();
         let speed_limit_active = saved.global_speed_limit_bps > 0;
+        // The keep-awake toggle is applied on the UI thread with the rest of the
+        // settings: on Windows the power flag is thread-local, so it must be
+        // taken and released by the same thread that reports the download count.
+        let prevent_sleep = saved.power.prevent_sleep;
 
         let ui_weak = self.ui_weak.clone();
         let store = self.store.clone();
@@ -153,6 +157,7 @@ impl SettingsSync {
         let _ = slint::invoke_from_event_loop(move || {
             i18n::apply_translation(new_lang);
             update_tray_menu_and_tooltip(new_lang, speed_limit_active);
+            crate::POWER_GUARD.set_enabled(prevent_sleep);
             with_ui(&ui_weak, |ui| {
                 apply_appearance(&ui, color_mode, theme_color);
                 let mut store = store.lock();

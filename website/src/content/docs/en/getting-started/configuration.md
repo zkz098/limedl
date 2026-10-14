@@ -20,7 +20,7 @@ To open the settings panel in the desktop application, click the **Settings** ge
 | **Color Scheme** | Lime / Violet / Monochrome | Lime | Selects the application primary accent palette and theme personality. |
 | **Close Window Behavior** | Minimize to Tray / Exit App | Minimize to Tray | Determines whether clicking the window close button (`X`) minimizes limedl into the system tray or terminates the process. |
 | **Start on Boot** | Enabled / Disabled | Disabled | Registers autostart entries with `--hidden` to launch silently in the tray on login. |
-| **Suppress System Sleep** | Enabled / Disabled | Enabled | Acquires OS power locks to prevent system sleep during active downloads; releases locks upon completion. |
+| **Suppress System Sleep** | Enabled / Disabled | Enabled | Takes an OS power lock only while a task is running and releases it as soon as the last one finishes; the display may still turn off and a manual sleep request is untouched. Per platform: Windows `SetThreadExecutionState` (away mode), macOS IOKit `PreventUserIdleSystemSleep`, Linux systemd-logind `Inhibit(idle:sleep, block)` (without logind, or without permission, one warning is logged and the download continues). Disabled leaves the OS power policy entirely alone. |
 | **List View Mode** | Card View / Compact Table View | Card View | The compact table view provides detailed sorting columns for managing large quantities of tasks. |
 
 ---

@@ -88,5 +88,23 @@ depends on `glib ^0.18`).
 - Autostart: `~/.config/autostart/limedl-native.desktop` (XDG), with `--hidden`.
 - Single instance: loopback TCP (`open:`/`show` protocol); opening from a file
   manager uses `xdg-open`.
-- Sleep inhibition is still a no-op (`power.rs` does nothing off Windows), so
-  Linux/macOS do not prevent system sleep.
+- Sleep inhibition: `power.rs` takes an OS keep-awake lock only while a download
+  is running and releases it when the last one finishes. `settings.json` →
+  `power.preventSleep` (default on, Settings → 外观/Appearance) only gates it;
+  `limedl-server` leaves power management to its host.
+  - Linux: `org.freedesktop.login1.Manager.Inhibit("idle:sleep", "limedl",
+    "Downloading", "block")` on the **system** bus. logind releases the lock when
+    the returned pipe fd is closed, so the guard holds the fd and nothing else.
+    Needs systemd-logind; on a session without it, or where polkit denies the
+    lock, the acquire fails, one warning is logged per download session and the
+    download continues. Neither a closed lid nor `shutdown -h` is inhibited.
+    `systemd-inhibit --list` shows the lock.
+  - macOS: an IOKit `PreventUserIdleSystemSleep` power assertion
+    (`pmset -g assertions` shows it as `limedl: active downloads`). Idle *system*
+    sleep only — the display may still turn off.
+  - Windows: `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED |
+    ES_AWAYMODE_REQUIRED)`. The flag is thread-local, so the lock is taken and
+    released on the Slint event-loop thread (see `power.rs`).
+  No new build or runtime package is needed for any of the three: the Linux and
+  macOS backends are pure-Rust bindings (zbus, objc2) over services that already
+  ship with the OS.

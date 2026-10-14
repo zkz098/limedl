@@ -442,11 +442,41 @@ pub struct CdnAccelerationSettings {
     #[serde(default)]
     pub last_error: Option<String>,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PowerSettings {
+    /// Hold an OS power lock while downloads are running so the machine does not
+    /// suspend (and the transfer does not stall) mid-download.
+    ///
+    /// Defaults to on: a download that silently stops because the machine went
+    /// to sleep is the failure users report, not the battery they saved. The
+    /// lock is only ever taken while a task is actively running, and is released
+    /// as soon as the last one finishes; the display is still allowed to turn
+    /// off. Set to `false` to keep the stock OS power policy untouched.
+    ///
+    /// The setting is persisted on every platform, but only the desktop clients
+    /// act on it (`limedl-native`); the headless server leaves power management
+    /// to its host.
+    #[serde(default = "default_true")]
+    pub prevent_sleep: bool,
+}
+
+impl Default for PowerSettings {
+    fn default() -> Self {
+        Self {
+            prevent_sleep: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     #[serde(default)]
     pub appearance: AppearanceSettings,
+    /// Sleep prevention while downloading (see [`PowerSettings`]).
+    #[serde(default)]
+    pub power: PowerSettings,
     #[serde(default)]
     pub proxy: ProxySettings,
     #[serde(default)]

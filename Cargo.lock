@@ -4032,6 +4032,8 @@ dependencies = [
  "minisign-verify",
  "muda 0.21.0",
  "notify-rust",
+ "objc2-core-foundation",
+ "objc2-io-kit",
  "parking_lot",
  "percent-encoding",
  "raw-window-handle",
@@ -4056,6 +4058,7 @@ dependencies = [
  "windows-future",
  "windows-registry",
  "winres",
+ "zbus",
  "zip",
 ]
 
@@ -4742,7 +4745,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536"
 dependencies = [
  "bitflags 2.13.2",
+ "block2 0.6.2",
  "dispatch2",
+ "libc",
  "objc2 0.6.5",
 ]
 
@@ -4820,6 +4825,20 @@ checksum = "e3e0adef53c21f888deb4fa59fc59f7eb17404926ee8a6f59f5df0fd7f9f3272"
 dependencies = [
  "bitflags 2.13.2",
  "block2 0.6.2",
+ "libc",
+ "objc2 0.6.5",
+ "objc2-core-foundation",
+]
+
+[[package]]
+name = "objc2-io-kit"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33fafba39597d6dc1fb709123dfa8289d39406734be322956a69f0931c73bb15"
+dependencies = [
+ "bitflags 2.13.2",
+ "block2 0.6.2",
+ "dispatch2",
  "libc",
  "objc2 0.6.5",
  "objc2-core-foundation",

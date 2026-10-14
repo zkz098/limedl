@@ -29,6 +29,7 @@ use crate::LabsFormData;
         s.aria2_rpc.secret = Some("secret-token".into());
         s.download.default_download_dir = "D:\\dl".into();
         s.autostart = true;
+        s.power.prevent_sleep = false;
         s.notifications.enabled = true;
         s.proxy.mode = ProxyMode::Manual;
         s.proxy.manual_url = "http://127.0.0.1:7890".into();
@@ -223,6 +224,24 @@ use crate::LabsFormData;
             assert_eq!(priority_code(str_to_priority(code)), code);
         }
         assert_eq!(str_to_priority("bogus"), limedl_core::types::Priority::Normal);
+    }
+
+    #[test]
+    fn test_prevent_sleep_roundtrip_through_form() {
+        let mut settings = AppSettings::default();
+        settings.power.prevent_sleep = false;
+        let form = app_settings_to_form(&settings, false, false, "", "", Language::EnUs);
+        assert!(
+            !form.prevent_sleep,
+            "the checkbox must show the persisted value"
+        );
+
+        // ...and saving the form is what writes it back.
+        let mut target = AppSettings::default();
+        let mut edited = form;
+        edited.prevent_sleep = true;
+        update_app_settings_from_form(&mut target, &edited, Language::EnUs).unwrap();
+        assert!(target.power.prevent_sleep);
     }
 
     #[test]

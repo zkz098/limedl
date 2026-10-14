@@ -224,3 +224,8 @@ starting the other, or use a separate `--data-dir`.
   subsets, `addMetalink`, GID prefix matching). See
   [`aria2-interop-testing.md`](aria2-interop-testing.md).
 - `--rpc-listen` binds one address; dual-stack needs two instances or `::`.
+- The server does not touch host power management: it never inhibits system
+  sleep while transferring. That is deliberate — a container cannot reach the
+  host's logind, and a NAS/软路由 is expected to stay up on its own. If the host
+  does suspend on idle, pause the queue or disable suspend there. `settings.json`
+  still carries `power.preventSleep`, but only `limedl-native` acts on it.

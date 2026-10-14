@@ -261,6 +261,7 @@ fn apply_appearance(settings: &mut AppSettings, form: &SettingsFormData) {
         .map(|key| (*key).to_string())
         .collect();
     settings.autostart = form.autostart;
+    settings.power.prevent_sleep = form.prevent_sleep;
     settings.notifications.enabled = form.notifications_enabled;
     match combo::value_at(
         combo::DOUBLE_CLICK_COMPLETED,

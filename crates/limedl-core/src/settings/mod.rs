@@ -80,6 +80,7 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
 
     Ok(AppSettings {
         appearance: settings.appearance,
+        power: settings.power,
         proxy,
         scheduler: SchedulerSettings {
             mode: settings.scheduler.mode,

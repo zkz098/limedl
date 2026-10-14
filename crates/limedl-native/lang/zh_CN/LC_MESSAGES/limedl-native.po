@@ -1007,6 +1007,15 @@ msgstr "开机自启动"
 msgid "Automatically launch limedl-native upon user login"
 msgstr "用户登录后自动启动 limedl-native"
 
+msgid "Prevent Sleep While Downloading"
+msgstr "下载时抑制休眠"
+
+msgid "Inhibit system sleep only while downloads are active"
+msgstr "仅在下载进行时阻止系统进入睡眠"
+
+msgid "Keep the system awake while a download is running, so a long transfer is not stalled by sleep. The screen may still turn off, and a manual sleep request is untouched. Turn this off to leave the system's power settings alone."
+msgstr "下载进行时保持系统唤醒，避免长时间传输因休眠而中断。屏幕仍可关闭，手动休眠也不受影响。关闭后完全遵循系统电源设置。"
+
 msgid "System Notifications"
 msgstr "系统通知"
 
