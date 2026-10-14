@@ -62,6 +62,48 @@ pub fn no_files_selected_text(lang: Language) -> &'static str {
     }
 }
 
+/// Status line for a pasted `aria2c` command line that was recognized.
+///
+/// Names the number of links and headers that were applied, plus any option the
+/// engine cannot honor (`--load-cookies`, `--input-file`, …) so the user is not
+/// left believing a cookie jar or an input file was used.
+pub fn format_aria2_hint(
+    url_count: usize,
+    header_count: usize,
+    ignored: &[String],
+    lang: Language,
+) -> String {
+    let base = match lang {
+        Language::ZhCn => format!("已解析 aria2c 命令：{url_count} 个链接"),
+        Language::ZhTw => format!("已解析 aria2c 命令：{url_count} 個連結"),
+        Language::EnUs => format!(
+            "Parsed aria2c command: {url_count} {}",
+            if url_count == 1 { "link" } else { "links" }
+        ),
+    };
+    let base = if header_count == 0 {
+        base
+    } else {
+        match lang {
+            Language::ZhCn => format!("{base} · {header_count} 个请求头"),
+            Language::ZhTw => format!("{base} · {header_count} 個請求標頭"),
+            Language::EnUs => format!(
+                "{base} · {header_count} {}",
+                if header_count == 1 { "header" } else { "headers" }
+            ),
+        }
+    };
+    if ignored.is_empty() {
+        return base;
+    }
+    let list = ignored.join(", ");
+    match lang {
+        Language::ZhCn => format!("{base}（已忽略：{list}）"),
+        Language::ZhTw => format!("{base}（已忽略：{list}）"),
+        Language::EnUs => format!("{base} (ignored: {list})"),
+    }
+}
+
 /// Batch link count label under the batch textarea.
 pub fn format_batch_count(count: usize, lang: Language) -> String {
     if count == 0 {

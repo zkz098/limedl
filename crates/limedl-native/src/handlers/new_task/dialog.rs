@@ -13,7 +13,7 @@ use crate::bridge::{self, ClipboardPayload, TaskStore};
 use crate::context::AppContext;
 use crate::handlers::common::{read_ui, with_ui};
 use crate::handlers::new_task::{
-    preview_torrent, push_torrent_items, reset_transient_state, spawn_probe,
+    apply_aria2_input, preview_torrent, push_torrent_items, reset_transient_state, spawn_probe,
 };
 use crate::i18n;
 use limedl_core::dispatcher::Dispatcher;
@@ -34,6 +34,26 @@ pub fn register(ctx: &AppContext) {
         let ui_weak = ctx.ui_weak.clone();
         ui.on_close_new_task_dialog(move || {
             with_ui(&ui_weak, |ui| ui.set_show_new_task_dialog(false));
+        });
+    }
+
+    // A pasted `aria2c` command line fills the URL plus `--out` / `--dir` /
+    // `--header` / `--checksum`. Only user edits reach here, never the URL the
+    // parser writes back.
+    {
+        let ui_weak = ctx.ui_weak.clone();
+        let store = ctx.store.clone();
+        ui.on_new_task_url_changed(move |text| {
+            with_ui(&ui_weak, |ui| {
+                let lang = store.lock().language();
+                if !apply_aria2_input(&ui, &text, lang) {
+                    // No longer an aria2 command: drop the Cookie it contributed
+                    // so it is never sent to a different host. The filename and
+                    // checksum stay in their (visible, editable) fields.
+                    ui.set_new_task_headers(SharedString::default());
+                    ui.set_new_task_aria2_hint(SharedString::default());
+                }
+            });
         });
     }
 
@@ -150,9 +170,13 @@ fn open_dialog(ui_weak: slint::Weak<MainWindow>, store: Arc<Mutex<TaskStore>>) {
                     ClipboardPayload::SingleUrl(url) => {
                         let _ = slint::invoke_from_event_loop(move || {
                             with_ui(&ui_weak, |ui| {
-                                if ui.get_new_task_url().trim().is_empty() {
+                                if !ui.get_new_task_url().trim().is_empty() {
+                                    return;
+                                }
+                                ui.set_new_task_batch_mode(false);
+                                let lang = store.lock().language();
+                                if !apply_aria2_input(&ui, &url, lang) {
                                     ui.set_new_task_url(SharedString::from(url));
-                                    ui.set_new_task_batch_mode(false);
                                 }
                             });
                         });
@@ -181,9 +205,13 @@ fn probe_checksum(
     store: Arc<Mutex<TaskStore>>,
 ) {
     let Some((url, file_name)) = read_ui(&ui_weak, |ui| {
-        let url = ui.get_new_task_url().trim().to_string();
+        let mut url = ui.get_new_task_url().trim().to_string();
         if url.is_empty() {
             return None;
+        }
+        // A pasted aria2c command is probed against its target, not the command.
+        if let Some(command) = crate::aria2_cli::parse(&url) {
+            url = command.urls.first().cloned().unwrap_or_default();
         }
         let custom_name = ui.get_new_task_filename().trim().to_string();
         let file_name = (!custom_name.is_empty()).then_some(custom_name);

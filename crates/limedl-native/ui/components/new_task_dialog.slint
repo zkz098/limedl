@@ -10,7 +10,13 @@ export component NewTaskDialog inherits Rectangle {
     in-out property <string> new_task_dir;
     in-out property <string> new_task_filename;
     in-out property <string> new_task_checksum;
+    // One `Name: value` per line; auto-filled from a pasted aria2c command and
+    // still editable before the task starts.
+    in-out property <string> new_task_headers;
     in property <string> default_download_dir;
+
+    // Set when a pasted `aria2c` command was recognized and applied.
+    in property <string> aria2_hint: "";
 
     // ── Checksum probe state (driven from Rust) ──
     // probe_state: "idle" | "probing" | "found" | "missing" | "not_http"
@@ -35,6 +41,7 @@ export component NewTaskDialog inherits Rectangle {
     callback pick_save_folder();
     callback probe_checksum();
     callback reset_probe();
+    callback url_changed(string);
     callback toggle_torrent_file(int);
     callback set_all_torrent_files(bool);
     callback batch_text_changed(string);
@@ -145,7 +152,19 @@ export component NewTaskDialog inherits Rectangle {
                         // (src/ui_tests/): clicking one focuses its inner `TextInput`.
                         nt_url_input := CustomTextInput {
                             text <=> root.new_task_url;
-                            placeholder: @tr("http://, https://, magnet:?xt=, or select a local .torrent file");
+                            placeholder: @tr("http://, https://, magnet:?xt=, aria2c ..., or select a local .torrent file");
+                            // `edited` (not `changed`) so the parser reacts to the
+                            // user's paste, not to the URL a payload writes in.
+                            edited(text) => { root.url_changed(text); }
+                        }
+
+                        // Feedback for a pasted `aria2c ...` command line.
+                        if root.aria2_hint != "" : Text {
+                            text: root.aria2_hint;
+                            color: Theme.c84cc16;
+                            font-size: 11px;
+                            overflow: elide;
+                            vertical-alignment: center;
                         }
 
                         // Checksum input & probe row (HTTP only)
@@ -357,6 +376,36 @@ export component NewTaskDialog inherits Rectangle {
                         nt_filename_input := CustomTextInput {
                             text <=> root.new_task_filename;
                             placeholder: @tr("Leave empty to auto-detect filename");
+                        }
+                    }
+
+                    // ── Single mode: HTTP Headers ──
+                    // Filled from a pasted aria2c `--header` value (usually a
+                    // Cookie) and editable, so the user can review what is sent.
+                    if !root.batch_mode : VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: @tr("HTTP Headers (Optional, one per line):");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+                        Rectangle {
+                            height: 56px;
+                            background: Theme.c14161b;
+                            border-color: ht_edit.has-focus ? Theme.c84cc16 : Theme.c2b313d;
+                            border-width: 1px;
+                            border-radius: 6px;
+                            clip: true;
+
+                            ht_edit := TextEdit {
+                                x: 10px;
+                                width: parent.width - 20px;
+                                y: 6px;
+                                height: parent.height - 12px;
+                                wrap: word-wrap;
+                                font-size: 12px;
+                                text <=> root.new_task_headers;
+                            }
                         }
                     }
 

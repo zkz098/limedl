@@ -49,10 +49,18 @@ pub fn start_clipboard_monitor(ctx: &AppContext) {
             match parse_clipboard_download_text(&text) {
                 ClipboardPayload::SingleUrl(url) => {
                     let lang = store.lock().language();
-                    let display_url = if url.len() > 50 {
-                        format!("{}...", &url[..47])
+                    // A pasted aria2c command is toasted as its target, not as
+                    // the whole command line.
+                    let target = crate::aria2_cli::parse(&url)
+                        .and_then(|command| command.urls.into_iter().next())
+                        .unwrap_or(url);
+                    // Char-aware truncation: byte slicing can split a UTF-8
+                    // sequence and panic.
+                    let display_url = if target.chars().count() > 50 {
+                        let head: String = target.chars().take(47).collect();
+                        format!("{head}...")
                     } else {
-                        url
+                        target
                     };
                     push_toast(
                         &ui_weak,

@@ -946,11 +946,14 @@ msgstr "Single file task or file list not yet parsed"
 msgid "Download URL / Magnet / Local Torrent Path:"
 msgstr "Download URL / Magnet / Local Torrent Path:"
 
-msgid "http://, https://, magnet:?xt=, or select a local .torrent file"
-msgstr "http://, https://, magnet:?xt=, or select a local .torrent file"
+msgid "http://, https://, magnet:?xt=, aria2c ..., or select a local .torrent file"
+msgstr "http://, https://, magnet:?xt=, aria2c ..., or select a local .torrent file"
 
 msgid "Leave empty to auto-detect filename"
 msgstr "Leave empty to auto-detect filename"
+
+msgid "HTTP Headers (Optional, one per line):"
+msgstr "HTTP Headers (Optional, one per line):"
 
 msgid "Common:"
 msgstr "Common:"

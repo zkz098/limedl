@@ -74,6 +74,8 @@ fn event_loop_contracts() {
         new_task::submitting_a_url_with_invalid_checksum_shows_error_toast().await;
         new_task::submitting_a_torrent_leaves_out_the_unchecked_files().await;
         new_task::submitting_a_batch_starts_one_task_per_link().await;
+        new_task::submitting_an_aria2c_command_reaches_the_engine_with_its_options().await;
+        new_task::submitting_an_aria2c_batch_applies_per_line_options().await;
         new_task::a_deep_link_payload_reaches_the_dialog().await;
         new_task::a_magnet_payload_takes_its_name_from_dn().await;
         new_task::a_pasted_batch_payload_opens_in_batch_mode().await;
@@ -122,7 +124,14 @@ fn seed_torrent_files(ui: &TestUi, included: &[bool]) {
 async fn open_new_task_dialog_without_the_clipboard_race(ui: &TestUi) {
     ui.click("MainWindow::ta_new_task");
     ui.pump(2).await;
+    // The prefill only touches an empty URL field, but what the host clipboard
+    // holds is not the test's to choose: it may be a plain link, a magnet or a
+    // full aria2c command, and each fills a different set of fields. Clear them
+    // all so the scenario starts from a known blank dialog.
     ui.window.set_new_task_url("".into());
+    ui.window.set_new_task_filename("".into());
+    ui.window.set_new_task_headers("".into());
+    ui.window.set_new_task_aria2_hint("".into());
     assert!(ui.window.get_show_new_task_dialog());
 }
 

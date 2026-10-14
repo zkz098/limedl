@@ -84,7 +84,7 @@ fn the_batch_counter_tracks_the_parser() {
             "https://example.invalid/a.zip\nhttps://example.invalid/b.zip\n\nnot a url",
             "https://example.invalid/a.zip",
         ] {
-            let expected = crate::url_utils::parse_batch_urls(text).len();
+            let expected = crate::url_utils::parse_batch_entries(text).len();
             ui.window.invoke_new_task_batch_text_changed(text.into());
             let label = ui.window.get_new_task_batch_count_text();
             assert!(
@@ -156,5 +156,42 @@ fn torrent_rows_come_from_the_pending_entries_and_can_be_toggled_in_bulk() {
             2,
             "an empty cache leaves the rendered rows alone (the picker rebuilds them)"
         );
+    });
+}
+
+/// A pasted `aria2c` command line fills the visible fields while the raw
+/// command stays in the URL box, and switching back to a plain URL drops the
+/// parsed Cookie.
+#[test]
+fn an_aria2c_command_fills_the_visible_fields_and_a_plain_url_clears_them() {
+    with_ui(|ui| {
+        ui.click("MainWindow::ta_new_task");
+        ui.window.set_new_task_url("".into());
+        ui.window.set_new_task_filename("".into());
+        ui.window.set_new_task_headers("".into());
+
+        const COMMAND: &str =
+            "aria2c \"https://example.invalid/a.ass\" --out \"a.ass\" --header \"Cookie: k=v\"";
+        ui.click("NewTaskDialog::nt_url_input");
+        ui.type_text(COMMAND);
+
+        assert_eq!(
+            ui.window.get_new_task_url().as_str(),
+            COMMAND,
+            "the raw command has to stay editable in the URL field"
+        );
+        assert_eq!(ui.window.get_new_task_filename().as_str(), "a.ass");
+        assert_eq!(ui.window.get_new_task_headers().as_str(), "Cookie: k=v");
+        assert!(
+            !ui.window.get_new_task_aria2_hint().is_empty(),
+            "the dialog must say that the command was recognized"
+        );
+
+        // Editing the target to something that is not an aria2 command must not
+        // keep the Cookie that belonged to the old one.
+        ui.window
+            .invoke_new_task_url_changed("https://example.invalid/plain.zip".into());
+        assert!(ui.window.get_new_task_headers().is_empty());
+        assert!(ui.window.get_new_task_aria2_hint().is_empty());
     });
 }

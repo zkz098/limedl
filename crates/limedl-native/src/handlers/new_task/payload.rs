@@ -12,7 +12,9 @@ use limedl_core::types::TorrentFileEntry;
 
 use crate::bridge::{self, ClipboardPayload, TaskStore};
 use crate::handlers::common::with_ui;
-use crate::handlers::new_task::{fill_batch, preview_torrent, reset_transient_state, spawn_probe};
+use crate::handlers::new_task::{
+    apply_aria2_input, fill_batch, preview_torrent, reset_transient_state, spawn_probe,
+};
 use crate::ui_sync::restore_and_show_window;
 use crate::MainWindow;
 
@@ -162,9 +164,15 @@ pub fn open_new_task_with_payload(
                 let _ = slint::invoke_from_event_loop(move || {
                     with_ui(&ui_weak, |ui| {
                         restore_and_show_window(&ui, Some(&store.lock()));
-                        ui.set_new_task_url(SharedString::from(&url));
                         ui.set_new_task_batch_mode(false);
                         reset_transient_state(&ui);
+                        // A pasted aria2c command is unpacked into URL plus
+                        // `--out` / `--dir` / `--header` instead of being shown
+                        // verbatim as an unusable URL.
+                        let lang = store.lock().language();
+                        if !apply_aria2_input(&ui, &url, lang) {
+                            ui.set_new_task_url(SharedString::from(&url));
+                        }
                         ui.set_show_new_task_dialog(true);
                     });
                 });

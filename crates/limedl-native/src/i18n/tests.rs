@@ -145,6 +145,27 @@ fn test_pick_torrent_filter() {
     );
 }
 
+#[test]
+fn test_aria2_hint_counts_headers_and_names_ignored_options() {
+    let ignored = vec!["--load-cookies".to_string()];
+    let en = format_aria2_hint(2, 1, &ignored, Language::EnUs);
+    assert!(en.contains("2 links"), "{en}");
+    assert!(en.contains("1 header"), "{en}");
+    assert!(en.contains("--load-cookies"), "{en}");
+    assert!(
+        !en.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)),
+        "no CJK may leak into the English hint: {en}"
+    );
+
+    // Singular English and a clean command (nothing ignored).
+    let en_one = format_aria2_hint(1, 0, &[], Language::EnUs);
+    assert!(en_one.contains("1 link") && !en_one.contains("links"));
+    assert!(!en_one.contains("ignored"));
+
+    assert!(!format_aria2_hint(1, 2, &[], Language::ZhCn).is_empty());
+    assert!(!format_aria2_hint(1, 2, &[], Language::ZhTw).is_empty());
+}
+
 /// Parse a gettext `.po` catalog into `msgid -> msgstr` entries.
 fn parse_po(path: &Path) -> HashMap<String, String> {
     let content = std::fs::read_to_string(path)

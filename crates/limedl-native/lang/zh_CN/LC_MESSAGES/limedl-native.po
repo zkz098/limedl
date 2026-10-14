@@ -947,11 +947,14 @@ msgstr "单文件任务或文件列表尚未解析"
 msgid "Download URL / Magnet / Local Torrent Path:"
 msgstr "下载链接 / Magnet / 本地种子路径:"
 
-msgid "http://, https://, magnet:?xt=, or select a local .torrent file"
-msgstr "支持 http://、https://、magnet:?xt=，或选择本地 .torrent 文件"
+msgid "http://, https://, magnet:?xt=, aria2c ..., or select a local .torrent file"
+msgstr "支持 http://、https://、magnet:?xt=、aria2c 命令行，或选择本地 .torrent 文件"
 
 msgid "Leave empty to auto-detect filename"
 msgstr "留空则自动识别文件名"
+
+msgid "HTTP Headers (Optional, one per line):"
+msgstr "HTTP 请求头（可选，每行一个）:"
 
 msgid "Common:"
 msgstr "常规:"

@@ -5,6 +5,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 slint::include_modules!();
 
+mod aria2_cli;
 mod autostart;
 mod bridge;
 mod context;

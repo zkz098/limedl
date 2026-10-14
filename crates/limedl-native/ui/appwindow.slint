@@ -276,6 +276,10 @@ export component MainWindow inherits Window {
     in-out property <string> new_task_dir: "";
     in-out property <string> new_task_filename: "";
     in-out property <string> new_task_checksum: "";
+    // One `Name: value` per line; visible and editable in the dialog.
+    in-out property <string> new_task_headers: "";
+    // Parse feedback shown under the URL field when it holds an aria2c command.
+    in-out property <string> new_task_aria2_hint: "";
     in-out property <bool> new_task_batch_mode: false;
     in-out property <string> new_task_batch_text: "";
     // Checksum probe state: probe_state "idle" | "probing" | "found" | "missing" | "not_http"
@@ -419,6 +423,7 @@ export component MainWindow inherits Window {
     // New-task dialog: checksum probe / torrent file pre-selection / batch mode
     callback probe_new_task_checksum();
     callback reset_new_task_probe();
+    callback new_task_url_changed(string);
     callback toggle_new_task_file(int);
     callback set_all_new_task_files(bool);
     callback new_task_batch_text_changed(string);
@@ -1428,6 +1433,8 @@ export component MainWindow inherits Window {
         new_task_dir <=> root.new_task_dir;
         new_task_filename <=> root.new_task_filename;
         new_task_checksum <=> root.new_task_checksum;
+        new_task_headers <=> root.new_task_headers;
+        aria2_hint: root.new_task_aria2_hint;
         default_download_dir: root.default_download_dir;
         probe_state: root.new_task_probe_state;
         probe_status_text: root.new_task_probe_status_text;
@@ -1446,6 +1453,7 @@ export component MainWindow inherits Window {
         pick_save_folder => { root.pick_save_folder(); }
         probe_checksum => { root.probe_new_task_checksum(); }
         reset_probe => { root.reset_new_task_probe(); }
+        url_changed(text) => { root.new_task_url_changed(text); }
         toggle_torrent_file(idx) => { root.toggle_new_task_file(idx); }
         set_all_torrent_files(all) => { root.set_all_new_task_files(all); }
         batch_text_changed(text) => { root.new_task_batch_text_changed(text); }

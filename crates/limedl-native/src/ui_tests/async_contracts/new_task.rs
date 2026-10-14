@@ -407,3 +407,96 @@ pub(super) async fn a_dropped_torrent_file_previews_and_survives_a_failed_parse(
         "no half-filled file list is left behind"
     );
 }
+
+/// A pasted `aria2c` command line: the visible fields show `--out` / `--header`,
+/// and the submit path re-derives the target, its mirrors, the user agent and
+/// the digest out of the command still sitting in the URL field.
+pub(super) async fn submitting_an_aria2c_command_reaches_the_engine_with_its_options() {
+    let ui = new_window();
+    open_new_task_dialog_without_the_clipboard_race(&ui).await;
+
+    const COMMAND: &str = "aria2c \"https://example.invalid/primary.zip\" \
+                           \"https://mirror.invalid/mirror.zip\" --out \"renamed.zip\" \
+                           --header \"Cookie: k=v\" --user-agent limedl-aria2 \
+                           --checksum=sha-256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    ui.click("NewTaskDialog::nt_url_input");
+    ui.type_text(COMMAND);
+
+    assert_eq!(
+        ui.window.get_new_task_url().as_str(),
+        COMMAND,
+        "the raw command stays in the field, it is not rewritten"
+    );
+    assert_eq!(ui.window.get_new_task_filename().as_str(), "renamed.zip");
+    assert_eq!(ui.window.get_new_task_headers().as_str(), "Cookie: k=v");
+    assert!(!ui.window.get_new_task_aria2_hint().is_empty());
+    // The parsed digest lands in the visible checksum field, tagged with its
+    // algorithm so a 64-hex BLAKE3 cannot be mistaken for a SHA-256.
+    assert_eq!(
+        ui.window.get_new_task_checksum().as_str(),
+        "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    );
+
+    ui.click("NewTaskDialog::submit_btn");
+    ui.pump_until("the aria2c task to reach the engine", || {
+        !ui.core.starts().is_empty()
+    })
+    .await;
+
+    let starts = ui.core.starts();
+    assert_eq!(starts.len(), 1);
+    assert_eq!(starts[0].url, "https://example.invalid/primary.zip");
+    assert_eq!(starts[0].file_name.as_deref(), Some("renamed.zip"));
+    assert_eq!(
+        starts[0].headers.as_deref(),
+        Some(&["Cookie: k=v".to_string()][..])
+    );
+    assert_eq!(starts[0].user_agent.as_deref(), Some("limedl-aria2"));
+    assert_eq!(
+        starts[0].mirror_urls.as_deref(),
+        Some(&["https://mirror.invalid/mirror.zip".to_string()][..])
+    );
+    assert_eq!(starts[0].checksum, Some(ChecksumMode::Sha256));
+
+    ui.pump_until("the dialog to close", || {
+        !ui.window.get_show_new_task_dialog()
+    })
+    .await;
+}
+
+/// Batch mode accepts an `aria2c` command per line: its `--out` / `--header`
+/// apply to that line only, while a plain line keeps the old behaviour.
+pub(super) async fn submitting_an_aria2c_batch_applies_per_line_options() {
+    let ui = new_window();
+    open_new_task_dialog_without_the_clipboard_race(&ui).await;
+    ui.click("NewTaskDialog::batch_tab");
+
+    const TEXT: &str = "aria2c \"https://example.invalid/a.zip\" --out \"renamed.zip\" \
+                        --header \"Cookie: k=v\"\nhttps://example.invalid/b.zip";
+    ui.window.set_new_task_batch_text(TEXT.into());
+    ui.window.invoke_new_task_batch_text_changed(TEXT.into());
+
+    ui.click("NewTaskDialog::submit_batch_btn");
+    ui.pump_until("both batch tasks to reach the engine", || {
+        ui.core.starts().len() == 2
+    })
+    .await;
+
+    let starts = ui.core.starts();
+    let aria2 = starts
+        .iter()
+        .find(|start| start.url == "https://example.invalid/a.zip")
+        .expect("the aria2c line must produce its own task");
+    assert_eq!(aria2.file_name.as_deref(), Some("renamed.zip"));
+    assert_eq!(
+        aria2.headers.as_deref(),
+        Some(&["Cookie: k=v".to_string()][..])
+    );
+
+    let plain = starts
+        .iter()
+        .find(|start| start.url == "https://example.invalid/b.zip")
+        .expect("the plain line must keep its task");
+    assert_eq!(plain.file_name.as_deref(), Some("b.zip"));
+    assert_eq!(plain.headers, None, "headers do not leak across batch lines");
+}

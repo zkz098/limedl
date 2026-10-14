@@ -33,6 +33,9 @@ pub(crate) struct StartCall {
     pub checksum: Option<ChecksumMode>,
     pub expected_checksum: Option<String>,
     pub selected_file_indices: Option<Vec<usize>>,
+    pub headers: Option<Vec<String>>,
+    pub user_agent: Option<String>,
+    pub mirror_urls: Option<Vec<String>>,
 }
 
 /// One call the UI made into the download engine, with the task it named.
@@ -289,6 +292,9 @@ impl DownloadBackend for RecordingBackend {
             checksum: request.checksum,
             expected_checksum: request.expected_checksum,
             selected_file_indices: request.selected_file_indices,
+            headers: request.headers,
+            user_agent: request.user_agent,
+            mirror_urls: request.mirror_urls,
         };
         self.calls.lock().push(CoreCall::Start(start));
 

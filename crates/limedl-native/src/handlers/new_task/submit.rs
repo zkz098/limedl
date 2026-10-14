@@ -17,7 +17,7 @@ use crate::handlers::common::{read_ui, with_ui};
 use crate::i18n;
 use crate::toast::ToastQueue;
 use crate::toast::push_toast;
-use crate::url_utils::{extract_batch_file_name, parse_batch_urls};
+use crate::url_utils::{extract_batch_file_name, parse_batch_entries};
 use parking_lot::Mutex;
 
 pub fn register(ctx: &AppContext) {
@@ -88,7 +88,7 @@ fn submit_single(
     filename: SharedString,
 ) {
     let Some(payload) = read_ui(&ui_weak, |ui| {
-        let url = url.to_string();
+        let raw_url = url.to_string();
         let dir = dir.to_string();
         let file_name = if filename.trim().is_empty() {
             None
@@ -96,7 +96,27 @@ fn submit_single(
             Some(filename.trim().to_string())
         };
 
-        // Checksum: prefer manual user input (if valid), fallback to detected probe hash.
+        // A pasted `aria2c` command stays in the URL field (that is the text the
+        // user can keep editing), so the target and its mirrors are re-derived
+        // here. `--out` / `--header` / `--checksum` already reached the visible
+        // fields when the command was parsed.
+        let (url, mirror_urls, aria2_user_agent, aria2_checksum) =
+            match crate::aria2_cli::parse(&raw_url) {
+                Some(command) => {
+                    let mut urls = command.urls.into_iter();
+                    let primary = urls.next().unwrap_or_default();
+                    (
+                        primary,
+                        urls.collect::<Vec<_>>(),
+                        command.user_agent,
+                        command.checksum,
+                    )
+                }
+                None => (raw_url, Vec::new(), None, None),
+            };
+
+        // Checksum: manual field first (it is what the user sees and can edit),
+        // then the parsed `--checksum`, then a detected probe hash.
         let manual = ui.get_new_task_checksum().trim().to_string();
         let (checksum, expected_checksum) = if !manual.is_empty() {
             match parse_user_checksum(&manual) {
@@ -113,6 +133,8 @@ fn submit_single(
                     return None;
                 }
             }
+        } else if let Some((mode, hash)) = aria2_checksum {
+            (Some(mode), Some(hash))
         } else if ui.get_new_task_probe_state().as_str() == "found" {
             let hash = ui.get_new_task_probe_hash().to_string();
             (
@@ -153,6 +175,9 @@ fn submit_single(
             return None;
         }
 
+        // The header textarea is editable, so it is read at submit time.
+        let headers = parse_multiline(&ui.get_new_task_headers());
+
         Some((
             url,
             dir,
@@ -160,6 +185,9 @@ fn submit_single(
             checksum,
             expected_checksum,
             selected_file_indices,
+            headers,
+            aria2_user_agent,
+            mirror_urls,
         ))
     })
     .flatten() else {
@@ -171,8 +199,17 @@ fn submit_single(
     let store = store.clone();
     let toast_queue = toast_queue.clone();
     tokio::spawn(async move {
-        let (url, destination_dir, file_name, checksum, expected_checksum, selected_file_indices) =
-            payload;
+        let (
+            url,
+            destination_dir,
+            file_name,
+            checksum,
+            expected_checksum,
+            selected_file_indices,
+            headers,
+            user_agent,
+            mirror_urls,
+        ) = payload;
         let request = StartDownloadRequest {
             url,
             destination_dir,
@@ -180,6 +217,9 @@ fn submit_single(
             checksum,
             expected_checksum,
             selected_file_indices,
+            headers: (!headers.is_empty()).then_some(headers),
+            user_agent,
+            mirror_urls: (!mirror_urls.is_empty()).then_some(mirror_urls),
             ..Default::default()
         };
 
@@ -206,6 +246,8 @@ fn submit_single(
                         ui.set_new_task_filename(SharedString::default());
                         ui.set_new_task_checksum(SharedString::default());
                         ui.set_new_task_probe_hash(SharedString::default());
+                        ui.set_new_task_headers(SharedString::default());
+                        ui.set_new_task_aria2_hint(SharedString::default());
                         ui.set_show_new_task_dialog(false);
                     });
                 });
@@ -225,13 +267,23 @@ fn submit_single(
     });
 }
 
+/// Split a multi-line field (headers, mirror URLs) into trimmed, non-empty
+/// lines, dropping `#` comments.
+fn parse_multiline(text: &str) -> Vec<String> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(ToString::to_string)
+        .collect()
+}
+
 /// Refresh the parsed-link counter shown under the batch textarea.
 fn update_batch_count(
     ui_weak: slint::Weak<MainWindow>,
     store: Arc<Mutex<TaskStore>>,
     text: &SharedString,
 ) {
-    let count = parse_batch_urls(text).len();
+    let count = parse_batch_entries(text).len();
     with_ui(&ui_weak, |ui| {
         let lang = store.lock().language();
         ui.set_new_task_batch_count_text(SharedString::from(i18n::format_batch_count(count, lang)));
@@ -247,11 +299,11 @@ fn submit_batch(
     text: &str,
     dir: &SharedString,
 ) {
-    let Some((urls, dir, lang)) = read_ui(&ui_weak, |ui| {
-        let urls = parse_batch_urls(text);
+    let Some((entries, dir, lang)) = read_ui(&ui_weak, |ui| {
+        let entries = parse_batch_entries(text);
         let dir = dir.to_string();
         let lang = store.lock().language();
-        if urls.is_empty() {
+        if entries.is_empty() {
             ui.set_new_task_batch_status_text(SharedString::from(i18n::format_batch_count(
                 0, lang,
             )));
@@ -260,10 +312,10 @@ fn submit_batch(
         ui.set_new_task_batch_submitting(true);
         ui.set_new_task_batch_status_text(SharedString::from(i18n::format_batch_status(
             0,
-            urls.len(),
+            entries.len(),
             lang,
         )));
-        Some((urls, dir, lang))
+        Some((entries, dir, lang))
     })
     .flatten() else {
         return;
@@ -273,22 +325,40 @@ fn submit_batch(
     let dispatcher = dispatcher.clone();
     let toast_queue = toast_queue.clone();
     tokio::spawn(async move {
-        let total = urls.len();
+        let total = entries.len();
         let done = Arc::new(AtomicUsize::new(0));
         let ok_count = Arc::new(AtomicUsize::new(0));
-        for entry_url in urls {
+        for entry in entries {
             let dispatcher = dispatcher.clone();
             let ui_weak = ui_weak.clone();
             let toast_queue = toast_queue.clone();
             let done = done.clone();
             let ok_count = ok_count.clone();
             let dir = dir.clone();
-            let file_name = extract_batch_file_name(&entry_url);
             tokio::spawn(async move {
+                // `--out` wins over the URL-derived name; an entry parsed from an
+                // aria2c command also carries its own headers and mirrors.
+                let file_name = entry
+                    .file_name
+                    .filter(|name| !name.trim().is_empty())
+                    .or_else(|| extract_batch_file_name(&entry.url));
+                let destination_dir = entry
+                    .dir
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or_else(|| dir.clone());
+                let (checksum, expected_checksum) = match entry.checksum {
+                    Some((mode, hash)) => (Some(mode), Some(hash)),
+                    None => (None, None),
+                };
                 let request = StartDownloadRequest {
-                    url: entry_url,
-                    destination_dir: dir,
+                    url: entry.url,
+                    destination_dir,
                     file_name,
+                    checksum,
+                    expected_checksum,
+                    headers: (!entry.headers.is_empty()).then_some(entry.headers),
+                    user_agent: entry.user_agent,
+                    mirror_urls: (!entry.mirror_urls.is_empty()).then_some(entry.mirror_urls),
                     ..Default::default()
                 };
                 if dispatcher.start(request).await.is_ok() {
