@@ -48,6 +48,7 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
                 chunk_size_strategy: Default::default(),
                 tail_sprint_enabled: false,
                 connection_warmup_enabled: false,
+                ..Default::default()
             },
             download: DownloadDefaultsSettings::default(),
             bt: BtSettings::default(),
@@ -161,6 +162,7 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
                 chunk_size_strategy: Default::default(),
                 tail_sprint_enabled: false,
                 connection_warmup_enabled: false,
+                ..Default::default()
             },
             download: DownloadDefaultsSettings::default(),
             bt: BtSettings::default(),

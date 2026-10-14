@@ -9,7 +9,10 @@ use crate::bridge::models::COLUMN_KEYS;
 use crate::i18n::{self, Language};
 
 use super::combo;
-use super::enums::{str_to_aria2_auth_mode, str_to_background_opacity, str_to_checksum, str_to_log_level, str_to_proxy_mode};
+use super::enums::{
+    str_to_aria2_auth_mode, str_to_background_opacity, str_to_checksum, str_to_log_level,
+    str_to_proxy_mode, str_to_queue_sort_strategy,
+};
 
 /// Update `AppSettings` from `SettingsFormData`.
 /// Returns `Err` with a human-readable message if any field contains
@@ -101,6 +104,96 @@ fn validate_form(form: &SettingsFormData, lang: Language) -> Result<(), String> 
     check_usize(
         form.scheduler_min_threads_per_task.trim(),
         F::SchedulerMinThreadsPerTask,
+    )?;
+    // 调度专家模式
+    check_u64(form.scheduler_tick_ms.trim(), F::SchedulerTickMs)?;
+    check_usize(
+        form.scheduler_max_connections_per_host.trim(),
+        F::SchedulerMaxConnectionsPerHost,
+    )?;
+    check_f64(
+        form.scheduler_aimd_degrade_threshold.trim(),
+        F::SchedulerAimdDegradeThreshold,
+    )?;
+    check_f64(
+        form.scheduler_aimd_increase_threshold.trim(),
+        F::SchedulerAimdIncreaseThreshold,
+    )?;
+    check_f64(
+        form.scheduler_aimd_severe_drop_threshold.trim(),
+        F::SchedulerAimdSevereDropThreshold,
+    )?;
+    check_u64(
+        form.scheduler_aimd_cooldown_secs.trim(),
+        F::SchedulerAimdCooldownSecs,
+    )?;
+    check_u32(
+        form.scheduler_aimd_samples_needed.trim(),
+        F::SchedulerAimdSamplesNeeded,
+    )?;
+    check_u32(
+        form.scheduler_aimd_probe_stable_cycles.trim(),
+        F::SchedulerAimdProbeStableCycles,
+    )?;
+    check_f64(
+        form.scheduler_aimd_decrease_factor.trim(),
+        F::SchedulerAimdDecreaseFactor,
+    )?;
+    check_f64(
+        form.scheduler_aimd_step_ratio.trim(),
+        F::SchedulerAimdStepRatio,
+    )?;
+    check_u32(
+        form.scheduler_aimd_oscillation_threshold.trim(),
+        F::SchedulerAimdOscillationThreshold,
+    )?;
+    check_u32(
+        form.scheduler_aimd_hysteresis_multiplier.trim(),
+        F::SchedulerAimdHysteresisMultiplier,
+    )?;
+    check_u64(
+        form.scheduler_custom_chunk_size_mb.trim(),
+        F::SchedulerCustomChunkSizeMb,
+    )?;
+    check_u64(
+        form.scheduler_tail_sprint_stall_window_secs.trim(),
+        F::SchedulerTailSprintStallWindowSecs,
+    )?;
+    check_u64(
+        form.scheduler_tail_sprint_min_split_size_mb.trim(),
+        F::SchedulerTailSprintMinSplitSizeMb,
+    )?;
+    check_u64(
+        form.scheduler_work_steal_min_split_size_mb.trim(),
+        F::SchedulerWorkStealMinSplitSizeMb,
+    )?;
+    check_u64(
+        form.scheduler_connect_timeout_secs.trim(),
+        F::SchedulerConnectTimeoutSecs,
+    )?;
+    check_u64(
+        form.scheduler_read_timeout_secs.trim(),
+        F::SchedulerReadTimeoutSecs,
+    )?;
+    check_usize(
+        form.scheduler_pool_max_idle_per_host.trim(),
+        F::SchedulerPoolMaxIdlePerHost,
+    )?;
+    check_u64(
+        form.scheduler_tcp_keepalive_secs.trim(),
+        F::SchedulerTcpKeepaliveSecs,
+    )?;
+    check_u64(
+        form.scheduler_retry_backoff_base_ms.trim(),
+        F::SchedulerRetryBackoffBaseMs,
+    )?;
+    check_u64(
+        form.scheduler_retry_backoff_max_ms.trim(),
+        F::SchedulerRetryBackoffMaxMs,
+    )?;
+    check_u64(
+        form.scheduler_retry_backoff_jitter_percent.trim(),
+        F::SchedulerRetryBackoffJitterPercent,
     )?;
     // BT 基础
     check_u16(form.listen_port.trim(), F::ListenPort)?;
@@ -334,6 +427,83 @@ fn apply_schedule(settings: &mut AppSettings, form: &SettingsFormData) {
     }
     settings.scheduler.tail_sprint_enabled = form.scheduler_tail_sprint;
     settings.scheduler.connection_warmup_enabled = form.scheduler_connection_warmup;
+
+    settings.scheduler.expert_mode = form.scheduler_expert_mode;
+    if let Some(strat) = str_to_queue_sort_strategy(combo::value_at(
+        combo::QUEUE_SORT_STRATEGIES,
+        form.scheduler_queue_sort_strategy_idx,
+    )) {
+        settings.scheduler.expert.queue_sort_strategy = strat;
+    }
+    if let Ok(v) = form.scheduler_tick_ms.trim().parse::<u64>() {
+        settings.scheduler.expert.scheduler_tick_ms = v;
+    }
+    if let Ok(v) = form.scheduler_max_connections_per_host.trim().parse::<usize>() {
+        settings.scheduler.expert.max_connections_per_host = v;
+    }
+    if let Ok(v) = form.scheduler_aimd_degrade_threshold.trim().parse::<f64>() {
+        settings.scheduler.expert.aimd_degrade_threshold = v;
+    }
+    if let Ok(v) = form.scheduler_aimd_increase_threshold.trim().parse::<f64>() {
+        settings.scheduler.expert.aimd_increase_threshold = v;
+    }
+    if let Ok(v) = form.scheduler_aimd_severe_drop_threshold.trim().parse::<f64>() {
+        settings.scheduler.expert.aimd_severe_drop_threshold = v;
+    }
+    if let Ok(v) = form.scheduler_aimd_cooldown_secs.trim().parse::<u64>() {
+        settings.scheduler.expert.aimd_cooldown_secs = v;
+    }
+    if let Ok(v) = form.scheduler_aimd_samples_needed.trim().parse::<u32>() {
+        settings.scheduler.expert.aimd_samples_needed = v;
+    }
+    if let Ok(v) = form.scheduler_aimd_probe_stable_cycles.trim().parse::<u32>() {
+        settings.scheduler.expert.aimd_probe_stable_cycles = v;
+    }
+    if let Ok(v) = form.scheduler_aimd_decrease_factor.trim().parse::<f64>() {
+        settings.scheduler.expert.aimd_decrease_factor = v;
+    }
+    if let Ok(v) = form.scheduler_aimd_step_ratio.trim().parse::<f64>() {
+        settings.scheduler.expert.aimd_step_ratio = v;
+    }
+    if let Ok(v) = form.scheduler_aimd_oscillation_threshold.trim().parse::<u32>() {
+        settings.scheduler.expert.aimd_oscillation_threshold = v;
+    }
+    if let Ok(v) = form.scheduler_aimd_hysteresis_multiplier.trim().parse::<u32>() {
+        settings.scheduler.expert.aimd_hysteresis_multiplier = v;
+    }
+    if let Ok(v) = form.scheduler_custom_chunk_size_mb.trim().parse::<u64>() {
+        settings.scheduler.expert.custom_chunk_size_mb = v;
+    }
+    if let Ok(v) = form.scheduler_tail_sprint_stall_window_secs.trim().parse::<u64>() {
+        settings.scheduler.expert.tail_sprint_stall_window_secs = v;
+    }
+    if let Ok(v) = form.scheduler_tail_sprint_min_split_size_mb.trim().parse::<u64>() {
+        settings.scheduler.expert.tail_sprint_min_split_size_mb = v;
+    }
+    if let Ok(v) = form.scheduler_work_steal_min_split_size_mb.trim().parse::<u64>() {
+        settings.scheduler.expert.work_steal_min_split_size_mb = v;
+    }
+    if let Ok(v) = form.scheduler_connect_timeout_secs.trim().parse::<u64>() {
+        settings.scheduler.expert.connect_timeout_secs = v;
+    }
+    if let Ok(v) = form.scheduler_read_timeout_secs.trim().parse::<u64>() {
+        settings.scheduler.expert.read_timeout_secs = v;
+    }
+    if let Ok(v) = form.scheduler_pool_max_idle_per_host.trim().parse::<usize>() {
+        settings.scheduler.expert.pool_max_idle_per_host = v;
+    }
+    if let Ok(v) = form.scheduler_tcp_keepalive_secs.trim().parse::<u64>() {
+        settings.scheduler.expert.tcp_keepalive_secs = v;
+    }
+    if let Ok(v) = form.scheduler_retry_backoff_base_ms.trim().parse::<u64>() {
+        settings.scheduler.expert.retry_backoff_base_ms = v;
+    }
+    if let Ok(v) = form.scheduler_retry_backoff_max_ms.trim().parse::<u64>() {
+        settings.scheduler.expert.retry_backoff_max_ms = v;
+    }
+    if let Ok(v) = form.scheduler_retry_backoff_jitter_percent.trim().parse::<u64>() {
+        settings.scheduler.expert.retry_backoff_jitter_percent = v;
+    }
 }
 
 fn apply_bt(settings: &mut AppSettings, form: &SettingsFormData) {

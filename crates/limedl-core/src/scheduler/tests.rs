@@ -497,3 +497,115 @@ fn aimd_no_cascade_after_decrease() {
         assert_eq!(core.manifest.desired_thread_count, Some(3), "must not cascade to 2 or 1");
     }
 }
+
+#[test]
+fn test_expert_queue_sort_strategies() {
+    use crate::types::QueueSortStrategy;
+
+    let make_task = |id: &str, priority: Priority, total: u64, downloaded: u64, created_at: u64| {
+        let mut m = manifest("https://example.com/test.bin");
+        m.id = id.to_string();
+        m.priority = priority;
+        m.total_bytes = Some(total);
+        m.downloaded_bytes = downloaded;
+        m.created_at_ms = created_at;
+        let s = crate::manifest::snapshot_from_manifest(&m);
+        std::sync::Arc::new(crate::download::ManagedDownload {
+            core: parking_lot::Mutex::new(crate::download::DownloadCore::new(s, m)),
+            runtime: parking_lot::Mutex::new(None),
+            aimd: parking_lot::Mutex::new(crate::aimd::AimdState::default()),
+            stop_notify: tokio::sync::Notify::new(),
+        })
+    };
+
+    // Task A: High priority, 100MB remaining, created at 300ms
+    let task_a = make_task("task_a", Priority::High, 100 * 1024 * 1024, 0, 300);
+    // Task B: Normal priority, 10MB remaining, created at 200ms
+    let task_b = make_task("task_b", Priority::Normal, 20 * 1024 * 1024, 10 * 1024 * 1024, 200);
+    // Task C: Low priority, 5MB remaining, created at 100ms
+    let task_c = make_task("task_c", Priority::Low, 10 * 1024 * 1024, 5 * 1024 * 1024, 100);
+
+    // 1. Priority First (default)
+    {
+        let candidates = vec![task_b.clone(), task_a.clone(), task_c.clone()];
+        let mut settings = settings_automatic();
+        settings.scheduler.expert_mode = true;
+        settings.scheduler.expert.queue_sort_strategy = QueueSortStrategy::PriorityFirst;
+        let sorted = super::sort_automatic_candidates(&candidates, &settings);
+        assert_eq!(sorted[0].lock_core().manifest.id, "task_a", "High priority first");
+        assert_eq!(sorted[1].lock_core().manifest.id, "task_b", "Normal priority second");
+        assert_eq!(sorted[2].lock_core().manifest.id, "task_c", "Low priority third");
+    }
+
+    // 2. Shortest Job First
+    {
+        let candidates = vec![task_a.clone(), task_b.clone(), task_c.clone()];
+        let mut settings = settings_automatic();
+        settings.scheduler.expert_mode = true;
+        settings.scheduler.expert.queue_sort_strategy = QueueSortStrategy::ShortestJobFirst;
+        let sorted = super::sort_automatic_candidates(&candidates, &settings);
+        assert_eq!(sorted[0].lock_core().manifest.id, "task_c", "5MB remaining first");
+        assert_eq!(sorted[1].lock_core().manifest.id, "task_b", "10MB remaining second");
+        assert_eq!(sorted[2].lock_core().manifest.id, "task_a", "100MB remaining third");
+    }
+
+    // 3. FIFO
+    {
+        let candidates = vec![task_a.clone(), task_b.clone(), task_c.clone()];
+        let mut settings = settings_automatic();
+        settings.scheduler.expert_mode = true;
+        settings.scheduler.expert.queue_sort_strategy = QueueSortStrategy::Fifo;
+        let sorted = super::sort_automatic_candidates(&candidates, &settings);
+        assert_eq!(sorted[0].lock_core().manifest.id, "task_c", "Created at 100ms first");
+        assert_eq!(sorted[1].lock_core().manifest.id, "task_b", "Created at 200ms second");
+        assert_eq!(sorted[2].lock_core().manifest.id, "task_a", "Created at 300ms third");
+    }
+}
+
+#[test]
+fn test_expert_host_cap() {
+    let mut settings = settings_automatic();
+    assert_eq!(super::effective_max_connections_per_host(&settings), 6);
+
+    settings.scheduler.expert_mode = true;
+    settings.scheduler.expert.max_connections_per_host = 32;
+    assert_eq!(super::effective_max_connections_per_host(&settings), 32);
+
+    settings.scheduler.expert.max_connections_per_host = 2;
+    assert_eq!(super::effective_max_connections_per_host(&settings), 2);
+
+    let mut tracker = super::HostCapTracker::new(2);
+    let m = manifest("https://example.com/file.bin");
+    assert_eq!(tracker.grant(&m, 4), 2, "must be capped at max_per_host");
+    assert_eq!(tracker.grant(&m, 4), 0, "no capacity remaining for this host");
+}
+
+#[test]
+fn test_expert_aimd_decrease_factor() {
+    use std::time::{Duration, Instant};
+
+    let managed = make_managed_task(10, 10, crate::types::AdaptiveProfile::Balanced);
+    let mut settings = settings_automatic();
+    settings.scheduler.expert_mode = true;
+    settings.scheduler.expert.aimd_decrease_factor = 0.85; // LAN Ultra preset: 15% reduction
+    settings.scheduler.expert.aimd_degrade_threshold = 0.90;
+    settings.scheduler.expert.aimd_samples_needed = 1;
+    settings.scheduler.expert.aimd_cooldown_secs = 1;
+
+    {
+        let mut aimd = managed.lock_aimd();
+        aimd.last_throughput = Some(1000.0);
+        aimd.last_sample_at = Some(Instant::now() - Duration::from_secs(2));
+        aimd.last_sample_bytes = 0;
+        let mut core = managed.lock_core();
+        // Degrade to 850 B/s (below 90% threshold 900 B/s, but not severe drop)
+        core.manifest.downloaded_bytes = 1700;
+    }
+
+    super::update_one_adaptive(&managed, &settings, 16, 1);
+
+    let core = managed.lock_core();
+    // 10 * 0.85 = 8.5 -> ceil = 9
+    assert_eq!(core.manifest.desired_thread_count, Some(9));
+}
+

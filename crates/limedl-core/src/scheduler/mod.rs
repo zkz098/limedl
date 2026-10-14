@@ -28,7 +28,7 @@ use crate::{
     manifest::Manifest,
     now_ms,
     persistence::persist_manifest_snapshots_batch,
-    types::{AdaptiveProfile, AppSettings, DownloadState, SchedulerMode, ThreadMode},
+    types::{AdaptiveProfile, AppSettings, DownloadState, QueueSortStrategy, SchedulerMode, ThreadMode},
 };
 
 const SCHEDULER_TICK: Duration = Duration::from_secs(2);
@@ -50,8 +50,17 @@ impl Scheduler {
         tokio::spawn(async move {
             let mut consecutive_rebalance_failures: u32 = 0;
             loop {
+                let tick = {
+                    let settings = dm.settings_service.get().await;
+                    if settings.scheduler.expert_mode {
+                        Duration::from_millis(settings.scheduler.expert.scheduler_tick_ms)
+                    } else {
+                        SCHEDULER_TICK
+                    }
+                };
+
                 tokio::select! {
-                    _ = tokio::time::sleep(SCHEDULER_TICK) => {}
+                    _ = tokio::time::sleep(tick) => {}
                     _ = dm.controls.rebalance_notify.notified() => {}
                     _ = dm.controls.shutdown_token.cancelled() => {
                         tracing::info!("Scheduler loop shutting down");
@@ -262,14 +271,17 @@ fn check_oscillation(
     current: usize,
     min_threads: usize,
     now: Instant,
-    cooldown: &Duration,
+    thresholds: &AdaptiveThresholds,
 ) {
-    const OSCILLATION_THRESHOLD: u32 = 3;
-    if aimd.oscillation_count >= OSCILLATION_THRESHOLD {
-        let lock_target = ((current as f64) * 0.7).ceil() as usize;
+    if aimd.oscillation_count >= thresholds.oscillation_threshold {
+        let lock_target = if thresholds.is_expert {
+            ((current as f64) * thresholds.decrease_factor).ceil() as usize
+        } else {
+            ((current as f64) * 0.7).ceil() as usize
+        };
         manifest.desired_thread_count = Some(lock_target.max(min_threads));
         manifest.updated_at_ms = now_ms();
-        aimd.hysteresis_lock_until = Some(now + *cooldown * 4);
+        aimd.hysteresis_lock_until = Some(now + thresholds.cooldown * thresholds.hysteresis_multiplier);
         aimd.consecutive_good_samples = 0;
         aimd.consecutive_bad_samples = 0;
         aimd.oscillation_count = 0;
@@ -286,25 +298,72 @@ struct AdaptiveThresholds {
     profile: AdaptiveProfile,
     degrade: f64,
     increase: f64,
+    severe_drop: f64,
     samples_needed: u32,
     cooldown: Duration,
     probe_stable_cycles: u32,
+    decrease_factor: f64,
+    step_ratio: f64,
+    oscillation_threshold: u32,
+    hysteresis_multiplier: u32,
+    is_expert: bool,
 }
 
 impl AdaptiveThresholds {
-    fn for_profile(profile: AdaptiveProfile) -> Self {
-        let (degrade, increase, samples_needed, probe_stable_cycles) = match profile {
-            AdaptiveProfile::Conservative => (0.18, 0.08, 2, 3),
-            AdaptiveProfile::Balanced => (0.16, 0.04, 1, 2),
-            AdaptiveProfile::Aggressive => (0.20, 0.03, 1, 2),
-        };
-        Self {
-            profile,
-            degrade,
-            increase,
-            samples_needed,
-            cooldown: aimd::cooldown_for_profile(profile),
-            probe_stable_cycles,
+    fn from_settings(settings: &AppSettings, profile: AdaptiveProfile) -> Self {
+        if settings.scheduler.expert_mode {
+            let exp = &settings.scheduler.expert;
+            let degrade = if exp.aimd_degrade_threshold > 0.50 {
+                (1.0 - exp.aimd_degrade_threshold).max(0.01)
+            } else {
+                exp.aimd_degrade_threshold
+            };
+            let increase = if exp.aimd_increase_threshold >= 1.0 {
+                exp.aimd_increase_threshold - 1.0
+            } else if exp.aimd_increase_threshold > 0.50 {
+                (1.0 - exp.aimd_increase_threshold).max(0.01)
+            } else {
+                exp.aimd_increase_threshold
+            };
+            Self {
+                profile,
+                degrade,
+                increase,
+                severe_drop: exp.aimd_severe_drop_threshold,
+                samples_needed: exp.aimd_samples_needed,
+                cooldown: Duration::from_secs(exp.aimd_cooldown_secs),
+                probe_stable_cycles: exp.aimd_probe_stable_cycles,
+                decrease_factor: exp.aimd_decrease_factor,
+                step_ratio: exp.aimd_step_ratio,
+                oscillation_threshold: exp.aimd_oscillation_threshold,
+                hysteresis_multiplier: exp.aimd_hysteresis_multiplier,
+                is_expert: true,
+            }
+        } else {
+            let (degrade, increase, samples_needed, probe_stable_cycles) = match profile {
+                AdaptiveProfile::Conservative => (0.18, 0.08, 2, 3),
+                AdaptiveProfile::Balanced => (0.16, 0.04, 1, 2),
+                AdaptiveProfile::Aggressive => (0.20, 0.03, 1, 2),
+            };
+            let (decrease_factor, step_ratio) = match profile {
+                AdaptiveProfile::Conservative => (0.7, 0.0),
+                AdaptiveProfile::Balanced => (0.5, 0.25),
+                AdaptiveProfile::Aggressive => (0.5, 0.3333333333333333),
+            };
+            Self {
+                profile,
+                degrade,
+                increase,
+                severe_drop: 0.50,
+                samples_needed,
+                cooldown: aimd::cooldown_for_profile(profile),
+                probe_stable_cycles,
+                decrease_factor,
+                step_ratio,
+                oscillation_threshold: 3,
+                hysteresis_multiplier: 4,
+                is_expert: false,
+            }
         }
     }
 }
@@ -375,7 +434,7 @@ fn update_one_adaptive(
         return;
     }
 
-    let thresholds = AdaptiveThresholds::for_profile(profile);
+    let thresholds = AdaptiveThresholds::from_settings(settings, profile);
 
     // ── Probing verification: evaluate outcome of a previous upward probe ──
     if aimd.is_probing_up {
@@ -406,7 +465,7 @@ fn update_one_adaptive(
                 current,
                 min_threads,
                 now,
-                &thresholds.cooldown,
+                &thresholds,
             );
             sync_snapshot_with_manifest(&mut core);
             return;
@@ -430,7 +489,7 @@ fn update_one_adaptive(
             current,
             min_threads,
             now,
-            &thresholds.cooldown,
+            &thresholds,
         );
         sync_snapshot_with_manifest(&mut core);
         return;
@@ -442,12 +501,18 @@ fn update_one_adaptive(
 
     let is_severe_drop = aimd
         .last_throughput
-        .is_some_and(|last| last > 0.0 && throughput < last * 0.50);
+        .is_some_and(|last| last > 0.0 && throughput < last * thresholds.severe_drop);
+
+    let needed_bad_samples = if thresholds.is_expert {
+        thresholds.samples_needed
+    } else {
+        2
+    };
 
     let degradation_confirmed = if throughput_drop {
         aimd.consecutive_bad_samples = aimd.consecutive_bad_samples.saturating_add(1);
         aimd.stable_cycles = 0;
-        is_severe_drop || aimd.consecutive_bad_samples >= 2 || aimd.recent_penalty
+        is_severe_drop || aimd.consecutive_bad_samples >= needed_bad_samples || aimd.recent_penalty
     } else {
         aimd.consecutive_bad_samples = 0;
         false
@@ -499,7 +564,7 @@ fn update_one_adaptive(
             current,
             min_threads,
             now,
-            &thresholds.cooldown,
+            &thresholds,
         );
         sync_snapshot_with_manifest(&mut core);
     }
@@ -558,8 +623,12 @@ fn apply_decrease(
     throughput: f64,
     thresholds: &AdaptiveThresholds,
 ) {
-    manifest.desired_thread_count =
-        Some(aimd::reduce_threads(current, thresholds.profile, min_threads));
+    let reduced = if thresholds.is_expert {
+        ((current as f64) * thresholds.decrease_factor).ceil() as usize
+    } else {
+        aimd::reduce_threads(current, thresholds.profile, min_threads)
+    };
+    manifest.desired_thread_count = Some(reduced.max(min_threads.max(1)));
     manifest.updated_at_ms = now_ms();
     aimd.cooldown_until = Some(now + thresholds.cooldown);
     aimd.settling_until = Some(now + thresholds.cooldown);
@@ -573,7 +642,23 @@ fn apply_decrease(
     aimd.record_sample(throughput);
     // ── Oscillation tracking (MD = Down) ──
     track_direction(aimd, Direction::Down);
-    check_oscillation(aimd, manifest, current, min_threads, now, &thresholds.cooldown);
+    check_oscillation(aimd, manifest, current, min_threads, now, thresholds);
+}
+
+fn calculate_increase_step(current: usize, thresholds: &AdaptiveThresholds) -> usize {
+    if thresholds.is_expert {
+        if thresholds.step_ratio > 0.0 {
+            ((current as f64) * thresholds.step_ratio).ceil() as usize
+        } else {
+            1usize
+        }
+    } else {
+        match thresholds.profile {
+            AdaptiveProfile::Conservative => 1usize,
+            AdaptiveProfile::Balanced => (current / 4).max(1),
+            AdaptiveProfile::Aggressive => (current / 3).max(1),
+        }
+    }
 }
 
 /// Apply the up-side AIMD step when allocation caught up with the target,
@@ -609,11 +694,7 @@ fn maybe_increase(
         aimd.consecutive_good_samples = aimd.consecutive_good_samples.saturating_add(1);
         aimd.consecutive_bad_samples = 0;
         if aimd.consecutive_good_samples >= thresholds.samples_needed {
-            let step = match thresholds.profile {
-                AdaptiveProfile::Conservative => 1usize,
-                AdaptiveProfile::Balanced => (current / 4).max(1),
-                AdaptiveProfile::Aggressive => (current / 3).max(1),
-            };
+            let step = calculate_increase_step(current, thresholds);
             let next = (current + step).min(adaptive_cap.max(1));
             if next > current {
                 manifest.desired_thread_count = Some(next);
@@ -632,11 +713,7 @@ fn maybe_increase(
     // Path 2: Anti-deadlock proactive probing when steady
     aimd.stable_cycles = aimd.stable_cycles.saturating_add(1);
     if aimd.stable_cycles >= thresholds.probe_stable_cycles {
-        let step = match thresholds.profile {
-            AdaptiveProfile::Conservative => 1usize,
-            AdaptiveProfile::Balanced => (current / 4).max(1),
-            AdaptiveProfile::Aggressive => (current / 3).max(1),
-        };
+        let step = calculate_increase_step(current, thresholds);
         let next = (current + step).min(adaptive_cap.max(1));
         if next > current {
             manifest.desired_thread_count = Some(next);
@@ -684,19 +761,26 @@ fn set_downloading(manifest: &mut Manifest, allocation: usize) {
 }
 
 /// Per-host connection accounting for one rebalance pass.
-#[derive(Default)]
 struct HostCapTracker {
     used: HashMap<String, usize>,
+    max_per_host: usize,
 }
 
 impl HostCapTracker {
+    fn new(max_per_host: usize) -> Self {
+        Self {
+            used: HashMap::default(),
+            max_per_host,
+        }
+    }
+
     /// Cap `want` by the host's remaining connection budget and record the grant.
     fn grant(&mut self, manifest: &Manifest, want: usize) -> usize {
         let Some(host) = hostname_from_manifest(manifest) else {
             return want;
         };
         let used = self.used.get(&host).copied().unwrap_or(0);
-        let remaining = MAX_CONNECTIONS_PER_HOST.saturating_sub(used);
+        let remaining = self.max_per_host.saturating_sub(used);
         let capped = want.min(remaining);
         if capped > 0 {
             self.record(&host, capped);
@@ -715,6 +799,14 @@ impl HostCapTracker {
     }
 }
 
+fn effective_max_connections_per_host(settings: &AppSettings) -> usize {
+    if settings.scheduler.expert_mode {
+        settings.scheduler.expert.max_connections_per_host
+    } else {
+        MAX_CONNECTIONS_PER_HOST
+    }
+}
+
 /// Traditional mode: priority/age order, at most `max_parallel_tasks` running.
 fn rebalance_traditional(entries: &mut [Arc<ManagedDownload>], settings: &AppSettings) {
     // Pre-snapshot the sort keys so the comparator does not take each
@@ -728,7 +820,7 @@ fn rebalance_traditional(entries: &mut [Arc<ManagedDownload>], settings: &AppSet
     });
 
     let mut running = 0usize;
-    let mut host_caps = HostCapTracker::default();
+    let mut host_caps = HostCapTracker::new(effective_max_connections_per_host(settings));
     for managed in entries {
         let mut core = managed.lock_core();
         let manifest = &mut core.manifest;
@@ -763,7 +855,7 @@ fn rebalance_automatic(
     all_downloads: &[Arc<ManagedDownload>],
     settings: &AppSettings,
 ) {
-    let candidates = sort_automatic_candidates(entries);
+    let candidates = sort_automatic_candidates(entries, settings);
 
     let (mut allocations, remaining_budget, mut host_caps) = allocate_initial_minimums(
         &candidates,
@@ -799,24 +891,51 @@ fn rebalance_automatic(
     }
 }
 
-/// Active candidates ordered by priority (desc) then remaining bytes (desc).
-fn sort_automatic_candidates(entries: &[Arc<ManagedDownload>]) -> Vec<Arc<ManagedDownload>> {
-    let mut keyed: Vec<(u8, u64, &Arc<ManagedDownload>)> = entries
+/// Active candidates ordered according to the configured QueueSortStrategy.
+fn sort_automatic_candidates(
+    entries: &[Arc<ManagedDownload>],
+    settings: &AppSettings,
+) -> Vec<Arc<ManagedDownload>> {
+    let strategy = if settings.scheduler.expert_mode {
+        settings.scheduler.expert.queue_sort_strategy
+    } else {
+        QueueSortStrategy::PriorityFirst
+    };
+
+    let mut keyed: Vec<(u8, u64, u64, &Arc<ManagedDownload>)> = entries
         .iter()
         .filter(|managed| !is_terminal_state(managed.lock_core().manifest.state))
         .map(|managed| {
-            let (remaining, priority) = {
+            let (remaining, priority, created_at_ms) = {
                 let core = managed.lock_core();
-                (remaining_bytes(&core.manifest), core.manifest.priority as u8)
+                (
+                    remaining_bytes(&core.manifest),
+                    core.manifest.priority as u8,
+                    core.manifest.created_at_ms,
+                )
             };
-            (priority, remaining, managed)
+            (priority, remaining, created_at_ms, managed)
         })
         .collect();
-    // Priority descending first, then remaining bytes descending.
-    keyed.sort_by(|(pa, ra, _), (pb, rb, _)| pb.cmp(pa).then_with(|| rb.cmp(ra)));
+
+    match strategy {
+        QueueSortStrategy::PriorityFirst => {
+            // Priority descending first, then remaining bytes descending.
+            keyed.sort_by(|(pa, ra, _, _), (pb, rb, _, _)| pb.cmp(pa).then_with(|| rb.cmp(ra)));
+        }
+        QueueSortStrategy::ShortestJobFirst => {
+            // Remaining bytes ascending first (shortest job first), then priority descending.
+            keyed.sort_by(|(pa, ra, _, _), (pb, rb, _, _)| ra.cmp(rb).then_with(|| pb.cmp(pa)));
+        }
+        QueueSortStrategy::Fifo => {
+            // Strict creation order ascending (FIFO), then priority descending.
+            keyed.sort_by(|(pa, _, ca, _), (pb, _, cb, _)| ca.cmp(cb).then_with(|| pb.cmp(pa)));
+        }
+    }
+
     keyed
         .into_iter()
-        .map(|(_, _, managed)| Arc::clone(managed))
+        .map(|(_, _, _, managed)| Arc::clone(managed))
         .collect()
 }
 
@@ -828,7 +947,7 @@ fn allocate_initial_minimums(
 ) -> (HashMap<String, usize>, usize, HostCapTracker) {
     let min_per_task = settings.scheduler.automatic.min_threads_per_task.max(1);
     let mut allocations: HashMap<String, usize> = HashMap::default();
-    let mut host_caps = HostCapTracker::default();
+    let mut host_caps = HostCapTracker::new(effective_max_connections_per_host(settings));
     let mut remaining_budget = budget;
 
     for managed in candidates {
@@ -870,7 +989,7 @@ fn distribute_remaining_budget(
             let host = hostname_from_manifest(&core.manifest);
             let host_at_cap = host
                 .as_ref()
-                .is_some_and(|h| host_caps.used_by(h) >= MAX_CONNECTIONS_PER_HOST);
+                .is_some_and(|h| host_caps.used_by(h) >= host_caps.max_per_host);
 
             if *entry < cap && !host_at_cap {
                 *entry += 1;

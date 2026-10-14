@@ -4,7 +4,7 @@ use limedl_core::types::{
     AdaptiveProfile, Aria2AuthMode, BackgroundOpacityPreset, BtAntiLeechAction, BtChokingAlgorithm,
     BtEncryptionMode, BtPreallocateMode, BtSeedChokingAlgorithm, ChecksumMode, ChunkSizeStrategy,
     CloseBehavior, ColorMode, DoubleClickOnCompleted, DoubleClickOnUncompleted, LogLevel, ProxyMode,
-    SchedulerMode, ThemeColor,
+    QueueSortStrategy, SchedulerMode, ThemeColor,
 };
 use slint::SharedString;
 
@@ -55,6 +55,21 @@ pub(crate) fn chunk_strategy_to_str(s: ChunkSizeStrategy) -> SharedString {
         ChunkSizeStrategy::Adaptive => "adaptive",
         ChunkSizeStrategy::Fixed => "fixed",
     })
+}
+pub(crate) fn queue_sort_strategy_to_str(s: QueueSortStrategy) -> SharedString {
+    SharedString::from(match s {
+        QueueSortStrategy::PriorityFirst => "priority_first",
+        QueueSortStrategy::ShortestJobFirst => "shortest_job_first",
+        QueueSortStrategy::Fifo => "fifo",
+    })
+}
+pub(crate) fn str_to_queue_sort_strategy(s: &str) -> Option<QueueSortStrategy> {
+    match s.trim() {
+        "priority_first" => Some(QueueSortStrategy::PriorityFirst),
+        "shortest_job_first" => Some(QueueSortStrategy::ShortestJobFirst),
+        "fifo" => Some(QueueSortStrategy::Fifo),
+        _ => None,
+    }
 }
 pub(crate) fn checksum_to_str(c: ChecksumMode) -> SharedString {
     SharedString::from(match c {

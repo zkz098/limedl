@@ -11,11 +11,60 @@ use super::{
     http_client_factory::normalize_user_agent,
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-        DownloadDefaultsSettings, IoBaselineSettings, LogSettings, ProxyMode, ProxySettings,
+        DownloadDefaultsSettings, ExpertSchedulerSettings, IoBaselineSettings, LogSettings, ProxyMode, ProxySettings,
         RewriteTarget, SchedulerSettings, TraditionalSchedulerSettings, UrlRewriteRule,
         UrlRewriteSettings, default_tracker_list_url,
     },
 };
+
+pub fn normalize_expert_settings(expert: ExpertSchedulerSettings) -> ExpertSchedulerSettings {
+    ExpertSchedulerSettings {
+        scheduler_tick_ms: expert.scheduler_tick_ms.clamp(200, 10000),
+        max_connections_per_host: expert.max_connections_per_host.clamp(1, 64),
+        aimd_degrade_threshold: if expert.aimd_degrade_threshold.is_finite() {
+            expert.aimd_degrade_threshold.clamp(0.01, 0.80)
+        } else {
+            0.16
+        },
+        aimd_increase_threshold: if expert.aimd_increase_threshold.is_finite() {
+            expert.aimd_increase_threshold.clamp(0.01, 0.50)
+        } else {
+            0.04
+        },
+        aimd_severe_drop_threshold: if expert.aimd_severe_drop_threshold.is_finite() {
+            expert.aimd_severe_drop_threshold.clamp(0.10, 0.95)
+        } else {
+            0.50
+        },
+        aimd_cooldown_secs: expert.aimd_cooldown_secs.clamp(1, 30),
+        aimd_samples_needed: expert.aimd_samples_needed.clamp(1, 10),
+        aimd_probe_stable_cycles: expert.aimd_probe_stable_cycles.clamp(1, 20),
+        aimd_decrease_factor: if expert.aimd_decrease_factor.is_finite() {
+            expert.aimd_decrease_factor.clamp(0.10, 0.95)
+        } else {
+            0.50
+        },
+        aimd_step_ratio: if expert.aimd_step_ratio.is_finite() {
+            expert.aimd_step_ratio.clamp(0.05, 1.0)
+        } else {
+            0.25
+        },
+        aimd_oscillation_threshold: expert.aimd_oscillation_threshold.clamp(2, 10),
+        aimd_hysteresis_multiplier: expert.aimd_hysteresis_multiplier.clamp(1, 10),
+        custom_chunk_size_mb: expert.custom_chunk_size_mb.clamp(0, 256),
+        tail_sprint_stall_window_secs: expert.tail_sprint_stall_window_secs.clamp(2, 60),
+        tail_sprint_min_split_size_mb: expert.tail_sprint_min_split_size_mb.clamp(1, 64),
+        work_steal_min_split_size_mb: expert.work_steal_min_split_size_mb.clamp(1, 64),
+        connect_timeout_secs: expert.connect_timeout_secs.clamp(3, 120),
+        read_timeout_secs: expert.read_timeout_secs.clamp(5, 300),
+        pool_max_idle_per_host: expert.pool_max_idle_per_host.clamp(1, 100),
+        tcp_keepalive_secs: expert.tcp_keepalive_secs.clamp(5, 300),
+        retry_backoff_base_ms: expert.retry_backoff_base_ms.clamp(50, 2000),
+        retry_backoff_max_ms: expert.retry_backoff_max_ms.clamp(500, 30000),
+        retry_backoff_jitter_percent: expert.retry_backoff_jitter_percent.clamp(0, 50),
+        queue_sort_strategy: expert.queue_sort_strategy,
+    }
+}
 
 fn normalize_proxy_settings(settings: ProxySettings) -> Result<ProxySettings> {
     match settings.mode {
@@ -97,6 +146,8 @@ pub fn normalize_settings(settings: AppSettings) -> Result<AppSettings> {
             chunk_size_strategy: settings.scheduler.chunk_size_strategy,
             tail_sprint_enabled: settings.scheduler.tail_sprint_enabled,
             connection_warmup_enabled: settings.scheduler.connection_warmup_enabled,
+            expert_mode: settings.scheduler.expert_mode,
+            expert: normalize_expert_settings(settings.scheduler.expert),
         },
         download: DownloadDefaultsSettings {
             default_download_dir,

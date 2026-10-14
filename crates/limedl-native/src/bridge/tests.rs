@@ -357,7 +357,7 @@ use crate::LabsFormData;
 
     #[test]
     fn test_combo_idx_and_value_roundtrip() {
-        let cases: [(&[&str], &str); 18] = [
+        let cases: [(&[&str], &str); 20] = [
             (&combo::COLOR_MODES, "dark"),
             (&combo::THEME_COLORS, "sky"),
             (&combo::OPACITY_PRESETS, "frosted"),
@@ -376,6 +376,8 @@ use crate::LabsFormData;
             (&combo::SEED_CHOKING, "round_robin"),
             (&combo::CHOKING_ALGOS, "rate_based"),
             (&combo::LOG_LEVELS, "warn"),
+            (&combo::QUEUE_SORT_STRATEGIES, "shortest_job_first"),
+            (&combo::EXPERT_PRESETS, "lan_ultra"),
         ];
         for (list, value) in cases {
             let idx = combo::idx_of(list, value);
@@ -1043,3 +1045,33 @@ use crate::LabsFormData;
         let item8 = summary_to_task_item(&s8, false, Language::ZhCn);
         assert!(!item8.is_indeterminate);
     }
+
+    #[test]
+    fn test_scheduler_expert_settings_roundtrip() {
+        use limedl_core::types::{ExpertSchedulerSettings, QueueSortStrategy};
+
+        let mut settings = AppSettings::default();
+        settings.scheduler.expert_mode = true;
+        settings.scheduler.expert = ExpertSchedulerSettings::preset_lan_ultra();
+        settings.scheduler.expert.scheduler_tick_ms = 75;
+        settings.scheduler.expert.queue_sort_strategy = QueueSortStrategy::ShortestJobFirst;
+
+        let form = app_settings_to_form(&settings, false, false, "", "", Language::EnUs);
+        assert!(form.scheduler_expert_mode);
+        assert_eq!(form.scheduler_tick_ms, "75");
+
+        let mut target = AppSettings::default();
+        let mut edited = form;
+        edited.scheduler_tick_ms = slint::SharedString::from("60");
+        edited.scheduler_aimd_decrease_factor = slint::SharedString::from("0.88");
+        update_app_settings_from_form(&mut target, &edited, Language::EnUs).unwrap();
+        assert!(target.scheduler.expert_mode);
+        assert_eq!(target.scheduler.expert.scheduler_tick_ms, 60);
+        assert!((target.scheduler.expert.aimd_decrease_factor - 0.88).abs() < 1e-6);
+        assert_eq!(target.scheduler.expert.queue_sort_strategy, QueueSortStrategy::ShortestJobFirst);
+
+        // Validation rejects malformed input
+        edited.scheduler_tick_ms = slint::SharedString::from("invalid_number");
+        assert!(update_app_settings_from_form(&mut target, &edited, Language::EnUs).is_err());
+    }
+

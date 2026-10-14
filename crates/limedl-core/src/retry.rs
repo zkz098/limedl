@@ -172,6 +172,31 @@ pub(crate) fn register_retry_penalty(managed: &Arc<ManagedDownload>, error: Stri
     aimd.penalty_count = aimd.penalty_count.saturating_add(1);
 }
 
+/// Computes an exponential backoff delay for the given retry attempt with custom base and cap.
+pub fn backoff_delay_with_config(attempt: u32, base_ms: u64, max_ms: u64) -> Duration {
+    let delay_ms = (base_ms).saturating_mul(2_u64.saturating_pow(attempt.min(8)));
+    Duration::from_millis(delay_ms.min(max_ms))
+}
+
+/// Upper bound of the random jitter added on top of [`backoff_delay`], as a
+/// percentage of the base delay.
+const BACKOFF_JITTER_PERCENT: u64 = 25;
+
+/// [`backoff_delay_with_config`] plus uniform jitter.
+pub fn jittered_backoff_delay_with_config(
+    attempt: u32,
+    base_ms: u64,
+    max_ms: u64,
+    jitter_percent: u64,
+) -> Duration {
+    let base = backoff_delay_with_config(attempt, base_ms, max_ms).as_millis() as u64;
+    let span = base * jitter_percent / 100;
+    if span == 0 {
+        return Duration::from_millis(base);
+    }
+    Duration::from_millis(base + rand::random_range(0..=span))
+}
+
 /// Computes an exponential backoff delay for the given retry attempt.
 ///
 /// Formula: `250ms * 2^min(attempt, 4)`, capped at a 4-second delay
@@ -180,12 +205,8 @@ pub(crate) fn register_retry_penalty(managed: &Arc<ManagedDownload>, error: Stri
 /// Deterministic on purpose: it is the base [`jittered_backoff_delay`] spreads,
 /// and it is what the unit tests pin.
 pub fn backoff_delay(attempt: u32) -> Duration {
-    Duration::from_millis((250_u64).saturating_mul(2_u64.saturating_pow(attempt.min(4))))
+    backoff_delay_with_config(attempt, 250, 4000)
 }
-
-/// Upper bound of the random jitter added on top of [`backoff_delay`], as a
-/// percentage of the base delay.
-const BACKOFF_JITTER_PERCENT: u64 = 25;
 
 /// [`backoff_delay`] plus uniform jitter in `[base, base * 1.25]`.
 ///
@@ -194,10 +215,5 @@ const BACKOFF_JITTER_PERCENT: u64 = 25;
 /// 429/5xx case where the extra load is least welcome. The delay never drops
 /// below the base value, so the retry policy stays as gentle as before.
 pub fn jittered_backoff_delay(attempt: u32) -> Duration {
-    let base = backoff_delay(attempt).as_millis() as u64;
-    let span = base * BACKOFF_JITTER_PERCENT / 100;
-    if span == 0 {
-        return Duration::from_millis(base);
-    }
-    Duration::from_millis(base + rand::random_range(0..=span))
+    jittered_backoff_delay_with_config(attempt, 250, 4000, BACKOFF_JITTER_PERCENT)
 }

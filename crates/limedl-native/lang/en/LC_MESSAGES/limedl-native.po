@@ -1933,3 +1933,204 @@ msgstr "GitHub Repository:"
 
 msgid "Open"
 msgstr "Open"
+
+msgid "Expert Scheduling Mode"
+msgstr "Expert Scheduling Mode"
+
+msgid "Fine-tune internal scheduler loop, AIMD dynamic control, chunking, and network transport"
+msgstr "Fine-tune internal scheduler loop, AIMD dynamic control, chunking, and network transport"
+
+msgid "Expert Configuration Preset:"
+msgstr "Expert Configuration Preset:"
+
+msgid "LAN Ultra (High throughput)"
+msgstr "LAN Ultra (High throughput)"
+
+msgid "Stealth (Low profile)"
+msgstr "Stealth (Low profile)"
+
+msgid "Lossy Network (Aggressive retry)"
+msgstr "Lossy Network (Aggressive retry)"
+
+msgid "Pick a preset or customize individual parameters below"
+msgstr "Pick a preset or customize individual parameters below"
+
+msgid "Host Concurrency & Queue Strategy"
+msgstr "Host Concurrency & Queue Strategy"
+
+msgid "Scheduler Tick Duration:"
+msgstr "Scheduler Tick Duration:"
+
+msgid "Internal scheduler loop period in ms (default 100ms). Lower values react faster to network changes but use slightly more CPU."
+msgstr "Internal scheduler loop period in ms (default 100ms). Lower values react faster to network changes but use slightly more CPU."
+
+msgid "Max Connections per Host:"
+msgstr "Max Connections per Host:"
+
+msgid "Concurrency ceiling for a single server domain/host across all tasks (default 16). Prevents triggering server anti-crawling defenses."
+msgstr "Concurrency ceiling for a single server domain/host across all tasks (default 16). Prevents triggering server anti-crawling defenses."
+
+msgid "Queue Candidate Sort Strategy:"
+msgstr "Queue Candidate Sort Strategy:"
+
+msgid "Controls which queued task is selected next when threads become available: Priority First (default), Shortest Job First (finishes small downloads quickly), or FIFO (strict queue order)."
+msgstr "Controls which queued task is selected next when threads become available: Priority First (default), Shortest Job First (finishes small downloads quickly), or FIFO (strict queue order)."
+
+msgid "Priority First"
+msgstr "Priority First"
+
+msgid "Shortest Job First"
+msgstr "Shortest Job First"
+
+msgid "FIFO (First In First Out)"
+msgstr "FIFO (First In First Out)"
+
+msgid "AIMD Dynamic Bandwidth & Thread Control"
+msgstr "AIMD Dynamic Bandwidth & Thread Control"
+
+msgid "Degrade Threshold:"
+msgstr "Degrade Threshold:"
+
+msgid "Speed drop ratio (0.50-0.99) that triggers thread reduction (default 0.90 = 10% drop from baseline)."
+msgstr "Speed drop ratio (0.50-0.99) that triggers thread reduction (default 0.90 = 10% drop from baseline)."
+
+msgid "Increase Threshold:"
+msgstr "Increase Threshold:"
+
+msgid "Speed ratio relative to baseline (0.70-1.00) required to attempt adding a thread (default 0.95)."
+msgstr "Speed ratio relative to baseline (0.70-1.00) required to attempt adding a thread (default 0.95)."
+
+msgid "Severe Drop Threshold:"
+msgstr "Severe Drop Threshold:"
+
+msgid "Critical speed crash ratio (0.10-0.80) that triggers emergency backoff to minimum threads (default 0.60)."
+msgstr "Critical speed crash ratio (0.10-0.80) that triggers emergency backoff to minimum threads (default 0.60)."
+
+msgid "AIMD Cooldown Window:"
+msgstr "AIMD Cooldown Window:"
+
+msgid "Minimum seconds to wait between thread allocation adjustments (default 3s)."
+msgstr "Minimum seconds to wait between thread allocation adjustments (default 3s)."
+
+msgid "Stable Samples Needed:"
+msgstr "Stable Samples Needed:"
+
+msgid "Number of consecutive steady speed samples required before making an AIMD decision (default 2)."
+msgstr "Number of consecutive steady speed samples required before making an AIMD decision (default 2)."
+
+msgid "samples"
+msgstr "samples"
+
+msgid "Probe Stable Cycles:"
+msgstr "Probe Stable Cycles:"
+
+msgid "Number of consecutive stable cycles required before probing for thread expansion (default 4)."
+msgstr "Number of consecutive stable cycles required before probing for thread expansion (default 4)."
+
+msgid "cycles"
+msgstr "cycles"
+
+msgid "Decrease Factor:"
+msgstr "Decrease Factor:"
+
+msgid "Multiplicative decrease multiplier (0.10-0.95) applied to thread count when congestion is detected (default 0.75)."
+msgstr "Multiplicative decrease multiplier (0.10-0.95) applied to thread count when congestion is detected (default 0.75)."
+
+msgid "Additive Step Ratio:"
+msgstr "Additive Step Ratio:"
+
+msgid "Fraction of headroom to add during linear increase (default 0.25)."
+msgstr "Fraction of headroom to add during linear increase (default 0.25)."
+
+msgid "Oscillation Threshold:"
+msgstr "Oscillation Threshold:"
+
+msgid "Maximum frequency of direction reversals within history window before damping AIMD adjustments (default 3)."
+msgstr "Maximum frequency of direction reversals within history window before damping AIMD adjustments (default 3)."
+
+msgid "reversals"
+msgstr "reversals"
+
+msgid "Hysteresis Multiplier:"
+msgstr "Hysteresis Multiplier:"
+
+msgid "Damping multiplier for cooldown when oscillation is detected (default 2)."
+msgstr "Damping multiplier for cooldown when oscillation is detected (default 2)."
+
+msgid "Chunking, Tail Sprint & Work Stealing"
+msgstr "Chunking, Tail Sprint & Work Stealing"
+
+msgid "Custom Chunk Size:"
+msgstr "Custom Chunk Size:"
+
+msgid "Override download chunk size in MB (0 = automatic adaptive chunk sizing based on content length)."
+msgstr "Override download chunk size in MB (0 = automatic adaptive chunk sizing based on content length)."
+
+msgid "Tail Sprint Stall Window:"
+msgstr "Tail Sprint Stall Window:"
+
+msgid "Seconds of stalled progress on the last remaining chunk before splitting it across idle workers (default 4s)."
+msgstr "Seconds of stalled progress on the last remaining chunk before splitting it across idle workers (default 4s)."
+
+msgid "Tail Sprint Min Split Size:"
+msgstr "Tail Sprint Min Split Size:"
+
+msgid "Minimum chunk size in MB eligible for tail sprint sub-division (default 4MB). Smaller chunks are not split to avoid HTTP overhead."
+msgstr "Minimum chunk size in MB eligible for tail sprint sub-division (default 4MB). Smaller chunks are not split to avoid HTTP overhead."
+
+msgid "Work Stealing Min Split Size:"
+msgstr "Work Stealing Min Split Size:"
+
+msgid "Minimum remaining bytes in MB required for an idle worker to steal half of another worker's chunk (default 4MB)."
+msgstr "Minimum remaining bytes in MB required for an idle worker to steal half of another worker's chunk (default 4MB)."
+
+msgid "Network Transport & Retry Backoff"
+msgstr "Network Transport & Retry Backoff"
+
+msgid "Connect Timeout:"
+msgstr "Connect Timeout:"
+
+msgid "TCP / TLS handshake timeout in seconds (default 10s)."
+msgstr "TCP / TLS handshake timeout in seconds (default 10s)."
+
+msgid "Read Timeout:"
+msgstr "Read Timeout:"
+
+msgid "Socket read idle timeout in seconds before aborting stalled connection (default 30s)."
+msgstr "Socket read idle timeout in seconds before aborting stalled connection (default 30s)."
+
+msgid "Pool Max Idle per Host:"
+msgstr "Pool Max Idle per Host:"
+
+msgid "Maximum pooled idle persistent connections kept open per host (default 16)."
+msgstr "Maximum pooled idle persistent connections kept open per host (default 16)."
+
+msgid "conns"
+msgstr "conns"
+
+msgid "TCP Keepalive Interval:"
+msgstr "TCP Keepalive Interval:"
+
+msgid "TCP keepalive probe interval in seconds (default 60s)."
+msgstr "TCP keepalive probe interval in seconds (default 60s)."
+
+msgid "Retry Backoff Base:"
+msgstr "Retry Backoff Base:"
+
+msgid "Initial delay for exponential backoff on transient connection failures in ms (default 1000ms)."
+msgstr "Initial delay for exponential backoff on transient connection failures in ms (default 1000ms)."
+
+msgid "Retry Backoff Max:"
+msgstr "Retry Backoff Max:"
+
+msgid "Maximum cap for exponential backoff delay in ms (default 16000ms)."
+msgstr "Maximum cap for exponential backoff delay in ms (default 16000ms)."
+
+msgid "Retry Jitter Percent:"
+msgstr "Retry Jitter Percent:"
+
+msgid "Random jitter percentage (0-100%) added to retry backoff to avoid thundering herd (default 20%)."
+msgstr "Random jitter percentage (0-100%) added to retry backoff to avoid thundering herd (default 20%)."
+
+msgid "Custom"
+msgstr "Custom"

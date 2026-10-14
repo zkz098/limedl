@@ -1,7 +1,17 @@
 //! Chunked (parallel) download path, tail sprint and worker supervision.
 
-use super::worker::{ChunkWorkerCtx, all_chunks_completed, claim_or_steal_chunk, current_allocation, download_chunk, shutdown_chunk_workers};
-use super::{Arc, CancellationToken, ChunkWorkerOutcome, Client, DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, Duration, HttpExecutor, Instant, JoinSet, ManagedDownload, Path, PathBuf, Result, RunOutcome, TAIL_SPRINT_MIN_SPLIT_SIZE, TAIL_SPRINT_STALL_WINDOW_SECS, ThreadMode, build_write_buffer, cancellation_outcome, check_disk_space_periodically, finish_buffer_flush, flush_write_buffer, identity_encoding, now_ms, open_download_file, persist_manifest_snapshot, sleep, wait_or_stop};
+use super::worker::{
+    ChunkWorkerCtx, all_chunks_completed, claim_or_steal_chunk_with_min_size, current_allocation,
+    download_chunk, shutdown_chunk_workers,
+};
+use super::{
+    Arc, CancellationToken, ChunkWorkerOutcome, Client, DiskType, DownloadBuffer, DownloadError,
+    DownloadManager, DownloadState, Duration, HttpExecutor, Instant, JoinSet, ManagedDownload,
+    Path, PathBuf, Result, RunOutcome, TAIL_SPRINT_MIN_SPLIT_SIZE, TAIL_SPRINT_STALL_WINDOW_SECS,
+    ThreadMode, WORK_STEAL_MIN_SPLIT_SIZE, build_write_buffer, cancellation_outcome,
+    check_disk_space_periodically, finish_buffer_flush, flush_write_buffer, identity_encoding,
+    now_ms, open_download_file, persist_manifest_snapshot, sleep, wait_or_stop,
+};
 
 impl HttpExecutor {
     pub(super) async fn download_chunked(
@@ -16,6 +26,23 @@ impl HttpExecutor {
             open_chunked_target(&dm, &managed, &client).await?;
         let write_buffer = Some(write_buffer);
 
+        let settings = dm.settings_service.get().await;
+        let (work_steal_min_split, tail_sprint_stall_limit, tail_sprint_min_split) =
+            if settings.scheduler.expert_mode {
+                let exp = &settings.scheduler.expert;
+                (
+                    exp.work_steal_min_split_size_mb * 1024 * 1024,
+                    Duration::from_secs(exp.tail_sprint_stall_window_secs),
+                    exp.tail_sprint_min_split_size_mb * 1024 * 1024,
+                )
+            } else {
+                (
+                    WORK_STEAL_MIN_SPLIT_SIZE,
+                    Duration::from_secs(TAIL_SPRINT_STALL_WINDOW_SECS),
+                    TAIL_SPRINT_MIN_SPLIT_SIZE,
+                )
+            };
+
         let pool = WorkerPool {
             dm: &dm,
             managed: &managed,
@@ -25,6 +52,7 @@ impl HttpExecutor {
             write_buffer: &write_buffer,
             disk_type,
             max_retries,
+            work_steal_min_split,
         };
 
         let mut workers = JoinSet::new();
@@ -73,7 +101,14 @@ impl HttpExecutor {
             // ── Tail Sprint ──────────────────────────────────────
             // Stage 1: Fresh-connection retry for stalled tail chunks.
             // Stage 2: Split the last unclaimed chunk into two sub-chunks.
-            if tail_sprint_enabled && tail_sprint_step(&managed, &chunk_claim_times) {
+            if tail_sprint_enabled
+                && tail_sprint_step(
+                    &managed,
+                    &chunk_claim_times,
+                    tail_sprint_stall_limit,
+                    tail_sprint_min_split,
+                )
+            {
                 continue;
             }
 
@@ -193,6 +228,7 @@ struct WorkerPool<'a> {
     write_buffer: &'a Option<Arc<DownloadBuffer>>,
     disk_type: DiskType,
     max_retries: u32,
+    work_steal_min_split: u64,
 }
 
 /// Spawn workers until `target_workers` or no claimable chunk is left.
@@ -207,7 +243,12 @@ fn grow_worker_pool(
         let worker_id = *next_worker_id;
         let chunk = {
             let mut core = pool.managed.lock_core();
-            claim_or_steal_chunk(&mut core.manifest, worker_id, target_workers)
+            claim_or_steal_chunk_with_min_size(
+                &mut core.manifest,
+                worker_id,
+                target_workers,
+                pool.work_steal_min_split,
+            )
         };
         let Some(chunk) = chunk else {
             break;
@@ -290,9 +331,9 @@ fn tail_state(managed: &Arc<ManagedDownload>) -> TailState {
 fn release_stalled_tail_chunks(
     managed: &Arc<ManagedDownload>,
     chunk_claim_times: &std::collections::HashMap<usize, std::time::Instant>,
+    stall_limit: std::time::Duration,
 ) -> bool {
     let now = std::time::Instant::now();
-    let stall_limit = std::time::Duration::from_secs(TAIL_SPRINT_STALL_WINDOW_SECS);
     let stalled: Vec<usize> = chunk_claim_times
         .iter()
         .filter(|(_, t)| now.duration_since(**t) > stall_limit)
@@ -320,7 +361,7 @@ fn release_stalled_tail_chunks(
 }
 
 /// Stage 2: split the last unclaimed chunk into two sub-chunks.
-fn split_tail_chunk(managed: &Arc<ManagedDownload>, last_idx: usize) {
+fn split_tail_chunk(managed: &Arc<ManagedDownload>, last_idx: usize, min_split_size: u64) {
     let new_chunk_idx = {
         let core = managed.lock_core();
         core.manifest.chunks.len()
@@ -335,7 +376,7 @@ fn split_tail_chunk(managed: &Arc<ManagedDownload>, last_idx: usize) {
             .saturating_sub(chunk.start)
             .saturating_add(1)
             .saturating_sub(chunk.downloaded);
-        if remaining > TAIL_SPRINT_MIN_SPLIT_SIZE {
+        if remaining > min_split_size {
             let mid = chunk.start + chunk.downloaded + remaining / 2;
             let old_end = chunk.end;
             chunk.end = mid.saturating_sub(1);
@@ -358,6 +399,8 @@ fn split_tail_chunk(managed: &Arc<ManagedDownload>, last_idx: usize) {
 fn tail_sprint_step(
     managed: &Arc<ManagedDownload>,
     chunk_claim_times: &std::collections::HashMap<usize, std::time::Instant>,
+    stall_limit: std::time::Duration,
+    min_split_size: u64,
 ) -> bool {
     let state = tail_state(managed);
 
@@ -365,14 +408,14 @@ fn tail_sprint_step(
     if state.count <= 2
         && state.all_claimed
         && !chunk_claim_times.is_empty()
-        && release_stalled_tail_chunks(managed, chunk_claim_times)
+        && release_stalled_tail_chunks(managed, chunk_claim_times, stall_limit)
     {
         return true;
     }
 
     // Stage 2: split the last unclaimed chunk into two sub-chunks
     if let Some(last_idx) = state.unclaimed_idx {
-        split_tail_chunk(managed, last_idx);
+        split_tail_chunk(managed, last_idx, min_split_size);
     }
     false
 }

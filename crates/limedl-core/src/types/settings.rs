@@ -51,12 +51,249 @@ impl Default for AutomaticSchedulerSettings {
     }
 }
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QueueSortStrategy {
+    #[default]
+    PriorityFirst,
+    ShortestJobFirst,
+    Fifo,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ChunkSizeStrategy {
     #[default]
     Adaptive,
     Fixed,
 }
+
+fn default_scheduler_tick_ms() -> u64 {
+    2000
+}
+
+fn default_max_connections_per_host() -> usize {
+    6
+}
+
+fn default_aimd_degrade_threshold() -> f64 {
+    0.16
+}
+
+fn default_aimd_increase_threshold() -> f64 {
+    0.04
+}
+
+fn default_aimd_severe_drop_threshold() -> f64 {
+    0.50
+}
+
+fn default_aimd_cooldown_secs() -> u64 {
+    3
+}
+
+fn default_aimd_samples_needed() -> u32 {
+    1
+}
+
+fn default_aimd_probe_stable_cycles() -> u32 {
+    2
+}
+
+fn default_aimd_decrease_factor() -> f64 {
+    0.50
+}
+
+fn default_aimd_step_ratio() -> f64 {
+    0.25
+}
+
+fn default_aimd_oscillation_threshold() -> u32 {
+    3
+}
+
+fn default_aimd_hysteresis_multiplier() -> u32 {
+    4
+}
+
+fn default_tail_sprint_stall_window_secs() -> u64 {
+    8
+}
+
+fn default_tail_sprint_min_split_size_mb() -> u64 {
+    1
+}
+
+fn default_work_steal_min_split_size_mb() -> u64 {
+    2
+}
+
+fn default_connect_timeout_secs() -> u64 {
+    30
+}
+
+fn default_read_timeout_secs() -> u64 {
+    30
+}
+
+fn default_pool_max_idle_per_host() -> usize {
+    20
+}
+
+fn default_tcp_keepalive_secs() -> u64 {
+    60
+}
+
+fn default_retry_backoff_base_ms() -> u64 {
+    250
+}
+
+fn default_retry_backoff_max_ms() -> u64 {
+    4000
+}
+
+fn default_retry_backoff_jitter_percent() -> u64 {
+    25
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpertSchedulerSettings {
+    // 1. Scheduler Loop & Host Limits
+    #[serde(default = "default_scheduler_tick_ms")]
+    pub scheduler_tick_ms: u64,
+    #[serde(default = "default_max_connections_per_host")]
+    pub max_connections_per_host: usize,
+
+    // 2. AIMD Dynamic Tuning
+    #[serde(default = "default_aimd_degrade_threshold")]
+    pub aimd_degrade_threshold: f64,
+    #[serde(default = "default_aimd_increase_threshold")]
+    pub aimd_increase_threshold: f64,
+    #[serde(default = "default_aimd_severe_drop_threshold")]
+    pub aimd_severe_drop_threshold: f64,
+    #[serde(default = "default_aimd_cooldown_secs")]
+    pub aimd_cooldown_secs: u64,
+    #[serde(default = "default_aimd_samples_needed")]
+    pub aimd_samples_needed: u32,
+    #[serde(default = "default_aimd_probe_stable_cycles")]
+    pub aimd_probe_stable_cycles: u32,
+    #[serde(default = "default_aimd_decrease_factor")]
+    pub aimd_decrease_factor: f64,
+    #[serde(default = "default_aimd_step_ratio")]
+    pub aimd_step_ratio: f64,
+    #[serde(default = "default_aimd_oscillation_threshold")]
+    pub aimd_oscillation_threshold: u32,
+    #[serde(default = "default_aimd_hysteresis_multiplier")]
+    pub aimd_hysteresis_multiplier: u32,
+
+    // 3. Chunking, Tail Sprint & Work Stealing
+    #[serde(default)]
+    pub custom_chunk_size_mb: u64,
+    #[serde(default = "default_tail_sprint_stall_window_secs")]
+    pub tail_sprint_stall_window_secs: u64,
+    #[serde(default = "default_tail_sprint_min_split_size_mb")]
+    pub tail_sprint_min_split_size_mb: u64,
+    #[serde(default = "default_work_steal_min_split_size_mb")]
+    pub work_steal_min_split_size_mb: u64,
+
+    // 4. Transport & Connection Pool
+    #[serde(default = "default_connect_timeout_secs")]
+    pub connect_timeout_secs: u64,
+    #[serde(default = "default_read_timeout_secs")]
+    pub read_timeout_secs: u64,
+    #[serde(default = "default_pool_max_idle_per_host")]
+    pub pool_max_idle_per_host: usize,
+    #[serde(default = "default_tcp_keepalive_secs")]
+    pub tcp_keepalive_secs: u64,
+
+    // 5. Retry Backoff
+    #[serde(default = "default_retry_backoff_base_ms")]
+    pub retry_backoff_base_ms: u64,
+    #[serde(default = "default_retry_backoff_max_ms")]
+    pub retry_backoff_max_ms: u64,
+    #[serde(default = "default_retry_backoff_jitter_percent")]
+    pub retry_backoff_jitter_percent: u64,
+
+    // 6. Queue Candidate Sorting
+    #[serde(default)]
+    pub queue_sort_strategy: QueueSortStrategy,
+}
+
+impl Default for ExpertSchedulerSettings {
+    fn default() -> Self {
+        Self {
+            scheduler_tick_ms: default_scheduler_tick_ms(),
+            max_connections_per_host: default_max_connections_per_host(),
+            aimd_degrade_threshold: default_aimd_degrade_threshold(),
+            aimd_increase_threshold: default_aimd_increase_threshold(),
+            aimd_severe_drop_threshold: default_aimd_severe_drop_threshold(),
+            aimd_cooldown_secs: default_aimd_cooldown_secs(),
+            aimd_samples_needed: default_aimd_samples_needed(),
+            aimd_probe_stable_cycles: default_aimd_probe_stable_cycles(),
+            aimd_decrease_factor: default_aimd_decrease_factor(),
+            aimd_step_ratio: default_aimd_step_ratio(),
+            aimd_oscillation_threshold: default_aimd_oscillation_threshold(),
+            aimd_hysteresis_multiplier: default_aimd_hysteresis_multiplier(),
+            custom_chunk_size_mb: 0,
+            tail_sprint_stall_window_secs: default_tail_sprint_stall_window_secs(),
+            tail_sprint_min_split_size_mb: default_tail_sprint_min_split_size_mb(),
+            work_steal_min_split_size_mb: default_work_steal_min_split_size_mb(),
+            connect_timeout_secs: default_connect_timeout_secs(),
+            read_timeout_secs: default_read_timeout_secs(),
+            pool_max_idle_per_host: default_pool_max_idle_per_host(),
+            tcp_keepalive_secs: default_tcp_keepalive_secs(),
+            retry_backoff_base_ms: default_retry_backoff_base_ms(),
+            retry_backoff_max_ms: default_retry_backoff_max_ms(),
+            retry_backoff_jitter_percent: default_retry_backoff_jitter_percent(),
+            queue_sort_strategy: QueueSortStrategy::default(),
+        }
+    }
+}
+
+impl ExpertSchedulerSettings {
+    pub fn preset_lan_ultra() -> Self {
+        Self {
+            scheduler_tick_ms: 500,
+            max_connections_per_host: 32,
+            aimd_step_ratio: 0.5,
+            aimd_cooldown_secs: 1,
+            custom_chunk_size_mb: 64,
+            connect_timeout_secs: 10,
+            read_timeout_secs: 60,
+            pool_max_idle_per_host: 50,
+            ..Default::default()
+        }
+    }
+
+    pub fn preset_stealth() -> Self {
+        Self {
+            scheduler_tick_ms: 3000,
+            max_connections_per_host: 2,
+            aimd_degrade_threshold: 0.12,
+            aimd_cooldown_secs: 5,
+            connect_timeout_secs: 15,
+            read_timeout_secs: 30,
+            pool_max_idle_per_host: 4,
+            retry_backoff_base_ms: 1000,
+            retry_backoff_max_ms: 15000,
+            ..Default::default()
+        }
+    }
+
+    pub fn preset_lossy_network() -> Self {
+        Self {
+            aimd_degrade_threshold: 0.30,
+            aimd_decrease_factor: 0.75,
+            aimd_samples_needed: 3,
+            aimd_severe_drop_threshold: 0.30,
+            aimd_cooldown_secs: 4,
+            tail_sprint_stall_window_secs: 15,
+            retry_backoff_jitter_percent: 40,
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchedulerSettings {
@@ -69,6 +306,10 @@ pub struct SchedulerSettings {
     pub tail_sprint_enabled: bool,
     #[serde(default = "default_warmup")]
     pub connection_warmup_enabled: bool,
+    #[serde(default)]
+    pub expert_mode: bool,
+    #[serde(default)]
+    pub expert: ExpertSchedulerSettings,
 }
 
 fn default_warmup() -> bool {
@@ -84,6 +325,8 @@ impl Default for SchedulerSettings {
             chunk_size_strategy: ChunkSizeStrategy::default(),
             tail_sprint_enabled: false,
             connection_warmup_enabled: true,
+            expert_mode: false,
+            expert: ExpertSchedulerSettings::default(),
         }
     }
 }

@@ -1880,3 +1880,204 @@ msgstr "GitHub 仓库:"
 
 msgid "Open"
 msgstr "打开"
+
+msgid "Expert Scheduling Mode"
+msgstr "专家调度模式"
+
+msgid "Fine-tune internal scheduler loop, AIMD dynamic control, chunking, and network transport"
+msgstr "精细调优调度器主循环、AIMD 动态调速、分块策略以及底层网络传输参数"
+
+msgid "Expert Configuration Preset:"
+msgstr "专家配置预设:"
+
+msgid "LAN Ultra (High throughput)"
+msgstr "局域网极速 (高吞吐)"
+
+msgid "Stealth (Low profile)"
+msgstr "隐身模式 (低频防风控)"
+
+msgid "Lossy Network (Aggressive retry)"
+msgstr "弱网对抗 (高频激进重试)"
+
+msgid "Pick a preset or customize individual parameters below"
+msgstr "选择快捷预设，或在下方自定义调整各项参数"
+
+msgid "Host Concurrency & Queue Strategy"
+msgstr "域名并发与队列策略"
+
+msgid "Scheduler Tick Duration:"
+msgstr "调度器心跳周期:"
+
+msgid "Internal scheduler loop period in ms (default 100ms). Lower values react faster to network changes but use slightly more CPU."
+msgstr "调度器内部主循环周期（默认 100ms）。数值越小对网络波动的响应越迅速，但会轻微增加 CPU 占用。"
+
+msgid "Max Connections per Host:"
+msgstr "单域名最大连接数:"
+
+msgid "Concurrency ceiling for a single server domain/host across all tasks (default 16). Prevents triggering server anti-crawling defenses."
+msgstr "所有任务对单个服务器域名/主机的最大总并发上限（默认 16）。防止并发过高触发服务器防爬或限流封禁。"
+
+msgid "Queue Candidate Sort Strategy:"
+msgstr "队列候选任务排序策略:"
+
+msgid "Controls which queued task is selected next when threads become available: Priority First (default), Shortest Job First (finishes small downloads quickly), or FIFO (strict queue order)."
+msgstr "当出现空闲线程时，决定下一个获得调度的排队任务：优先级优先（默认）、短任务优先（小文件快速完工释放队列）或先进先出 FIFO（严格按创建顺序）。"
+
+msgid "Priority First"
+msgstr "优先级优先"
+
+msgid "Shortest Job First"
+msgstr "短任务优先 (SJF)"
+
+msgid "FIFO (First In First Out)"
+msgstr "先进先出 (FIFO)"
+
+msgid "AIMD Dynamic Bandwidth & Thread Control"
+msgstr "AIMD 动态调速与增减容控制"
+
+msgid "Degrade Threshold:"
+msgstr "吞吐回落阈值:"
+
+msgid "Speed drop ratio (0.50-0.99) that triggers thread reduction (default 0.90 = 10% drop from baseline)."
+msgstr "触发线程缩容的速度回落比例（默认 0.90，即跌破基准速度的 90% 或下跌超过 10% 时减容）。"
+
+msgid "Increase Threshold:"
+msgstr "增容探测阈值:"
+
+msgid "Speed ratio relative to baseline (0.70-1.00) required to attempt adding a thread (default 0.95)."
+msgstr "尝试探测试探性增容所需的吞吐量比率（默认 0.95，即当前速度达到基准的 95% 时允许加线程）。"
+
+msgid "Severe Drop Threshold:"
+msgstr "剧烈下跌阈值:"
+
+msgid "Critical speed crash ratio (0.10-0.80) that triggers emergency backoff to minimum threads (default 0.60)."
+msgstr "触发紧急避险减容的暴跌阈值（默认 0.60，即速度跌破 60% 时立即回退到最低基础线程）。"
+
+msgid "AIMD Cooldown Window:"
+msgstr "AIMD 冷却时长:"
+
+msgid "Minimum seconds to wait between thread allocation adjustments (default 3s)."
+msgstr "两次线程调配决策之间的强制冷静期（默认 3 秒），防止网络波动引起剧烈振荡。"
+
+msgid "Stable Samples Needed:"
+msgstr "所需稳定样本数:"
+
+msgid "Number of consecutive steady speed samples required before making an AIMD decision (default 2)."
+msgstr "触发 AIMD 决策所需的连续稳定采样周期数（默认 2 个采样点）。"
+
+msgid "samples"
+msgstr "个样本"
+
+msgid "Probe Stable Cycles:"
+msgstr "增容探测稳定周期:"
+
+msgid "Number of consecutive stable cycles required before probing for thread expansion (default 4)."
+msgstr "在平稳运行状态下，主动发起探索性加线程探测所需的连续稳定周期数（默认 4 个周期）。"
+
+msgid "cycles"
+msgstr "个周期"
+
+msgid "Decrease Factor:"
+msgstr "乘法减速乘数:"
+
+msgid "Multiplicative decrease multiplier (0.10-0.95) applied to thread count when congestion is detected (default 0.75)."
+msgstr "检测到网络拥塞时线程数乘法减小的衰减系数（默认 0.75，即缩容保留当前线程的 75%）。"
+
+msgid "Additive Step Ratio:"
+msgstr "加法探测步长比率:"
+
+msgid "Fraction of headroom to add during linear increase (default 0.25)."
+msgstr "线性增容探测时单次增加线程占剩余可用空间的比例（默认 0.25）。"
+
+msgid "Oscillation Threshold:"
+msgstr "振荡抑制阈值:"
+
+msgid "Maximum frequency of direction reversals within history window before damping AIMD adjustments (default 3)."
+msgstr "历史滑动窗口内允许的线程增减频繁反转次数（默认 3 次），超限时启动迟滞衰减锁定。"
+
+msgid "reversals"
+msgstr "次反转"
+
+msgid "Hysteresis Multiplier:"
+msgstr "迟滞倍数:"
+
+msgid "Damping multiplier for cooldown when oscillation is detected (default 2)."
+msgstr "检测到频繁振荡时冷静时间的延长倍数（默认 2 倍）。"
+
+msgid "Chunking, Tail Sprint & Work Stealing"
+msgstr "分块、尾部冲刺与工作窃取"
+
+msgid "Custom Chunk Size:"
+msgstr "自定义分块大小:"
+
+msgid "Override download chunk size in MB (0 = automatic adaptive chunk sizing based on content length)."
+msgstr "强制指定 HTTP 下载分块大小（MB，设为 0 表示根据文件总大小自动动态自适应计算）。"
+
+msgid "Tail Sprint Stall Window:"
+msgstr "尾部冲刺停滞判定窗口:"
+
+msgid "Seconds of stalled progress on the last remaining chunk before splitting it across idle workers (default 4s)."
+msgstr "下载尾部最后分块传输停滞超时门限（默认 4 秒），超时后自动切分派发给空闲线程。"
+
+msgid "Tail Sprint Min Split Size:"
+msgstr "尾部冲刺最小切分大小:"
+
+msgid "Minimum chunk size in MB eligible for tail sprint sub-division (default 4MB). Smaller chunks are not split to avoid HTTP overhead."
+msgstr "允许进行尾部冲刺细分的最小分块大小（默认 4MB，过小的分块不切分以避免 HTTP 连接握手损耗）。"
+
+msgid "Work Stealing Min Split Size:"
+msgstr "工作窃取最小切分大小:"
+
+msgid "Minimum remaining bytes in MB required for an idle worker to steal half of another worker's chunk (default 4MB)."
+msgstr "空闲工作线程窃取正在运行分块一半进度时，被窃取分块所需的最小剩余大小（默认 4MB）。"
+
+msgid "Network Transport & Retry Backoff"
+msgstr "网络传输与重试退避"
+
+msgid "Connect Timeout:"
+msgstr "连接超时:"
+
+msgid "TCP / TLS handshake timeout in seconds (default 10s)."
+msgstr "TCP 握手与 TLS 证书协商建连超时时长（默认 10 秒）。"
+
+msgid "Read Timeout:"
+msgstr "读取超时:"
+
+msgid "Socket read idle timeout in seconds before aborting stalled connection (default 30s)."
+msgstr "Socket 数据读取空闲等待超时时长（默认 30 秒，超期自动中断并重试）。"
+
+msgid "Pool Max Idle per Host:"
+msgstr "连接池每域名空闲上限:"
+
+msgid "Maximum pooled idle persistent connections kept open per host (default 16)."
+msgstr "HTTP 连接池针对单一域名长期保活的最大空闲连接数（默认 16）。"
+
+msgid "conns"
+msgstr "连接"
+
+msgid "TCP Keepalive Interval:"
+msgstr "TCP Keepalive 保活时长:"
+
+msgid "TCP keepalive probe interval in seconds (default 60s)."
+msgstr "TCP Keepalive 心跳探测数据包发送间隔（默认 60 秒）。"
+
+msgid "Retry Backoff Base:"
+msgstr "初始退避基数:"
+
+msgid "Initial delay for exponential backoff on transient connection failures in ms (default 1000ms)."
+msgstr "遇到偶发网络故障或重试时指数退避的初始等待延迟（默认 1000ms）。"
+
+msgid "Retry Backoff Max:"
+msgstr "重试退避上限:"
+
+msgid "Maximum cap for exponential backoff delay in ms (default 16000ms)."
+msgstr "指数退避重试等待时长的封顶上限（默认 16000ms）。"
+
+msgid "Retry Jitter Percent:"
+msgstr "重试退避抖动比例:"
+
+msgid "Random jitter percentage (0-100%) added to retry backoff to avoid thundering herd (default 20%)."
+msgstr "为避免集群惊群效应而在退避延迟中加入的随机扰动浮动比例（默认 20%）。"
+
+msgid "Custom"
+msgstr "自定义"

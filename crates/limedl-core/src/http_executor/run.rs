@@ -146,8 +146,11 @@ impl HttpExecutor {
         }
 
         let settings = dm.settings_service.get().await;
-        let chunk_size =
-            resolve_chunk_size(settings.scheduler.chunk_size_strategy, metadata.total_bytes);
+        let chunk_size = if settings.scheduler.expert_mode && settings.scheduler.expert.custom_chunk_size_mb > 0 {
+            settings.scheduler.expert.custom_chunk_size_mb * 1024 * 1024
+        } else {
+            resolve_chunk_size(settings.scheduler.chunk_size_strategy, metadata.total_bytes)
+        };
         let supports_parallel =
             supports_parallelism(metadata.total_bytes, metadata.supports_ranges, chunk_size);
         let request = StartDownloadRequest {

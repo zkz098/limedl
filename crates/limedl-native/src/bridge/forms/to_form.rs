@@ -1,4 +1,4 @@
-use limedl_core::types::AppSettings;
+use limedl_core::types::{AppSettings, ExpertSchedulerSettings};
 use slint::SharedString;
 
 use crate::SettingsFormData;
@@ -6,7 +6,7 @@ use crate::bridge::models::column_is_visible;
 use crate::i18n::{self, Language};
 
 use super::combo;
-use super::enums::{adaptive_profile_to_str, anti_leech_action_to_str, aria2_auth_mode_to_str, background_opacity_to_str, checksum_to_str, choking_to_str, chunk_strategy_to_str, close_behavior_to_str, color_mode_to_str, double_click_completed_to_str, double_click_uncompleted_to_str, encryption_to_str, log_level_to_str, preallocate_to_str, proxy_mode_to_str, scheduler_mode_to_str, seed_choking_to_str, theme_color_to_str};
+use super::enums::{adaptive_profile_to_str, anti_leech_action_to_str, aria2_auth_mode_to_str, background_opacity_to_str, checksum_to_str, choking_to_str, chunk_strategy_to_str, close_behavior_to_str, color_mode_to_str, double_click_completed_to_str, double_click_uncompleted_to_str, encryption_to_str, log_level_to_str, preallocate_to_str, proxy_mode_to_str, queue_sort_strategy_to_str, scheduler_mode_to_str, seed_choking_to_str, theme_color_to_str};
 
 /// Convert `AppSettings` and runtime modes to `SettingsFormData`.
 pub fn app_settings_to_form(
@@ -149,6 +149,43 @@ pub fn app_settings_to_form(
         ),
         scheduler_tail_sprint: settings.scheduler.tail_sprint_enabled,
         scheduler_connection_warmup: settings.scheduler.connection_warmup_enabled,
+        scheduler_expert_mode: settings.scheduler.expert_mode,
+        scheduler_expert_preset_idx: if settings.scheduler.expert == ExpertSchedulerSettings::preset_lan_ultra() {
+            combo::idx_of(combo::EXPERT_PRESETS, "lan_ultra")
+        } else if settings.scheduler.expert == ExpertSchedulerSettings::preset_stealth() {
+            combo::idx_of(combo::EXPERT_PRESETS, "stealth")
+        } else if settings.scheduler.expert == ExpertSchedulerSettings::preset_lossy_network() {
+            combo::idx_of(combo::EXPERT_PRESETS, "lossy_network")
+        } else {
+            combo::idx_of(combo::EXPERT_PRESETS, "custom")
+        },
+        scheduler_tick_ms: SharedString::from(settings.scheduler.expert.scheduler_tick_ms.to_string()),
+        scheduler_max_connections_per_host: SharedString::from(settings.scheduler.expert.max_connections_per_host.to_string()),
+        scheduler_queue_sort_strategy_idx: combo::idx_of(
+            combo::QUEUE_SORT_STRATEGIES,
+            &queue_sort_strategy_to_str(settings.scheduler.expert.queue_sort_strategy),
+        ),
+        scheduler_aimd_degrade_threshold: SharedString::from(format!("{:.2}", settings.scheduler.expert.aimd_degrade_threshold)),
+        scheduler_aimd_increase_threshold: SharedString::from(format!("{:.2}", settings.scheduler.expert.aimd_increase_threshold)),
+        scheduler_aimd_severe_drop_threshold: SharedString::from(format!("{:.2}", settings.scheduler.expert.aimd_severe_drop_threshold)),
+        scheduler_aimd_cooldown_secs: SharedString::from(settings.scheduler.expert.aimd_cooldown_secs.to_string()),
+        scheduler_aimd_samples_needed: SharedString::from(settings.scheduler.expert.aimd_samples_needed.to_string()),
+        scheduler_aimd_probe_stable_cycles: SharedString::from(settings.scheduler.expert.aimd_probe_stable_cycles.to_string()),
+        scheduler_aimd_decrease_factor: SharedString::from(format!("{:.2}", settings.scheduler.expert.aimd_decrease_factor)),
+        scheduler_aimd_step_ratio: SharedString::from(format!("{:.2}", settings.scheduler.expert.aimd_step_ratio)),
+        scheduler_aimd_oscillation_threshold: SharedString::from(settings.scheduler.expert.aimd_oscillation_threshold.to_string()),
+        scheduler_aimd_hysteresis_multiplier: SharedString::from(settings.scheduler.expert.aimd_hysteresis_multiplier.to_string()),
+        scheduler_custom_chunk_size_mb: SharedString::from(settings.scheduler.expert.custom_chunk_size_mb.to_string()),
+        scheduler_tail_sprint_stall_window_secs: SharedString::from(settings.scheduler.expert.tail_sprint_stall_window_secs.to_string()),
+        scheduler_tail_sprint_min_split_size_mb: SharedString::from(settings.scheduler.expert.tail_sprint_min_split_size_mb.to_string()),
+        scheduler_work_steal_min_split_size_mb: SharedString::from(settings.scheduler.expert.work_steal_min_split_size_mb.to_string()),
+        scheduler_connect_timeout_secs: SharedString::from(settings.scheduler.expert.connect_timeout_secs.to_string()),
+        scheduler_read_timeout_secs: SharedString::from(settings.scheduler.expert.read_timeout_secs.to_string()),
+        scheduler_pool_max_idle_per_host: SharedString::from(settings.scheduler.expert.pool_max_idle_per_host.to_string()),
+        scheduler_tcp_keepalive_secs: SharedString::from(settings.scheduler.expert.tcp_keepalive_secs.to_string()),
+        scheduler_retry_backoff_base_ms: SharedString::from(settings.scheduler.expert.retry_backoff_base_ms.to_string()),
+        scheduler_retry_backoff_max_ms: SharedString::from(settings.scheduler.expert.retry_backoff_max_ms.to_string()),
+        scheduler_retry_backoff_jitter_percent: SharedString::from(settings.scheduler.expert.retry_backoff_jitter_percent.to_string()),
         // BT 基础 + 进阶
         bt_lightweight_mode: settings.bt.lightweight_mode,
         dht_enabled: settings.bt.dht_enabled,

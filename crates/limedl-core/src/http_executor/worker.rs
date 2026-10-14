@@ -8,11 +8,13 @@ use super::{
     Arc, BatchLimiter, CancellationToken, ChunkManifest, ChunkWorkerOutcome, Client, Database,
     DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, JoinSet,
     ManagedDownload, ProgressThrottle, RateLimiter, RequestBudget, Result, StatusCode,
-    WORK_STEAL_MIN_SPLIT_SIZE, build_segment_request, cancellation_chunk_outcome, if_range_header,
+    build_segment_request, cancellation_chunk_outcome, if_range_header,
     is_too_many_requests_error, jittered_backoff_delay, now_ms, record_durable_bytes,
     record_progress_on_managed, register_retry_penalty, request_with_retry, sleep,
     validate_segment_response, write_all_at,
 };
+#[cfg(test)]
+use super::WORK_STEAL_MIN_SPLIT_SIZE;
 
 // ── Free helper functions ─────────────────────────────────────────────────────
 
@@ -61,9 +63,10 @@ pub(super) fn claim_next_chunk(
 }
 
 /// Dynamically steal work from the active chunk with the largest remaining un-downloaded range.
-pub(super) fn steal_chunk(
+pub(super) fn steal_chunk_with_min_size(
     manifest: &mut crate::manifest::Manifest,
     worker_id: usize,
+    min_split_size: u64,
 ) -> Option<ChunkManifest> {
     let mut best_chunk_idx: Option<usize> = None;
     let mut max_remaining: u64 = 0;
@@ -73,7 +76,7 @@ pub(super) fn steal_chunk(
             let current_pos = chunk.start.saturating_add(chunk.downloaded);
             if chunk.end > current_pos {
                 let remaining = chunk.end - current_pos;
-                if remaining >= WORK_STEAL_MIN_SPLIT_SIZE && remaining > max_remaining {
+                if remaining >= min_split_size && remaining > max_remaining {
                     max_remaining = remaining;
                     best_chunk_idx = Some(idx);
                 }
@@ -86,7 +89,7 @@ pub(super) fn steal_chunk(
     let current_pos = target_chunk.start.saturating_add(target_chunk.downloaded);
     let original_end = target_chunk.end;
     let remaining = original_end.saturating_sub(current_pos);
-    if remaining < WORK_STEAL_MIN_SPLIT_SIZE {
+    if remaining < min_split_size {
         return None;
     }
     let half = remaining / 2;
@@ -118,16 +121,36 @@ pub(super) fn steal_chunk(
     Some(stolen_chunk)
 }
 
+/// Dynamically steal work from the active chunk using the default minimum split size.
+#[cfg(test)]
+pub(super) fn steal_chunk(
+    manifest: &mut crate::manifest::Manifest,
+    worker_id: usize,
+) -> Option<ChunkManifest> {
+    steal_chunk_with_min_size(manifest, worker_id, WORK_STEAL_MIN_SPLIT_SIZE)
+}
+
 /// Attempt to claim an unclaimed chunk, or dynamically steal work from an active chunk.
+pub(super) fn claim_or_steal_chunk_with_min_size(
+    manifest: &mut crate::manifest::Manifest,
+    worker_id: usize,
+    total_workers: usize,
+    min_split_size: u64,
+) -> Option<ChunkManifest> {
+    if let Some(chunk) = claim_next_chunk(manifest, worker_id, total_workers) {
+        return Some(chunk);
+    }
+    steal_chunk_with_min_size(manifest, worker_id, min_split_size)
+}
+
+/// Attempt to claim an unclaimed chunk, or dynamically steal work from an active chunk using the default split size.
+#[cfg(test)]
 pub(super) fn claim_or_steal_chunk(
     manifest: &mut crate::manifest::Manifest,
     worker_id: usize,
     total_workers: usize,
 ) -> Option<ChunkManifest> {
-    if let Some(chunk) = claim_next_chunk(manifest, worker_id, total_workers) {
-        return Some(chunk);
-    }
-    steal_chunk(manifest, worker_id)
+    claim_or_steal_chunk_with_min_size(manifest, worker_id, total_workers, WORK_STEAL_MIN_SPLIT_SIZE)
 }
 
 pub(crate) fn mark_chunk_released(

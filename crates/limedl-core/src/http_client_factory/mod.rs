@@ -38,16 +38,33 @@ pub fn configure_client_builder(
     mut builder: ClientBuilder,
     settings: &AppSettings,
 ) -> Result<ClientBuilder> {
+    let (connect_timeout, read_timeout, pool_max_idle, keepalive) = if settings.scheduler.expert_mode {
+        let exp = &settings.scheduler.expert;
+        (
+            Duration::from_secs(exp.connect_timeout_secs),
+            Duration::from_secs(exp.read_timeout_secs),
+            exp.pool_max_idle_per_host,
+            Some(Duration::from_secs(exp.tcp_keepalive_secs)),
+        )
+    } else {
+        (
+            Duration::from_secs(30),
+            Duration::from_secs(30),
+            20,
+            Some(Duration::from_secs(60)),
+        )
+    };
+
     let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
     builder = builder
         .redirect(Policy::limited(10))
         .tcp_nodelay(true)
-        .read_timeout(Duration::from_secs(30))
+        .read_timeout(read_timeout)
         .user_agent(default_user_agent)
-        .connect_timeout(Duration::from_secs(30))
-        .pool_max_idle_per_host(20)
+        .connect_timeout(connect_timeout)
+        .pool_max_idle_per_host(pool_max_idle)
         .pool_idle_timeout(Duration::from_secs(120))
-        .tcp_keepalive(Some(Duration::from_secs(60)));
+        .tcp_keepalive(keepalive);
 
     match settings.proxy.mode {
         ProxyMode::Disabled => {
