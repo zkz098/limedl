@@ -271,6 +271,11 @@ pub fn register(ctx: &AppContext) {
         let _ = open_url_in_browser("https://hyperos.mi.com/font/zh/download");
     });
 
+    // Open the project GitHub repository page (About tab link/button)
+    ui.on_open_github_repo(move || {
+        let _ = open_url_in_browser("https://github.com/zkz098/limedl");
+    });
+
     // Restart Setup Wizard from Settings
     {
         let ui_weak = ui_weak.clone();

@@ -1928,3 +1928,8 @@ msgstr "Checksum (Optional):"
 msgid "SHA-256, SHA-512, or BLAKE3 hash"
 msgstr "SHA-256, SHA-512, or BLAKE3 hash"
 
+msgid "GitHub Repository:"
+msgstr "GitHub Repository:"
+
+msgid "Open"
+msgstr "Open"

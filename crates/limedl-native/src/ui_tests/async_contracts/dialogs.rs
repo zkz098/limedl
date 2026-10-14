@@ -435,10 +435,11 @@ async fn scroll_danger_zone_into_view(ui: &TestUi) {
     let (modal_x, modal_y, modal_width, modal_height) = ui.bounds("SettingsDialog::modal");
     let position =
         slint::LogicalPosition::new(modal_x + modal_width / 2.0, modal_y + modal_height / 2.0);
-    for _ in 0..8 {
+    for _ in 0..16 {
         if ui.has("SettingsTabAbout::reset_arm_btn") {
             let (_, button_y, _, button_height) = ui.bounds("SettingsTabAbout::reset_arm_btn");
-            if button_y >= modal_y && button_y + button_height <= modal_y + modal_height {
+            if button_y >= modal_y && button_y + button_height <= modal_y + modal_height - 70.0 {
+                ui.pump(10).await;
                 return;
             }
         }

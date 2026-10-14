@@ -1875,3 +1875,8 @@ msgstr "校验和 (可选):"
 msgid "SHA-256, SHA-512, or BLAKE3 hash"
 msgstr "SHA-256、SHA-512 或 BLAKE3 哈希值"
 
+msgid "GitHub Repository:"
+msgstr "GitHub 仓库:"
+
+msgid "Open"
+msgstr "打开"

@@ -182,3 +182,38 @@ fn the_update_row_follows_the_phase_and_the_install_kind() {
         assert!(!ui.has("SettingsTabAbout::update_error_text"));
     });
 }
+
+#[test]
+fn the_about_tab_shows_github_repo_link_and_open_button() {
+    with_language(Language::EnUs, |ui| {
+        ui.set_window_size(1100.0, 1600.0);
+        ui.click("MainWindow::ta_set");
+        ui.window.invoke_set_settings_tab(8);
+        assert!(
+            ui.has("SettingsTabAbout::github_open_btn"),
+            "GitHub open button must be present in About tab"
+        );
+        assert_eq!(text(ui, "SettingsTabAbout::github_open_btn"), "Open");
+        assert!(
+            ui.has("SettingsTabAbout::github_repo_link"),
+            "GitHub repository link must be present in About tab"
+        );
+        assert_eq!(
+            text(ui, "SettingsTabAbout::github_repo_link"),
+            "https://github.com/zkz098/limedl"
+        );
+    });
+
+    with_language(Language::ZhCn, |ui| {
+        ui.set_window_size(1100.0, 1600.0);
+        ui.click("MainWindow::ta_set");
+        ui.window.invoke_set_settings_tab(8);
+        assert!(ui.has("SettingsTabAbout::github_open_btn"));
+        assert_eq!(text(ui, "SettingsTabAbout::github_open_btn"), "打开");
+        assert_eq!(
+            text(ui, "SettingsTabAbout::github_repo_link"),
+            "https://github.com/zkz098/limedl"
+        );
+    });
+}
+

@@ -18,6 +18,7 @@ export component SettingsTabAbout inherits ScrollView {
     callback restart_setup();
     callback factory_reset();
     callback open_font_license();
+    callback open_github_repo();
 
     pure function update_status_text() -> string {
         root.update_state.phase == "checking" ? @tr("Checking for updates...")
@@ -99,6 +100,36 @@ export component SettingsTabAbout inherits ScrollView {
                 HorizontalLayout {
                     Text { width: 140px; text: @tr("License:"); color: #6b7280; font-size: 12px; }
                     Text { text: "GPL-3.0-or-later"; color: Theme.c9ca3af; font-size: 12px; font-family: "Consolas"; }
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    Text {
+                        width: 140px;
+                        text: @tr("GitHub Repository:");
+                        color: Theme.c6b7280;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        alignment: start;
+                        github_repo_link := Text {
+                            text: "https://github.com/zkz098/limedl";
+                            color: github_ta.has_hover ? Theme.c60a5fa : Theme.c38bdf8;
+                            font-size: 12px;
+                            font-family: "Consolas";
+                            vertical-alignment: center;
+                            github_ta := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.open_github_repo(); }
+                            }
+                        }
+                        github_open_btn := SecondaryButton {
+                            text: @tr("Open");
+                            icon: @image-url("../../assets/icons/links-line.svg");
+                            clicked => { root.open_github_repo(); }
+                        }
+                    }
                 }
 
                 Rectangle { height: 1px; background: Theme.c1f242e; }

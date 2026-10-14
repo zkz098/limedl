@@ -383,6 +383,7 @@ export component MainWindow inherits Window {
     callback pick_log_folder();
     callback open_log_folder();
     callback open_font_license();
+    callback open_github_repo();
     callback copy_task_url(string);
     callback copy_task_name(string);
     callback purge_single_task(string);
@@ -1346,6 +1347,7 @@ export component MainWindow inherits Window {
         pick_log_folder => { root.pick_log_folder(); }
         open_log_folder => { root.open_log_folder(); }
         open_font_license => { root.open_font_license(); }
+        open_github_repo => { root.open_github_repo(); }
         check_updates => { root.check_for_updates(); }
         start_download => { root.start_update_download(); }
         restart_now => { root.restart_after_update(); }
