@@ -416,6 +416,8 @@ export component CustomTextInput inherits Rectangle {
     border-width: 1px;
     border-radius: 6px;
     height: 36px;
+    horizontal-stretch: 1;
+    min-width: 0px;
 
     HorizontalLayout {
         padding-left: 12px;
@@ -423,6 +425,9 @@ export component CustomTextInput inherits Rectangle {
 
         VerticalLayout {
             alignment: center;
+            horizontal-stretch: 1;
+            min-width: 0px;
+
             Rectangle {
                 clip: true;
                 height: 100%;

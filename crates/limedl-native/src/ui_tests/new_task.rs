@@ -195,3 +195,64 @@ fn an_aria2c_command_fills_the_visible_fields_and_a_plain_url_clears_them() {
         assert!(ui.window.get_new_task_aria2_hint().is_empty());
     });
 }
+
+/// An ultra-long URL or aria2c command line must not cause the dialog or
+/// its inputs to expand horizontally or produce a horizontal scrollbar.
+/// Buttons like "Detect Checksum" and "Browse..." must remain visible and
+/// properly positioned inside the modal.
+#[test]
+fn test_long_url_does_not_break_dialog_layout() {
+    with_ui(|ui| {
+        ui.click("MainWindow::ta-new-task");
+        let long_url = format!("https://example.com/{}", "a".repeat(500));
+        ui.window.set_new_task_url(long_url.into());
+
+        ui.assert_inside_window("NewTaskDialog::modal");
+        ui.assert_inside_window("NewTaskDialog::nt-url-input");
+        ui.assert_inside_window("NewTaskDialog::nt-probe-btn");
+        ui.assert_inside_window("NewTaskDialog::submit-btn");
+
+        let (modal_x, _, modal_w, _) = ui.bounds("NewTaskDialog::modal");
+        let (url_x, _, url_w, _) = ui.bounds("NewTaskDialog::nt-url-input");
+        let (probe_x, _, probe_w, _) = ui.bounds("NewTaskDialog::nt-probe-btn");
+
+        assert!(
+            url_x >= modal_x && url_x + url_w <= modal_x + modal_w,
+            "url input must stay inside modal: url_x={url_x}, url_w={url_w}, modal_x={modal_x}, modal_w={modal_w}"
+        );
+        assert!(
+            probe_x >= modal_x && probe_x + probe_w <= modal_x + modal_w,
+            "probe button must stay inside modal: probe_x={probe_x}, probe_w={probe_w}, modal_x={modal_x}, modal_w={modal_w}"
+        );
+        assert!(
+            !ui.has("ScrollView::horizontal-bar"),
+            "horizontal scrollbar must not appear on long url input"
+        );
+
+        // Also test a long aria2c command line with header options
+        let long_cmd = format!(
+            "aria2c \"https://example.com/{}\" --header \"Cookie: {}\"",
+            "b".repeat(400),
+            "c".repeat(400)
+        );
+        ui.window.invoke_new_task_url_changed(long_cmd.clone().into());
+        ui.window.set_new_task_url(long_cmd.into());
+
+        let (url2_x, _, url2_w, _) = ui.bounds("NewTaskDialog::nt-url-input");
+        let (probe2_x, _, probe2_w, _) = ui.bounds("NewTaskDialog::nt-probe-btn");
+        assert!(
+            url2_x >= modal_x && url2_x + url2_w <= modal_x + modal_w,
+            "long aria2c command must keep url input within modal"
+        );
+        assert!(
+            probe2_x >= modal_x && probe2_x + probe2_w <= modal_x + modal_w,
+            "probe button must stay inside modal with long aria2c command"
+        );
+        assert!(
+            !ui.has("ScrollView::horizontal-bar"),
+            "horizontal scrollbar must not appear on long aria2c command"
+        );
+    });
+}
+
+

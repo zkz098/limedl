@@ -124,6 +124,7 @@ export component NewTaskDialog inherits Rectangle {
             // outside the scroll area means it stays reachable at every window size.
             ScrollView {
                 vertical-stretch: 1;
+                content-width: self.visible-width;
 
                 VerticalLayout {
                     spacing: 12px;
