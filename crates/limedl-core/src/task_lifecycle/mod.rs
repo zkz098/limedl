@@ -30,7 +30,6 @@ use crate::{
     manager::DownloadManager,
     now_ms,
     types::{ChunkInfo, DownloadProgress, DownloadSnapshot, DownloadState, DownloadSummary},
-    slot_guard::DownloadSlotGuard,
 };
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -86,7 +85,6 @@ impl TaskLifecycle {
         dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         max_retries: u32,
-        slot: DownloadSlotGuard,
     ) -> Result<()> {
         {
             let mut runtime = managed.lock_runtime();
@@ -105,7 +103,6 @@ impl TaskLifecycle {
         dm.persist(managed.clone()).await?;
 
         tokio::spawn(async move {
-            let _guard = slot;
             let (urls_to_try, start_index): (Vec<String>, usize) = {
                 let core = managed.lock_core();
                 if core.manifest.mirror_urls.is_empty() {

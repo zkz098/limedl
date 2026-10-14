@@ -9,7 +9,7 @@
 //! `Arc<Scheduler>`).
 
 use std::{
-    sync::Arc,
+    sync::{Arc, atomic::Ordering},
     time::{Duration, Instant},
 };
 
@@ -134,6 +134,14 @@ impl Scheduler {
             SchedulerMode::Traditional => rebalance_traditional(&mut entries, &settings),
             SchedulerMode::Automatic => rebalance_automatic(&entries, &all_downloads, &settings),
         }
+
+        let downloading_count = all_downloads
+            .iter()
+            .filter(|m| m.lock_core().manifest.state == DownloadState::Downloading)
+            .count();
+        dm.concurrency
+            .active_http_count
+            .store(downloading_count, Ordering::Release);
 
         persist_rebalanced(&dm.db, &all_downloads).await;
         Ok(())

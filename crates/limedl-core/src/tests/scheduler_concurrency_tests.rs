@@ -89,3 +89,60 @@ async fn scheduler_respects_max_parallel_tasks() {
 
     core.registry.shutdown_all().await;
 }
+
+/// Submitting many links (e.g. 50 links) at once must succeed for all tasks,
+/// queuing any surplus beyond max_parallel_tasks rather than rejecting them.
+#[tokio::test(flavor = "multi_thread")]
+#[timeout(60_000)]
+async fn batch_submitting_many_links_succeeds_and_queues() {
+    let tmp = TempDir::new().unwrap();
+    let state_dir = tmp.path().join("downloads");
+    let dest_dir = tmp.path().join("output");
+    std::fs::create_dir_all(&dest_dir).unwrap();
+
+    let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
+    let dm = &core.download_manager;
+
+    // Set mode to Traditional with max_parallel_tasks=3
+    {
+        let mut settings = dm.settings().await.unwrap();
+        settings.scheduler.mode = crate::types::SchedulerMode::Traditional;
+        settings.scheduler.traditional.max_parallel_tasks = 3;
+        dm.apply_settings(settings).await.unwrap();
+    }
+
+    // Start 50 downloads concurrently
+    let mut tasks = Vec::new();
+    for i in 0..50 {
+        let dm = dm.clone();
+        let dest_dir = dest_dir.to_string_lossy().to_string();
+        tasks.push(tokio::spawn(async move {
+            let request = StartDownloadRequest {
+                url: format!("http://127.0.0.1:9/file_{i}.bin"),
+                destination_dir: dest_dir,
+                file_name: Some(format!("file_{i}.bin")),
+                ..Default::default()
+            };
+            dm.start(request).await
+        }));
+    }
+
+    let mut ids = Vec::new();
+    for task in tasks {
+        let res = task.await.unwrap();
+        assert!(res.is_ok(), "task failed to start: {:?}", res.err());
+        ids.push(res.unwrap());
+    }
+    assert_eq!(ids.len(), 50, "all 50 tasks must be accepted");
+
+    let list = dm.list().await.unwrap();
+    assert_eq!(list.len(), 50, "all 50 tasks must be present in manager");
+
+    // Clean up
+    for id in ids {
+        let _ = dm.cancel(&id.to_string()).await;
+    }
+
+    core.registry.shutdown_all().await;
+}
+

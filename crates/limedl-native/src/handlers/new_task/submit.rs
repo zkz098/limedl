@@ -361,8 +361,13 @@ fn submit_batch(
                     mirror_urls: (!entry.mirror_urls.is_empty()).then_some(entry.mirror_urls),
                     ..Default::default()
                 };
-                if dispatcher.start(request).await.is_ok() {
-                    ok_count.fetch_add(1, Ordering::Relaxed);
+                match dispatcher.start(request).await {
+                    Ok(_) => {
+                        ok_count.fetch_add(1, Ordering::Relaxed);
+                    }
+                    Err(e) => {
+                        tracing::warn!("failed to start batch task: {e:#}");
+                    }
                 }
                 let finished = done.fetch_add(1, Ordering::Relaxed) + 1;
                 if finished >= total {

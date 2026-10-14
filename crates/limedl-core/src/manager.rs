@@ -390,9 +390,6 @@ impl DownloadManager {
             return Err(DownloadError::UnsupportedScheme);
         }
 
-        // Acquire a concurrent download slot (HTTP throttle)
-        let slot = self.try_acquire_http()?;
-
         let settings = self.settings_service.get().await;
         let download_id = Uuid::new_v4();
         let user_agent = resolve_user_agent(
@@ -552,7 +549,6 @@ impl DownloadManager {
                 dm,
                 managed,
                 request.max_retries.unwrap_or(DEFAULT_RETRIES),
-                slot,
             )
             .await?;
         self.scheduler.rebalance_allocations(self).await?;
@@ -767,12 +763,9 @@ impl DownloadManager {
             }
         }
 
-        // Acquire a concurrent download slot (HTTP throttle) for resume
-        let slot = self.try_acquire_http()?;
-
         let dm = self.clone();
         self.task_lifecycle
-            .spawn_download(dm, managed.clone(), DEFAULT_RETRIES, slot)
+            .spawn_download(dm, managed.clone(), DEFAULT_RETRIES)
             .await?;
         self.scheduler.rebalance_allocations(self).await?;
         self.controls.rebalance_notify.notify_waiters();
