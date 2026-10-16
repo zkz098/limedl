@@ -14,6 +14,7 @@ use std::{
 };
 
 use foldhash::HashMap;
+use parking_lot::Mutex;
 use reqwest::Url;
 
 use crate::{
@@ -36,13 +37,55 @@ const SCHEDULER_TICK: Duration = Duration::from_secs(2);
 /// Maximum concurrent connections (threads) allowed to a single hostname.
 const MAX_CONNECTIONS_PER_HOST: usize = 6;
 
-/// Zero-sized actor type for scheduler and rebalance logic.
+/// Rebalance passes a task may spend waiting for a slot before automatic mode
+/// rotates it in by preempting the lowest-ranked active task.
+///
+/// At the default 2 s tick this is roughly 30 s; event-driven rebalances can
+/// make it sooner.  The bound is what keeps the active set stable: without it
+/// the allocator would either starve the tail forever or (as it used to) churn
+/// the active set every tick.
+const AUTOMATIC_ROTATION_PASSES: u32 = 15;
+
+/// Scheduler state that must survive between rebalance passes.
+///
+/// Automatic mode used to be stateless and re-derive the active set from the
+/// *remaining* bytes of every task.  Because a running task's remaining bytes
+/// only ever shrink while a queued task's stay frozen, the ranking fed back on
+/// itself and the active set flipped every tick.  The allocator now keys on
+/// static task properties and remembers how long each task has waited.
+#[derive(Debug, Default)]
+struct AutomaticRebalanceState {
+    /// Consecutive rebalance passes each eligible task has spent with no
+    /// threads.  Drives which task the next rotation promotes.
+    waiting_passes: HashMap<String, u32>,
+    /// Passes since the last rotation, capped below [`AUTOMATIC_ROTATION_PASSES`]
+    /// when there is nothing to rotate (every task fits).
+    passes_since_rotation: u32,
+}
+
+/// Actor type for scheduler and rebalance logic.
 ///
 /// All methods receive `&DownloadManager` to access shared state.
 /// `DownloadManager` holds `Arc<Scheduler>` for delegation.
-pub struct Scheduler;
+pub struct Scheduler {
+    /// Persisted across passes so allocations stay sticky and starvation is
+    /// detectable; see [`AutomaticRebalanceState`].
+    automatic: Mutex<AutomaticRebalanceState>,
+}
+
+impl Default for Scheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Scheduler {
+    pub fn new() -> Self {
+        Self {
+            automatic: Mutex::new(AutomaticRebalanceState::default()),
+        }
+    }
+
     /// Start the background scheduler loop (750ms tick or rebalance_notify).
     /// Consumes `self: Arc<Self>` to keep the scheduler alive, and
     /// `dm: Arc<DownloadManager>` for the spawned task.
@@ -141,7 +184,11 @@ impl Scheduler {
 
         match settings.scheduler.mode {
             SchedulerMode::Traditional => rebalance_traditional(&mut entries, &settings),
-            SchedulerMode::Automatic => rebalance_automatic(&entries, &all_downloads, &settings),
+            SchedulerMode::Automatic => {
+                // Parking-lot guard is scoped so it is never held across an await.
+                let mut state = self.automatic.lock();
+                rebalance_automatic(&entries, &all_downloads, &settings, &mut state);
+            }
         }
 
         let downloading_count = all_downloads
@@ -211,14 +258,6 @@ fn hostname_from_manifest(manifest: &Manifest) -> Option<String> {
     Url::parse(&manifest.final_url)
         .ok()
         .and_then(|u| u.host_str().map(|h| h.to_string()))
-}
-
-/// Returns the number of bytes remaining to download.
-fn remaining_bytes(manifest: &Manifest) -> u64 {
-    manifest
-        .total_bytes
-        .unwrap_or(manifest.downloaded_bytes)
-        .saturating_sub(manifest.downloaded_bytes)
 }
 
 /// Computes the effective thread allocation cap for a given manifest and settings.
@@ -849,13 +888,23 @@ fn rebalance_traditional(entries: &mut [Arc<ManagedDownload>], settings: &AppSet
     }
 }
 
-/// Automatic mode: sort candidates, then split `max_parallel_threads` over them.
+/// Automatic mode: order candidates by static task properties, then split
+/// `max_parallel_threads` over them.
+///
+/// The ordering is deliberately **monotonic** (priority, total size, creation
+/// time) and the allocation is **sticky**: a task that already holds threads
+/// keeps them across passes.  A long-waiting task is only rotated in after
+/// [`AUTOMATIC_ROTATION_PASSES`] passes, which bounds churn while preventing
+/// starvation.  See [`AutomaticRebalanceState`] for why the old
+/// remaining-bytes ordering churned.
 fn rebalance_automatic(
     entries: &[Arc<ManagedDownload>],
     all_downloads: &[Arc<ManagedDownload>],
     settings: &AppSettings,
+    state: &mut AutomaticRebalanceState,
 ) {
-    let candidates = sort_automatic_candidates(entries, settings);
+    let mut candidates = sort_automatic_candidates(entries, settings);
+    order_and_rotate_candidates(&mut candidates, state);
 
     let (mut allocations, remaining_budget, mut host_caps) = allocate_initial_minimums(
         &candidates,
@@ -869,6 +918,8 @@ fn rebalance_automatic(
         remaining_budget,
         &mut host_caps,
     );
+
+    update_waiting_passes(&candidates, &allocations, state);
 
     for managed in all_downloads {
         let mut core = managed.lock_core();
@@ -892,6 +943,11 @@ fn rebalance_automatic(
 }
 
 /// Active candidates ordered according to the configured QueueSortStrategy.
+///
+/// Every key is a **static** task property (priority, total size, creation
+/// time).  The previous implementation ordered on *remaining* bytes, which
+/// changes on every progress update; that made the ordering—and therefore the
+/// active set—unstable (see [`AutomaticRebalanceState`]).
 fn sort_automatic_candidates(
     entries: &[Arc<ManagedDownload>],
     settings: &AppSettings,
@@ -906,26 +962,30 @@ fn sort_automatic_candidates(
         .iter()
         .filter(|managed| !is_terminal_state(managed.lock_core().manifest.state))
         .map(|managed| {
-            let (remaining, priority, created_at_ms) = {
+            let (total, priority, created_at_ms) = {
                 let core = managed.lock_core();
                 (
-                    remaining_bytes(&core.manifest),
+                    core.manifest.total_bytes.unwrap_or(0),
                     core.manifest.priority as u8,
                     core.manifest.created_at_ms,
                 )
             };
-            (priority, remaining, created_at_ms, managed)
+            (priority, total, created_at_ms, managed)
         })
         .collect();
 
     match strategy {
         QueueSortStrategy::PriorityFirst => {
-            // Priority descending first, then remaining bytes descending.
-            keyed.sort_by(|(pa, ra, _, _), (pb, rb, _, _)| pb.cmp(pa).then_with(|| rb.cmp(ra)));
+            // Priority descending, then total size descending, then creation order.
+            keyed.sort_by(|(pa, ta, ca, _), (pb, tb, cb, _)| {
+                pb.cmp(pa).then_with(|| tb.cmp(ta)).then_with(|| ca.cmp(cb))
+            });
         }
         QueueSortStrategy::ShortestJobFirst => {
-            // Remaining bytes ascending first (shortest job first), then priority descending.
-            keyed.sort_by(|(pa, ra, _, _), (pb, rb, _, _)| ra.cmp(rb).then_with(|| pb.cmp(pa)));
+            // Total size ascending (job length), then priority descending, then creation order.
+            keyed.sort_by(|(pa, ta, ca, _), (pb, tb, cb, _)| {
+                ta.cmp(tb).then_with(|| pb.cmp(pa)).then_with(|| ca.cmp(cb))
+            });
         }
         QueueSortStrategy::Fifo => {
             // Strict creation order ascending (FIFO), then priority descending.
@@ -937,6 +997,112 @@ fn sort_automatic_candidates(
         .into_iter()
         .map(|(_, _, _, managed)| Arc::clone(managed))
         .collect()
+}
+
+/// Order candidates for the automatic allocator, keeping the running set
+/// sticky and rotating a long-waiting task in only when needed.
+///
+/// The list is rebuilt from the static key every pass, so the *order* cannot
+/// carry stickiness — the manifest's allocation does.  Incumbents (tasks that
+/// held threads last pass) are therefore placed ahead of waiting tasks, which
+/// keeps the active set stable regardless of how much progress it made.  Two
+/// bounded exceptions can move a waiting task forward:
+///
+/// - **Priority preemption** — a waiting task that strictly outranks the
+///   lowest-priority incumbent takes its slot.  Priority is static, so this is
+///   event-driven, not a per-tick race.
+/// - **Starvation rotation** — after [`AUTOMATIC_ROTATION_PASSES`] passes the
+///   longest-waiting task is rotated in, replacing the lowest-ranked active
+///   task.  This bounds starvation without reintroducing churn.
+fn order_and_rotate_candidates(
+    candidates: &mut Vec<Arc<ManagedDownload>>,
+    state: &mut AutomaticRebalanceState,
+) {
+    let (mut active, mut waiting): (Vec<_>, Vec<_>) = candidates
+        .drain(..)
+        .partition(|managed| prior_allocation(managed) > 0);
+
+    // ── Priority preemption (static key, at most one swap per pass) ──
+    if !active.is_empty()
+        && !waiting.is_empty()
+        && let Some(active_min_priority) = active.iter().map(priority_of).min()
+        && let Some(wait_pos) = waiting
+            .iter()
+            .position(|managed| priority_of(managed) > active_min_priority)
+        && let Some(victim_pos) = active
+            .iter()
+            .rposition(|managed| priority_of(managed) == active_min_priority)
+    {
+        let promoted = waiting.remove(wait_pos);
+        let demoted = active.remove(victim_pos);
+        active.push(promoted);
+        waiting.push(demoted);
+    }
+
+    // ── Starvation rotation ──
+    if active.is_empty() || waiting.is_empty() {
+        // Nothing to rotate: keep the counter from banking a full period while
+        // the budget is not contended, which would rotate immediately once it is.
+        state.passes_since_rotation = state
+            .passes_since_rotation
+            .min(AUTOMATIC_ROTATION_PASSES.saturating_sub(1));
+    } else {
+        state.passes_since_rotation = state.passes_since_rotation.saturating_add(1);
+        if state.passes_since_rotation >= AUTOMATIC_ROTATION_PASSES {
+            let promote_pos = waiting
+                .iter()
+                .enumerate()
+                .max_by_key(|(_, managed)| {
+                    let id = managed.lock_core().manifest.id.clone();
+                    state.waiting_passes.get(&id).copied().unwrap_or(0)
+                })
+                .map(|(pos, _)| pos)
+                .expect("waiting is non-empty");
+            let promoted = waiting.remove(promote_pos);
+            let demoted = active.pop().expect("active is non-empty");
+            active.push(promoted);
+            waiting.push(demoted);
+            state.passes_since_rotation = 0;
+        }
+    }
+
+    active.append(&mut waiting);
+    *candidates = active;
+}
+
+/// The allocation the previous pass wrote for a task (0 when it never ran).
+fn prior_allocation(managed: &Arc<ManagedDownload>) -> usize {
+    managed
+        .lock_core()
+        .manifest
+        .allocated_thread_count
+        .unwrap_or(0)
+}
+
+/// Task priority as an ordered integer (higher wins).
+fn priority_of(managed: &Arc<ManagedDownload>) -> u8 {
+    managed.lock_core().manifest.priority as u8
+}
+
+/// Refresh per-task starvation counters from the allocation just computed.
+///
+/// Only waiting candidates are tracked, and the map is rebuilt each pass so
+/// removed or newly active tasks cannot leak stale counters.
+fn update_waiting_passes(
+    candidates: &[Arc<ManagedDownload>],
+    allocations: &HashMap<String, usize>,
+    state: &mut AutomaticRebalanceState,
+) {
+    let mut waiting_passes: HashMap<String, u32> = HashMap::default();
+    for managed in candidates {
+        let id = managed.lock_core().manifest.id.clone();
+        if allocations.get(&id).copied().unwrap_or(0) > 0 {
+            continue;
+        }
+        let passes = state.waiting_passes.get(&id).copied().unwrap_or(0);
+        waiting_passes.insert(id, passes.saturating_add(1));
+    }
+    state.waiting_passes = waiting_passes;
 }
 
 /// First pass: give every candidate its minimum share, capped per task and host.

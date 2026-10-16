@@ -106,8 +106,8 @@ When submitting `.metalink` or `.meta4` payloads via drag-and-drop or RPC, limed
 Choose between two scheduling strategies under **Settings -> Downloads & Scheduler**:
 
 ### Automatic Mode (Recommended)
-- **Core Principle**: Allocates thread budgets based on **Remaining Bytes** and task priorities.
-- **Benefits**: Large files automatically receive larger worker pools to reduce overall waiting time, dynamically reallocating bandwidth as tasks complete.
+- **Core Principle**: Orders tasks by **priority and total file size** (static keys that do not change with progress). A running task keeps its thread allocation (sticky); higher-priority tasks preempt immediately.
+- **Benefits**: Large files get larger worker pools to reduce overall waiting time. When the budget cannot cover every task, the longest-waiting task is rotated in on a fixed cadence (~30 s), which avoids starving the tail without thrashing the active set.
 
 ### Traditional Mode
 - **Core Principle**: Strict FIFO (First-In, First-Out) queuing.

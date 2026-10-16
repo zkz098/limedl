@@ -41,7 +41,7 @@ To open the settings panel in the desktop application, click the **Settings** ge
 | Option | Values / Types | Default | Details |
 | :--- | :--- | :--- | :--- |
 | **Default Directory** | Absolute Path | OS "Downloads" folder | Default filesystem destination for incoming downloads. |
-| **Scheduler Mode** | Traditional / Automatic | Automatic | **Traditional**: Strict FIFO queue respecting max concurrent tasks.<br>**Automatic**: Prioritizes remaining bytes, dynamically reallocating thread pool budgets across tasks. |
+| **Scheduler Mode** | Traditional / Automatic | Automatic | **Traditional**: Strict FIFO queue respecting max concurrent tasks.<br>**Automatic**: Orders tasks by priority and **total file size** (static keys, independent of progress); a running task keeps its allocation (sticky), higher-priority tasks preempt immediately, and when the budget is oversubscribed the longest-waiting task is rotated in on a fixed cadence to avoid starvation and thrashing. |
 | **Max Concurrent Tasks** | 1 ~ 32 | 5 tasks | Maximum number of downloads permitted in active state simultaneously. |
 | **Global Max Threads** | 4 ~ 128 | 32 threads | Upper bound for all active chunk worker threads across all running downloads. |
 | **AIMD Profile** | Conservative / Balanced / Aggressive | Balanced | **Conservative**: Slow ramp-up and sharp backoff for sensitive hosts.<br>**Balanced**: Smooth additive increase and multiplicative decrease.<br>**Aggressive**: Rapid bandwidth acquisition for dedicated high-speed pipelines. |

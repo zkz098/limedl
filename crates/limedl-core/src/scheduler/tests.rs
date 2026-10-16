@@ -235,46 +235,201 @@ fn hostname_empty_string_does_not_panic() {
     assert!(result.is_none());
 }
 
-// ── remaining_bytes ───────────────────────────────────────────────────
+// ── automatic rebalance: stickiness, monotonic keys and rotation ──────
 
-#[test]
-fn remaining_normal_case() {
+/// A single active-ranged task with an explicit size, creation time and
+/// progress, used by the automatic allocator tests below.
+fn rebalance_task(
+    id: &str,
+    total: u64,
+    created_at: u64,
+    downloaded: u64,
+) -> std::sync::Arc<crate::download::ManagedDownload> {
     let mut m = manifest("https://example.com/file.bin");
-    m.total_bytes = Some(1000);
-    m.downloaded_bytes = 300;
-    assert_eq!(super::remaining_bytes(&m), 700);
+    m.id = id.to_string();
+    m.state = DownloadState::Downloading;
+    m.supports_ranges = true;
+    m.thread_mode = ThreadMode::Adaptive;
+    m.desired_thread_count = Some(4);
+    m.total_bytes = Some(total);
+    m.downloaded_bytes = downloaded;
+    m.created_at_ms = created_at;
+    let s = crate::manifest::snapshot_from_manifest(&m);
+    std::sync::Arc::new(crate::download::ManagedDownload {
+        core: parking_lot::Mutex::new(crate::download::DownloadCore::new(s, m)),
+        runtime: parking_lot::Mutex::new(None),
+        aimd: parking_lot::Mutex::new(crate::aimd::AimdState::default()),
+        stop_notify: tokio::sync::Notify::new(),
+    })
 }
 
-#[test]
-fn remaining_no_total_bytes_returns_zero() {
-    let mut m = manifest("https://example.com/file.bin");
-    m.total_bytes = None;
-    m.downloaded_bytes = 500;
-    assert_eq!(super::remaining_bytes(&m), 0);
+fn active_ids(tasks: &[std::sync::Arc<crate::download::ManagedDownload>]) -> Vec<String> {
+    tasks
+        .iter()
+        .filter(|m| m.lock_core().manifest.allocated_thread_count.unwrap_or(0) > 0)
+        .map(|m| m.lock_core().manifest.id.clone())
+        .collect()
 }
 
-#[test]
-fn remaining_total_less_than_downloaded_returns_zero() {
-    let mut m = manifest("https://example.com/file.bin");
-    m.total_bytes = Some(100);
-    m.downloaded_bytes = 500;
-    assert_eq!(super::remaining_bytes(&m), 0);
+fn automatic_settings(budget: usize, min: usize, cap: usize) -> AppSettings {
+    AppSettings {
+        scheduler: SchedulerSettings {
+            mode: SchedulerMode::Automatic,
+            automatic: AutomaticSchedulerSettings {
+                max_parallel_threads: budget,
+                max_threads_per_task: cap,
+                min_threads_per_task: min,
+                adaptive_profile: Default::default(),
+            },
+            ..SchedulerSettings::default()
+        },
+        ..AppSettings::default()
+    }
 }
 
+/// The original bug: the active set was re-derived from remaining bytes every
+/// pass, so as the running task made progress the queued tasks overtook it and
+/// the active set flipped on every rebalance.  With static keys plus stickiness
+/// the active set must survive both progress and repeated passes.
 #[test]
-fn remaining_equal_values_returns_zero() {
-    let mut m = manifest("https://example.com/file.bin");
-    m.total_bytes = Some(500);
-    m.downloaded_bytes = 500;
-    assert_eq!(super::remaining_bytes(&m), 0);
+fn automatic_active_set_is_sticky_across_progress() {
+    let tasks: Vec<_> = (0..12)
+        .map(|i| rebalance_task(&format!("t{i:02}"), 100_000_000, i, 0))
+        .collect();
+    let settings = automatic_settings(4, 1, 4);
+    let mut state = super::AutomaticRebalanceState::default();
+
+    let mut first_active: Option<Vec<String>> = None;
+    for pass in 0..10 {
+        // Simulate a tick of progress on whichever tasks are running: the old
+        // ordering used exactly this value as its primary key.
+        for task in &tasks {
+            let mut core = task.lock_core();
+            if core.manifest.allocated_thread_count.unwrap_or(0) > 0 {
+                core.manifest.downloaded_bytes += 5_000_000;
+            }
+        }
+        super::rebalance_automatic(&tasks, &tasks, &settings, &mut state);
+        let active = active_ids(&tasks);
+        if let Some(previous) = &first_active {
+            assert_eq!(previous, &active, "active set changed at pass {pass}");
+        } else {
+            first_active = Some(active);
+        }
+    }
 }
 
+/// Rotation must eventually give every starved task a turn instead of letting
+/// the top-ranked tasks hold the budget forever.
 #[test]
-fn remaining_zero_total_and_downloaded() {
-    let mut m = manifest("https://example.com/file.bin");
-    m.total_bytes = Some(0);
-    m.downloaded_bytes = 0;
-    assert_eq!(super::remaining_bytes(&m), 0);
+fn automatic_rotation_gives_every_waiting_task_a_turn() {
+    let tasks: Vec<_> = (0..4)
+        .map(|i| rebalance_task(&format!("t{i}"), 1000, i, 0))
+        .collect();
+    let settings = automatic_settings(1, 1, 1);
+    let mut state = super::AutomaticRebalanceState::default();
+
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..(4 * super::AUTOMATIC_ROTATION_PASSES + 4) {
+        super::rebalance_automatic(&tasks, &tasks, &settings, &mut state);
+        if let Some(id) = active_ids(&tasks).into_iter().next() {
+            seen.insert(id);
+        }
+    }
+
+    assert_eq!(
+        seen.len(),
+        4,
+        "every task must get a rotation turn, saw {seen:?}"
+    );
+}
+
+/// A newly added high-priority task immediately preempts the lowest-priority
+/// incumbent, without waiting for starvation rotation.
+#[test]
+fn automatic_priority_preempts_an_incumbent() {
+    let low = rebalance_task("low", 1000, 0, 0);
+    let settings = automatic_settings(1, 1, 1);
+    let mut state = super::AutomaticRebalanceState::default();
+
+    // Only the normal-priority task exists; it takes the single slot.
+    super::rebalance_automatic(
+        std::slice::from_ref(&low),
+        std::slice::from_ref(&low),
+        &settings,
+        &mut state,
+    );
+    assert_eq!(
+        active_ids(std::slice::from_ref(&low)),
+        vec![String::from("low")]
+    );
+
+    // A high-priority task is added: priority is static, so it preempts at once.
+    let high = rebalance_task("high", 1000, 1, 0);
+    high.lock_core().manifest.priority = Priority::High;
+    let tasks = vec![low, high];
+    super::rebalance_automatic(&tasks, &tasks, &settings, &mut state);
+    assert_eq!(active_ids(&tasks), vec![String::from("high")]);
+}
+
+/// Rotation is bounded: with 12 tasks and a 4-thread budget the active set may
+/// change at most once per `AUTOMATIC_ROTATION_PASSES` window.
+#[test]
+fn automatic_rotation_is_bounded() {
+    let tasks: Vec<_> = (0..12)
+        .map(|i| rebalance_task(&format!("t{i:02}"), 1000, i, 0))
+        .collect();
+    let settings = automatic_settings(4, 1, 4);
+    let mut state = super::AutomaticRebalanceState::default();
+
+    // Warm up so the initial empty -> active transition is not counted.
+    super::rebalance_automatic(&tasks, &tasks, &settings, &mut state);
+    let mut previous = active_ids(&tasks);
+    let mut changes = 0usize;
+    for _ in 0..(2 * super::AUTOMATIC_ROTATION_PASSES) {
+        super::rebalance_automatic(&tasks, &tasks, &settings, &mut state);
+        let active = active_ids(&tasks);
+        if active != previous {
+            changes += 1;
+            previous = active;
+        }
+    }
+
+    assert!(
+        changes <= 2,
+        "active set changed {changes} times in {} passes",
+        2 * super::AUTOMATIC_ROTATION_PASSES
+    );
+}
+
+/// A task that changes only its downloaded bytes must not move in the queue.
+#[test]
+fn automatic_sort_key_ignores_download_progress() {
+    let settings = settings_automatic();
+    let task_a = rebalance_task("a", 1000, 0, 900);
+    let task_b = rebalance_task("b", 1000, 1, 0);
+    let task_c = rebalance_task("c", 2000, 2, 1900);
+
+    // Largest total first, then creation order — never remaining bytes.
+    let sorted = super::sort_automatic_candidates(
+        &[task_a.clone(), task_b.clone(), task_c.clone()],
+        &settings,
+    );
+    let ids: Vec<String> = sorted
+        .iter()
+        .map(|m| m.lock_core().manifest.id.clone())
+        .collect();
+    assert_eq!(ids, vec!["c", "a", "b"]);
+
+    // Progress on any task must not change the order.
+    task_a.lock_core().manifest.downloaded_bytes = 1000;
+    task_c.lock_core().manifest.downloaded_bytes = 0;
+    let sorted = super::sort_automatic_candidates(&[task_a, task_b, task_c], &settings);
+    let ids: Vec<String> = sorted
+        .iter()
+        .map(|m| m.lock_core().manifest.id.clone())
+        .collect();
+    assert_eq!(ids, vec!["c", "a", "b"]);
 }
 
 // ── effective_automatic_task_cap ──────────────────────────────────────

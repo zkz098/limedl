@@ -273,3 +273,116 @@ async fn automatic_scheduler_respects_single_thread_cap_when_min_per_task_is_fou
     let _ = manager.cancel(&id.to_string()).await;
     Ok(())
 }
+
+/// Task ids that currently hold at least one allocated thread, sorted.
+async fn allocated_ids(manager: &DownloadManager, ids: &[String]) -> Vec<String> {
+    let downloads = manager.downloads.read().await;
+    let mut active: Vec<String> = ids
+        .iter()
+        .filter(|id| {
+            downloads.get(*id).is_some_and(|managed| {
+                managed
+                    .lock_core()
+                    .manifest
+                    .allocated_thread_count
+                    .unwrap_or(0)
+                    > 0
+            })
+        })
+        .cloned()
+        .collect();
+    active.sort();
+    active
+}
+
+/// Regression for automatic-mode churn: with more runnable tasks than the
+/// global thread budget, the allocator used to re-derive the active set from
+/// *remaining* bytes on every pass, so whichever tasks were running lost their
+/// rank as soon as they made progress and the active set flipped each tick.
+///
+/// The tasks are injected paused (no network) so the assertion is deterministic:
+/// only the scheduler moves them.
+#[tokio::test]
+#[timeout(60_000)]
+async fn automatic_active_set_stays_stable_with_many_queued_tasks() -> TestResult {
+    let (_tmp, manager) = create_manager().await;
+    manager
+        .apply_settings(AppSettings {
+            scheduler: SchedulerSettings {
+                mode: SchedulerMode::Automatic,
+                automatic: AutomaticSchedulerSettings {
+                    max_parallel_threads: 3,
+                    max_threads_per_task: 1,
+                    min_threads_per_task: 1,
+                    adaptive_profile: AdaptiveProfile::Balanced,
+                },
+                ..SchedulerSettings::default()
+            },
+            ..AppSettings::default()
+        })
+        .await?;
+
+    let out = _tmp.path().join("out").to_string_lossy().to_string();
+    let mut ids = Vec::new();
+    for i in 0..6 {
+        let id = manager
+            .start(StartDownloadRequest {
+                kind: None,
+                url: format!("https://example.com/churn-{i}.bin"),
+                destination_dir: out.clone(),
+                file_name: Some(format!("churn-{i}.bin")),
+                user_agent: None,
+                thread_mode: Some(ThreadMode::Adaptive),
+                thread_count: None,
+                max_retries: Some(1),
+                checksum: Some(ChecksumMode::None),
+                expected_checksum: None,
+                selected_file_indices: None,
+                start_paused: true,
+                headers: None,
+                mirror_urls: None,
+                priority: None,
+            })
+            .await?;
+        ids.push(id.to_string());
+    }
+
+    // Make every task a runnable range download without touching the network.
+    {
+        let downloads = manager.downloads.read().await;
+        for id in &ids {
+            let managed = downloads.get(id).expect("managed download").clone();
+            let mut core = managed.lock_core();
+            core.manifest.state = DownloadState::Queued;
+            core.manifest.supports_ranges = true;
+            core.manifest.total_bytes = Some(100_000_000);
+            core.manifest.downloaded_bytes = 0;
+        }
+    }
+
+    let mut first: Option<Vec<String>> = None;
+    for pass in 0..8 {
+        manager.scheduler.update_adaptive_targets(&manager).await?;
+        manager.scheduler.rebalance_allocations(&manager).await?;
+        let current = allocated_ids(&manager, &ids).await;
+        match &first {
+            Some(previous) => assert_eq!(
+                previous, &current,
+                "active set churned at pass {pass}: {previous:?} -> {current:?}"
+            ),
+            None => {
+                assert_eq!(
+                    current.len(),
+                    3,
+                    "a budget of 3 threads must activate exactly 3 tasks, got {current:?}"
+                );
+                first = Some(current);
+            }
+        }
+    }
+
+    for id in &ids {
+        let _ = manager.remove(id).await;
+    }
+    Ok(())
+}

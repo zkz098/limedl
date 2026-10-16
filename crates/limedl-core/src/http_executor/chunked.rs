@@ -98,6 +98,20 @@ impl HttpExecutor {
                 target
             };
 
+            // ── Honor a full demotion ────────────────────────────
+            // A queued task (allocation 0) must actually release its
+            // connections instead of draining its claimed chunks while the
+            // manifest reports zero.  Abort first so no worker can record
+            // progress afterwards, then flush the buffer: `chunk.downloaded`
+            // counts received (possibly still-buffered) bytes and is the resume
+            // offset, so releasing claims before the flush would make the next
+            // claim skip data that never reached the file.
+            if target_workers == 0 && !workers.is_empty() {
+                shutdown_chunk_workers(&managed, &mut workers).await;
+                flush_write_buffer(&write_buffer, "demote").await;
+                continue;
+            }
+
             // ── Tail Sprint ──────────────────────────────────────
             // Stage 1: Fresh-connection retry for stalled tail chunks.
             // Stage 2: Split the last unclaimed chunk into two sub-chunks.

@@ -183,7 +183,7 @@ impl DownloadManager {
                 rebalance_notify: context.concurrency.rebalance_notify.clone(),
             },
             http_executor: Arc::new(HttpExecutor),
-            scheduler: Arc::new(Scheduler),
+            scheduler: Arc::new(Scheduler::new()),
             task_lifecycle: Arc::new(TaskLifecycle),
         };
 
