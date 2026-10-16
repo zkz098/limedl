@@ -327,3 +327,48 @@ fn drop_hint_pill_icon_and_text_are_vertically_centered() {
     });
 }
 
+#[test]
+fn table_header_sort_icon_is_vertically_centered() {
+    with_ui(|ui| {
+        ui.set_window_size(1280.0, 800.0);
+        ui.seed(vec![
+            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
+        ]);
+        ui.click("MainWindow::btn_view_mode");
+        // Click on Progress header to sort by Progress (field 3)
+        ui.click("TaskTable::hdr_progress");
+
+        let (_, hdr_y, _, hdr_h) = ui.bounds("TaskTable::hdr_progress");
+        let (_, icon_y, _, icon_h) = ui.bounds("TaskTable::hdr_progress_icon");
+
+        let hdr_center_y = hdr_y + hdr_h / 2.0;
+        let icon_center_y = icon_y + icon_h / 2.0;
+
+        assert!(
+            (icon_center_y - hdr_center_y).abs() <= 1.0,
+            "sort icon center ({icon_center_y}) should align with header center ({hdr_center_y})"
+        );
+    });
+}
+
+#[test]
+fn table_data_columns_do_not_overlap_action_buttons_at_preferred_size() {
+    with_ui(|ui| {
+        ui.set_window_size(PREFERRED_SIZE.0, PREFERRED_SIZE.1);
+        ui.seed(vec![
+            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
+        ]);
+        ui.click("MainWindow::btn_view_mode");
+
+        let (eta_x, _, eta_w, _) = ui.bounds("TaskTable::hdr_eta");
+        let (pause_x, _, _, _) = ui.bounds("TaskTable::ta_pause");
+
+        assert!(
+            eta_x + eta_w <= pause_x + 0.5,
+            "ETA column (right edge {}) must not overlap pause button (x {})",
+            eta_x + eta_w,
+            pause_x
+        );
+    });
+}
+

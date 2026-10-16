@@ -98,6 +98,7 @@ export component TaskTable inherits Rectangle {
             // every window size (see `ui_tests/layout.rs`). 138px is the 120px
             // action column plus the row's right padding.
             Rectangle {
+                x: 0;
                 width: max(0px, root.width - 138px);
                 height: parent.height;
                 clip: true;
@@ -147,12 +148,15 @@ export component TaskTable inherits Rectangle {
                                 font-weight: 600;
                                 vertical-alignment: center;
                             }
-                            if root.sort_field == 4 : Image {
-                                source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
-                                colorize: Theme.ca3e635;
-                                width: 12px;
-                                height: 12px;
-                                image-fit: contain;
+                            if root.sort_field == 4 : VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                                    colorize: Theme.ca3e635;
+                                    width: 12px;
+                                    height: 12px;
+                                    image-fit: contain;
+                                }
                             }
                         }
                     }
@@ -173,12 +177,15 @@ export component TaskTable inherits Rectangle {
                                 font-weight: 600;
                                 vertical-alignment: center;
                             }
-                            if root.sort_field == 5 : Image {
-                                source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
-                                colorize: Theme.ca3e635;
-                                width: 12px;
-                                height: 12px;
-                                image-fit: contain;
+                            if root.sort_field == 5 : VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                                    colorize: Theme.ca3e635;
+                                    width: 12px;
+                                    height: 12px;
+                                    image-fit: contain;
+                                }
                             }
                         }
                     }
@@ -199,12 +206,15 @@ export component TaskTable inherits Rectangle {
                                 font-weight: 600;
                                 vertical-alignment: center;
                             }
-                            if root.sort_field == 3 : Image {
-                                source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
-                                colorize: Theme.ca3e635;
-                                width: 12px;
-                                height: 12px;
-                                image-fit: contain;
+                            if root.sort_field == 3 : VerticalLayout {
+                                alignment: center;
+                                hdr_progress_icon := Image {
+                                    source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                                    colorize: Theme.ca3e635;
+                                    width: 12px;
+                                    height: 12px;
+                                    image-fit: contain;
+                                }
                             }
                         }
                     }
@@ -225,12 +235,15 @@ export component TaskTable inherits Rectangle {
                                 font-weight: 600;
                                 vertical-alignment: center;
                             }
-                            if root.sort_field == 1 : Image {
-                                source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
-                                colorize: Theme.ca3e635;
-                                width: 12px;
-                                height: 12px;
-                                image-fit: contain;
+                            if root.sort_field == 1 : VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                                    colorize: Theme.ca3e635;
+                                    width: 12px;
+                                    height: 12px;
+                                    image-fit: contain;
+                                }
                             }
                         }
                     }
@@ -263,12 +276,15 @@ export component TaskTable inherits Rectangle {
                                 font-weight: 600;
                                 vertical-alignment: center;
                             }
-                            if root.sort_field == 2 : Image {
-                                source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
-                                colorize: Theme.ca3e635;
-                                width: 12px;
-                                height: 12px;
-                                image-fit: contain;
+                            if root.sort_field == 2 : VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                                    colorize: Theme.ca3e635;
+                                    width: 12px;
+                                    height: 12px;
+                                    image-fit: contain;
+                                }
                             }
                         }
                     }
@@ -325,12 +341,15 @@ export component TaskTable inherits Rectangle {
                                 font-weight: 600;
                                 vertical-alignment: center;
                             }
-                            if root.sort_field == 0 : Image {
-                                source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
-                                colorize: Theme.ca3e635;
-                                width: 12px;
-                                height: 12px;
-                                image-fit: contain;
+                            if root.sort_field == 0 : VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: root.sort_asc ? @image-url("../assets/icons/sort-asc.svg") : @image-url("../assets/icons/sort-desc.svg");
+                                    colorize: Theme.ca3e635;
+                                    width: 12px;
+                                    height: 12px;
+                                    image-fit: contain;
+                                }
                             }
                         }
                     }
@@ -389,6 +408,7 @@ export component TaskTable inherits Rectangle {
                     // Same split as the header: the data columns are clipped, the
                     // per-row buttons stay pinned to the right edge (see the header).
                     Rectangle {
+                        x: 0;
                         width: max(0px, root.width - 138px);
                         height: parent.height;
                         clip: true;
