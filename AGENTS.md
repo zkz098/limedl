@@ -13,6 +13,8 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Purpose         | Command                                                                                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Test (Rust)     | `cargo nextest run --manifest-path crates/limedl-<crate>/Cargo.toml` per crate (see the gate below)                                                                |
+| Feature matrix  | `cargo hack check --feature-powerset --all-targets --keep-going --manifest-path crates/limedl-core/Cargo.toml`                                                      |
+| Unused deps     | `cargo machete --with-metadata`                                                                                                                                     |
 | Version bump    | `cargo xtask bump-version patch`                                                                                                                                   |
 | Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C`                                                                                                      |
 | Fetch UI font   | `cargo xtask fetch-font [--verify]` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                  |
@@ -102,7 +104,17 @@ cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test
 cargo nextest run --manifest-path xtask/Cargo.toml
 cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
+
+# CI pins cargo-hack 0.6.45 and cargo-machete 0.9.2 (install-action).
+cargo hack check --feature-powerset --all-targets --keep-going --manifest-path crates/limedl-core/Cargo.toml
+cargo machete --with-metadata
 ```
+
+`cargo hack` walks every `limedl-core` feature combination — `--no-default-features`
+(BT engine absent) included — with `CARGO_BUILD_WARNINGS=deny` in force, so a
+warning in *any* combination fails. `cargo machete` runs with
+`--with-metadata`; its false positives are listed with reasons under
+`[package.metadata.cargo-machete]` in the crate that owns them.
 
 See `docs/ci-operations.md` for the cache/RUSTFLAGS contract, the coverage gate
 and the macOS linker exemption.

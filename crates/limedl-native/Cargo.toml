@@ -35,7 +35,6 @@ raw-window-handle = "0.6"
 # enables it for limedl-core's tokio in the same build.
 tokio = { workspace = true, features = ["signal"] }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -195,3 +194,16 @@ i-slint-backend-testing = { workspace = true }
 # The recording `DownloadBackend` in `src/ui_tests/` implements the core trait,
 # which is `#[async_trait]`.
 async-trait = { workspace = true }
+
+# `cargo machete --with-metadata` cannot see these three (checked by the
+# `supply-chain` CI job). Keep the list short and justified: adding an entry
+# means "verify by hand that the crate is still needed", never "silence the
+# tool".
+#
+#   slint-build    — invoked from `build.rs` to compile `ui/appwindow.slint`
+#   winres         — invoked from `build.rs`, inside its `#[cfg(windows)]` arm
+#   windows-future — deliberately never named in code: the `windows` crate turns
+#                    its `std` feature off and this declaration turns it back on
+#                    for the rest of the graph (see the comment on the entry)
+[package.metadata.cargo-machete]
+ignored = ["slint-build", "winres", "windows-future"]

@@ -491,6 +491,25 @@ jobs:
           # number has settled in CI.
           cargo llvm-cov nextest --cargo-profile dev --no-fail-fast --manifest-path crates/limedl-native/Cargo.toml --lcov --output-path crates/limedl-native/lcov-native.info --ignore-filename-regex 'crates.limedl-core' --no-cfg-coverage
       - run: cargo clippy --workspace --all-targets -- -D warnings
+      # Every `limedl-core` feature combination, including ones no consumer
+      # uses today. `--no-default-features` (BT engine absent) is a documented
+      # configuration — the commit that added the `bt` feature promised it — but
+      # nothing built it, and it had quietly drifted into ten denied warnings
+      # plus an ungated test module. `CARGO_BUILD_WARNINGS=deny` comes from the
+      # job env, so a warning in *any* combination fails the step.
+      #
+      # `--feature-powerset` expands to 10 combinations of {bt, aria2-rpc,
+      # test-utils}; `--all-targets` is what catches an ungated test module.
+      # Measured 54 s warm, and every combination reuses the dependency graph
+      # already built above, so it adds no cache-key dimension. Only
+      # `limedl-core` has features — native/server/xtask have none.
+      #
+      # `--keep-going` reports every broken combination instead of stopping at
+      # the first, the same reason the nextest steps pass `--no-fail-fast`.
+      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+        with:
+          tool: cargo-hack@0.6.45
+      - run: cargo hack check --feature-powerset --all-targets --keep-going --manifest-path crates/limedl-core/Cargo.toml
       # ── SonarQube Cloud ────────────────────────────────────────────────
       # Rust is not available in Automatic Analysis, so the analysis runs from
       # here (configuration: sonar-project.properties). It sits directly after
@@ -542,7 +561,7 @@ jobs:
           if-no-files-found: warn
 
   supply-chain:
-    name: Supply chain (cargo-deny, cargo-audit)
+    name: Supply chain (cargo-deny, cargo-audit, cargo-machete)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -569,6 +588,22 @@ jobs:
         with:
           tool: cargo-audit
       - run: cargo audit
+
+      # Unused dependency entries. `--with-metadata` is the accurate mode: the
+      # default mode misses a dev-dependency no source file names, which is one
+      # of the two this step found on introduction. Its three remaining findings
+      # are false positives — a build-script pair and one feature-unification-only
+      # dependency — and carry their reasons in
+      # `crates/limedl-native/Cargo.toml` under
+      # `[package.metadata.cargo-machete]`, so a *new* entry there always means
+      # "verify by hand", never "silence the tool".
+      #
+      # Static analysis, no workspace build, ~0.1 s; this job already runs with
+      # `cache-targets: false`, so the step adds nothing to the cache budget.
+      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+        with:
+          tool: cargo-machete@0.9.2
+      - run: cargo machete --with-metadata
 
   # ═══════════════════════════════════════════════════════════════════════
   # rust-cache generation GC (contract at the top of the file).

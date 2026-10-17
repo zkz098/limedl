@@ -184,6 +184,47 @@ and `.github/workflows/sign-check.yml`. Read this before editing a job.
   Windows-vs-Linux penalty. Do not export `RUSTFLAGS`/`CARGO*`/`CC*`/`CMAKE*`
   environment variables when adding Windows steps, or the rust-cache key splits.
 
+## Feature matrix and dependency hygiene
+
+Two small checks live in jobs that already exist, so neither adds a cache key
+(all their own env is step-scoped, and neither compiles dependencies that the
+job was not already building).
+
+- **Feature matrix (`check-rust`, cargo-hack 0.6.45).**
+  `cargo hack check --feature-powerset --all-targets --keep-going` over
+  `limedl-core` expands to 10 combinations of `{bt, aria2-rpc, test-utils}` and
+  runs under the job's `CARGO_BUILD_WARNINGS=deny`, so a warning in *any*
+  combination is fatal. Only `limedl-core` has features; native/server/xtask have
+  none, so running it there would only burn runner time.
+  It exists because `--no-default-features` (the BT engine absent) is a
+  documented configuration — the commit that added the `bt` feature promised it —
+  and nothing ever built it: by the time the step was added it produced ten
+  denied `irrefutable_let_patterns` warnings (`let TaskId::Http(id) = task_id
+  else` is irrefutable when the enum has one variant) plus an ungated BT test
+  module. If you add a `#[cfg(feature = …)]` branch, run this locally; the
+  `TaskId::as_http()` helper exists so HTTP-only call sites stay refutable in
+  every configuration.
+  Measured 54 s warm; every combination reuses the dependency graph the coverage
+  and lint steps already built.
+- **Unused dependencies (`supply-chain`, cargo-machete 0.9.2).**
+  `cargo machete --with-metadata` is static analysis — no workspace build,
+  ~0.1 s — and that job already runs with `cache-targets: false`. Use the
+  metadata mode: the default mode misses a dev-dependency that no source file
+  names (it found neither of the two removed when the step was introduced).
+  False positives go in `[package.metadata.cargo-machete] ignored` in the crate
+  that owns them, each with the reason (build-script dependencies and
+  feature-unification-only dependencies are the two recurring classes — see
+  `crates/limedl-native/Cargo.toml`). A new entry there means "verify by hand
+  that the crate is still needed", not "silence the tool".
+- **Not adopted: `cargo udeps`.** It needs a nightly toolchain plus a full
+  build, and rust-cache keys include the toolchain version, so it would add a
+  multi-GB cache generation against the 10 GB ceiling this repo already fights
+  (see `prune-cache`). Its extra accuracy over machete covers proc-macro-only
+  dependencies, which this workspace has none of.
+- **`cargo hack` and `cargo machete` are pinned** in `ci.yml` like `nextest` and
+  `cargo-llvm-cov`: the tool's own release can change what the gate accepts
+  without a code change.
+
 ## Local pre-commit gate
 
 The commands mirror `.github/workflows/ci.yml` one for one (same crate list, same
@@ -205,6 +246,12 @@ features, same nextest version), so a green local run means a green CI run.
   does not execute doctests; the workspace has none today, so if one is ever
   added, add a `cargo test --doc` step to the gate and to CI's `check-rust` job
   together.
+- `cargo hack` and `cargo machete` are part of the gate (see the section above).
+  `CARGO_BUILD_WARNINGS=deny` must be set for the `cargo hack` run exactly as for
+  clippy, or the feature-matrix step stops being fatal on warnings. The
+  `--keep-going` flag makes it report *every* broken combination rather than
+  stopping at the first, matching the gate's preference for complete failure
+  output.
 - Windows: initialize MSVC first (`vcvarsall.bat x64`).
 
 ## macOS linker note (`-A linker_messages`)
