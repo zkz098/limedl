@@ -251,7 +251,10 @@ mod imp {
     use super::DeviceId;
 
     pub fn detect_device_id(path: &Path) -> DeviceId {
-        let Ok(meta) = fs::metadata(path) else {
+        let meta = fs::metadata(path).or_else(|_| {
+            path.parent().and_then(|p| fs::metadata(p).ok()).ok_or(())
+        });
+        let Ok(meta) = meta else {
             return DeviceId::Unknown("stat_failed".into());
         };
 

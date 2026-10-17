@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs::File;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -95,14 +96,28 @@ pub struct DownloadBuffer {
     io_worker: Option<IoWorker>,
     /// Durable-progress notification, shared with every flush path.
     flush_observer: Option<FlushObserver>,
+    file_path: Option<PathBuf>,
 }
 
 impl DownloadBuffer {
     /// Create a pool-backed double-buffer with a dedicated I/O worker.
+    #[allow(dead_code)]
     pub fn new_with_worker(
         pool: Arc<BufferPool>,
         slot: SlotGuard,
         file: Arc<File>,
+        worker: IoWorker,
+        flush_observer: Option<FlushObserver>,
+    ) -> Self {
+        Self::new_with_worker_path(pool, slot, file, None, worker, flush_observer)
+    }
+
+    /// Create a pool-backed double-buffer with a dedicated I/O worker and target file path.
+    pub fn new_with_worker_path(
+        pool: Arc<BufferPool>,
+        slot: SlotGuard,
+        file: Arc<File>,
+        file_path: Option<PathBuf>,
         worker: IoWorker,
         flush_observer: Option<FlushObserver>,
     ) -> Self {
@@ -125,6 +140,7 @@ impl DownloadBuffer {
             },
             io_worker: Some(worker),
             flush_observer,
+            file_path,
         }
     }
 
@@ -154,6 +170,7 @@ impl DownloadBuffer {
             },
             io_worker: None,
             flush_observer: None,
+            file_path: None,
         }
     }
 
@@ -161,9 +178,21 @@ impl DownloadBuffer {
     ///
     /// Uses the same double-buffer flip logic as HDD but without global
     /// pool/slot management. `half_size` is the size of each ping-pong half.
+    #[allow(dead_code)]
     pub fn new_local_pingpong_with_worker(
         half_size: u64,
         file: Arc<File>,
+        worker: IoWorker,
+        flush_observer: Option<FlushObserver>,
+    ) -> Self {
+        Self::new_local_pingpong_with_worker_path(half_size, file, None, worker, flush_observer)
+    }
+
+    /// Create a local ping-pong buffer for SSD write combining with target file path.
+    pub fn new_local_pingpong_with_worker_path(
+        half_size: u64,
+        file: Arc<File>,
+        file_path: Option<PathBuf>,
         worker: IoWorker,
         flush_observer: Option<FlushObserver>,
     ) -> Self {
@@ -183,6 +212,7 @@ impl DownloadBuffer {
             },
             io_worker: Some(worker),
             flush_observer,
+            file_path,
         }
     }
 
@@ -349,6 +379,7 @@ impl DownloadBuffer {
             // Spawn background flush for the old active half's data.
             let bg_handle = spawn_background_flush(
                 self.io_worker.as_ref(),
+                self.file_path.as_deref(),
                 &cfg,
                 halves.file,
                 halves.error_flag,
@@ -410,6 +441,7 @@ impl DownloadBuffer {
         half: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         usage: &AtomicU64,
         file: &Arc<File>,
+        file_path: Option<&Path>,
         io_worker: Option<&IoWorker>,
         observer: Option<&FlushObserver>,
     ) -> Result<(), DownloadError> {
@@ -423,7 +455,9 @@ impl DownloadBuffer {
         let ranges = entry_ranges(&entries);
         usage.store(0, Ordering::Release);
         if let Some(worker) = io_worker {
-            worker.write_batch(file.clone(), entries, SyncMode::None).await?;
+            worker
+                .write_batch_for_path(file_path, file.clone(), entries, SyncMode::None)
+                .await?;
         } else {
             let f = file.clone();
             tokio::task::spawn_blocking(move || -> Result<(), DownloadError> {
@@ -488,6 +522,7 @@ impl DownloadBuffer {
                     active,
                     active_usage,
                     file,
+                    self.file_path.as_deref(),
                     pool,
                     self.io_worker.as_ref(),
                     self.flush_observer.as_ref(),
@@ -499,6 +534,7 @@ impl DownloadBuffer {
                     inactive,
                     inactive_usage,
                     file,
+                    self.file_path.as_deref(),
                     pool,
                     self.io_worker.as_ref(),
                     self.flush_observer.as_ref(),
@@ -549,6 +585,7 @@ impl DownloadBuffer {
                     active,
                     active_usage,
                     file,
+                    self.file_path.as_deref(),
                     self.io_worker.as_ref(),
                     self.flush_observer.as_ref(),
                 )
@@ -559,6 +596,7 @@ impl DownloadBuffer {
                     inactive,
                     inactive_usage,
                     file,
+                    self.file_path.as_deref(),
                     self.io_worker.as_ref(),
                     self.flush_observer.as_ref(),
                 )
@@ -582,6 +620,7 @@ impl DownloadBuffer {
         half: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         usage: &AtomicU64,
         file: &Arc<File>,
+        file_path: Option<&Path>,
         pool: &Arc<BufferPool>,
         io_worker: Option<&IoWorker>,
         observer: Option<&FlushObserver>,
@@ -599,7 +638,9 @@ impl DownloadBuffer {
         pool.sub_usage(bytes);
 
         if let Some(worker) = io_worker {
-            worker.write_batch(file.clone(), entries, SyncMode::Force).await?;
+            worker
+                .write_batch_for_path(file_path, file.clone(), entries, SyncMode::Force)
+                .await?;
         } else {
             let f = file.clone();
             tokio::task::spawn_blocking(move || -> std::result::Result<(), DownloadError> {
@@ -834,6 +875,7 @@ fn take_entries_with(
 /// Both paths set `error_flag` on failure and notify waiters when done.
 fn spawn_background_flush(
     io_worker: Option<&IoWorker>,
+    file_path: Option<&Path>,
     cfg: &PingPongCfg<'_>,
     file: &Arc<File>,
     error_flag: &Arc<AtomicBool>,
@@ -841,6 +883,7 @@ fn spawn_background_flush(
     entries: Vec<(u64, Bytes)>,
 ) -> JoinHandle<()> {
     let bg_file = file.clone();
+    let bg_path = file_path.map(|p| p.to_path_buf());
     let bg_error = Arc::clone(error_flag);
     let bg_notify = notify.clone();
     let bg_sync = cfg.bg_sync;
@@ -852,7 +895,10 @@ fn spawn_background_flush(
     if let Some(worker) = io_worker {
         let worker = worker.clone();
         tokio::spawn(async move {
-            match worker.write_batch(bg_file, entries, bg_sync).await {
+            match worker
+                .write_batch_for_path(bg_path.as_deref(), bg_file, entries, bg_sync)
+                .await
+            {
                 Ok(()) => notify_flushed(bg_observer.as_ref(), &ranges),
                 Err(e) => {
                     bg_error.store(true, Ordering::Release);

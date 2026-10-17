@@ -13,11 +13,22 @@ mod imp {
 
     use crate::types::DiskType;
 
-    // IOCTL code for STORAGE_QUERY_PROPERTY
+    // IOCTL codes
     const IOCTL_STORAGE_QUERY_PROPERTY: u32 = 0x002D1400;
+    const IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS: u32 = 0x00560000;
+
+    const STORAGE_DEVICE_PROPERTY: u32 = 0;
     const STORAGE_DEVICE_SEEK_PENALTY_PROPERTY: u32 = 7;
+    const STORAGE_DEVICE_TRIM_PROPERTY: u32 = 8;
+
     const FILE_READ_ATTRIBUTES: u32 = 0x0080;
     const PROPERTY_STANDARD_QUERY: u32 = 0;
+
+    // Bus types from STORAGE_BUS_TYPE
+    const BUS_TYPE_SD: u32 = 12;
+    const BUS_TYPE_MMC: u32 = 13;
+    const BUS_TYPE_NVME: u32 = 17;
+    const BUS_TYPE_SCM: u32 = 18;
 
     #[repr(C)]
     struct StoragePropertyQuery {
@@ -32,6 +43,47 @@ mod imp {
         size: u32,
         incurs_seek_penalty: u8, // BOOLEAN: 0 = SSD, 1 = HDD
         _reserved: [u8; 3],
+    }
+
+    #[repr(C)]
+    struct StorageDeviceDescriptor {
+        version: u32,
+        size: u32,
+        device_type: u8,
+        device_type_modifier: u8,
+        removable_media: u8,
+        command_queueing: u8,
+        vendor_id_offset: u32,
+        product_id_offset: u32,
+        product_revision_offset: u32,
+        serial_number_offset: u32,
+        bus_type: u32,
+        raw_properties_length: u32,
+        raw_device_properties: [u8; 1],
+    }
+
+    #[repr(C)]
+    struct DeviceTrimDescriptor {
+        version: u32,
+        size: u32,
+        trim_enabled: u8,
+        _reserved: [u8; 3],
+    }
+
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    struct DiskExtent {
+        disk_number: u32,
+        _padding: u32,
+        starting_offset: i64,
+        extent_length: i64,
+    }
+
+    #[repr(C)]
+    struct VolumeDiskExtents {
+        number_of_disk_extents: u32,
+        _padding: u32,
+        extents: [DiskExtent; 8],
     }
 
     #[repr(C)]
@@ -515,31 +567,80 @@ mod imp {
             Some(h) => h,
             None => {
                 tracing::warn!(
-                    "disk_detect: could not open volume for {drive_letter}, defaulting to SSD"
+                    "disk_detect: could not open volume for {drive_letter}, reporting network without caching"
                 );
-                return DiskType::Ssd;
+                return DiskType::Network;
             }
         };
 
-        // Query the seek penalty property (documented, reliable — available since Windows 7).
-        // IncursSeekPenalty=1 → rotating HDD, 0 → non-rotating SSD.
-        let result = query_seek_penalty(handle);
-        unsafe { CloseHandle(handle); }
-
-        // Cache the result (including the SSD fallback) — stable for a mounted
-        // volume within this process.
-        disk_type_cache().lock().insert(drive_letter.clone(), result);
+        let result = detect_volume_media(handle, &drive_letter);
+        unsafe {
+            CloseHandle(handle);
+        }
 
         match result {
-            DiskType::Hdd => tracing::debug!("disk_detect: {drive_letter} is HDD (seek penalty)"),
-            DiskType::Ssd => tracing::debug!("disk_detect: {drive_letter} is SSD (no seek penalty)"),
-            // Unreachable: `query_seek_penalty` only answers Hdd/Ssd.
-            DiskType::Network => {}
+            Some(dt) => {
+                // Cache the verified result — stable for a mounted volume within this process.
+                disk_type_cache().lock().insert(drive_letter.clone(), dt);
+                match dt {
+                    DiskType::Hdd => tracing::debug!("disk_detect: {drive_letter} is HDD"),
+                    DiskType::Ssd => tracing::debug!("disk_detect: {drive_letter} is SSD"),
+                    DiskType::Network => {}
+                }
+                dt
+            }
+            None => {
+                tracing::warn!(
+                    "disk_detect: could not determine disk type for {drive_letter} after all probes; reporting network without caching to avoid silent misclassification. Consider setting io_baseline.disk_type_overrides in settings."
+                );
+                DiskType::Network
+            }
         }
-        result
     }
 
-    fn query_seek_penalty(handle: isize) -> DiskType {
+    /// Open a physical drive handle (e.g., `\\.\PhysicalDrive0`).
+    fn open_physical_drive(disk_number: u32) -> Option<isize> {
+        let path = format!("\\\\.\\PhysicalDrive{disk_number}");
+        let wide = to_wide_null(&path);
+        // Try zero-access first (avoids admin requirement)
+        if let Some(h) = try_open_volume_inner(wide.as_ptr(), 0, &path) {
+            return Some(h);
+        }
+        // Retry with FILE_READ_ATTRIBUTES
+        try_open_volume_inner(wide.as_ptr(), FILE_READ_ATTRIBUTES, &path)
+    }
+
+    /// Query the physical disk number for a volume handle via IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS.
+    fn get_volume_physical_disk_number(volume_handle: isize) -> Option<u32> {
+        let mut extents: VolumeDiskExtents = unsafe { mem::zeroed() };
+        let mut bytes_returned: u32 = 0;
+        let success = unsafe {
+            DeviceIoControl(
+                volume_handle,
+                IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS,
+                std::ptr::null(),
+                0,
+                &mut extents as *mut _ as *mut std::ffi::c_void,
+                mem::size_of::<VolumeDiskExtents>() as u32,
+                &mut bytes_returned,
+                std::ptr::null_mut(),
+            )
+        };
+
+        if success != 0 && extents.number_of_disk_extents > 0 {
+            Some(extents.extents[0].disk_number)
+        } else {
+            let err = unsafe { GetLastError() };
+            tracing::trace!(
+                "disk_detect: IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS failed, error={err}"
+            );
+            None
+        }
+    }
+
+    /// Query the Seek Penalty property on a handle (volume or physical drive).
+    /// IncursSeekPenalty == 0 -> SSD, != 0 -> HDD.
+    fn query_seek_penalty(handle: isize) -> Option<DiskType> {
         let query = StoragePropertyQuery {
             property_id: STORAGE_DEVICE_SEEK_PENALTY_PROPERTY,
             query_type: PROPERTY_STANDARD_QUERY,
@@ -562,25 +663,154 @@ mod imp {
             )
         };
 
-        if success == 0 {
+        if success != 0 && bytes_returned >= 5 {
+            if descriptor.incurs_seek_penalty == 0 {
+                Some(DiskType::Ssd)
+            } else {
+                Some(DiskType::Hdd)
+            }
+        } else {
             let err = unsafe { GetLastError() };
-            tracing::warn!(
-                "disk_detect: DeviceIoControl(STORAGE_SEEK_PENALTY) failed, error={err}, defaulting to SSD"
+            tracing::trace!(
+                "disk_detect: DeviceIoControl(STORAGE_SEEK_PENALTY) failed, error={err}"
             );
-            return DiskType::Ssd;
+            None
         }
-        if bytes_returned == 0 {
-            tracing::warn!(
-                "disk_detect: DeviceIoControl(STORAGE_SEEK_PENALTY) returned 0 bytes, defaulting to SSD"
+    }
+
+    /// Query the BusType property on a handle (volume or physical drive).
+    /// NVMe / SCM / SD / MMC are non-rotational flash media -> SSD.
+    fn query_bus_type(handle: isize) -> Option<DiskType> {
+        let query = StoragePropertyQuery {
+            property_id: STORAGE_DEVICE_PROPERTY,
+            query_type: PROPERTY_STANDARD_QUERY,
+            additional_parameters: [0; 1],
+        };
+
+        let mut descriptor: StorageDeviceDescriptor = unsafe { mem::zeroed() };
+        let mut bytes_returned: u32 = 0;
+
+        let success = unsafe {
+            DeviceIoControl(
+                handle,
+                IOCTL_STORAGE_QUERY_PROPERTY,
+                &query as *const _ as *const std::ffi::c_void,
+                mem::size_of::<StoragePropertyQuery>() as u32,
+                &mut descriptor as *mut _ as *mut std::ffi::c_void,
+                mem::size_of::<StorageDeviceDescriptor>() as u32,
+                &mut bytes_returned,
+                std::ptr::null_mut(),
+            )
+        };
+
+        if success != 0 && bytes_returned >= 32 {
+            match descriptor.bus_type {
+                BUS_TYPE_NVME | BUS_TYPE_SCM | BUS_TYPE_SD | BUS_TYPE_MMC => Some(DiskType::Ssd),
+                _ => None,
+            }
+        } else {
+            let err = unsafe { GetLastError() };
+            tracing::trace!(
+                "disk_detect: DeviceIoControl(STORAGE_DEVICE_PROPERTY) failed, error={err}"
             );
-            return DiskType::Ssd;
+            None
+        }
+    }
+
+    /// Query the TRIM property on a handle (volume or physical drive).
+    /// If TrimEnabled is true, media is flash (SSD).
+    fn query_trim_enabled(handle: isize) -> Option<DiskType> {
+        let query = StoragePropertyQuery {
+            property_id: STORAGE_DEVICE_TRIM_PROPERTY,
+            query_type: PROPERTY_STANDARD_QUERY,
+            additional_parameters: [0; 1],
+        };
+
+        let mut descriptor: DeviceTrimDescriptor = unsafe { mem::zeroed() };
+        let mut bytes_returned: u32 = 0;
+
+        let success = unsafe {
+            DeviceIoControl(
+                handle,
+                IOCTL_STORAGE_QUERY_PROPERTY,
+                &query as *const _ as *const std::ffi::c_void,
+                mem::size_of::<StoragePropertyQuery>() as u32,
+                &mut descriptor as *mut _ as *mut std::ffi::c_void,
+                mem::size_of::<DeviceTrimDescriptor>() as u32,
+                &mut bytes_returned,
+                std::ptr::null_mut(),
+            )
+        };
+
+        if success != 0 && bytes_returned >= 9 && descriptor.trim_enabled != 0 {
+            Some(DiskType::Ssd)
+        } else {
+            let err = unsafe { GetLastError() };
+            tracing::trace!(
+                "disk_detect: DeviceIoControl(STORAGE_DEVICE_TRIM_PROPERTY) failed, error={err}"
+            );
+            None
+        }
+    }
+
+    /// Probe the media of a physical drive handle using seek penalty, bus type, and trim.
+    fn query_physical_drive_media(phys_handle: isize) -> Option<DiskType> {
+        if let Some(dt) = query_seek_penalty(phys_handle) {
+            return Some(dt);
+        }
+        if let Some(dt) = query_bus_type(phys_handle) {
+            return Some(dt);
+        }
+        if let Some(dt) = query_trim_enabled(phys_handle) {
+            return Some(dt);
+        }
+        None
+    }
+
+    /// Run the fallback detection chain for a volume:
+    /// 1. Direct Seek Penalty on volume handle
+    /// 2. Physical Drive Seek Penalty via volume disk extents
+    /// 3. BusType on volume handle (NVMe -> SSD)
+    /// 4. TRIM on volume handle (TRIM enabled -> SSD)
+    fn detect_volume_media(volume_handle: isize, drive_letter: &str) -> Option<DiskType> {
+        // 1. Direct Seek Penalty on the volume handle.
+        if let Some(dt) = query_seek_penalty(volume_handle) {
+            tracing::debug!("disk_detect: {drive_letter} volume seek penalty -> {dt:?}");
+            return Some(dt);
         }
 
-        if descriptor.incurs_seek_penalty == 0 {
-            DiskType::Ssd
-        } else {
-            DiskType::Hdd
+        // 2. Physical Drive fallback via volume disk extents.
+        if let Some(disk_num) = get_volume_physical_disk_number(volume_handle) {
+            tracing::debug!("disk_detect: {drive_letter} mapped to PhysicalDrive{disk_num}");
+            if let Some(phys_handle) = open_physical_drive(disk_num) {
+                let phys_result = query_physical_drive_media(phys_handle);
+                unsafe {
+                    CloseHandle(phys_handle);
+                }
+                if let Some(dt) = phys_result {
+                    tracing::debug!(
+                        "disk_detect: {drive_letter} (PhysicalDrive{disk_num}) -> {dt:?}"
+                    );
+                    return Some(dt);
+                }
+            } else {
+                tracing::debug!("disk_detect: could not open PhysicalDrive{disk_num}");
+            }
         }
+
+        // 3. BusType query on volume handle.
+        if let Some(dt) = query_bus_type(volume_handle) {
+            tracing::debug!("disk_detect: {drive_letter} volume bus type -> {dt:?}");
+            return Some(dt);
+        }
+
+        // 4. TRIM query on volume handle.
+        if let Some(dt) = query_trim_enabled(volume_handle) {
+            tracing::debug!("disk_detect: {drive_letter} volume trim -> {dt:?}");
+            return Some(dt);
+        }
+
+        None
     }
 
     /// Enumerate every local, removable and *remote* volume plus each WSL

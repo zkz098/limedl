@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::path::Path;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -83,6 +84,7 @@ pub fn write_coalesced_entries(file: &File, entries: &[(u64, Bytes)]) -> Result<
 #[derive(Clone)]
 pub struct IoWorker {
     txs: Vec<mpsc::UnboundedSender<IoCommand>>,
+    device_manager: Option<Arc<crate::io_scheduler::DiskDeviceManager>>,
 }
 
 impl IoWorker {
@@ -133,7 +135,10 @@ impl IoWorker {
                 .expect("failed to spawn I/O worker thread");
             txs.push(tx);
         }
-        Self { txs }
+        Self {
+            txs,
+            device_manager,
+        }
     }
 
     /// Convenience: spawn a single-threaded I/O worker (backward-compatible).
@@ -210,11 +215,34 @@ impl IoWorker {
         }
     }
 
-    /// Submit a batch write to a worker thread and await completion.
-    ///
-    /// Writes are hash-routed to a specific worker based on file identity,
-    /// so writes to the same file are always processed by the same thread.
-    pub async fn write_batch(
+    /// Submit a batch write for a specific file path, routing directly through
+    /// the underlying DiskDeviceManager / DeviceQueue if available.
+    pub async fn write_batch_for_path(
+        &self,
+        path: Option<&Path>,
+        file: Arc<File>,
+        entries: Vec<(u64, Bytes)>,
+        sync: SyncMode,
+    ) -> Result<(), DownloadError> {
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            if crate::buffer_pool::fault::consume_batch(Arc::as_ptr(&file) as usize) {
+                let e = DownloadError::Internal(
+                    "injected write-batch failure (test fault)".into(),
+                );
+                return Err(e);
+            }
+        }
+
+        if let (Some(dm), Some(path)) = (&self.device_manager, path) {
+            dm.write_batch(path, file, entries, sync).await
+        } else {
+            self.write_batch_fallback(file, entries, sync).await
+        }
+    }
+
+    /// Submit a batch write to a worker thread (fallback when device manager or path is not available).
+    async fn write_batch_fallback(
         &self,
         file: Arc<File>,
         entries: Vec<(u64, Bytes)>,
@@ -234,5 +262,18 @@ impl IoWorker {
         done_rx
             .await
             .map_err(|_| DownloadError::Internal("I/O worker dropped response".into()))?
+    }
+
+    /// Submit a batch write to a worker thread and await completion.
+    ///
+    /// Writes are hash-routed to a specific worker based on file identity,
+    /// so writes to the same file are always processed by the same thread.
+    pub async fn write_batch(
+        &self,
+        file: Arc<File>,
+        entries: Vec<(u64, Bytes)>,
+        sync: SyncMode,
+    ) -> Result<(), DownloadError> {
+        self.write_batch_for_path(None, file, entries, sync).await
     }
 }

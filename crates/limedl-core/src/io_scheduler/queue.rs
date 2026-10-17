@@ -139,6 +139,17 @@ impl DeviceQueue {
                 sync,
                 done,
             } => {
+                #[cfg(any(test, feature = "test-utils"))]
+                {
+                    if crate::buffer_pool::fault::consume_batch(Arc::as_ptr(&file) as usize) {
+                        let e = DownloadError::Internal(
+                            "injected write-batch failure (test fault)".into(),
+                        );
+                        let _ = done.send(Err(e));
+                        return;
+                    }
+                }
+
                 let batch_bytes: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
                 let result = (|| -> Result<(), DownloadError> {
                     if !entries.is_empty() {

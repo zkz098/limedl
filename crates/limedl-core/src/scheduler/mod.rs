@@ -9,6 +9,7 @@
 //! `Arc<Scheduler>`).
 
 use std::{
+    path::Path,
     sync::{Arc, atomic::Ordering},
     time::{Duration, Instant},
 };
@@ -29,7 +30,10 @@ use crate::{
     manifest::Manifest,
     now_ms,
     persistence::persist_manifest_snapshots_batch,
-    types::{AdaptiveProfile, AppSettings, DownloadState, QueueSortStrategy, SchedulerMode, ThreadMode},
+    types::{
+        AdaptiveProfile, AppSettings, DiskType, DownloadState, QueueSortStrategy, SchedulerMode,
+        ThreadMode,
+    },
 };
 
 const SCHEDULER_TICK: Duration = Duration::from_secs(2);
@@ -173,6 +177,7 @@ impl Scheduler {
     /// Rebalance thread allocations across all active downloads.
     pub async fn rebalance_allocations(&self, dm: &DownloadManager) -> Result<()> {
         let settings = dm.settings_service.get().await;
+        let max_parallel_hdd = dm.buffer_pool.effective_max_parallel() as usize;
 
         // Phase 1: collect all Arc references under the read lock, then drop it
         let (mut entries, all_downloads) = {
@@ -182,12 +187,39 @@ impl Scheduler {
             (entries, all_downloads)
         };
 
+        let mut dir_cache: HashMap<String, DiskType> = HashMap::default();
+        let mut disk_types: HashMap<String, DiskType> = HashMap::default();
+        for managed in &entries {
+            let (id, dir) = {
+                let core = managed.lock_core();
+                (core.manifest.id.clone(), core.manifest.destination_dir.clone())
+            };
+            let dt = match dir_cache.get(&dir) {
+                Some(&dt) => dt,
+                None => {
+                    let dt = dm.resolve_disk_type(Path::new(&dir)).await;
+                    dir_cache.insert(dir, dt);
+                    dt
+                }
+            };
+            disk_types.insert(id, dt);
+        }
+
         match settings.scheduler.mode {
-            SchedulerMode::Traditional => rebalance_traditional(&mut entries, &settings),
+            SchedulerMode::Traditional => {
+                rebalance_traditional(&mut entries, &settings, &disk_types, max_parallel_hdd)
+            }
             SchedulerMode::Automatic => {
                 // Parking-lot guard is scoped so it is never held across an await.
                 let mut state = self.automatic.lock();
-                rebalance_automatic(&entries, &all_downloads, &settings, &mut state);
+                rebalance_automatic(
+                    &entries,
+                    &all_downloads,
+                    &settings,
+                    &mut state,
+                    &disk_types,
+                    max_parallel_hdd,
+                );
             }
         }
 
@@ -846,8 +878,14 @@ fn effective_max_connections_per_host(settings: &AppSettings) -> usize {
     }
 }
 
-/// Traditional mode: priority/age order, at most `max_parallel_tasks` running.
-fn rebalance_traditional(entries: &mut [Arc<ManagedDownload>], settings: &AppSettings) {
+/// Traditional mode: priority/age order, at most `max_parallel_tasks` running,
+/// with at most `max_parallel_hdd` tasks concurrently accessing mechanical drives.
+fn rebalance_traditional(
+    entries: &mut [Arc<ManagedDownload>],
+    settings: &AppSettings,
+    disk_types: &HashMap<String, DiskType>,
+    max_parallel_hdd: usize,
+) {
     // Pre-snapshot the sort keys so the comparator does not take each
     // per-download lock twice per comparison.
     entries.sort_by_cached_key(|managed| {
@@ -859,6 +897,7 @@ fn rebalance_traditional(entries: &mut [Arc<ManagedDownload>], settings: &AppSet
     });
 
     let mut running = 0usize;
+    let mut running_hdd = 0usize;
     let mut host_caps = HostCapTracker::new(effective_max_connections_per_host(settings));
     for managed in entries {
         let mut core = managed.lock_core();
@@ -870,13 +909,23 @@ fn rebalance_traditional(entries: &mut [Arc<ManagedDownload>], settings: &AppSet
             continue;
         }
 
-        if running < settings.scheduler.traditional.max_parallel_tasks {
+        let is_hdd = disk_types
+            .get(&manifest.id)
+            .copied()
+            .unwrap_or(DiskType::Ssd)
+            == DiskType::Hdd;
+        let hdd_allowed = !is_hdd || running_hdd < max_parallel_hdd;
+
+        if running < settings.scheduler.traditional.max_parallel_tasks && hdd_allowed {
             let allocation = effective_allocation_cap(manifest, settings).max(1);
             let allocation = host_caps.grant(manifest, allocation);
 
             if allocation > 0 {
                 set_downloading(manifest, allocation);
                 running = running.saturating_add(1);
+                if is_hdd {
+                    running_hdd = running_hdd.saturating_add(1);
+                }
             } else {
                 set_queued(manifest);
             }
@@ -889,7 +938,7 @@ fn rebalance_traditional(entries: &mut [Arc<ManagedDownload>], settings: &AppSet
 }
 
 /// Automatic mode: order candidates by static task properties, then split
-/// `max_parallel_threads` over them.
+/// `max_parallel_threads` over them, respecting the media quota (`max_parallel_hdd`).
 ///
 /// The ordering is deliberately **monotonic** (priority, total size, creation
 /// time) and the allocation is **sticky**: a task that already holds threads
@@ -902,14 +951,18 @@ fn rebalance_automatic(
     all_downloads: &[Arc<ManagedDownload>],
     settings: &AppSettings,
     state: &mut AutomaticRebalanceState,
+    disk_types: &HashMap<String, DiskType>,
+    max_parallel_hdd: usize,
 ) {
     let mut candidates = sort_automatic_candidates(entries, settings);
-    order_and_rotate_candidates(&mut candidates, state);
+    order_and_rotate_candidates(&mut candidates, state, disk_types, max_parallel_hdd);
 
     let (mut allocations, remaining_budget, mut host_caps) = allocate_initial_minimums(
         &candidates,
         settings,
         settings.scheduler.automatic.max_parallel_threads,
+        disk_types,
+        max_parallel_hdd,
     );
     distribute_remaining_budget(
         &candidates,
@@ -1017,26 +1070,76 @@ fn sort_automatic_candidates(
 fn order_and_rotate_candidates(
     candidates: &mut Vec<Arc<ManagedDownload>>,
     state: &mut AutomaticRebalanceState,
+    disk_types: &HashMap<String, DiskType>,
+    max_parallel_hdd: usize,
 ) {
     let (mut active, mut waiting): (Vec<_>, Vec<_>) = candidates
         .drain(..)
         .partition(|managed| prior_allocation(managed) > 0);
 
+    let active_hdd_count = active
+        .iter()
+        .filter(|m| {
+            let id = m.lock_core().manifest.id.clone();
+            disk_types.get(&id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd
+        })
+        .count();
+
     // ── Priority preemption (static key, at most one swap per pass) ──
     if !active.is_empty()
         && !waiting.is_empty()
-        && let Some(active_min_priority) = active.iter().map(priority_of).min()
-        && let Some(wait_pos) = waiting
-            .iter()
-            .position(|managed| priority_of(managed) > active_min_priority)
-        && let Some(victim_pos) = active
-            .iter()
-            .rposition(|managed| priority_of(managed) == active_min_priority)
+        && let Some(wait_pos) = waiting.iter().position(|w| {
+            let w_id = w.lock_core().manifest.id.clone();
+            let w_is_hdd =
+                disk_types.get(&w_id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd;
+            let w_prio = priority_of(w);
+
+            if w_is_hdd && active_hdd_count >= max_parallel_hdd {
+                // If HDD quota is already full, an HDD candidate can only preempt an active HDD candidate
+                active.iter().any(|a| {
+                    let a_id = a.lock_core().manifest.id.clone();
+                    disk_types.get(&a_id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd
+                        && w_prio > priority_of(a)
+                })
+            } else {
+                active.iter().any(|a| w_prio > priority_of(a))
+            }
+        })
     {
-        let promoted = waiting.remove(wait_pos);
-        let demoted = active.remove(victim_pos);
-        active.push(promoted);
-        waiting.push(demoted);
+        let w = &waiting[wait_pos];
+        let w_id = w.lock_core().manifest.id.clone();
+        let w_is_hdd =
+            disk_types.get(&w_id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd;
+        let w_prio = priority_of(w);
+
+        let victim_pos = if w_is_hdd && active_hdd_count >= max_parallel_hdd {
+            // Victim must be the lowest-priority active HDD task
+            active
+                .iter()
+                .enumerate()
+                .filter(|(_, a)| {
+                    let a_id = a.lock_core().manifest.id.clone();
+                    disk_types.get(&a_id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd
+                        && w_prio > priority_of(a)
+                })
+                .min_by_key(|(_, a)| priority_of(a))
+                .map(|(pos, _)| pos)
+        } else {
+            // Victim is the lowest-priority active task overall
+            active
+                .iter()
+                .enumerate()
+                .filter(|(_, a)| w_prio > priority_of(a))
+                .min_by_key(|(_, a)| priority_of(a))
+                .map(|(pos, _)| pos)
+        };
+
+        if let Some(v_pos) = victim_pos {
+            let promoted = waiting.remove(wait_pos);
+            let demoted = active.remove(v_pos);
+            active.push(promoted);
+            waiting.push(demoted);
+        }
     }
 
     // ── Starvation rotation ──
@@ -1058,8 +1161,42 @@ fn order_and_rotate_candidates(
                 })
                 .map(|(pos, _)| pos)
                 .expect("waiting is non-empty");
-            let promoted = waiting.remove(promote_pos);
-            let demoted = active.pop().expect("active is non-empty");
+
+            let promoted_id = waiting[promote_pos].lock_core().manifest.id.clone();
+            let promoted_is_hdd = disk_types
+                .get(&promoted_id)
+                .copied()
+                .unwrap_or(DiskType::Ssd)
+                == DiskType::Hdd;
+
+            let demote_pos = if promoted_is_hdd && active_hdd_count >= max_parallel_hdd {
+                // Demote the lowest-priority / last active HDD candidate
+                active
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, a)| {
+                        let a_id = a.lock_core().manifest.id.clone();
+                        disk_types.get(&a_id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd
+                    })
+                    .min_by_key(|(_, a)| priority_of(a))
+                    .map(|(pos, _)| pos)
+            } else {
+                None
+            };
+
+            let (promoted, demoted) = match demote_pos {
+                Some(d_pos) => {
+                    let promoted = waiting.remove(promote_pos);
+                    let demoted = active.remove(d_pos);
+                    (promoted, demoted)
+                }
+                None => {
+                    let promoted = waiting.remove(promote_pos);
+                    let demoted = active.pop().expect("active is non-empty");
+                    (promoted, demoted)
+                }
+            };
+
             active.push(promoted);
             waiting.push(demoted);
             state.passes_since_rotation = 0;
@@ -1105,23 +1242,30 @@ fn update_waiting_passes(
     state.waiting_passes = waiting_passes;
 }
 
-/// First pass: give every candidate its minimum share, capped per task and host.
+/// First pass: give every candidate its minimum share, capped per task, host, and media quota.
 fn allocate_initial_minimums(
     candidates: &[Arc<ManagedDownload>],
     settings: &AppSettings,
     budget: usize,
+    disk_types: &HashMap<String, DiskType>,
+    max_parallel_hdd: usize,
 ) -> (HashMap<String, usize>, usize, HostCapTracker) {
     let min_per_task = settings.scheduler.automatic.min_threads_per_task.max(1);
     let mut allocations: HashMap<String, usize> = HashMap::default();
     let mut host_caps = HostCapTracker::new(effective_max_connections_per_host(settings));
     let mut remaining_budget = budget;
+    let mut running_hdd = 0usize;
 
     for managed in candidates {
         let core = managed.lock_core();
-        if remaining_budget == 0 {
-            allocations.insert(core.manifest.id.clone(), 0);
+        let id = core.manifest.id.clone();
+        let is_hdd = disk_types.get(&id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd;
+
+        if remaining_budget == 0 || (is_hdd && running_hdd >= max_parallel_hdd) {
+            allocations.insert(id, 0);
             continue;
         }
+
         let cap = effective_allocation_cap(&core.manifest, settings);
         let start = if remaining_budget >= min_per_task {
             min_per_task
@@ -1130,7 +1274,10 @@ fn allocate_initial_minimums(
         }
         .min(cap);
         let start = host_caps.grant(&core.manifest, start);
-        allocations.insert(core.manifest.id.clone(), start);
+        if start > 0 && is_hdd {
+            running_hdd += 1;
+        }
+        allocations.insert(id, start);
         remaining_budget = remaining_budget.saturating_sub(start);
     }
 
@@ -1150,6 +1297,12 @@ fn distribute_remaining_budget(
         for managed in candidates {
             let core = managed.lock_core();
             let entry = allocations.entry(core.manifest.id.clone()).or_insert(0);
+            // Only distribute remaining budget to candidates that already received
+            // an initial allocation (> 0). Candidates that were capped at 0 (e.g. because
+            // host cap or HDD quota was reached) must remain at 0.
+            if *entry == 0 {
+                continue;
+            }
             let cap = effective_allocation_cap(&core.manifest, settings);
 
             let host = hostname_from_manifest(&core.manifest);

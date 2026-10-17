@@ -288,6 +288,22 @@ fn automatic_settings(budget: usize, min: usize, cap: usize) -> AppSettings {
     }
 }
 
+fn rebalance_auto(
+    candidates: &[std::sync::Arc<crate::download::ManagedDownload>],
+    all_downloads: &[std::sync::Arc<crate::download::ManagedDownload>],
+    settings: &AppSettings,
+    state: &mut super::AutomaticRebalanceState,
+) {
+    super::rebalance_automatic(
+        candidates,
+        all_downloads,
+        settings,
+        state,
+        &foldhash::HashMap::default(),
+        4,
+    );
+}
+
 /// The original bug: the active set was re-derived from remaining bytes every
 /// pass, so as the running task made progress the queued tasks overtook it and
 /// the active set flipped on every rebalance.  With static keys plus stickiness
@@ -310,7 +326,7 @@ fn automatic_active_set_is_sticky_across_progress() {
                 core.manifest.downloaded_bytes += 5_000_000;
             }
         }
-        super::rebalance_automatic(&tasks, &tasks, &settings, &mut state);
+        rebalance_auto(&tasks, &tasks, &settings, &mut state);
         let active = active_ids(&tasks);
         if let Some(previous) = &first_active {
             assert_eq!(previous, &active, "active set changed at pass {pass}");
@@ -332,7 +348,7 @@ fn automatic_rotation_gives_every_waiting_task_a_turn() {
 
     let mut seen = std::collections::HashSet::new();
     for _ in 0..(4 * super::AUTOMATIC_ROTATION_PASSES + 4) {
-        super::rebalance_automatic(&tasks, &tasks, &settings, &mut state);
+        rebalance_auto(&tasks, &tasks, &settings, &mut state);
         if let Some(id) = active_ids(&tasks).into_iter().next() {
             seen.insert(id);
         }
@@ -354,7 +370,7 @@ fn automatic_priority_preempts_an_incumbent() {
     let mut state = super::AutomaticRebalanceState::default();
 
     // Only the normal-priority task exists; it takes the single slot.
-    super::rebalance_automatic(
+    rebalance_auto(
         std::slice::from_ref(&low),
         std::slice::from_ref(&low),
         &settings,
@@ -369,7 +385,7 @@ fn automatic_priority_preempts_an_incumbent() {
     let high = rebalance_task("high", 1000, 1, 0);
     high.lock_core().manifest.priority = Priority::High;
     let tasks = vec![low, high];
-    super::rebalance_automatic(&tasks, &tasks, &settings, &mut state);
+    rebalance_auto(&tasks, &tasks, &settings, &mut state);
     assert_eq!(active_ids(&tasks), vec![String::from("high")]);
 }
 
@@ -384,11 +400,11 @@ fn automatic_rotation_is_bounded() {
     let mut state = super::AutomaticRebalanceState::default();
 
     // Warm up so the initial empty -> active transition is not counted.
-    super::rebalance_automatic(&tasks, &tasks, &settings, &mut state);
+    rebalance_auto(&tasks, &tasks, &settings, &mut state);
     let mut previous = active_ids(&tasks);
     let mut changes = 0usize;
     for _ in 0..(2 * super::AUTOMATIC_ROTATION_PASSES) {
-        super::rebalance_automatic(&tasks, &tasks, &settings, &mut state);
+        rebalance_auto(&tasks, &tasks, &settings, &mut state);
         let active = active_ids(&tasks);
         if active != previous {
             changes += 1;
@@ -768,5 +784,119 @@ fn test_expert_aimd_decrease_factor() {
     let core = managed.lock_core();
     // 10 * 0.85 = 8.5 -> ceil = 9
     assert_eq!(core.manifest.desired_thread_count, Some(9));
+}
+
+#[test]
+fn test_rebalance_automatic_caps_hdd_parallel_tasks() {
+    use crate::types::DiskType;
+    use foldhash::HashMap;
+
+    // 6 tasks, all on HDD, max_parallel_hdd = 3, total thread budget = 32
+    let tasks: Vec<_> = (0..6)
+        .map(|i| rebalance_task(&format!("hdd_{i}"), 1000, i, 0))
+        .collect();
+    let mut disk_types = HashMap::default();
+    for t in &tasks {
+        disk_types.insert(t.lock_core().manifest.id.clone(), DiskType::Hdd);
+    }
+
+    let settings = automatic_settings(32, 2, 8);
+    let mut state = super::AutomaticRebalanceState::default();
+
+    super::rebalance_automatic(&tasks, &tasks, &settings, &mut state, &disk_types, 3);
+
+    let active = active_ids(&tasks);
+    assert_eq!(
+        active.len(),
+        3,
+        "only 3 HDD tasks should be active when max_parallel_hdd = 3, got: {active:?}"
+    );
+
+    // Verify the other 3 are queued
+    for task in &tasks[3..] {
+        let core = task.lock_core();
+        assert_eq!(core.manifest.state, DownloadState::Queued);
+        assert_eq!(core.manifest.allocated_thread_count, Some(0));
+    }
+}
+
+#[test]
+fn test_rebalance_automatic_allows_ssd_when_hdd_quota_full() {
+    use crate::types::DiskType;
+    use foldhash::HashMap;
+
+    // 4 HDD tasks + 2 SSD tasks, max_parallel_hdd = 2, total thread budget = 32
+    let hdd_tasks: Vec<_> = (0..4)
+        .map(|i| rebalance_task(&format!("hdd_{i}"), 1000, i, 0))
+        .collect();
+    let ssd_tasks: Vec<_> = (0..2)
+        .map(|i| rebalance_task(&format!("ssd_{i}"), 1000, i + 10, 0))
+        .collect();
+
+    let mut disk_types = HashMap::default();
+    for t in &hdd_tasks {
+        disk_types.insert(t.lock_core().manifest.id.clone(), DiskType::Hdd);
+    }
+    for t in &ssd_tasks {
+        disk_types.insert(t.lock_core().manifest.id.clone(), DiskType::Ssd);
+    }
+
+    let mut all_tasks = Vec::new();
+    all_tasks.extend(hdd_tasks.clone());
+    all_tasks.extend(ssd_tasks.clone());
+
+    let settings = automatic_settings(32, 2, 8);
+    let mut state = super::AutomaticRebalanceState::default();
+
+    super::rebalance_automatic(&all_tasks, &all_tasks, &settings, &mut state, &disk_types, 2);
+
+    let active = active_ids(&all_tasks);
+    // 2 HDD tasks + 2 SSD tasks = 4 active
+    assert_eq!(active.len(), 4, "expected 2 HDD + 2 SSD active, got: {active:?}");
+    assert!(active.contains(&"hdd_0".to_string()));
+    assert!(active.contains(&"hdd_1".to_string()));
+    assert!(active.contains(&"ssd_0".to_string()));
+    assert!(active.contains(&"ssd_1".to_string()));
+    assert!(!active.contains(&"hdd_2".to_string()));
+    assert!(!active.contains(&"hdd_3".to_string()));
+}
+
+#[test]
+fn test_rebalance_traditional_caps_hdd_parallel_tasks() {
+    use crate::types::DiskType;
+    use foldhash::HashMap;
+
+    // Traditional mode: max_parallel_tasks = 5, max_parallel_hdd = 2
+    let mut settings = settings_traditional();
+    settings.scheduler.traditional.max_parallel_tasks = 5;
+
+    let hdd_tasks: Vec<_> = (0..4)
+        .map(|i| rebalance_task(&format!("hdd_{i}"), 1000, i, 0))
+        .collect();
+    let ssd_tasks: Vec<_> = (0..2)
+        .map(|i| rebalance_task(&format!("ssd_{i}"), 1000, i + 10, 0))
+        .collect();
+
+    let mut disk_types = HashMap::default();
+    for t in &hdd_tasks {
+        disk_types.insert(t.lock_core().manifest.id.clone(), DiskType::Hdd);
+    }
+    for t in &ssd_tasks {
+        disk_types.insert(t.lock_core().manifest.id.clone(), DiskType::Ssd);
+    }
+
+    let mut all_tasks = Vec::new();
+    all_tasks.extend(hdd_tasks.clone());
+    all_tasks.extend(ssd_tasks.clone());
+
+    super::rebalance_traditional(&mut all_tasks, &settings, &disk_types, 2);
+
+    let active = active_ids(&all_tasks);
+    // 2 HDD + 2 SSD = 4 active (< 5 max_parallel_tasks)
+    assert_eq!(active.len(), 4, "expected 2 HDD + 2 SSD active, got: {active:?}");
+    assert!(active.contains(&"hdd_0".to_string()));
+    assert!(active.contains(&"hdd_1".to_string()));
+    assert!(active.contains(&"ssd_0".to_string()));
+    assert!(active.contains(&"ssd_1".to_string()));
 }
 

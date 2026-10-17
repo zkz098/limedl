@@ -87,18 +87,30 @@ async fn build_write_buffer(
         crate::download::record_durable_bytes(&observer_managed, ranges);
     });
 
+    let (chunk_size, temp_path) = {
+        let core = managed.lock_core();
+        (
+            core.manifest.chunk_size,
+            if core.manifest.temp_path.is_empty() {
+                None
+            } else {
+                Some(PathBuf::from(&core.manifest.temp_path))
+            },
+        )
+    };
+
     if disk_type == DiskType::Hdd && hdd_buffering {
         let slot = dm.buffer_pool.acquire_slot().await;
-        return Arc::new(DownloadBuffer::new_with_worker(
+        return Arc::new(DownloadBuffer::new_with_worker_path(
             dm.buffer_pool.clone(),
             slot,
             file.clone(),
+            temp_path,
             dm.io_worker.clone(),
             Some(observer),
         ));
     }
 
-    let chunk_size = managed.lock_core().manifest.chunk_size;
     let ssd_limit_bytes = if ssd_write_combine_mb == 0 {
         chunk_size // auto: use the download's chunk size
     } else {
@@ -109,9 +121,10 @@ async fn build_write_buffer(
     // this means at most 8 MiB per download — the ping-pong double-buffer
     // caps peak untracked memory at 16 MiB per download regardless of N.
     let ssd_half_size = (ssd_limit_bytes / 2).clamp(64 * 1024, 8 * 1024 * 1024);
-    Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
+    Arc::new(DownloadBuffer::new_local_pingpong_with_worker_path(
         ssd_half_size,
         file.clone(),
+        temp_path,
         dm.io_worker.clone(),
         Some(observer),
     ))
