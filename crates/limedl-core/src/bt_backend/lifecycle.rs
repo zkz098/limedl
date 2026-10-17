@@ -8,8 +8,8 @@ use super::IrontideBtBackend;
 use crate::error::{DownloadError, Result, io_error_with_path};
 use crate::slot_guard::DownloadSlotGuard;
 use crate::types::{
-    ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary, Priority, StartDownloadRequest, TaskKind,
-    ThreadMode,
+    ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary, Priority, StartDownloadRequest,
+    TaskKind, ThreadMode,
 };
 use crate::{lock, now_ms};
 
@@ -21,17 +21,13 @@ impl IrontideBtBackend {
         // Clone the client out of the lock before awaiting: `parking_lot`'s guard
         // is not `Send` and must not be held across the request.
         let client = { self.http_client.read().clone() };
-        let resp = client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| DownloadError::TorrentNetwork(format!("failed to fetch torrent: {e}")))?;
-        resp.bytes()
-            .await
-            .map(|b| b.to_vec())
-            .map_err(|e| {
-                DownloadError::TorrentNetwork(format!("failed to read torrent bytes: {e}"))
-            })
+        let resp =
+            client.get(url).send().await.map_err(|e| {
+                DownloadError::TorrentNetwork(format!("failed to fetch torrent: {e}"))
+            })?;
+        resp.bytes().await.map(|b| b.to_vec()).map_err(|e| {
+            DownloadError::TorrentNetwork(format!("failed to read torrent bytes: {e}"))
+        })
     }
     /// Try to acquire a BT download slot.
     /// Fails with `TooManyConcurrentDownloads` if at capacity.
@@ -248,8 +244,7 @@ impl IrontideBtBackend {
                 "download file does not exist",
             )));
         }
-        open::that(&path)
-            .map_err(|e| DownloadError::Io(std::io::Error::other(e.to_string())))?;
+        open::that(&path).map_err(|e| DownloadError::Io(std::io::Error::other(e.to_string())))?;
         Ok(())
     }
 
@@ -261,8 +256,8 @@ impl IrontideBtBackend {
         } else {
             path
         };
-        crate::platform::open_in_file_manager(&dir)
-            .map_err(DownloadError::Io)?;        Ok(())
+        crate::platform::open_in_file_manager(&dir).map_err(DownloadError::Io)?;
+        Ok(())
     }
 
     pub async fn status(&self, info_hash: Id20) -> Result<DownloadSnapshot> {

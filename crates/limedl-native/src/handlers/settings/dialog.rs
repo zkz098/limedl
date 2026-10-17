@@ -10,14 +10,14 @@ use parking_lot::Mutex;
 
 use limedl_core::backend_registry::BackendRegistry;
 use limedl_core::dispatcher::Dispatcher;
-use limedl_core::error::Result as CoreResult;
 use limedl_core::error::DownloadError;
+use limedl_core::error::Result as CoreResult;
 
 use crate::bridge::TaskStore;
 use crate::bridge::{
-    app_settings_to_setup_form, parse_aria2_clients, parse_disk_type_overrides,
-    parse_speed_limit_slots, update_app_settings_from_form, Aria2ClientText, DiskTypeOverrideText,
-    SpeedLimitSlotText,
+    Aria2ClientText, DiskTypeOverrideText, SpeedLimitSlotText, app_settings_to_setup_form,
+    parse_aria2_clients, parse_disk_type_overrides, parse_speed_limit_slots,
+    update_app_settings_from_form,
 };
 use crate::context::AppContext;
 use crate::handlers::common::{read_ui, with_ui};
@@ -25,7 +25,9 @@ use crate::i18n;
 use crate::settings_sync::{PushOptions, SettingsSync};
 use crate::task_ops::open_url_in_browser;
 use crate::toast::{ToastQueue, push_toast};
-use crate::ui_sync::{read_aria2_client_rows, read_disk_override_rows, read_schedule_rows, refresh_settings_state};
+use crate::ui_sync::{
+    read_aria2_client_rows, read_disk_override_rows, read_schedule_rows, refresh_settings_state,
+};
 use crate::{MainWindow, POWER_GUARD, SettingsFormData};
 
 /// Pre-collected text state of all dialog table/list editors before crossing to
@@ -68,8 +70,11 @@ async fn save_settings(ctx: SaveCtx, form_data: SettingsFormData, rows: EditorRo
     let parsed_overrides = match parse_disk_type_overrides(&rows.override_rows, lang) {
         Ok(overrides) => overrides,
         Err(msg) => {
-            ctx.sync
-                .toast(i18n::format_toast_disk_override_invalid(&msg, lang), "error", 8);
+            ctx.sync.toast(
+                i18n::format_toast_disk_override_invalid(&msg, lang),
+                "error",
+                8,
+            );
             return;
         }
     };

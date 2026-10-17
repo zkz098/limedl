@@ -4,8 +4,8 @@
 //! and multi-channel parallel non-blocking dispatch for solid-state drives (SSD).
 
 use std::fs::File;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -13,9 +13,9 @@ use bytes::Bytes;
 use tokio::sync::{mpsc, oneshot};
 
 use super::topology::DeviceId;
-use crate::file_ops::write_coalesced_entries;
-use crate::file_ops::SyncMode;
 use crate::error::DownloadError;
+use crate::file_ops::SyncMode;
+use crate::file_ops::write_coalesced_entries;
 use crate::types::DiskType;
 
 /// Metrics for a single storage device queue.

@@ -193,7 +193,10 @@ mod tests {
         let empty = vec![row("a", "   ", "$argon2id$h")];
         assert!(parse_aria2_clients(&empty, Language::EnUs).is_err());
 
-        let dupes = vec![row("a", "Phone", "$argon2id$h"), row("b", "phone", "$argon2id$h")];
+        let dupes = vec![
+            row("a", "Phone", "$argon2id$h"),
+            row("b", "phone", "$argon2id$h"),
+        ];
         assert!(parse_aria2_clients(&dupes, Language::EnUs).is_err());
 
         let missing_hash = vec![row("a", "Phone", "  ")];

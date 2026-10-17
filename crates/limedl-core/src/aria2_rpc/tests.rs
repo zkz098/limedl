@@ -12,43 +12,39 @@
 //! What requires E2E (see `e2e_tests.rs`): dispatch over a live server, the
 //! handler matrix, `system.multicall` and secret-token auth.
 
-use crate::backend_registry::{BackendRegistry};
-use crate::dispatcher::{Dispatcher};
-use crate::event_bus::{DownloadEvent, EventBus};
-use crate::types::{BtFileStatus, BtPeerInfo, ChecksumMode, DownloadState, StartDownloadRequest, TaskId, TaskKind};
-use foldhash::{HashMap};
-use std::sync::{Arc};
-use std::time::{Duration};
 use super::context::{AuthConfig, RpcContext, strip_token};
 use super::download::{classify_aria2_uri, handle_pause, handle_remove, handle_unpause};
-use super::options::{collect_request_headers, extract_option_headers, extract_option_str, extract_option_u32, extract_option_usize, find_header_value, handle_change_option, parse_checksum_option, parse_select_file, split_aria2_tail};
 use super::jsonrpc::{
-    ERR_INTERNAL,
-    ERR_INVALID_PARAMS,
-    ERR_INVALID_REQUEST,
-    ERR_METHOD_NOT_FOUND,
-    ERR_PARSE,
-    JsonRpcError,
-    JsonRpcRequest,
-    JsonRpcResponse,
-    error_response,
-    make_error,
-    success_response,
+    ERR_INTERNAL, ERR_INVALID_PARAMS, ERR_INVALID_REQUEST, ERR_METHOD_NOT_FOUND, ERR_PARSE,
+    JsonRpcError, JsonRpcRequest, JsonRpcResponse, error_response, make_error, success_response,
+};
+use super::options::{
+    collect_request_headers, extract_option_headers, extract_option_str, extract_option_u32,
+    extract_option_usize, find_header_value, handle_change_option, parse_checksum_option,
+    parse_select_file, split_aria2_tail,
 };
 use super::protocol::{
-    bitfield_from_bits,
-    bt_files_to_aria2,
-    filter_status_keys,
-    internal_id_to_gid,
-    resolve_gid,
+    bitfield_from_bits, bt_files_to_aria2, filter_status_keys, internal_id_to_gid, resolve_gid,
     state_to_aria2,
 };
-use super::query::{handle_list_methods, handle_list_notifications, handle_version, parse_int_param, peer_info_to_aria2_peer};
+use super::query::{
+    handle_list_methods, handle_list_notifications, handle_version, parse_int_param,
+    peer_info_to_aria2_peer,
+};
 use super::system::{cleanup_old_aria2_temp_files, handle_shutdown};
-use super::transport::{process_jsonrpc_message};
-use tokio::sync::{Mutex, Notify};
+use super::transport::process_jsonrpc_message;
+use crate::backend_registry::BackendRegistry;
+use crate::dispatcher::Dispatcher;
+use crate::event_bus::{DownloadEvent, EventBus};
+use crate::types::{
+    BtFileStatus, BtPeerInfo, ChecksumMode, DownloadState, StartDownloadRequest, TaskId, TaskKind,
+};
+use foldhash::HashMap;
 use ntest::timeout;
 use serde_json::{Value, json};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::{Mutex, Notify};
 
 // ── JSON-RPC response serialization ───────────────────────────────────────
 
@@ -859,7 +855,10 @@ fn make_ctx_with(registry: Arc<BackendRegistry>, event_bus: Arc<EventBus>) -> Rp
 /// A minimal context with an empty registry — enough for the WebSocket message
 /// transport and for cache-hit GID resolution.
 fn make_ctx() -> RpcContext {
-    make_ctx_with(Arc::new(BackendRegistry::new()), Arc::new(EventBus::new(64)))
+    make_ctx_with(
+        Arc::new(BackendRegistry::new()),
+        Arc::new(EventBus::new(64)),
+    )
 }
 
 /// `aria2.shutdown` is a no-op handshake for the desktop (a managed subsystem)
@@ -870,7 +869,9 @@ async fn shutdown_notifies_only_when_exit_on_shutdown_is_set() {
     let mut ctx = make_ctx();
     let notify = ctx.shutdown_notify.clone();
 
-    handle_shutdown(&ctx).await.expect("the handshake must answer");
+    handle_shutdown(&ctx)
+        .await
+        .expect("the handshake must answer");
     assert!(
         tokio::time::timeout(Duration::from_millis(50), notify.notified())
             .await
@@ -879,7 +880,9 @@ async fn shutdown_notifies_only_when_exit_on_shutdown_is_set() {
     );
 
     ctx.exit_on_shutdown = true;
-    handle_shutdown(&ctx).await.expect("the handshake must still answer");
+    handle_shutdown(&ctx)
+        .await
+        .expect("the handshake must still answer");
     tokio::time::timeout(Duration::from_millis(50), notify.notified())
         .await
         .expect("exit_on_shutdown must wake the waiter");
@@ -911,7 +914,11 @@ async fn process_jsonrpc_message_covers_errors_and_success() {
     let body = json!({"jsonrpc": "2.0", "id": 9, "method": "aria2.getVersion", "params": []});
     let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, &body.to_string()).await)
         .expect("valid JSON response");
-    assert_eq!(resp["result"]["version"], env!("CARGO_PKG_VERSION"), "success: {resp}");
+    assert_eq!(
+        resp["result"]["version"],
+        env!("CARGO_PKG_VERSION"),
+        "success: {resp}"
+    );
     assert_eq!(resp["id"], 9);
 }
 
@@ -1079,7 +1086,10 @@ fn parse_select_file_converts_one_based_indices() {
     assert_eq!(parse_select_file(&json!("")).unwrap(), Vec::<usize>::new());
     assert_eq!(parse_select_file(&json!("1,,2")).unwrap(), vec![0, 1]);
 
-    assert!(parse_select_file(&json!("0")).is_err(), "indices are 1-based");
+    assert!(
+        parse_select_file(&json!("0")).is_err(),
+        "indices are 1-based"
+    );
     assert!(parse_select_file(&json!("abc")).is_err());
     assert!(parse_select_file(&json!(1)).is_err(), "must be a string");
 }
@@ -1167,7 +1177,10 @@ async fn change_option_applies_pause_and_rejects_unsupported_keys() {
     assert_eq!(state, DownloadState::Paused);
 
     // BitTorrent-only options are rejected early for HTTP tasks.
-    for options in [json!({"select-file": "1"}), json!({"max-download-limit": "1024"})] {
+    for options in [
+        json!({"select-file": "1"}),
+        json!({"max-download-limit": "1024"}),
+    ] {
         let error = handle_change_option(&ctx, vec![json!(gid.clone()), options])
             .await
             .expect_err("BT-only option");
@@ -1247,9 +1260,7 @@ async fn http_lifecycle_notifications_are_emitted_exactly_once() {
 }
 
 /// Drain the bus and keep only the aria2 notification names.
-fn take_aria2_events(
-    rx: &mut tokio::sync::broadcast::Receiver<DownloadEvent>,
-) -> Vec<String> {
+fn take_aria2_events(rx: &mut tokio::sync::broadcast::Receiver<DownloadEvent>) -> Vec<String> {
     let mut names = Vec::new();
     while let Ok(event) = rx.try_recv() {
         if let DownloadEvent::Aria2Notification { event_name, .. } = event {
@@ -1327,11 +1338,7 @@ fn split_aria2_tail_legacy_add_torrent_shape() {
 #[timeout(10_000)]
 fn split_aria2_tail_add_uri_position() {
     // `addUri(uris, options, position)`.
-    let params = vec![
-        json!(["http://a"]),
-        json!({"dir": "/tmp/x"}),
-        json!(0),
-    ];
+    let params = vec![json!(["http://a"]), json!({"dir": "/tmp/x"}), json!(0)];
     let (uris, options, position) = split_aria2_tail(&params, 1);
     assert_eq!(uris, None);
     assert!(options.is_some());

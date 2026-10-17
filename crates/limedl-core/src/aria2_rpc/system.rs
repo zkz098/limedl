@@ -6,10 +6,10 @@
 
 use std::ffi::OsStr;
 
-use crate::event_bus::DownloadEvent;
-use serde_json::Value;
 use super::context::RpcContext;
 use super::jsonrpc::JsonRpcError;
+use crate::event_bus::DownloadEvent;
+use serde_json::Value;
 
 /// Removes `.torrent` files in the aria2 temp directory that are older than 1 hour.
 /// This is a best-effort cleanup — all errors are silently ignored.

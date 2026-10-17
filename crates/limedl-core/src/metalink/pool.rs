@@ -134,7 +134,8 @@ impl MirrorPool {
                 location: m.location.clone(),
                 max_connections: Some(m.max_connections),
             };
-            m.score = calculate_mirror_score(&resource, Some(rtt_ms), m.consecutive_errors, &config);
+            m.score =
+                calculate_mirror_score(&resource, Some(rtt_ms), m.consecutive_errors, &config);
         }
     }
 

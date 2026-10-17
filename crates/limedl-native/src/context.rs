@@ -1,8 +1,8 @@
+use parking_lot::Mutex;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use parking_lot::Mutex;
+use std::sync::atomic::AtomicBool;
 use tokio::sync::watch;
 
 use limedl_core::cdn::speed_test::SpeedTestResult;

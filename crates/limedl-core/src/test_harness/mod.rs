@@ -91,7 +91,10 @@ impl TestServer {
         let app = Router::new()
             .route("/file", get(serve_file))
             .route("/file/range", get(serve_file_range))
-            .route("/file/range/bandwidth/{bps}", get(serve_file_range_bandwidth))
+            .route(
+                "/file/range/bandwidth/{bps}",
+                get(serve_file_range_bandwidth),
+            )
             .route("/file/delayed/{ms}", get(serve_file_delayed))
             .route("/file/truncated/{bytes}", get(serve_file_truncated))
             .route("/file/slow/{ms}", get(serve_file_slow))
@@ -105,7 +108,10 @@ impl TestServer {
             .route("/file/range-shifted/{shift}", get(serve_file_range_shifted))
             .route("/file/range-bitflip", get(serve_file_range_bitflip))
             .route("/file/encoded/{encoding}", get(serve_file_encoded))
-            .route("/file/encoded-range/{encoding}", get(serve_file_encoded_range))
+            .route(
+                "/file/encoded-range/{encoding}",
+                get(serve_file_encoded_range),
+            )
             .route("/file.sha256", get(serve_sha256))
             .route("/file.sha256sum", get(serve_sha256))
             .route("/SHA256SUMS", get(serve_sha256sums))
@@ -802,9 +808,7 @@ async fn serve_file_range_416(
 /// The body is streamed so the HTTP layer uses chunked transfer encoding.
 /// Because no Content-Length is advertised, the executor falls back to
 /// single-stream mode and finishes when the TCP stream ends.
-async fn serve_file_no_length(
-    State(state): State<Arc<ServerState>>,
-) -> impl IntoResponse {
+async fn serve_file_no_length(State(state): State<Arc<ServerState>>) -> impl IntoResponse {
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CONTENT_DISPOSITION,
@@ -813,9 +817,8 @@ async fn serve_file_no_length(
     add_checksum_headers(&mut headers, &state);
 
     let data = state.data.clone();
-    let stream = stream::once(async move {
-        Ok::<Bytes, Infallible>(Bytes::copy_from_slice(&data))
-    });
+    let stream =
+        stream::once(async move { Ok::<Bytes, Infallible>(Bytes::copy_from_slice(&data)) });
     let body = Body::from_stream(stream);
     (StatusCode::OK, headers, body).into_response()
 }
@@ -832,9 +835,7 @@ async fn serve_file_no_length(
 /// handles a server that advertises fewer bytes than the true content —
 /// hyper's protocol validation would reject a body longer than
 /// Content-Length.
-async fn serve_file_wrong_length(
-    State(state): State<Arc<ServerState>>,
-) -> impl IntoResponse {
+async fn serve_file_wrong_length(State(state): State<Arc<ServerState>>) -> impl IntoResponse {
     let wrong_len = state.data.len().saturating_sub(1).max(1);
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_LENGTH, usize_header_value(wrong_len));
@@ -853,9 +854,7 @@ async fn serve_file_wrong_length(
 /// Serve the given HTTP status code with an empty body.
 ///
 /// Useful for testing retry logic with arbitrary status codes.
-async fn serve_file_status(
-    Path(code): Path<u16>,
-) -> impl IntoResponse {
+async fn serve_file_status(Path(code): Path<u16>) -> impl IntoResponse {
     let status = StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     (status, Vec::<u8>::new()).into_response()
 }

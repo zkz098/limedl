@@ -146,22 +146,38 @@ impl SettingsField {
 
 /// "expected a number" validation error for `field`.
 pub fn format_validation_number(lang: Language, field: SettingsField, value: &str) -> String {
-    tr_fmt("Invalid {}: '{}' — please enter a valid number", lang, &[&field.label(lang), &value])
+    tr_fmt(
+        "Invalid {}: '{}' — please enter a valid number",
+        lang,
+        &[&field.label(lang), &value],
+    )
 }
 
 /// "expected an integer" validation error for `field`.
 pub fn format_validation_integer(lang: Language, field: SettingsField, value: &str) -> String {
-    tr_fmt("Invalid {}: '{}' — please enter a valid integer", lang, &[&field.label(lang), &value])
+    tr_fmt(
+        "Invalid {}: '{}' — please enter a valid integer",
+        lang,
+        &[&field.label(lang), &value],
+    )
 }
 
 /// "expected a TCP port" validation error for `field`.
 pub fn format_validation_port(lang: Language, field: SettingsField, value: &str) -> String {
-    tr_fmt("Invalid {}: '{}' — please enter a port in 0-65535", lang, &[&field.label(lang), &value])
+    tr_fmt(
+        "Invalid {}: '{}' — please enter a port in 0-65535",
+        lang,
+        &[&field.label(lang), &value],
+    )
 }
 
 /// "value out of range" validation error for `field`.
 pub fn format_validation_range(lang: Language, field: SettingsField, min: u32, max: u32) -> String {
-    tr_fmt("{} must be between {} and {}", lang, &[&field.label(lang), &min, &max])
+    tr_fmt(
+        "{} must be between {} and {}",
+        lang,
+        &[&field.label(lang), &min, &max],
+    )
 }
 
 /// Port 0 is rejected because it would let the OS pick an unpredictable port.
@@ -171,7 +187,11 @@ pub fn format_validation_port_zero(lang: Language, field: SettingsField) -> Stri
 
 /// Manual proxy mode requires a proxy URL.
 pub fn format_proxy_url_required(lang: Language) -> String {
-    tr("A proxy URL is required when the proxy mode is manual", lang).to_string()
+    tr(
+        "A proxy URL is required when the proxy mode is manual",
+        lang,
+    )
+    .to_string()
 }
 
 /// "expected an absolute path" validation error for `field`.
@@ -179,13 +199,25 @@ pub fn format_proxy_url_required(lang: Language) -> String {
 /// A relative key can never match a download destination — the engine's lookup
 /// compares normalized absolute paths — and Windows detection silently answers
 /// "SSD" for one, so the editor must not persist it.
-pub fn format_validation_absolute_path(lang: Language, field: SettingsField, value: &str) -> String {
-    tr_fmt("{} must be an absolute path: '{}' (e.g. D:\\Downloads or \\\\NAS\\share)", lang, &[&field.label(lang), &value])
+pub fn format_validation_absolute_path(
+    lang: Language,
+    field: SettingsField,
+    value: &str,
+) -> String {
+    tr_fmt(
+        "{} must be an absolute path: '{}' (e.g. D:\\Downloads or \\\\NAS\\share)",
+        lang,
+        &[&field.label(lang), &value],
+    )
 }
 
 /// Two rows of a list editor point at the same path.
 pub fn format_validation_duplicate_path(lang: Language, value: &str) -> String {
-    tr_fmt("Duplicate path: '{}' — one entry per directory", lang, &[&value])
+    tr_fmt(
+        "Duplicate path: '{}' — one entry per directory",
+        lang,
+        &[&value],
+    )
 }
 
 /// Invalid IP literal typed into the CDN manual override field.

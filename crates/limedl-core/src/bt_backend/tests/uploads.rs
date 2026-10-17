@@ -118,7 +118,10 @@ async fn upload_policy_spawn_replaces_the_previous_loop() {
     Arc::clone(&backend).spawn_upload_policy_loop();
     let second = backend.upload_policy_task.lock().as_ref().map(|h| h.id());
     assert!(second.is_some(), "the replacement loop is stored");
-    assert_ne!(first, second, "spawn must abort and replace the previous loop");
+    assert_ne!(
+        first, second,
+        "spawn must abort and replace the previous loop"
+    );
 
     backend.shutdown().await;
 }

@@ -111,7 +111,9 @@ fn platform_data_dir() -> Option<PathBuf> {
     {
         std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))
+            .or_else(|| {
+                std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
+            })
     }
 }
 
@@ -176,8 +178,8 @@ mod tests {
 
     #[test]
     fn relative_download_dir_is_rejected() {
-        let cli =
-            Cli::try_parse_from(["limedl-server", "--download-dir", "relative/dir"]).expect("parse");
+        let cli = Cli::try_parse_from(["limedl-server", "--download-dir", "relative/dir"])
+            .expect("parse");
         let error = Config::from_cli(cli).expect_err("relative path must fail");
         assert!(error.to_string().contains("absolute path"), "{error}");
     }

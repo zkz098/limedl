@@ -31,7 +31,8 @@ pub fn install_panic_hook(state_dir: &Path) {
         let thread = std::thread::current();
         let report = format_crash_report(
             thread.name().unwrap_or("<unnamed>"),
-            info.payload_as_str().unwrap_or("<non-string panic payload>"),
+            info.payload_as_str()
+                .unwrap_or("<non-string panic payload>"),
             info.location().map(|l| (l.file(), l.line())),
             &std::backtrace::Backtrace::force_capture().to_string(),
         );
@@ -106,7 +107,10 @@ fn write_crash_report(path: &Path, report: &str) {
                 eprintln!("[limedl] could not write crash log: {error}");
             }
         }
-        Err(error) => eprintln!("[limedl] could not open crash log {}: {error}", path.display()),
+        Err(error) => eprintln!(
+            "[limedl] could not open crash log {}: {error}",
+            path.display()
+        ),
     }
 }
 
@@ -198,6 +202,9 @@ mod tests {
         rotate_if_needed(&path);
 
         assert!(!path.exists(), "the oversized log must be moved aside");
-        assert!(path.with_extension("log.1").exists(), "rotated copy missing");
+        assert!(
+            path.with_extension("log.1").exists(),
+            "rotated copy missing"
+        );
     }
 }

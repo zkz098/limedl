@@ -220,7 +220,11 @@ async fn apply_anti_leech_to_torrent(
         // Restore any slot cap we previously applied once the leechers are gone.
         if let Some(orig) = slot_state.remove(&info_hash).map(|(_, v)| v) {
             let _ = session.set_max_uploads(info_hash, orig).await;
-            emit_anti_leech_event(event_bus, info_hash, &format!("anti-leech: restored upload slots to {orig}"));
+            emit_anti_leech_event(
+                event_bus,
+                info_hash,
+                &format!("anti-leech: restored upload slots to {orig}"),
+            );
         }
         return;
     }
@@ -234,9 +238,7 @@ async fn apply_anti_leech_to_torrent(
             for ip in &leechers {
                 // Ban each newly-flagged peer once; already-banned peers are
                 // left alone until their ban expires (handled by the sweep).
-                if banned_leechers.get(ip).is_none()
-                    && session.ban_peer(*ip).await.is_ok()
-                {
+                if banned_leechers.get(ip).is_none() && session.ban_peer(*ip).await.is_ok() {
                     banned_leechers.insert(*ip, ban_until);
                     tracing::info!("anti-leech: banned leecher {ip} on {info_hash}");
                     emit_anti_leech_event(
@@ -261,7 +263,10 @@ async fn apply_anti_leech_to_torrent(
                     emit_anti_leech_event(
                         event_bus,
                         info_hash,
-                        &format!("anti-leech: capped upload slots at {cap} ({} leechers)", leechers.len()),
+                        &format!(
+                            "anti-leech: capped upload slots at {cap} ({} leechers)",
+                            leechers.len()
+                        ),
                     );
                 }
             }
@@ -281,10 +286,7 @@ async fn cleanup_disabled(
         let _ = session.unban_peer(ip).await;
         banned_leechers.remove(&ip);
     }
-    let ihs: Vec<(Id20, usize)> = slot_state
-        .iter()
-        .map(|e| (*e.key(), *e.value()))
-        .collect();
+    let ihs: Vec<(Id20, usize)> = slot_state.iter().map(|e| (*e.key(), *e.value())).collect();
     for (ih, orig) in ihs {
         let _ = session.set_max_uploads(ih, orig).await;
         slot_state.remove(&ih);

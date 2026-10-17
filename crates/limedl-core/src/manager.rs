@@ -555,11 +555,7 @@ impl DownloadManager {
 
         let dm = self.clone();
         self.task_lifecycle
-            .spawn_download(
-                dm,
-                managed,
-                request.max_retries.unwrap_or(DEFAULT_RETRIES),
-            )
+            .spawn_download(dm, managed, request.max_retries.unwrap_or(DEFAULT_RETRIES))
             .await?;
         self.scheduler.rebalance_allocations(&**self).await?;
         self.controls.rebalance_notify.notify_waiters();
@@ -568,7 +564,11 @@ impl DownloadManager {
     }
 
     /// Set progressive Metalink piece verification info on an active managed download.
-    pub async fn set_piece_verification(&self, id: &str, pieces: crate::metalink::PieceVerification) {
+    pub async fn set_piece_verification(
+        &self,
+        id: &str,
+        pieces: crate::metalink::PieceVerification,
+    ) {
         if let Some(managed) = self.downloads.read().await.get(id) {
             *managed.pieces.lock() = Some(pieces);
         }
@@ -799,9 +799,7 @@ impl DownloadManager {
         let mut items = downloads
             .values()
             .cloned()
-            .map(|managed| {
-                DownloadSummary::from(&self.task_lifecycle.build_snapshot(managed))
-            })
+            .map(|managed| DownloadSummary::from(&self.task_lifecycle.build_snapshot(managed)))
             .collect::<Vec<_>>();
         items.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
         Ok(items)
@@ -879,8 +877,8 @@ impl DownloadManager {
             // Candidate list = primary + mirrors, de-duplicated (mirrors may
             // already contain the primary, as `addUri` stores the whole list).
             let mut candidates: Vec<String> = Vec::new();
-            for candidate in std::iter::once(core.manifest.url.clone())
-                .chain(core.manifest.mirror_urls.clone())
+            for candidate in
+                std::iter::once(core.manifest.url.clone()).chain(core.manifest.mirror_urls.clone())
             {
                 if !candidates.contains(&candidate) {
                     candidates.push(candidate);
@@ -1314,7 +1312,9 @@ impl ManagerState for DownloadManager {
         managed: &Arc<ManagedDownload>,
         token: &CancellationToken,
     ) -> crate::download::WaitState {
-        self.task_lifecycle.wait_until_active(self, managed, token).await
+        self.task_lifecycle
+            .wait_until_active(self, managed, token)
+            .await
     }
 
     async fn evict_completed(&self) -> usize {

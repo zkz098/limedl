@@ -1,8 +1,8 @@
+use percent_encoding::percent_decode_str;
 use reqwest::{
     Client, Response, StatusCode, Url,
     header::{self, HeaderMap, HeaderValue},
 };
-use percent_encoding::percent_decode_str;
 
 use super::{
     error::{DownloadError, Result},
@@ -59,7 +59,9 @@ pub fn looks_like_anti_abuse_page(body: &[u8]) -> bool {
         return false;
     }
     let text = String::from_utf8_lossy(body).to_ascii_lowercase();
-    ANTI_ABUSE_MARKERS.iter().any(|marker| text.contains(marker))
+    ANTI_ABUSE_MARKERS
+        .iter()
+        .any(|marker| text.contains(marker))
 }
 
 /// Read at most `limit` bytes from the start of `response`'s body.

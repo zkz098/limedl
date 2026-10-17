@@ -1,7 +1,7 @@
-use limedl_core::types::{DownloadProgress, DownloadState, DownloadSummary};
-use crate::i18n::Language;
-use crate::TaskItem;
 use super::models::{SortField, state_rank, summary_to_task_item};
+use crate::TaskItem;
+use crate::i18n::Language;
+use limedl_core::types::{DownloadProgress, DownloadState, DownloadSummary};
 
 /// State store managing task collections, filtering, search, sorting, and multi-selection.
 pub struct TaskStore {
@@ -110,9 +110,7 @@ impl TaskStore {
             }
         };
 
-        let ids_to_add: Vec<String> = self
-            .filtered_items_internal()
-            [start..=end]
+        let ids_to_add: Vec<String> = self.filtered_items_internal()[start..=end]
             .iter()
             .map(|it| it.id.clone())
             .collect();
@@ -320,4 +318,3 @@ fn progress_ratio(task: &DownloadSummary) -> f64 {
 fn cmp_f64(a: f64, b: f64) -> std::cmp::Ordering {
     a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal)
 }
-

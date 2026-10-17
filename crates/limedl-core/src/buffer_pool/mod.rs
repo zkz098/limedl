@@ -16,8 +16,8 @@ pub mod worker;
 #[cfg(test)]
 mod tests;
 
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 pub use download_buffer::{DownloadBuffer, FlushObserver};

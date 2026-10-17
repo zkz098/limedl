@@ -110,7 +110,9 @@ pub(super) async fn start_rpc_server() -> (
 }
 
 /// Start an RPC server protected by a secret token.
-pub(super) async fn start_rpc_server_with_secret(secret: Option<&str>) -> (
+pub(super) async fn start_rpc_server_with_secret(
+    secret: Option<&str>,
+) -> (
     String,
     tokio::sync::watch::Sender<bool>,
     TempDir,
@@ -154,7 +156,13 @@ pub(super) async fn wait_for_status(
 ) {
     let deadline = std::time::Instant::now() + Duration::from_secs(20);
     loop {
-        let resp = rpc_call(client, rpc_url, "aria2.tellStatus", serde_json::json!([gid])).await;
+        let resp = rpc_call(
+            client,
+            rpc_url,
+            "aria2.tellStatus",
+            serde_json::json!([gid]),
+        )
+        .await;
         if let Some(status) = resp["result"]["status"].as_str()
             && expected.contains(&status)
         {
@@ -195,7 +203,11 @@ pub(super) async fn rpc_call(
 }
 
 /// POST an arbitrary body (valid or not) and parse the JSON-RPC answer.
-pub(super) async fn rpc_post_raw(client: &reqwest::Client, url: &str, body: &str) -> serde_json::Value {
+pub(super) async fn rpc_post_raw(
+    client: &reqwest::Client,
+    url: &str,
+    body: &str,
+) -> serde_json::Value {
     let text = client
         .post(url)
         .header("Content-Type", "application/json")
@@ -696,11 +708,21 @@ async fn aria2_query_methods_return_aria2_shapes() {
     wait_for_status(&client, &rpc_url, &gid, &["paused"]).await;
 
     // getFiles: one entry per file, aria2's string fields.
-    let resp = rpc_call(&client, &rpc_url, "aria2.getFiles", serde_json::json!([gid])).await;
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getFiles",
+        serde_json::json!([gid]),
+    )
+    .await;
     let files = resp["result"]
         .as_array()
         .unwrap_or_else(|| panic!("getFiles must return an array: {resp}"));
-    assert_eq!(files.len(), 1, "an HTTP download has exactly one file: {resp}");
+    assert_eq!(
+        files.len(),
+        1,
+        "an HTTP download has exactly one file: {resp}"
+    );
     assert_eq!(files[0]["index"], "1");
     assert!(
         files[0]["path"]
@@ -720,11 +742,23 @@ async fn aria2_query_methods_return_aria2_shapes() {
     assert_eq!(uris[0]["status"], "used");
 
     // getPeers: HTTP downloads have no BitTorrent peers, but the method must exist.
-    let resp = rpc_call(&client, &rpc_url, "aria2.getPeers", serde_json::json!([gid])).await;
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getPeers",
+        serde_json::json!([gid]),
+    )
+    .await;
     assert_eq!(resp["result"], serde_json::json!([]));
 
     // getOption: per-task effective options.
-    let resp = rpc_call(&client, &rpc_url, "aria2.getOption", serde_json::json!([gid])).await;
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getOption",
+        serde_json::json!([gid]),
+    )
+    .await;
     let options = &resp["result"];
     assert_eq!(options["out"], "query.bin", "getOption: {resp}");
     assert_eq!(options["gid"].as_str(), Some(gid.as_str()));
@@ -805,7 +839,13 @@ async fn aria2_query_methods_return_aria2_shapes() {
             .is_some_and(|s| !s.is_empty()),
         "getSessionInfo must return a non-empty session id: {resp}"
     );
-    let resp = rpc_call(&client, &rpc_url, "aria2.saveSession", serde_json::json!([])).await;
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.saveSession",
+        serde_json::json!([]),
+    )
+    .await;
     assert_eq!(resp["result"], "OK");
 
     let _ = shutdown_tx.send(true);
@@ -938,13 +978,7 @@ async fn aria2_multicall_batches_calls_and_wraps_errors() {
     assert_eq!(results[2][0]["code"], 1);
 
     // Missing methods array is an invalid-params error.
-    let resp = rpc_call(
-        &client,
-        &rpc_url,
-        "system.multicall",
-        serde_json::json!([]),
-    )
-    .await;
+    let resp = rpc_call(&client, &rpc_url, "system.multicall", serde_json::json!([])).await;
     assert_eq!(resp["error"]["code"], 1);
 
     let _ = shutdown_tx.send(true);
@@ -962,8 +996,7 @@ async fn aria2_secret_token_gates_every_method() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let file_url = test_server.file_url_bandwidth(32 * 1024);
 
-    let (rpc_url, shutdown_tx, tmp, _core) =
-        start_rpc_server_with_secret(Some("s3cr3t")).await;
+    let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server_with_secret(Some("s3cr3t")).await;
     let client = reqwest::Client::new();
     let dest_dir = tmp.path().join("output");
 
@@ -997,7 +1030,10 @@ async fn aria2_secret_token_gates_every_method() {
         serde_json::json!(["token:wrong"]),
     )
     .await;
-    assert_eq!(resp["error"]["code"], 1, "wrong token must be rejected: {resp}");
+    assert_eq!(
+        resp["error"]["code"], 1,
+        "wrong token must be rejected: {resp}"
+    );
 
     // The right token is accepted.
     let resp = rpc_call(
@@ -1008,7 +1044,8 @@ async fn aria2_secret_token_gates_every_method() {
     )
     .await;
     assert_eq!(
-        resp["result"]["version"], env!("CARGO_PKG_VERSION"),
+        resp["result"]["version"],
+        env!("CARGO_PKG_VERSION"),
         "the valid token must be accepted: {resp}"
     );
 
@@ -1143,7 +1180,8 @@ async fn aria2_per_client_tokens_authenticate_independently() {
     )
     .await;
     assert_eq!(
-        resp["result"][0][0]["version"], env!("CARGO_PKG_VERSION"),
+        resp["result"][0][0]["version"],
+        env!("CARGO_PKG_VERSION"),
         "multicall with a per-client token must succeed: {resp}"
     );
 
@@ -1182,7 +1220,10 @@ async fn aria2_transport_rejects_malformed_and_wrong_version_requests() {
 
     let resp = rpc_post_raw(&client, &rpc_url, "{ not json").await;
     assert_eq!(resp["error"]["code"], -32700, "parse error: {resp}");
-    assert!(resp["id"].is_null(), "a parse error has no request id: {resp}");
+    assert!(
+        resp["id"].is_null(),
+        "a parse error has no request id: {resp}"
+    );
 
     let resp = rpc_post_raw(
         &client,
@@ -1193,12 +1234,7 @@ async fn aria2_transport_rejects_malformed_and_wrong_version_requests() {
     assert_eq!(resp["error"]["code"], -32600, "invalid version: {resp}");
     assert_eq!(resp["id"], 7, "the request id must be echoed: {resp}");
 
-    let resp = rpc_post_raw(
-        &client,
-        &rpc_url,
-        r#"{"jsonrpc":"2.0","id":8,"params":[]}"#,
-    )
-    .await;
+    let resp = rpc_post_raw(&client, &rpc_url, r#"{"jsonrpc":"2.0","id":8,"params":[]}"#).await;
     assert_eq!(
         resp["error"]["code"], -32700,
         "a request without a method is a parse error: {resp}"
@@ -1385,7 +1421,10 @@ async fn aria2_remove_download_result_deletes_one_stopped_task() {
         serde_json::json!([0, 100]),
     )
     .await;
-    assert!(stopped_contains(&resp), "completed task must be listed: {resp}");
+    assert!(
+        stopped_contains(&resp),
+        "completed task must be listed: {resp}"
+    );
 
     let resp = rpc_call(
         &client,
@@ -1403,7 +1442,10 @@ async fn aria2_remove_download_result_deletes_one_stopped_task() {
         serde_json::json!([0, 100]),
     )
     .await;
-    assert!(!stopped_contains(&resp), "removed result must be gone: {resp}");
+    assert!(
+        !stopped_contains(&resp),
+        "removed result must be gone: {resp}"
+    );
     let resp = rpc_call(
         &client,
         &rpc_url,
@@ -1411,7 +1453,10 @@ async fn aria2_remove_download_result_deletes_one_stopped_task() {
         serde_json::json!([gid]),
     )
     .await;
-    assert!(resp["error"].is_object(), "removed GID must not resolve: {resp}");
+    assert!(
+        resp["error"].is_object(),
+        "removed GID must not resolve: {resp}"
+    );
 
     // A still-running task is not a "stopped result".
     let resp = rpc_call(
@@ -1566,7 +1611,9 @@ async fn aria2_keys_filter_status_fields() {
     let waiting = resp["result"].as_array().expect("waiting array");
     assert!(!waiting.is_empty(), "paused task must be waiting: {resp}");
     assert!(
-        waiting.iter().all(|entry| entry.as_object().is_some_and(|o| o.len() == 1)),
+        waiting
+            .iter()
+            .all(|entry| entry.as_object().is_some_and(|o| o.len() == 1)),
         "each entry must contain only gid: {resp}"
     );
 
@@ -1608,9 +1655,7 @@ async fn aria2_get_uris_lists_all_candidates() {
     assert!(listed.contains(&"http://127.0.0.1:1/broken"), "{resp}");
     assert!(listed.contains(&mirror_url.as_str()), "{resp}");
     assert_eq!(
-        uris.iter()
-            .filter(|u| u["status"] == "used")
-            .count(),
+        uris.iter().filter(|u| u["status"] == "used").count(),
         1,
         "exactly one URI is in use: {resp}"
     );
@@ -1672,7 +1717,9 @@ async fn aria2_evicted_terminal_downloads_stay_queryable() {
     let stopped = resp["result"].as_array().expect("tellStopped array");
     for gid in &gids {
         assert!(
-            stopped.iter().any(|entry| entry["gid"].as_str() == Some(gid.as_str())),
+            stopped
+                .iter()
+                .any(|entry| entry["gid"].as_str() == Some(gid.as_str())),
             "evicted GID {gid} must stay visible: {resp}"
         );
     }
@@ -1797,7 +1844,13 @@ async fn wait_for_bt_files(
 ) -> serde_json::Value {
     let deadline = std::time::Instant::now() + Duration::from_secs(20);
     loop {
-        let resp = rpc_call(client, rpc_url, "aria2.tellStatus", serde_json::json!([gid])).await;
+        let resp = rpc_call(
+            client,
+            rpc_url,
+            "aria2.tellStatus",
+            serde_json::json!([gid]),
+        )
+        .await;
         let files_ready = resp["result"]["files"]
             .as_array()
             .is_some_and(|files| !files.is_empty());
@@ -1873,9 +1926,7 @@ async fn aria2_add_torrent_serves_bt_files_and_options() {
     // with 1-based string indices like aria2 itself emits.
     let status = wait_for_bt_files(&client, &rpc_url, &gid).await;
     assert_eq!(
-        status["infoHash"]
-            .as_str()
-            .map(str::to_ascii_lowercase),
+        status["infoHash"].as_str().map(str::to_ascii_lowercase),
         Some(expected_hash.clone()),
         "tellStatus must report the fixture's info hash: {status}"
     );
@@ -1884,26 +1935,42 @@ async fn aria2_add_torrent_serves_bt_files_and_options() {
     assert_eq!(files[0]["index"], "1");
     assert_eq!(files[0]["length"], "10");
     assert!(
-        files[0]["path"].as_str().is_some_and(|p| p.ends_with("a.txt")),
+        files[0]["path"]
+            .as_str()
+            .is_some_and(|p| p.ends_with("a.txt")),
         "{status}"
     );
     assert_eq!(files[1]["index"], "2");
     assert_eq!(files[1]["length"], "20");
     assert!(
-        files[1]["path"].as_str().is_some_and(|p| p.ends_with("b.txt")),
+        files[1]["path"]
+            .as_str()
+            .is_some_and(|p| p.ends_with("b.txt")),
         "{status}"
     );
     assert_eq!(files[0]["selected"], "true", "{status}");
 
     // getFiles must agree with tellStatus.files.
-    let resp = rpc_call(&client, &rpc_url, "aria2.getFiles", serde_json::json!([gid])).await;
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getFiles",
+        serde_json::json!([gid]),
+    )
+    .await;
     assert_eq!(
         resp["result"], status["files"],
         "getFiles and tellStatus.files must agree: {resp}"
     );
 
     // BitTorrent peers exist as a method; an offline fixture has none.
-    let resp = rpc_call(&client, &rpc_url, "aria2.getPeers", serde_json::json!([gid])).await;
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getPeers",
+        serde_json::json!([gid]),
+    )
+    .await;
     assert_eq!(
         resp["result"],
         serde_json::json!([]),
@@ -2362,9 +2429,7 @@ async fn aria2_add_torrent_single_file_reports_one_entry() {
 
     let status = wait_for_bt_files(&client, &rpc_url, &gid).await;
     assert_eq!(
-        status["infoHash"]
-            .as_str()
-            .map(str::to_ascii_lowercase),
+        status["infoHash"].as_str().map(str::to_ascii_lowercase),
         Some(expected_hash),
         "tellStatus must report the fixture's info hash: {status}"
     );
@@ -2435,7 +2500,13 @@ async fn e2e_add_metalink_creates_downloads_and_reports_status() {
     let gid = gids[0].as_str().expect("gid string").to_string();
 
     wait_for_status(&client, &rpc_url, &gid, &["paused"]).await;
-    let resp = rpc_call(&client, &rpc_url, "aria2.tellStatus", serde_json::json!([gid])).await;
+    let resp = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.tellStatus",
+        serde_json::json!([gid]),
+    )
+    .await;
     let status = &resp["result"];
     assert_eq!(status["status"], "paused");
     let files = status["files"].as_array().expect("files array");

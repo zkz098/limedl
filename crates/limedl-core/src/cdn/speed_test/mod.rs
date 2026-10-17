@@ -1,4 +1,3 @@
-
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -14,7 +13,6 @@ use crate::cdn::resolver::is_private_ip;
 use crate::error::{DownloadError, Result};
 use crate::http_client_factory::configure_client_builder;
 use crate::types::{AppSettings, default_http_user_agent};
-
 
 /// Cloudflare CDN speed test endpoint (~100MB file).
 /// Cloudflare rejects requests for files larger than 99_999_999 bytes with HTTP 403.

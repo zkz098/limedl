@@ -1,18 +1,18 @@
 //! Aria2RpcServer: router assembly, bind address and lifecycle.
 
-use axum::Router;
-use axum::http::{HeaderValue, Method, header};
-use axum::routing::post;
+use super::bind::{format_bind_addr, is_loopback_bind_address};
+use super::context::{AuthConfig, RpcContext};
+use super::transport::{handle_jsonrpc_http, handle_websocket_upgrade};
 use crate::backend_registry::BackendRegistry;
 use crate::dispatcher::Dispatcher;
 use crate::event_bus::EventBus;
 use crate::types::Aria2RpcSettings;
+use axum::Router;
+use axum::http::{HeaderValue, Method, header};
+use axum::routing::post;
 use foldhash::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use super::bind::{format_bind_addr, is_loopback_bind_address};
-use super::context::{AuthConfig, RpcContext};
-use super::transport::{handle_jsonrpc_http, handle_websocket_upgrade};
 use tokio::sync::{Mutex, Notify};
 use tower_http::cors::CorsLayer;
 
@@ -98,8 +98,12 @@ fn build_cors_layer(allowed: &[String], allow_any: bool) -> CorsLayer {
             );
         }
         vec![
-            "http://localhost".parse::<HeaderValue>().expect("valid header value"),
-            "http://127.0.0.1".parse::<HeaderValue>().expect("valid header value"),
+            "http://localhost"
+                .parse::<HeaderValue>()
+                .expect("valid header value"),
+            "http://127.0.0.1"
+                .parse::<HeaderValue>()
+                .expect("valid header value"),
         ]
     } else {
         origins

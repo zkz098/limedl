@@ -16,7 +16,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::ValueEnum;
 use regex::Regex;
 
@@ -126,7 +126,8 @@ pub fn run(root: &Path, level: Level, opts: &Options) -> Result<()> {
         if !path.is_file() {
             continue;
         }
-        let content = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
+        let content =
+            fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
         let updated = content
             .replace(&format!("v{current}"), &format!("v{new}"))
             .replace(&current, &new);
@@ -140,7 +141,10 @@ pub fn run(root: &Path, level: Level, opts: &Options) -> Result<()> {
 
     let tag = format!("v{new}");
     git(root, &["add", "Cargo.toml", "Cargo.lock", "website"])?;
-    git(root, &["commit", "-m", &format!("chore: bump version to {new}")])?;
+    git(
+        root,
+        &["commit", "-m", &format!("chore: bump version to {new}")],
+    )?;
     git(root, &["push", "origin", "main"])?;
     git(root, &["tag", &tag, "-m", &tag])?;
     git(root, &["push", "origin", &tag])?;
@@ -237,7 +241,11 @@ mod tests {
         )
         .unwrap();
         fs::create_dir_all(root.join("website")).unwrap();
-        fs::write(root.join("website/package.json"), "{\n  \"version\": \"0.4.1\"\n}\n").unwrap();
+        fs::write(
+            root.join("website/package.json"),
+            "{\n  \"version\": \"0.4.1\"\n}\n",
+        )
+        .unwrap();
         for rel in WEBSITE_FILES {
             let path = root.join(rel);
             fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -258,7 +266,15 @@ mod tests {
     #[test]
     fn no_push_edits_every_target() {
         let root = fixture();
-        run(&root, Level::Minor, &Options { dry_run: false, no_push: true }).unwrap();
+        run(
+            &root,
+            Level::Minor,
+            &Options {
+                dry_run: false,
+                no_push: true,
+            },
+        )
+        .unwrap();
 
         let cargo = fs::read_to_string(root.join("Cargo.toml")).unwrap();
         assert!(cargo.contains("version = \"0.5.0\""));
@@ -270,16 +286,25 @@ mod tests {
         assert!(lock.contains("name = \"limedl-native\"\nversion = \"0.5.0\""));
         assert!(lock.contains("name = \"limedl-server\"\nversion = \"0.5.0\""));
         // A non-workspace package with a coincidentally equal version is untouched.
-        assert!(lock.contains("name = \"serde\"\nversion = \"0.4.1\""), "{lock}");
+        assert!(
+            lock.contains("name = \"serde\"\nversion = \"0.4.1\""),
+            "{lock}"
+        );
         // `xtask` pins its own literal version, so it is never rewritten.
-        assert!(lock.contains("name = \"xtask\"\nversion = \"0.0.0\""), "{lock}");
+        assert!(
+            lock.contains("name = \"xtask\"\nversion = \"0.0.0\""),
+            "{lock}"
+        );
 
         let pkg = fs::read_to_string(root.join("website/package.json")).unwrap();
         assert!(pkg.contains("\"version\": \"0.5.0\""));
 
         for rel in WEBSITE_FILES {
             let text = fs::read_to_string(root.join(rel)).unwrap();
-            assert_eq!(text, "download v0.5.0 now, version 0.5.0 is current\n", "{rel}");
+            assert_eq!(
+                text, "download v0.5.0 now, version 0.5.0 is current\n",
+                "{rel}"
+            );
         }
         fs::remove_dir_all(&root).ok();
     }
@@ -293,7 +318,9 @@ mod tests {
             stale_limedl_lock_entries(lock, "0.5.0"),
             vec!["limedl-server (0.4.1)"]
         );
-        assert!(stale_limedl_lock_entries(lock, "0.4.1").contains(&"limedl-core (0.5.0)".to_string()));
+        assert!(
+            stale_limedl_lock_entries(lock, "0.4.1").contains(&"limedl-core (0.5.0)".to_string())
+        );
     }
 
     /// A workspace crate the rewrite regex cannot see must fail the bump instead of
@@ -308,8 +335,15 @@ mod tests {
         )
         .unwrap();
 
-        let error = run(&root, Level::Minor, &Options { dry_run: false, no_push: true })
-            .expect_err("a lagging workspace lock entry must fail the bump");
+        let error = run(
+            &root,
+            Level::Minor,
+            &Options {
+                dry_run: false,
+                no_push: true,
+            },
+        )
+        .expect_err("a lagging workspace lock entry must fail the bump");
         assert!(error.to_string().contains("limedl-extra-crate"), "{error}");
         fs::remove_dir_all(&root).ok();
     }
@@ -317,7 +351,15 @@ mod tests {
     #[test]
     fn dry_run_touches_nothing() {
         let root = fixture();
-        run(&root, Level::Major, &Options { dry_run: true, no_push: true }).unwrap();
+        run(
+            &root,
+            Level::Major,
+            &Options {
+                dry_run: true,
+                no_push: true,
+            },
+        )
+        .unwrap();
         let cargo = fs::read_to_string(root.join("Cargo.toml")).unwrap();
         assert!(cargo.contains("version = \"0.4.1\""));
         fs::remove_dir_all(&root).ok();

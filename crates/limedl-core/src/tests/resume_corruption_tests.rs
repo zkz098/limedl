@@ -78,12 +78,7 @@ async fn pause_on_any_progress(manager: &Arc<DownloadManager>, id: &str) {
 
 /// Wait until at least `ratio * size` bytes are downloaded (using a
 /// bandwidth-throttled server so progress is gradual), then pause and resume.
-async fn pause_at_fraction(
-    manager: &Arc<DownloadManager>,
-    id: &str,
-    size: u64,
-    ratio: f64,
-) {
+async fn pause_at_fraction(manager: &Arc<DownloadManager>, id: &str, size: u64, ratio: f64) {
     let target = (size as f64 * ratio) as u64;
     let deadline = std::time::Instant::now() + Duration::from_secs(60);
     loop {
@@ -145,7 +140,11 @@ async fn start_download(
         user_agent: None,
         priority: None,
     };
-    manager.start(request).await.expect("start failed").to_string()
+    manager
+        .start(request)
+        .await
+        .expect("start failed")
+        .to_string()
 }
 
 /// Verify a resumed, completed download is byte-identical to the source.

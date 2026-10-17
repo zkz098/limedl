@@ -108,7 +108,10 @@ async fn queries_error_for_an_unknown_info_hash() {
         "files must fail"
     );
     assert!(
-        backend.update_torrent_files(unknown, vec![0]).await.is_err(),
+        backend
+            .update_torrent_files(unknown, vec![0])
+            .await
+            .is_err(),
         "file selection must fail"
     );
 
@@ -130,7 +133,10 @@ async fn queries_work_for_a_metadata_less_magnet() {
         "no peers in an offline session"
     );
     assert!(
-        backend.get_trackers(info_hash).expect("trackers").is_empty(),
+        backend
+            .get_trackers(info_hash)
+            .expect("trackers")
+            .is_empty(),
         "magnet has no announce list"
     );
     assert!(
@@ -138,7 +144,10 @@ async fn queries_work_for_a_metadata_less_magnet() {
         "no pieces before metadata resolves"
     );
     assert!(
-        backend.get_torrent_files(info_hash).expect("files").is_empty(),
+        backend
+            .get_torrent_files(info_hash)
+            .expect("files")
+            .is_empty(),
         "no file list before metadata resolves"
     );
 
@@ -155,7 +164,10 @@ async fn queries_work_for_a_metadata_less_magnet() {
     let status = backend.runtime_status();
     assert!(!status.dht_enabled, "make_backend disables DHT");
     assert_eq!(status.torrent_count, 1);
-    assert!(!status.connected, "offline session has no peers or DHT nodes");
+    assert!(
+        !status.connected,
+        "offline session has no peers or DHT nodes"
+    );
 
     backend.shutdown().await;
 }

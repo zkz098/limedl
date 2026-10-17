@@ -123,12 +123,18 @@ mod tests {
         ])
         .expect("valid flags must parse");
 
-        assert_eq!(cli.data_dir.as_deref(), Some(std::path::Path::new("/srv/limedl")));
+        assert_eq!(
+            cli.data_dir.as_deref(),
+            Some(std::path::Path::new("/srv/limedl"))
+        );
         assert_eq!(cli.rpc_listen.as_deref(), Some("0.0.0.0"));
         assert_eq!(cli.rpc_port, Some(6801));
         assert_eq!(cli.rpc_secret.as_deref(), Some("s3cret"));
         assert!(cli.rpc_allow_origin_all);
-        assert_eq!(cli.rpc_allowed_origins, vec!["http://app.example".to_string()]);
+        assert_eq!(
+            cli.rpc_allowed_origins,
+            vec!["http://app.example".to_string()]
+        );
         assert_eq!(cli.download_dir.as_deref(), Some("/srv/downloads"));
         assert_eq!(cli.log_level, Some(LogLevelArg::Debug));
     }

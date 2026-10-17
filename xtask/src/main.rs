@@ -35,7 +35,7 @@ use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use base64::Engine as _;
 use clap::{Parser, Subcommand};
 use fips204::ml_dsa_65;
@@ -52,7 +52,8 @@ mod theme;
 
 /// base64 of the key file text — the form stored in CI secrets and embedded in
 /// `update.rs`.
-const BASE64: base64::engine::general_purpose::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+const BASE64: base64::engine::general_purpose::GeneralPurpose =
+    base64::engine::general_purpose::STANDARD;
 
 const KEY_ENV: &str = "LIMEDL_SIGNING_KEY";
 const KEY_PASSWORD_ENV: &str = "LIMEDL_SIGNING_KEY_PASSWORD";
@@ -219,7 +220,11 @@ fn main() -> Result<()> {
                 println!("signing with PQC {pqc_source} (ML-DSA-65)");
                 for file in &files {
                     let pqc_sig_path = sign_file_pqc(&pqc_sk, &pqc_pk, file)?;
-                    println!("signed PQC {} -> {}", file.display(), pqc_sig_path.display());
+                    println!(
+                        "signed PQC {} -> {}",
+                        file.display(),
+                        pqc_sig_path.display()
+                    );
                 }
             }
             Ok(())
@@ -409,12 +414,15 @@ fn sign_file(sk: &SecretKey, pk: &PublicKey, file: &Path) -> Result<PathBuf> {
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "unknown".to_string());
-    let trusted_comment = format!(
-        "timestamp:{}\tfile:{file_name}\tprehashed",
-        unix_now()
-    );
-    let signature = minisign::sign(Some(pk), sk, Cursor::new(&data), Some(&trusted_comment), None)
-        .with_context(|| format!("sign {}", file.display()))?;
+    let trusted_comment = format!("timestamp:{}\tfile:{file_name}\tprehashed", unix_now());
+    let signature = minisign::sign(
+        Some(pk),
+        sk,
+        Cursor::new(&data),
+        Some(&trusted_comment),
+        None,
+    )
+    .with_context(|| format!("sign {}", file.display()))?;
 
     // Self-check before writing: a bad signature is cheaper to catch here than
     // in a published release.
@@ -430,8 +438,12 @@ fn sign_file(sk: &SecretKey, pk: &PublicKey, file: &Path) -> Result<PathBuf> {
 fn verify_file(pk: &PublicKey, file: &Path) -> Result<()> {
     let sig_path = signature_path(file);
     let data = fs::read(file).with_context(|| format!("read {}", file.display()))?;
-    let sig_text = fs::read_to_string(&sig_path)
-        .with_context(|| format!("read signature {} (run `cargo xtask sign` first)", sig_path.display()))?;
+    let sig_text = fs::read_to_string(&sig_path).with_context(|| {
+        format!(
+            "read signature {} (run `cargo xtask sign` first)",
+            sig_path.display()
+        )
+    })?;
     let signature = SignatureBox::from_string(&sig_text)
         .with_context(|| format!("parse signature {}", sig_path.display()))?;
     minisign::verify(pk, &signature, Cursor::new(&data), true, false, false)
@@ -471,8 +483,7 @@ fn sign_file_pqc(
     let sig_path = pqc_signature_path(file);
     let sig_b64 = BASE64.encode(sig);
     let content = format!("untrusted comment: ml-dsa-65 signature\n{sig_b64}\n");
-    fs::write(&sig_path, content)
-        .with_context(|| format!("write {}", sig_path.display()))?;
+    fs::write(&sig_path, content).with_context(|| format!("write {}", sig_path.display()))?;
     Ok(sig_path)
 }
 
@@ -490,13 +501,18 @@ fn verify_file_pqc(pk: &ml_dsa_65::PublicKey, file: &Path) -> Result<()> {
         .find(|l| !l.starts_with("untrusted comment:"))
         .unwrap_or(&sig_text)
         .trim();
-    let sig_bytes = BASE64.decode(raw_b64).context("base64 decode PQC signature")?;
+    let sig_bytes = BASE64
+        .decode(raw_b64)
+        .context("base64 decode PQC signature")?;
     let sig_array: [u8; ml_dsa_65::SIG_LEN] = sig_bytes
         .try_into()
         .map_err(|_| anyhow!("PQC signature in {} has invalid length", sig_path.display()))?;
     let ctx = pqc_context_for_file(file);
     if !pk.verify(&data, &sig_array, ctx) {
-        bail!("ML-DSA-65 post-quantum signature rejected for {}", file.display());
+        bail!(
+            "ML-DSA-65 post-quantum signature rejected for {}",
+            file.display()
+        );
     }
     Ok(())
 }
@@ -537,7 +553,9 @@ fn parse_pqc_secret_key(value: &str) -> Result<(ml_dsa_65::PrivateKey, ml_dsa_65
         .find(|l| !l.starts_with("untrusted comment:"))
         .unwrap_or(text_trimmed)
         .trim();
-    let bytes = BASE64.decode(raw_b64).context("base64 decode PQC secret key")?;
+    let bytes = BASE64
+        .decode(raw_b64)
+        .context("base64 decode PQC secret key")?;
     if bytes.len() == 32 {
         let seed: [u8; 32] = bytes.try_into().unwrap();
         let (pk, sk) = ml_dsa_65::KG::keygen_from_seed(&seed);
@@ -555,7 +573,9 @@ fn resolve_pqc_public_key(
     file: Option<&Path>,
 ) -> Result<Option<ml_dsa_65::PublicKey>> {
     if let Some(value) = explicit {
-        return parse_pqc_public_key(value).map(Some).context("parse --pqc-pubkey");
+        return parse_pqc_public_key(value)
+            .map(Some)
+            .context("parse --pqc-pubkey");
     }
     if let Some(path) = file {
         let text = fs::read_to_string(path)
@@ -565,7 +585,9 @@ fn resolve_pqc_public_key(
             .with_context(|| format!("parse PQC public key file {}", path.display()));
     }
     if let Some(value) = env_var(PQC_PUBKEY_ENV) {
-        return parse_pqc_public_key(&value).map(Some).context("parse {PQC_PUBKEY_ENV}");
+        return parse_pqc_public_key(&value)
+            .map(Some)
+            .context("parse {PQC_PUBKEY_ENV}");
     }
     if let Some((_, pk, _)) = load_pqc_key()? {
         return Ok(Some(pk));
@@ -586,10 +608,15 @@ fn parse_pqc_public_key(value: &str) -> Result<ml_dsa_65::PublicKey> {
         .find(|l| !l.starts_with("untrusted comment:"))
         .unwrap_or(text_trimmed)
         .trim();
-    let bytes = BASE64.decode(raw_b64).context("base64 decode PQC public key")?;
-    let pk_array: [u8; ml_dsa_65::PK_LEN] = bytes
-        .try_into()
-        .map_err(|_| anyhow!("PQC public key has invalid length (expected {} bytes)", ml_dsa_65::PK_LEN))?;
+    let bytes = BASE64
+        .decode(raw_b64)
+        .context("base64 decode PQC public key")?;
+    let pk_array: [u8; ml_dsa_65::PK_LEN] = bytes.try_into().map_err(|_| {
+        anyhow!(
+            "PQC public key has invalid length (expected {} bytes)",
+            ml_dsa_65::PK_LEN
+        )
+    })?;
     ml_dsa_65::PublicKey::try_from_bytes(pk_array)
         .map_err(|e| anyhow!("parse ML-DSA-65 public key: {e}"))
 }
@@ -601,8 +628,8 @@ fn guard(files: &[PathBuf], update_rs: &Path) -> Result<()> {
     let pk = PublicKey::from_secret_key(&sk).context("derive public key from secret")?;
     let derived = pubkey_b64(&pk)?;
 
-    let src = fs::read_to_string(update_rs)
-        .with_context(|| format!("read {}", update_rs.display()))?;
+    let src =
+        fs::read_to_string(update_rs).with_context(|| format!("read {}", update_rs.display()))?;
     let embedded = extract_pubkey_b64(&src)
         .with_context(|| format!("find PUBKEY_B64 in {}", update_rs.display()))?;
 
@@ -637,10 +664,7 @@ fn guard(files: &[PathBuf], update_rs: &Path) -> Result<()> {
                 update_rs.display()
             );
         }
-        println!(
-            "PQC public key matches {} (ML-DSA-65)",
-            update_rs.display()
-        );
+        println!("PQC public key matches {} (ML-DSA-65)", update_rs.display());
         Some(pqc_pk)
     } else {
         println!("notice: {PQC_KEY_ENV} not set; skipping PQC key guard");
@@ -685,7 +709,9 @@ fn extract_pqc_pubkey_b64(source: &str) -> Result<String> {
         .find(MARKER)
         .context("PQC_PUBKEY_B64 declaration not found")?;
     let rest = &source[start + MARKER.len()..];
-    let open = rest.find('"').context("PQC_PUBKEY_B64 has no string literal")?;
+    let open = rest
+        .find('"')
+        .context("PQC_PUBKEY_B64 has no string literal")?;
     let after_open = &rest[open + 1..];
     let close = after_open
         .find('"')
@@ -733,8 +759,7 @@ fn generate_key(
             out_dir.display(),
         );
     }
-    fs::create_dir_all(out_dir)
-        .with_context(|| format!("create {}", out_dir.display()))?;
+    fs::create_dir_all(out_dir).with_context(|| format!("create {}", out_dir.display()))?;
 
     let embedded_minisign = if !pqc_only {
         let password = password.unwrap_or_else(random_password);

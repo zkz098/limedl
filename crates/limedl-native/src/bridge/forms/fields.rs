@@ -454,7 +454,10 @@ mod tests {
         let mut declared = declared_form_fields();
         declared.sort();
 
-        let mut table: Vec<String> = FormFields::names().iter().map(|n| (*n).to_string()).collect();
+        let mut table: Vec<String> = FormFields::names()
+            .iter()
+            .map(|n| (*n).to_string())
+            .collect();
         table.sort();
 
         let missing: Vec<&String> = declared.iter().filter(|f| !table.contains(f)).collect();

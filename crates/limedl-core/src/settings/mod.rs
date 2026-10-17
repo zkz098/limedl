@@ -11,9 +11,9 @@ use super::{
     http_client_factory::normalize_user_agent,
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
-        DownloadDefaultsSettings, ExpertSchedulerSettings, IoBaselineSettings, LogSettings, ProxyMode, ProxySettings,
-        RewriteTarget, SchedulerSettings, TraditionalSchedulerSettings, UrlRewriteRule,
-        UrlRewriteSettings, default_tracker_list_url,
+        DownloadDefaultsSettings, ExpertSchedulerSettings, IoBaselineSettings, LogSettings,
+        ProxyMode, ProxySettings, RewriteTarget, SchedulerSettings, TraditionalSchedulerSettings,
+        UrlRewriteRule, UrlRewriteSettings, default_tracker_list_url,
     },
 };
 

@@ -340,13 +340,12 @@ async fn alert_bridge_torrent_added_registers_task_and_notifies() {
     let mut rx = backend.event_bus.subscribe();
     let info_hash = Id20::from([1u8; 20]);
 
-    backend.handle_alert(
-        &irontide::session::AlertKind::TorrentAdded {
+    backend
+        .handle_alert(&irontide::session::AlertKind::TorrentAdded {
             info_hash,
             name: "test".into(),
-        },
-    )
-    .await;
+        })
+        .await;
 
     assert!(
         backend.task_map.contains_key(&info_hash),
@@ -356,7 +355,11 @@ async fn alert_bridge_torrent_added_registers_task_and_notifies() {
     assert_eq!(aria2_events(&events), vec!["aria2.onDownloadStart"]);
     match &events[0] {
         DownloadEvent::Aria2Notification { gid, .. } => {
-            assert_eq!(gid, &internal_id_to_gid(&info_hash), "gid comes from the info hash");
+            assert_eq!(
+                gid,
+                &internal_id_to_gid(&info_hash),
+                "gid comes from the info hash"
+            );
         }
         other => panic!("unexpected event: {other:?}"),
     }
@@ -365,13 +368,12 @@ async fn alert_bridge_torrent_added_registers_task_and_notifies() {
     // overwrite the existing entry.
     let sentinel = Id20::from([0xFF; 20]);
     backend.task_map.insert(info_hash, sentinel);
-    backend.handle_alert(
-        &irontide::session::AlertKind::TorrentAdded {
+    backend
+        .handle_alert(&irontide::session::AlertKind::TorrentAdded {
             info_hash,
             name: "test".into(),
-        },
-    )
-    .await;
+        })
+        .await;
     assert_eq!(
         *backend.task_map.get(&info_hash).unwrap(),
         sentinel,
@@ -389,16 +391,18 @@ async fn alert_bridge_torrent_removed_drops_task() {
     let info_hash = Id20::from([2u8; 20]);
     backend.task_map.insert(info_hash, info_hash);
 
-    backend.handle_alert(
-        &irontide::session::AlertKind::TorrentRemoved { info_hash },
-    )
-    .await;
+    backend
+        .handle_alert(&irontide::session::AlertKind::TorrentRemoved { info_hash })
+        .await;
 
     assert!(
         !backend.task_map.contains_key(&info_hash),
         "TorrentRemoved must drop the task"
     );
-    assert!(drain_events(&mut rx).is_empty(), "removal publishes nothing");
+    assert!(
+        drain_events(&mut rx).is_empty(),
+        "removal publishes nothing"
+    );
 
     backend.shutdown().await;
 }
@@ -409,19 +413,17 @@ async fn alert_bridge_pause_and_resume_notifications() {
     let mut rx = backend.event_bus.subscribe();
     let info_hash = Id20::from([3u8; 20]);
 
-    backend.handle_alert(
-        &irontide::session::AlertKind::TorrentPaused { info_hash },
-    )
-    .await;
+    backend
+        .handle_alert(&irontide::session::AlertKind::TorrentPaused { info_hash })
+        .await;
     assert_eq!(
         aria2_events(&drain_events(&mut rx)),
         vec!["aria2.onDownloadPause"]
     );
 
-    backend.handle_alert(
-        &irontide::session::AlertKind::TorrentResumed { info_hash },
-    )
-    .await;
+    backend
+        .handle_alert(&irontide::session::AlertKind::TorrentResumed { info_hash })
+        .await;
     assert_eq!(
         aria2_events(&drain_events(&mut rx)),
         vec!["aria2.onDownloadStart"],
@@ -444,10 +446,9 @@ async fn alert_bridge_torrent_finished_emits_complete_progress_and_updated() {
         .expect("start fixture");
     let mut rx = backend.event_bus.subscribe();
 
-    backend.handle_alert(
-        &irontide::session::AlertKind::TorrentFinished { info_hash },
-    )
-    .await;
+    backend
+        .handle_alert(&irontide::session::AlertKind::TorrentFinished { info_hash })
+        .await;
 
     let events = drain_events(&mut rx);
     assert_eq!(
@@ -481,10 +482,9 @@ async fn alert_bridge_torrent_finished_without_stats_still_updates() {
     let mut rx = backend.event_bus.subscribe();
     let info_hash = Id20::from([0xAB; 20]);
 
-    backend.handle_alert(
-        &irontide::session::AlertKind::TorrentFinished { info_hash },
-    )
-    .await;
+    backend
+        .handle_alert(&irontide::session::AlertKind::TorrentFinished { info_hash })
+        .await;
 
     let events = drain_events(&mut rx);
     assert_eq!(
@@ -516,13 +516,12 @@ async fn alert_bridge_torrent_error_notifies_and_updates() {
     let mut rx = backend.event_bus.subscribe();
     let info_hash = Id20::from([4u8; 20]);
 
-    backend.handle_alert(
-        &irontide::session::AlertKind::TorrentError {
+    backend
+        .handle_alert(&irontide::session::AlertKind::TorrentError {
             info_hash,
             message: "disk full".into(),
-        },
-    )
-    .await;
+        })
+        .await;
 
     let events = drain_events(&mut rx);
     assert_eq!(aria2_events(&events), vec!["aria2.onDownloadError"]);
@@ -570,10 +569,9 @@ async fn alert_bridge_ignores_alerts_without_an_info_hash() {
     let (_tmp, backend) = make_backend().await;
     let mut rx = backend.event_bus.subscribe();
 
-    backend.handle_alert(
-        &irontide::session::AlertKind::SettingsChanged,
-    )
-    .await;
+    backend
+        .handle_alert(&irontide::session::AlertKind::SettingsChanged)
+        .await;
 
     assert!(drain_events(&mut rx).is_empty());
     assert!(backend.task_map.is_empty());
@@ -718,8 +716,7 @@ async fn alert_bridge_setup_replaces_the_previous_loop_and_forwards_real_alerts(
     // `setup_alert_bridge`, so nothing emitted after it returns can be lost.
     let info_hash = backend
         .start(StartDownloadRequest {
-            url: "magnet:?xt=urn:btih:aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d&dn=live"
-                .into(),
+            url: "magnet:?xt=urn:btih:aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d&dn=live".into(),
             ..Default::default()
         })
         .await

@@ -2,16 +2,16 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use limedl_core::types::{
-    BtFileStatus, BtPeerInfo, BtTrackerInfo, DownloadState, DownloadSummary,
-    TaskKind, TorrentFileEntry,
+    BtFileStatus, BtPeerInfo, BtTrackerInfo, DownloadState, DownloadSummary, TaskKind,
+    TorrentFileEntry,
 };
 use slint::SharedString;
 
+use super::format::{format_bytes, format_eta, format_speed};
 use crate::i18n::{self, Language};
 use crate::{
     InspectorInfo, NewTaskTorrentFileItem, PeerItem, TaskItem, TorrentFileItem, TrackerItem,
 };
-use super::format::{format_bytes, format_eta, format_speed};
 
 /// Supported sort fields for task list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -125,8 +125,10 @@ pub fn detect_file_category(filename: &str) -> &'static str {
     match ext.as_str() {
         "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "rmvb" | "ts" | "m4v" => "video",
         "mp3" | "flac" | "wav" | "aac" | "ogg" | "m4a" | "wma" | "opus" | "ape" => "audio",
-        "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "zst" | "iso" | "dmg" | "img" | "vhd" => "archive",
-        "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "txt" | "md" | "epub" | "csv" => "document",
+        "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "zst" | "iso" | "dmg" | "img"
+        | "vhd" => "archive",
+        "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "txt" | "md" | "epub"
+        | "csv" => "document",
         "exe" | "msi" | "apk" | "deb" | "rpm" | "appimage" | "pkg" => "installer",
         "jpg" | "jpeg" | "png" | "gif" | "webp" | "svg" | "bmp" | "ico" | "psd" | "tiff" => "image",
         _ => "default",
@@ -161,7 +163,11 @@ pub fn summary_to_task_item(summary: &DownloadSummary, selected: bool, lang: Lan
     };
 
     let size_text = match summary.total_bytes {
-        Some(total) => format!("{} / {}", format_bytes(summary.downloaded_bytes), format_bytes(total)),
+        Some(total) => format!(
+            "{} / {}",
+            format_bytes(summary.downloaded_bytes),
+            format_bytes(total)
+        ),
         None => format_bytes(summary.downloaded_bytes),
     };
 
@@ -336,11 +342,7 @@ pub fn summary_to_inspector_info(summary: &DownloadSummary, lang: Language) -> I
 
 /// Convert `BtPeerInfo` to Slint `PeerItem`.
 pub fn peer_info_to_item(peer: &BtPeerInfo) -> PeerItem {
-    let sanitized_client: String = peer
-        .client
-        .chars()
-        .filter(|c| !c.is_control())
-        .collect();
+    let sanitized_client: String = peer.client.chars().filter(|c| !c.is_control()).collect();
     let trimmed_client = sanitized_client.trim();
 
     PeerItem {
@@ -388,4 +390,3 @@ pub fn torrent_entry_to_item(entry: &TorrentFileEntry, included: bool) -> NewTas
         included,
     }
 }
-

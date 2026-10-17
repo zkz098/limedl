@@ -1,4 +1,4 @@
-﻿use thiserror::Error;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -134,7 +134,6 @@ impl From<anyhow::Error> for DownloadError {
     }
 }
 
-
 pub type Result<T> = std::result::Result<T, DownloadError>;
 
 #[cfg(test)]
@@ -191,24 +190,48 @@ mod tests {
     #[test]
     fn download_error_kind_exhaustive() {
         // ---- Variants without payload ----
-        assert_eq!(DownloadError::UnsupportedScheme.kind(), "unsupported_scheme");
+        assert_eq!(
+            DownloadError::UnsupportedScheme.kind(),
+            "unsupported_scheme"
+        );
         assert_eq!(DownloadError::NotFound.kind(), "not_found");
         assert_eq!(DownloadError::AlreadyRunning.kind(), "already_running");
         assert_eq!(DownloadError::NotResumable.kind(), "not_resumable");
         assert_eq!(DownloadError::Canceled.kind(), "canceled");
         assert_eq!(DownloadError::MissingFileName.kind(), "missing_file_name");
         assert_eq!(DownloadError::Interrupted.kind(), "interrupted");
-        assert_eq!(DownloadError::TooManyConcurrentDownloads.kind(), "too_many_concurrent_downloads");
+        assert_eq!(
+            DownloadError::TooManyConcurrentDownloads.kind(),
+            "too_many_concurrent_downloads"
+        );
 
         // ---- Variants with String payload ----
-        assert_eq!(DownloadError::InvalidResponse("test".into()).kind(), "invalid_response");
-        assert_eq!(DownloadError::InvalidRequest("test".into()).kind(), "invalid_request");
-        assert_eq!(DownloadError::InvalidProxy("test".into()).kind(), "invalid_proxy");
+        assert_eq!(
+            DownloadError::InvalidResponse("test".into()).kind(),
+            "invalid_response"
+        );
+        assert_eq!(
+            DownloadError::InvalidRequest("test".into()).kind(),
+            "invalid_request"
+        );
+        assert_eq!(
+            DownloadError::InvalidProxy("test".into()).kind(),
+            "invalid_proxy"
+        );
         assert_eq!(DownloadError::Torrent("test".into()).kind(), "torrent");
-        assert_eq!(DownloadError::TorrentNetwork("test".into()).kind(), "torrent_network");
-        assert_eq!(DownloadError::TorrentInvalidData("test".into()).kind(), "torrent_invalid_data");
+        assert_eq!(
+            DownloadError::TorrentNetwork("test".into()).kind(),
+            "torrent_network"
+        );
+        assert_eq!(
+            DownloadError::TorrentInvalidData("test".into()).kind(),
+            "torrent_invalid_data"
+        );
         assert_eq!(DownloadError::TorrentIo("test".into()).kind(), "torrent_io");
-        assert_eq!(DownloadError::DatabaseInit("test".into()).kind(), "database_init");
+        assert_eq!(
+            DownloadError::DatabaseInit("test".into()).kind(),
+            "database_init"
+        );
         assert_eq!(DownloadError::Internal("test".into()).kind(), "internal");
 
         // ---- Variants wrapping external error types ----

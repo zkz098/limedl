@@ -298,7 +298,14 @@ async fn test_hdd_with_worker_buffer_chunk_and_flush() {
     let (_dir, file) = temp_file();
     let slot = pool.acquire_slot().await;
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_with_worker(
+        pool.clone(),
+        slot,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
 
     let data = Bytes::from("hello io worker");
     buf.buffer_chunk(0, data.clone()).await.unwrap();
@@ -317,7 +324,14 @@ async fn test_hdd_with_worker_multiple_chunks() {
     let (_dir, file) = temp_file();
     let slot = pool.acquire_slot().await;
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_with_worker(
+        pool.clone(),
+        slot,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
 
     buf.buffer_chunk(0, Bytes::from("AAA")).await.unwrap();
     buf.buffer_chunk(3, Bytes::from("BBB")).await.unwrap();

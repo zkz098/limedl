@@ -1,13 +1,10 @@
-
 use foldhash::HashMap;
-
-
 
 mod bind;
 mod context;
 mod dispatch;
-mod jsonrpc;
 mod download;
+mod jsonrpc;
 mod options;
 mod protocol;
 mod query;

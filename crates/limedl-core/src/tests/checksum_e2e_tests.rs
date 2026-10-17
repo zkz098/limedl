@@ -33,8 +33,8 @@ async fn checksum_correct_completes() {
         headers: None,
         mirror_urls: None,
         user_agent: None,
-    priority: None,
-};
+        priority: None,
+    };
     let id = dm.start(request).await.unwrap();
     let task_id = TaskId::from_wire_string(&id.to_string()).unwrap();
     let inner = match task_id {
@@ -94,8 +94,8 @@ async fn checksum_wrong_fails() {
         headers: None,
         mirror_urls: None,
         user_agent: None,
-    priority: None,
-};
+        priority: None,
+    };
     let id = dm.start(request).await.unwrap();
     let task_id = TaskId::from_wire_string(&id.to_string()).unwrap();
     let inner = match task_id {
@@ -176,8 +176,14 @@ async fn checksum_autodetect_sha256_completes() {
         match snapshot.state {
             DownloadState::Completed => {
                 assert_eq!(snapshot.checksum_mode, ChecksumMode::Sha256);
-                assert_eq!(snapshot.expected_checksum.as_deref(), Some(test_server.sha256_hash.as_str()));
-                assert_eq!(snapshot.checksum.as_deref(), Some(test_server.sha256_hash.as_str()));
+                assert_eq!(
+                    snapshot.expected_checksum.as_deref(),
+                    Some(test_server.sha256_hash.as_str())
+                );
+                assert_eq!(
+                    snapshot.checksum.as_deref(),
+                    Some(test_server.sha256_hash.as_str())
+                );
                 break;
             }
             DownloadState::Failed => panic!("Download failed: {:?}", snapshot.error),
@@ -238,8 +244,14 @@ async fn checksum_manual_sha256_completes() {
         match snapshot.state {
             DownloadState::Completed => {
                 assert_eq!(snapshot.checksum_mode, ChecksumMode::Sha256);
-                assert_eq!(snapshot.expected_checksum.as_deref(), Some(test_server.sha256_hash.as_str()));
-                assert_eq!(snapshot.checksum.as_deref(), Some(test_server.sha256_hash.as_str()));
+                assert_eq!(
+                    snapshot.expected_checksum.as_deref(),
+                    Some(test_server.sha256_hash.as_str())
+                );
+                assert_eq!(
+                    snapshot.checksum.as_deref(),
+                    Some(test_server.sha256_hash.as_str())
+                );
                 break;
             }
             DownloadState::Failed => panic!("Download failed: {:?}", snapshot.error),
@@ -265,7 +277,11 @@ async fn test_dispatcher_probe_checksum() {
     let state_dir = tmp.path().join("downloads");
     let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
 
-    let probed = core.dispatcher.probe_checksum(&url, Some("test-file.bin")).await.unwrap();
+    let probed = core
+        .dispatcher
+        .probe_checksum(&url, Some("test-file.bin"))
+        .await
+        .unwrap();
     assert_eq!(probed.as_deref(), Some(test_server.sha256_hash.as_str()));
 
     core.registry.shutdown_all().await;

@@ -1,9 +1,7 @@
 use parking_lot::Mutex;
 
 use limedl_core::dispatcher::Dispatcher;
-use limedl_core::types::{
-    DoubleClickOnCompleted, DoubleClickOnUncompleted, DownloadState, TaskId,
-};
+use limedl_core::types::{DoubleClickOnCompleted, DoubleClickOnUncompleted, DownloadState, TaskId};
 
 use crate::bridge::TaskStore;
 

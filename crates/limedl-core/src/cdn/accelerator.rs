@@ -1,7 +1,6 @@
-
 use std::net::IpAddr;
-use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
@@ -132,7 +131,8 @@ impl CdnAccelerator {
         tokio::spawn(async move {
             // ── Phase: FetchingRanges ────────────────────────────
             tracing::info!("cdn test: phase=FetchingRanges");
-            this.phase_atomic.store(CdnTestPhase::FetchingRanges as u8, Ordering::Release);
+            this.phase_atomic
+                .store(CdnTestPhase::FetchingRanges as u8, Ordering::Release);
             this.phase_progress_current.store(0, Ordering::Release);
             this.phase_progress_total.store(0, Ordering::Release);
 
@@ -187,15 +187,11 @@ impl CdnAccelerator {
                 Box::new(move |phase, current, total| {
                     // Direct atomic stores — no tokio::spawn needed since
                     // the callback is already called from a sync context.
-                    acc_ref
-                        .phase_atomic
-                        .store(phase as u8, Ordering::Release);
+                    acc_ref.phase_atomic.store(phase as u8, Ordering::Release);
                     acc_ref
                         .phase_progress_current
                         .store(current, Ordering::Release);
-                    acc_ref
-                        .phase_progress_total
-                        .store(total, Ordering::Release);
+                    acc_ref.phase_progress_total.store(total, Ordering::Release);
                 });
 
             let (results, default_node) = tokio::select! {
@@ -605,7 +601,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_provider_switching_and_fastly() {
-        use crate::cdn::provider::{FastlyProvider, CustomCdnProvider, CdnProviderKind};
+        use crate::cdn::provider::{CdnProviderKind, CustomCdnProvider, FastlyProvider};
 
         let acc = Arc::new(CdnAccelerator::new());
         assert_eq!(acc.provider().await.kind(), CdnProviderKind::Cloudflare);
@@ -623,6 +619,9 @@ mod tests {
         ));
         let custom_acc = CdnAccelerator::with_provider(custom);
         assert_eq!(custom_acc.provider().await.kind(), CdnProviderKind::Custom);
-        assert_eq!(custom_acc.provider().await.default_test_url(), "https://example.com/test");
+        assert_eq!(
+            custom_acc.provider().await.default_test_url(),
+            "https://example.com/test"
+        );
     }
 }

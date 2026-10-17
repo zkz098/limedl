@@ -1,5 +1,5 @@
-use slint::{CloseRequestResponse, ComponentHandle};
 use limedl_core::types::CloseBehavior;
+use slint::{CloseRequestResponse, ComponentHandle};
 
 use crate::context::AppContext;
 use crate::platform_win;

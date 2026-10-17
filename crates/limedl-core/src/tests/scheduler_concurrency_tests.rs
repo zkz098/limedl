@@ -145,4 +145,3 @@ async fn batch_submitting_many_links_succeeds_and_queues() {
 
     core.registry.shutdown_all().await;
 }
-

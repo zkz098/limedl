@@ -119,7 +119,9 @@ impl SpeedTracker {
             None => Self::TOTAL_WINDOW,
         };
 
-        let effective_elapsed = elapsed.clamp(Self::BUCKET_DURATION, Self::TOTAL_WINDOW).as_secs_f64();
+        let effective_elapsed = elapsed
+            .clamp(Self::BUCKET_DURATION, Self::TOTAL_WINDOW)
+            .as_secs_f64();
         if effective_elapsed <= 0.0 {
             return None;
         }
@@ -167,13 +169,17 @@ mod tests {
         assert!(tracker.is_initialized());
 
         // At t0 + 100ms (clamped to BUCKET_DURATION = 200ms)
-        let speed = tracker.current_speed(t0 + Duration::from_millis(100)).unwrap();
+        let speed = tracker
+            .current_speed(t0 + Duration::from_millis(100))
+            .unwrap();
         // 1_000_000 / 0.2 = 5_000_000
         assert!((speed - 5_000_000.0).abs() < 1.0, "got {speed}");
 
         // At t0 + 500ms, transfer another 1 MB
         tracker.record_bytes(1_000_000, t0 + Duration::from_millis(500));
-        let speed = tracker.current_speed(t0 + Duration::from_millis(500)).unwrap();
+        let speed = tracker
+            .current_speed(t0 + Duration::from_millis(500))
+            .unwrap();
         // 2_000_000 / 0.5 = 4_000_000
         assert!((speed - 4_000_000.0).abs() < 1.0, "got {speed}");
     }
@@ -208,7 +214,11 @@ mod tests {
         let t0 = Instant::now();
 
         tracker.record_bytes(5_000_000, t0);
-        assert!(tracker.current_speed(t0 + Duration::from_millis(500)).is_some());
+        assert!(
+            tracker
+                .current_speed(t0 + Duration::from_millis(500))
+                .is_some()
+        );
 
         // After window expires (> 2000ms), speed should be None
         let stalled_at = t0 + Duration::from_millis(2500);
@@ -227,7 +237,9 @@ mod tests {
         tracker.record_bytes(2_000_000, t1);
 
         // Should only reflect the new 2MB transfer
-        let speed = tracker.current_speed(t1 + Duration::from_millis(200)).unwrap();
+        let speed = tracker
+            .current_speed(t1 + Duration::from_millis(200))
+            .unwrap();
         // 2_000_000 / 0.2 = 10_000_000
         assert!((speed - 10_000_000.0).abs() < 1.0, "got {speed}");
     }

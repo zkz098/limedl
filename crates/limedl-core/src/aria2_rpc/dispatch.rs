@@ -1,46 +1,24 @@
 //! Method dispatch table for JSON-RPC requests.
 
-use serde_json::Value;
 use super::context::RpcContext;
+use super::context::{check_token, strip_token};
 use super::download::{
-    handle_add_metalink,
-    handle_add_torrent,
-    handle_add_uri,
-    handle_change_position,
-    handle_change_uri,
-    handle_pause,
-    handle_pause_all,
-    handle_purge_download_result,
-    handle_remove,
-    handle_remove_download_result,
-    handle_unpause,
-    handle_unpause_all,
-};
-use super::options::{
-    handle_change_global_option,
-    handle_change_option,
-    handle_get_global_option,
-    handle_get_option,
+    handle_add_metalink, handle_add_torrent, handle_add_uri, handle_change_position,
+    handle_change_uri, handle_pause, handle_pause_all, handle_purge_download_result, handle_remove,
+    handle_remove_download_result, handle_unpause, handle_unpause_all,
 };
 use super::jsonrpc::{ERR_INVALID_PARAMS, ERR_METHOD_NOT_FOUND, JsonRpcError, make_error};
+use super::options::{
+    handle_change_global_option, handle_change_option, handle_get_global_option, handle_get_option,
+};
 use super::query::{
-    handle_get_files,
-    handle_get_peers,
-    handle_get_servers,
-    handle_get_session_info,
-    handle_get_uris,
-    handle_global_stat,
-    handle_list_methods,
-    handle_list_notifications,
-    handle_save_session,
-    handle_tell_active,
-    handle_tell_status,
-    handle_tell_stopped,
-    handle_tell_waiting,
-    handle_version,
+    handle_get_files, handle_get_peers, handle_get_servers, handle_get_session_info,
+    handle_get_uris, handle_global_stat, handle_list_methods, handle_list_notifications,
+    handle_save_session, handle_tell_active, handle_tell_status, handle_tell_stopped,
+    handle_tell_waiting, handle_version,
 };
 use super::system::handle_shutdown;
-use super::context::{check_token, strip_token};
+use serde_json::Value;
 
 /// Dispatch a JSON-RPC method, enforcing the secret token first.
 ///
@@ -64,10 +42,7 @@ pub(crate) async fn dispatch_method(
     //     open a hole — an unauthenticated nested call fails its own check.
     if matches!(
         method,
-        "system.listMethods"
-            | "system.listNotifications"
-            | "system.multicall"
-            | "aria2.multicall"
+        "system.listMethods" | "system.listNotifications" | "system.multicall" | "aria2.multicall"
     ) {
         return dispatch_authorized(ctx, method, strip_token(params)).await;
     }

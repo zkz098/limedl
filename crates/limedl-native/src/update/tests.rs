@@ -42,7 +42,11 @@ fn manifest_parses_release_json() {
         m.platforms["windows-x86_64"].pqc_signature.as_deref(),
         Some("cHFjX3NpZw==")
     );
-    assert!(m.platforms["windows-x86_64-portable"].pqc_signature.is_none());
+    assert!(
+        m.platforms["windows-x86_64-portable"]
+            .pqc_signature
+            .is_none()
+    );
     assert!(m.platforms["windows-x86_64-portable"].sha256.is_none());
 }
 

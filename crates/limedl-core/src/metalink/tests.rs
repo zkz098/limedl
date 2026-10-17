@@ -116,9 +116,7 @@ fn test_parse_metalink_http_headers() {
     );
     headers.append(
         "digest",
-        HeaderValue::from_static(
-            "SHA-256=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
-        ),
+        HeaderValue::from_static("SHA-256=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="),
     );
 
     let meta = parse_metalink_headers(&headers);

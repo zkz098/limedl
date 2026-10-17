@@ -1,7 +1,9 @@
-﻿use async_trait::async_trait;
+use async_trait::async_trait;
 
 use super::error::Result;
-use super::types::{AppSettings, DownloadSnapshot, DownloadSummary, Priority, StartDownloadRequest, TaskId};
+use super::types::{
+    AppSettings, DownloadSnapshot, DownloadSummary, Priority, StartDownloadRequest, TaskId,
+};
 
 /// Minimal common interface for all download protocol backends.
 /// Each backend is responsible for its own ID prefix handling.

@@ -7,7 +7,13 @@ use super::*;
 async fn test_ssd_pingpong_buffer_creation() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(64 * 1024, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        64 * 1024,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
     assert_eq!(buf.len(), 0);
     assert!(!buf.has_degraded());
 }
@@ -17,7 +23,13 @@ async fn test_ssd_pingpong_buffer_creation() {
 async fn test_ssd_pingpong_buffer_chunk_and_flush() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        4 * MB,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
 
     let data = Bytes::from("hello pingpong ssd");
     buf.buffer_chunk(0, data.clone()).await.unwrap();
@@ -34,7 +46,13 @@ async fn test_ssd_pingpong_buffer_chunk_and_flush() {
 async fn test_ssd_pingpong_multiple_offsets() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        4 * MB,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
 
     buf.buffer_chunk(0, Bytes::from("aaaa")).await.unwrap();
     buf.buffer_chunk(10, Bytes::from("bbbb")).await.unwrap();
@@ -56,7 +74,13 @@ async fn test_ssd_pingpong_flip_trigger() {
     let half = 1024u64;
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(half, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        half,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
 
     let chunk_size = half / 2;
     let mut total_written = 0u64;
@@ -86,7 +110,13 @@ async fn test_ssd_pingpong_drain_and_clear() {
     let half = 1024u64;
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(half, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        half,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
 
     let small = half / 4;
     for i in 0..5u64 {
@@ -111,7 +141,13 @@ async fn test_ssd_pingpong_drain_and_clear() {
 async fn test_ssd_pingpong_error_flag() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        4 * MB,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
 
     assert!(!buf.has_degraded());
 
@@ -133,7 +169,13 @@ async fn test_ssd_pingpong_error_flag() {
 async fn test_ssd_pingpong_flush_all_empty() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        4 * MB,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
     buf.flush_all().await.unwrap();
 }
 
@@ -142,7 +184,13 @@ async fn test_ssd_pingpong_flush_all_empty() {
 async fn test_ssd_pingpong_overlapping_writes() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        4 * MB,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
 
     buf.buffer_chunk(0, Bytes::from("XXX")).await.unwrap();
     buf.buffer_chunk(0, Bytes::from("YYY")).await.unwrap();
@@ -157,7 +205,13 @@ async fn test_ssd_pingpong_overlapping_writes() {
 async fn test_ssd_pingpong_flush_all_multiple_times() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(4 * MB, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        4 * MB,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
 
     buf.buffer_chunk(0, Bytes::from("first")).await.unwrap();
     buf.flush_all().await.unwrap();
@@ -178,7 +232,13 @@ async fn test_ssd_pingpong_large_chunk_direct_write() {
     let half = 64 * 1024u64;
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(half, file.clone(), temp_file_path(&_dir), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        half,
+        file.clone(),
+        temp_file_path(&_dir),
+        worker,
+        None,
+    );
 
     let big_data = vec![0xABu8; (half + 1) as usize];
     let big = Bytes::from(big_data);

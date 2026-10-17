@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 use super::common::{default_tracker_list_url, default_true};
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

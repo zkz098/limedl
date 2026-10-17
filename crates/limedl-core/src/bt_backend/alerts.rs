@@ -217,18 +217,27 @@ impl IrontideBtBackend {
                         Some(message.clone()),
                     ),
                 };
-                self.event_bus
-                    .publish(DownloadEvent::Updated {
-                        summary: Box::new(summary),
-                    });
+                self.event_bus.publish(DownloadEvent::Updated {
+                    summary: Box::new(summary),
+                });
             }
-            AlertKind::StateChanged { prev_state, new_state, .. } => {
+            AlertKind::StateChanged {
+                prev_state,
+                new_state,
+                ..
+            } => {
                 tracing::trace!(
                     "irontide: state change for {info_hash}: {prev_state:?} -> {new_state:?}"
                 );
             }
-            AlertKind::TorrentChecked { pieces_have, pieces_total, .. } => {
-                tracing::debug!("irontide: check complete for {info_hash} ({pieces_have}/{pieces_total})");
+            AlertKind::TorrentChecked {
+                pieces_have,
+                pieces_total,
+                ..
+            } => {
+                tracing::debug!(
+                    "irontide: check complete for {info_hash} ({pieces_have}/{pieces_total})"
+                );
             }
             AlertKind::FileCompleted { file_index, .. } => {
                 tracing::debug!("irontide: file #{file_index} complete for {info_hash}");
@@ -236,7 +245,9 @@ impl IrontideBtBackend {
             AlertKind::TrackerReply { num_peers, url, .. } => {
                 // Tracker replies carry no summary fields the UI model reads;
                 // the inspector fetches trackers/peers on its own poll.
-                tracing::trace!("irontide: tracker {url} replied {num_peers} peers for {info_hash}");
+                tracing::trace!(
+                    "irontide: tracker {url} replied {num_peers} peers for {info_hash}"
+                );
             }
             AlertKind::TrackerError { message, url, .. } => {
                 tracing::warn!("irontide: tracker error for {url}: {message}");

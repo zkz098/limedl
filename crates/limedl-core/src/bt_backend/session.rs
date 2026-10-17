@@ -237,7 +237,12 @@ impl IrontideBtBackend {
     /// Load the configured peer IP blocklist (if any) and set it on the session,
     /// replacing the previous filter. Re-applies only when the config changes.
     pub(crate) async fn apply_blocklist(&self) {
-        apply_blocklist_impl(&self.session, &self.bt_settings, &self.applied_blocklist_key).await;
+        apply_blocklist_impl(
+            &self.session,
+            &self.bt_settings,
+            &self.applied_blocklist_key,
+        )
+        .await;
     }
 }
 
@@ -261,7 +266,10 @@ async fn apply_blocklist_impl(
     }
 
     if !enabled || path.is_empty() {
-        match session.set_ip_filter(irontide::session::IpFilter::new()).await {
+        match session
+            .set_ip_filter(irontide::session::IpFilter::new())
+            .await
+        {
             Ok(()) => *lock(applied_key) = Some(key),
             Err(e) => tracing::warn!("blocklist: failed to clear IP filter: {e}"),
         }
@@ -301,9 +309,10 @@ async fn apply_blocklist_impl(
     }
 }
 
-
 /// Map a limedl seed-choking enum to the irontide engine enum.
-fn map_seed_choking(a: crate::types::BtSeedChokingAlgorithm) -> irontide::session::SeedChokingAlgorithm {
+fn map_seed_choking(
+    a: crate::types::BtSeedChokingAlgorithm,
+) -> irontide::session::SeedChokingAlgorithm {
     use crate::types::BtSeedChokingAlgorithm::*;
     match a {
         FastestUpload => irontide::session::SeedChokingAlgorithm::FastestUpload,
@@ -390,8 +399,14 @@ mod tests {
         let s = build_engine_settings(&bt);
         assert_eq!(s.download_rate_limit, 1024);
         assert_eq!(s.upload_rate_limit, 2048);
-        assert_eq!(s.seed_choking_algorithm, irontide::session::SeedChokingAlgorithm::AntiLeech);
-        assert_eq!(s.choking_algorithm, irontide::session::ChokingAlgorithm::RateBased);
+        assert_eq!(
+            s.seed_choking_algorithm,
+            irontide::session::SeedChokingAlgorithm::AntiLeech
+        );
+        assert_eq!(
+            s.choking_algorithm,
+            irontide::session::ChokingAlgorithm::RateBased
+        );
         assert_eq!(s.max_upload_slots_per_torrent, 6);
         assert_eq!(s.max_peers_per_torrent, 200);
         assert_eq!(s.smart_ban_max_failures, 2);

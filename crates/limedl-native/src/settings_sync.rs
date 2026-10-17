@@ -19,6 +19,7 @@ use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::types::AppSettings;
 
+use crate::MainWindow;
 use crate::bridge::{TaskStore, summary_to_inspector_info};
 use crate::context::AppContext;
 use crate::handlers::common::with_ui;
@@ -26,7 +27,6 @@ use crate::i18n::{self, Language};
 use crate::toast::{ToastQueue, push_toast};
 use crate::tray::update_tray_menu_and_tooltip;
 use crate::ui_sync::{apply_appearance, refresh_ui};
-use crate::MainWindow;
 
 /// Extras each caller wants on top of the shared UI update.
 #[derive(Clone, Copy, Default)]

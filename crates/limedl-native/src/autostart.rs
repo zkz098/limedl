@@ -210,7 +210,9 @@ mod linux_impl {
     }
 
     pub fn disable() -> anyhow::Result<()> {
-        if let Some(p) = autostart_file() && p.exists() {
+        if let Some(p) = autostart_file()
+            && p.exists()
+        {
             std::fs::remove_file(p)?;
         }
         Ok(())
@@ -262,7 +264,9 @@ mod macos_impl {
     }
 
     pub fn disable() -> anyhow::Result<()> {
-        if let Some(p) = plist_path() && p.exists() {
+        if let Some(p) = plist_path()
+            && p.exists()
+        {
             std::fs::remove_file(p)?;
         }
         Ok(())
@@ -349,11 +353,7 @@ pub fn disable() -> anyhow::Result<()> {
 }
 
 pub fn set_enabled(enabled: bool) -> anyhow::Result<()> {
-    if enabled {
-        enable()
-    } else {
-        disable()
-    }
+    if enabled { enable() } else { disable() }
 }
 
 /// Sync the persisted `settings.autostart` boolean with the actual OS registration.

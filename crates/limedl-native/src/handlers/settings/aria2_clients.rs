@@ -11,13 +11,13 @@ use std::time::Duration;
 use slint::{Model, VecModel};
 
 use crate::Aria2ClientItem;
+use crate::MainWindow;
 use crate::bridge::{Aria2ClientText, aria2_clients_to_slint};
 use crate::context::AppContext;
 use crate::handlers::common::{read_ui, with_ui};
 use crate::i18n::{self};
 use crate::toast::push_toast;
 use crate::ui_sync::{push_aria2_client_rows, read_aria2_client_rows};
-use crate::MainWindow;
 
 pub fn register(ctx: &AppContext) {
     let ui = &ctx.ui;

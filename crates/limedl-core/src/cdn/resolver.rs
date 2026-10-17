@@ -1,4 +1,4 @@
-﻿use std::collections::HashMap;
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::{Duration, Instant};
@@ -243,9 +243,15 @@ mod tests {
         // 104.16.0.0 is the network address of 104.16.0.0/13 — should match
         assert!(ip_in_cloudflare_ranges(Ipv4Addr::new(104, 16, 0, 0), cidrs));
         // 104.23.255.255 is the broadcast of 104.16.0.0/13 — should match
-        assert!(ip_in_cloudflare_ranges(Ipv4Addr::new(104, 23, 255, 255), cidrs));
+        assert!(ip_in_cloudflare_ranges(
+            Ipv4Addr::new(104, 23, 255, 255),
+            cidrs
+        ));
         // TEST-NET-3 (203.0.113.0/24) — documentation-only, not in any CF range
-        assert!(!ip_in_cloudflare_ranges(Ipv4Addr::new(203, 0, 113, 1), cidrs));
+        assert!(!ip_in_cloudflare_ranges(
+            Ipv4Addr::new(203, 0, 113, 1),
+            cidrs
+        ));
     }
 
     // ── ip_in_cloudflare_ipv6_ranges unit tests ──
@@ -254,35 +260,42 @@ mod tests {
     fn test_ip_in_cloudflare_ipv6_ranges_known_cf_ip() {
         let cidrs = &FALLBACK_CACHE.ipv6_cidrs;
         // 2606:4700::1 is within 2606:4700::/32
-        assert!(ip_in_cloudflare_ipv6_ranges(Ipv6Addr::new(
-            0x2606, 0x4700, 0, 0, 0, 0, 0, 1
-        ), cidrs));
+        assert!(ip_in_cloudflare_ipv6_ranges(
+            Ipv6Addr::new(0x2606, 0x4700, 0, 0, 0, 0, 0, 1),
+            cidrs
+        ));
     }
 
     #[test]
     fn test_ip_in_cloudflare_ipv6_ranges_google_dns() {
         let cidrs = &FALLBACK_CACHE.ipv6_cidrs;
         // 2001:4860:4860::8888 is Google DNS, not Cloudflare
-        assert!(!ip_in_cloudflare_ipv6_ranges(Ipv6Addr::new(
-            0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888
-        ), cidrs));
+        assert!(!ip_in_cloudflare_ipv6_ranges(
+            Ipv6Addr::new(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888),
+            cidrs
+        ));
     }
 
     #[test]
     fn test_ip_in_cloudflare_ipv6_ranges_network_boundary() {
         let cidrs = &FALLBACK_CACHE.ipv6_cidrs;
         // 2606:4700:: is the network address of 2606:4700::/32 — should match
-        assert!(ip_in_cloudflare_ipv6_ranges(Ipv6Addr::new(
-            0x2606, 0x4700, 0, 0, 0, 0, 0, 0
-        ), cidrs));
+        assert!(ip_in_cloudflare_ipv6_ranges(
+            Ipv6Addr::new(0x2606, 0x4700, 0, 0, 0, 0, 0, 0),
+            cidrs
+        ));
         // 2606:4700:ffff:ffff:ffff:ffff:ffff:ffff is the broadcast — should match
-        assert!(ip_in_cloudflare_ipv6_ranges(Ipv6Addr::new(
-            0x2606, 0x4700, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff
-        ), cidrs));
+        assert!(ip_in_cloudflare_ipv6_ranges(
+            Ipv6Addr::new(
+                0x2606, 0x4700, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff
+            ),
+            cidrs
+        ));
         // 2606:4800:: is NOT in 2606:4700::/32 — should not match
-        assert!(!ip_in_cloudflare_ipv6_ranges(Ipv6Addr::new(
-            0x2606, 0x4800, 0, 0, 0, 0, 0, 0
-        ), cidrs));
+        assert!(!ip_in_cloudflare_ipv6_ranges(
+            Ipv6Addr::new(0x2606, 0x4800, 0, 0, 0, 0, 0, 0),
+            cidrs
+        ));
     }
 
     // ── is_cloudflare_domain async tests ──

@@ -6,7 +6,6 @@ use irontide::core::Id20;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-
 use super::bt::BtUploadStatus;
 use super::common::{AdaptiveProfile, ChecksumMode, DiskType, Priority, ThreadMode};
 use crate::error::DownloadError;

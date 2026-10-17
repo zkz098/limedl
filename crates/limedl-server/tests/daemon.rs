@@ -25,7 +25,12 @@ async fn free_port() -> u16 {
 /// Send one JSON-RPC request, tolerating the connection-refused state that is
 /// expected until the daemon's engine has bootstrapped and bound its port.
 /// `None` means "not ready yet", not "failed".
-async fn rpc_try(client: &reqwest::Client, url: &str, method: &str, params: Value) -> Option<Value> {
+async fn rpc_try(
+    client: &reqwest::Client,
+    url: &str,
+    method: &str,
+    params: Value,
+) -> Option<Value> {
     let body = json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params});
     let text = client
         .post(url)
@@ -112,7 +117,10 @@ async fn daemon_serves_rpc_and_stops_on_aria2_shutdown() {
         json!([format!("token:{SECRET}")]),
     )
     .await;
-    assert!(ack["result"].is_string(), "shutdown must acknowledge: {ack}");
+    assert!(
+        ack["result"].is_string(),
+        "shutdown must acknowledge: {ack}"
+    );
 
     let joined = tokio::time::timeout(Duration::from_secs(30), daemon)
         .await

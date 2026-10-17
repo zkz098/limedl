@@ -273,7 +273,11 @@ fn on_warning(ctx: &BusCtx, dedup: &mut WarningDedup, id: String, message: Strin
     if !dedup.should_show(&id, &message) {
         return;
     }
-    let file_name = ctx.store.lock().get_summary(&id).map(|summary| summary.file_name);
+    let file_name = ctx
+        .store
+        .lock()
+        .get_summary(&id)
+        .map(|summary| summary.file_name);
     let text = match file_name {
         Some(name) if !name.is_empty() => i18n::format_warning_with_file(&name, &message),
         _ => message,

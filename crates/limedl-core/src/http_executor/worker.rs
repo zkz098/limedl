@@ -4,39 +4,33 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 use reqwest::Response;
 
-use crate::now_ms;
+#[cfg(test)]
+use super::WORK_STEAL_MIN_SPLIT_SIZE;
+use super::{BatchLimiter, ProgressThrottle, RequestBudget};
 use crate::buffer_pool::DownloadBuffer;
 use crate::checksum::hash_slices;
 use crate::database::Database;
 use crate::download::{
-    ChunkWorkerOutcome,
-    ManagedDownload,
-    cancellation_chunk_outcome,
-    record_durable_bytes,
+    ChunkWorkerOutcome, ManagedDownload, cancellation_chunk_outcome, record_durable_bytes,
     record_progress_on_managed,
 };
 use crate::error::{DownloadError, Result};
 use crate::file_ops::{read_all_at, write_all_at};
 use crate::http::{
-    build_segment_request,
-    if_range_header,
-    is_too_many_requests_error,
-    validate_segment_response,
+    build_segment_request, if_range_header, is_too_many_requests_error, validate_segment_response,
 };
 use crate::manager_state::ManagerState;
 use crate::manifest::ChunkManifest;
 use crate::metalink::{MirrorLease, MirrorPool};
+use crate::now_ms;
 use crate::rate_limiter::RateLimiter;
 use crate::retry::{jittered_backoff_delay, register_retry_penalty, request_with_retry};
 use crate::types::{DiskType, DownloadState};
 use reqwest::{Client, StatusCode};
 use std::sync::Arc;
-use super::{BatchLimiter, ProgressThrottle, RequestBudget};
 use tokio::task::JoinSet;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
-#[cfg(test)]
-use super::WORK_STEAL_MIN_SPLIT_SIZE;
 
 // ── Free helper functions ─────────────────────────────────────────────────────
 
@@ -172,7 +166,12 @@ pub(super) fn claim_or_steal_chunk(
     worker_id: usize,
     total_workers: usize,
 ) -> Option<ChunkManifest> {
-    claim_or_steal_chunk_with_min_size(manifest, worker_id, total_workers, WORK_STEAL_MIN_SPLIT_SIZE)
+    claim_or_steal_chunk_with_min_size(
+        manifest,
+        worker_id,
+        total_workers,
+        WORK_STEAL_MIN_SPLIT_SIZE,
+    )
 }
 
 pub(crate) fn mark_chunk_released(
@@ -238,7 +237,8 @@ pub(super) struct ChunkWorkerCtx {
     pub(super) worker_id: usize,
     pub(super) work_steal_min_split: u64,
     pub(super) mirror_pool: Option<Arc<MirrorPool>>,
-    pub(super) claim_times: Arc<parking_lot::Mutex<std::collections::HashMap<usize, std::time::Instant>>>,
+    pub(super) claim_times:
+        Arc<parking_lot::Mutex<std::collections::HashMap<usize, std::time::Instant>>>,
 }
 
 /// Report a failed segment to the mirror it was leased from, if any. The lease
@@ -364,9 +364,13 @@ impl ChunkWorkerCtx {
                 break;
             };
 
-            self.claim_times.lock().insert(chunk.index, std::time::Instant::now());
+            self.claim_times
+                .lock()
+                .insert(chunk.index, std::time::Instant::now());
 
-            let outcome = self.process_chunk(&chunk, &mut batch, &mut throttle).await?;
+            let outcome = self
+                .process_chunk(&chunk, &mut batch, &mut throttle)
+                .await?;
 
             self.claim_times.lock().remove(&chunk.index);
 
@@ -437,7 +441,10 @@ impl ChunkWorkerCtx {
             return Err(error);
         }
 
-        let mirror_lease = self.mirror_pool.as_ref().and_then(|p| p.lease_best_mirror());
+        let mirror_lease = self
+            .mirror_pool
+            .as_ref()
+            .and_then(|p| p.lease_best_mirror());
         let target_url = mirror_lease.as_ref().map(|l| l.url.clone());
 
         let response = match self
@@ -483,7 +490,10 @@ impl ChunkWorkerCtx {
             .await?
         {
             SegmentBody::Exhausted => {
-                note_mirror_success(mirror_lease.as_ref(), state.current.saturating_sub(seg_start));
+                note_mirror_success(
+                    mirror_lease.as_ref(),
+                    state.current.saturating_sub(seg_start),
+                );
                 state.retry.note_drained(state.current);
             }
             SegmentBody::Stop(outcome) => return Ok(SegmentStep::Done(outcome)),
@@ -513,7 +523,11 @@ impl ChunkWorkerCtx {
     }
 
     /// Wait out the retry backoff unless the download is cancelled first.
-    async fn backoff_or_cancel(&self, chunk_idx: usize, attempt: u32) -> Option<ChunkWorkerOutcome> {
+    async fn backoff_or_cancel(
+        &self,
+        chunk_idx: usize,
+        attempt: u32,
+    ) -> Option<ChunkWorkerOutcome> {
         tokio::select! {
             _ = self.token.cancelled() => Some(self.pause_or_cancel(Some(chunk_idx))),
             _ = sleep(jittered_backoff_delay(attempt)) => None,
@@ -586,7 +600,10 @@ impl ChunkWorkerCtx {
 
         let (proxy_mode, alt_svc_enabled) = {
             let settings = self.manager.settings_service().get_blocking();
-            (settings.proxy.mode, settings.scheduler.http3_alt_svc_enabled)
+            (
+                settings.proxy.mode,
+                settings.scheduler.http3_alt_svc_enabled,
+            )
         };
         let http3_target = self.manager.alt_svc().should_attempt_http3(
             &url,
@@ -663,7 +680,9 @@ impl ChunkWorkerCtx {
 
         match response {
             Ok(response) => {
-                self.manager.alt_svc().record_from_response(&url, response.headers(), now_ms());
+                self.manager
+                    .alt_svc()
+                    .record_from_response(&url, response.headers(), now_ms());
                 Ok(response)
             }
             Err(error) => {
@@ -741,13 +760,13 @@ impl ChunkWorkerCtx {
                 )));
             }
 
-            let (to_write, reached_dynamic_end) =
-                if *current + bytes.len() as u64 - 1 > dynamic_end {
-                    let allowed = (dynamic_end.saturating_sub(*current) + 1) as usize;
-                    (bytes.slice(..allowed.min(bytes.len())), true)
-                } else {
-                    (bytes, false)
-                };
+            let (to_write, reached_dynamic_end) = if *current + bytes.len() as u64 - 1 > dynamic_end
+            {
+                let allowed = (dynamic_end.saturating_sub(*current) + 1) as usize;
+                (bytes.slice(..allowed.min(bytes.len())), true)
+            } else {
+                (bytes, false)
+            };
 
             local_buf.extend_from_slice(&to_write);
             *current += to_write.len() as u64;
@@ -758,11 +777,7 @@ impl ChunkWorkerCtx {
                     Vec::with_capacity(MICRO_BATCH_SIZE),
                 ));
                 self.write_bytes(batch_start_offset, &coalesced).await?;
-                record_progress_on_managed(
-                    &self.managed,
-                    Some(chunk_idx),
-                    coalesced.len() as u64,
-                );
+                record_progress_on_managed(&self.managed, Some(chunk_idx), coalesced.len() as u64);
                 batch_start_offset = *current;
             }
 
@@ -779,17 +794,15 @@ impl ChunkWorkerCtx {
                 batch.flush(&self.rate_limiter).await;
                 return Ok(SegmentBody::Stop(ChunkWorkerOutcome::Finished));
             }
-            throttle.tick(&self.db, self.manager.as_ref(), &self.managed).await?;
+            throttle
+                .tick(&self.db, self.manager.as_ref(), &self.managed)
+                .await?;
         }
 
         if !local_buf.is_empty() {
             let coalesced = Bytes::from(std::mem::take(&mut local_buf));
             self.write_bytes(batch_start_offset, &coalesced).await?;
-            record_progress_on_managed(
-                &self.managed,
-                Some(chunk_idx),
-                coalesced.len() as u64,
-            );
+            record_progress_on_managed(&self.managed, Some(chunk_idx), coalesced.len() as u64);
         }
 
         Ok(SegmentBody::Exhausted)

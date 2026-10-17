@@ -2,9 +2,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
-use super::ip_ranges::{
-    self, CdnIpCache, CLOUDFLARE_IPV4_RANGES, CLOUDFLARE_IPV6_RANGES,
-};
+use super::ip_ranges::{self, CLOUDFLARE_IPV4_RANGES, CLOUDFLARE_IPV6_RANGES, CdnIpCache};
 use super::resolver::{ip_in_cloudflare_ipv6_ranges, ip_in_cloudflare_ranges};
 
 /// Static fallback CIDR ranges for Fastly.
@@ -17,10 +15,7 @@ pub const FASTLY_IPV4_RANGES: &[&str] = &[
 ];
 
 /// Static fallback IPv6 CIDR ranges for Fastly.
-pub const FASTLY_IPV6_RANGES: &[&str] = &[
-    "2a04:4e40::/32",
-    "2a04:4e42::/32",
-];
+pub const FASTLY_IPV6_RANGES: &[&str] = &["2a04:4e40::/32", "2a04:4e42::/32"];
 
 /// Supported CDN Provider kinds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

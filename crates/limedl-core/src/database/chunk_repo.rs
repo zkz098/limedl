@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use rusqlite::{params, types::Value, Connection};
+use rusqlite::{Connection, params, types::Value};
 
 use super::connection::Database;
 use crate::manifest::ChunkManifest;
@@ -89,7 +89,12 @@ impl Database {
                  WHERE id = ?4 AND state NOT IN ('completed', 'failed', 'canceled')",
             )
             .context("failed to prepare download progress update")?
-            .execute(params![downloaded_bytes as i64, state, updated_at_ms as i64, id])
+            .execute(params![
+                downloaded_bytes as i64,
+                state,
+                updated_at_ms as i64,
+                id
+            ])
             .context("failed to update download progress row")?;
 
             if !dirty_chunks.is_empty() {
@@ -143,7 +148,12 @@ impl Database {
                      WHERE id = ?4 AND state NOT IN ('completed', 'failed', 'canceled')",
                 )
                 .context("failed to prepare progress update in batch")?
-                .execute(params![entry.downloaded_bytes as i64, entry.state.as_str(), entry.updated_at_ms as i64, entry.id.as_str()])
+                .execute(params![
+                    entry.downloaded_bytes as i64,
+                    entry.state.as_str(),
+                    entry.updated_at_ms as i64,
+                    entry.id.as_str()
+                ])
                 .with_context(|| format!("failed to update progress row for {}", entry.id))?;
 
                 if !entry.dirty_chunks.is_empty() {
@@ -156,8 +166,10 @@ impl Database {
                         .context("failed to prepare chunk upsert in batch")?;
 
                     for chunk in &entry.dirty_chunks {
-                        stmt.execute(rusqlite::params_from_iter(chunk_to_params(&entry.id, chunk)))
-                            .context("failed to upsert chunk in batch")?;
+                        stmt.execute(rusqlite::params_from_iter(chunk_to_params(
+                            &entry.id, chunk,
+                        )))
+                        .context("failed to upsert chunk in batch")?;
                     }
                 }
             }

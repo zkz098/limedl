@@ -13,8 +13,8 @@ use std::time::Duration;
 
 use slint::Model;
 
-use crate::toast::{apply_toasts, push_toast};
 use crate::ToastItem;
+use crate::toast::{apply_toasts, push_toast};
 
 use slint::ComponentHandle;
 

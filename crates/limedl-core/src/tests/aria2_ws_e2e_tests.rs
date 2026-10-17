@@ -42,7 +42,10 @@ async fn start_ws_server() -> (String, tokio::sync::watch::Sender<bool>, TempDir
     // Poll until the server is ready to accept connections.
     // On slow CI runners, a fixed 200ms sleep may not be sufficient.
     loop {
-        if tokio::net::TcpStream::connect(format!("127.0.0.1:{port}")).await.is_ok() {
+        if tokio::net::TcpStream::connect(format!("127.0.0.1:{port}"))
+            .await
+            .is_ok()
+        {
             break;
         }
         tokio::time::sleep(Duration::from_millis(10)).await;
@@ -197,7 +200,9 @@ async fn websocket_add_uri_and_receive_event() {
         "method": "aria2.addUri",
         "params": [[file_url], {"dir": dest_dir.to_string_lossy(), "out": "test.bin"}]
     });
-    ws.send(Message::Text(add_req.to_string().into())).await.unwrap();
+    ws.send(Message::Text(add_req.to_string().into()))
+        .await
+        .unwrap();
 
     // Read the JSON-RPC response
     let resp_text = match tokio::time::timeout(Duration::from_secs(5), ws.next()).await {
@@ -364,7 +369,10 @@ async fn websocket_rejects_malformed_json() {
         .expect("send malformed frame");
     let resp = ws.next_json().await;
     assert_eq!(resp["error"]["code"], -32700, "parse error: {resp}");
-    assert!(resp["id"].is_null(), "a parse error has no request id: {resp}");
+    assert!(
+        resp["id"].is_null(),
+        "a parse error has no request id: {resp}"
+    );
 
     let _ = shutdown_tx.send(true);
 }
@@ -445,7 +453,10 @@ async fn the_replacement_server_waits_out_the_predecessor_and_wins_the_port() {
     let port_open = {
         let deadline = Instant::now() + Duration::from_secs(10);
         loop {
-            if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
+            if tokio::net::TcpStream::connect(("127.0.0.1", port))
+                .await
+                .is_ok()
+            {
                 break true;
             }
             if Instant::now() >= deadline {

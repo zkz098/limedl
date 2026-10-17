@@ -11,11 +11,11 @@ use parking_lot::RwLock;
 use anyhow::Context;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
+    EnvFilter,
     fmt::{self, MakeWriter},
     layer::{Layer as _, SubscriberExt},
     reload,
     util::SubscriberInitExt,
-    EnvFilter,
 };
 
 /// Fallback console filter when `RUST_LOG` is unset (matches the historical
@@ -124,20 +124,18 @@ pub fn init_logging(settings: &LogSettings, state_dir: &Path) -> anyhow::Result<
     let (level_layer, level_reload) = reload::Layer::new(to_level_filter(settings.level));
 
     // Console output keeps `RUST_LOG` semantics via a per-layer static filter.
-    let console_layer = fmt::layer()
-        .with_target(true)
-        .with_ansi(true)
-        .with_filter(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new(DEFAULT_CONSOLE_FILTER)),
-        );
+    let console_layer = fmt::layer().with_target(true).with_ansi(true).with_filter(
+        EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new(DEFAULT_CONSOLE_FILTER)),
+    );
 
-    let file_layer = fmt::layer()
-        .with_target(true)
-        .with_ansi(false)
-        .with_writer(DynamicFileWriter {
-            runtime: runtime.clone(),
-        });
+    let file_layer =
+        fmt::layer()
+            .with_target(true)
+            .with_ansi(false)
+            .with_writer(DynamicFileWriter {
+                runtime: runtime.clone(),
+            });
 
     let init_result = tracing_subscriber::registry()
         .with(level_layer)
@@ -178,15 +176,17 @@ pub fn apply_logging_settings(settings: &LogSettings, state_dir: &Path) -> anyho
     // settings saves (e.g. settings + labs dialogs saved at once, or a
     // double-invoked save) can briefly contend on the lock and return a
     // spurious "poisoned" error. Retry briefly before failing the save.
-    let mut filter_applied =
-        control.level_reload.modify(|level| *level = to_level_filter(settings.level));
+    let mut filter_applied = control
+        .level_reload
+        .modify(|level| *level = to_level_filter(settings.level));
     for _ in 0..10 {
         if filter_applied.is_ok() {
             break;
         }
         std::thread::sleep(Duration::from_millis(5));
-        filter_applied =
-            control.level_reload.modify(|level| *level = to_level_filter(settings.level));
+        filter_applied = control
+            .level_reload
+            .modify(|level| *level = to_level_filter(settings.level));
     }
     filter_applied.context("failed to update tracing level filter")?;
 

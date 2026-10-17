@@ -59,9 +59,18 @@ pub fn format_disk_types_map(disks: &HashMap<String, DiskType>, lang: Language) 
 
 /// Format buffer pool / IO status JSON payload.
 pub fn format_io_status_json(val: &serde_json::Value, lang: Language) -> String {
-    let allocated = val.get("allocatedBytes").and_then(|v| v.as_u64()).unwrap_or(0);
-    let capacity = val.get("capacityBytes").and_then(|v| v.as_u64()).unwrap_or(1024 * 1024 * 1024);
-    let active_buffers = val.get("activeBuffers").and_then(|v| v.as_u64()).unwrap_or(0);
+    let allocated = val
+        .get("allocatedBytes")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let capacity = val
+        .get("capacityBytes")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(1024 * 1024 * 1024);
+    let active_buffers = val
+        .get("activeBuffers")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
 
     i18n::format_io_status_line(
         &format_bytes(allocated),
@@ -70,7 +79,6 @@ pub fn format_io_status_json(val: &serde_json::Value, lang: Language) -> String 
         lang,
     )
 }
-
 
 pub fn format_timestamp_ms(ts: u64) -> String {
     let secs = (ts / 1000) as i64;
@@ -88,4 +96,3 @@ pub fn format_timestamp_ms(ts: u64) -> String {
         format!("{secs}")
     }
 }
-

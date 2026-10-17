@@ -6,8 +6,8 @@ use tokio::sync::Notify;
 use super::*;
 use crate::{
     aimd::AimdState,
-    error::DownloadError,
     download::{DownloadCore, ManagedDownload},
+    error::DownloadError,
     manifest::Manifest,
     types::*,
 };

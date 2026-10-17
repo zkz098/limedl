@@ -44,11 +44,7 @@ impl BackendRegistry {
     /// `Arc<T>` and wants the registry to share the SAME instance — avoiding
     /// a value `Clone` of `T` that would snapshot mutable state (e.g. fresh
     /// atomics) and silently diverge from the caller's copy.
-    pub fn register_arc<T: DownloadBackend + 'static>(
-        &mut self,
-        kind: TaskKind,
-        backend: Arc<T>,
-    ) {
+    pub fn register_arc<T: DownloadBackend + 'static>(&mut self, kind: TaskKind, backend: Arc<T>) {
         let trait_obj: Arc<dyn DownloadBackend> = backend.clone();
         let any_obj: Arc<dyn Any + Send + Sync> = backend;
         self.by_kind.insert(kind, trait_obj.clone());

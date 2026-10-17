@@ -82,7 +82,9 @@ async fn upload_policy_loop(
                     {
                         paused_by_limit.insert(info_hash, ());
                         let _ = session.set_upload_limit(info_hash, 1).await;
-                    } else if !(limit_reached || ratio_reached) && paused_by_limit.get(&info_hash).is_some() {
+                    } else if !(limit_reached || ratio_reached)
+                        && paused_by_limit.get(&info_hash).is_some()
+                    {
                         // Was previously paused; un-pause by removing the rate cap.
                         // irontide treats 0 as unlimited.
                         paused_by_limit.remove(&info_hash);

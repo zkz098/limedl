@@ -1,28 +1,21 @@
 //! Read-only query methods: tellStatus/tellActive/getFiles/getPeers/session listing.
 
-use crate::types::{BtPeerInfo, DownloadState, DownloadSummary, TaskId, TaskKind};
-use irontide::core::Id20;
-use serde_json::Value;
 use super::context::RpcContext;
 use super::jsonrpc::{ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, make_error};
 use super::protocol::{
-    bitfield_from_bits,
-    bt_files_to_aria2,
-    build_file_list,
-    filter_status_keys,
-    resolve_gid,
+    bitfield_from_bits, bt_files_to_aria2, build_file_list, filter_status_keys, resolve_gid,
     summary_to_aria2_status,
 };
+use crate::types::{BtPeerInfo, DownloadState, DownloadSummary, TaskId, TaskKind};
+use irontide::core::Id20;
+use serde_json::Value;
 use uuid::Uuid;
 
 /// Effective candidate URIs for a task: the primary URL plus any mirrors, in
 /// order and de-duplicated, together with the URI currently in use. Reads the
 /// live manifest (a summary only carries the primary URL) and falls back to the
 /// summary for downloads evicted from memory.
-async fn task_uri_state(
-    ctx: &RpcContext,
-    raw_id: &str,
-) -> Option<(Vec<String>, String)> {
+async fn task_uri_state(ctx: &RpcContext, raw_id: &str) -> Option<(Vec<String>, String)> {
     let manifest = if let Some(dm) = ctx.http() {
         let downloads = dm.downloads.read().await;
         downloads
@@ -66,7 +59,10 @@ async fn http_pieces(ctx: &RpcContext, raw_id: &str) -> Option<(Option<u64>, Vec
         return None;
     }
     let piece_length = chunks.first().map(|chunk| chunk.byte_len());
-    Some((piece_length, chunks.iter().map(|chunk| chunk.completed).collect()))
+    Some((
+        piece_length,
+        chunks.iter().map(|chunk| chunk.completed).collect(),
+    ))
 }
 
 /// Add the status fields that need a backend or manifest lookup.
@@ -107,9 +103,7 @@ async fn enrich_status(
             let mut bittorrent = serde_json::Map::new();
             bittorrent.insert(
                 "mode".to_string(),
-                Value::String(
-                    if file_count > 1 { "multi" } else { "single" }.to_string(),
-                ),
+                Value::String(if file_count > 1 { "multi" } else { "single" }.to_string()),
             );
             // aria2's `bittorrent.info.name` is the torrent's display name.
             bittorrent.insert(
@@ -125,7 +119,10 @@ async fn enrich_status(
                     if !announce.is_empty() {
                         // aria2 wraps tiers in an outer array; limedl has a
                         // flat tracker list, so it is one tier.
-                        bittorrent.insert("announceList".to_string(), Value::Array(vec![Value::Array(announce)]));
+                        bittorrent.insert(
+                            "announceList".to_string(),
+                            Value::Array(vec![Value::Array(announce)]),
+                        );
                     }
                 }
                 if let Ok(pieces) = backend.get_pieces(*info_hash) {
@@ -146,14 +143,22 @@ async fn enrich_status(
 /// aria2 models per-file server lists. limedl's HTTP downloads are
 /// single-file, so all mirror candidates are reported under file index 1; the
 /// currently used candidate carries the task's live speed and the rest report 0.
-fn build_http_server_list(summary: &DownloadSummary, candidates: &[String], current: &str) -> Value {
+fn build_http_server_list(
+    summary: &DownloadSummary,
+    candidates: &[String],
+    current: &str,
+) -> Value {
     let active_speed = summary
         .speed_bytes_per_second
         .map_or(0, |speed| speed as u64);
     let servers: Vec<Value> = candidates
         .iter()
         .map(|candidate| {
-            let speed = if candidate == current { active_speed } else { 0 };
+            let speed = if candidate == current {
+                active_speed
+            } else {
+                0
+            };
             serde_json::json!({
                 "uri": candidate,
                 "currentUri": candidate,
@@ -207,15 +212,20 @@ async fn summary_for_raw_id(ctx: &RpcContext, raw_id: &str) -> Option<DownloadSu
         }
         let db = dm.db.clone();
         let id = raw_id.to_string();
-        if let Ok(Ok(Some(manifest))) = tokio::task::spawn_blocking(move || db.get_download_header(&id)).await
+        if let Ok(Ok(Some(manifest))) =
+            tokio::task::spawn_blocking(move || db.get_download_header(&id)).await
             && is_terminal(manifest.state)
         {
-            return Some(DownloadSummary::from(&crate::manifest::snapshot_from_manifest(
-                &manifest,
-            )));
+            return Some(DownloadSummary::from(
+                &crate::manifest::snapshot_from_manifest(&manifest),
+            ));
         }
     }
-    get_all_summaries(ctx).await.ok()?.into_iter().find(|s| s.id == raw_id)
+    get_all_summaries(ctx)
+        .await
+        .ok()?
+        .into_iter()
+        .find(|s| s.id == raw_id)
 }
 
 pub(crate) async fn handle_tell_status(
@@ -323,10 +333,8 @@ pub(crate) async fn handle_tell_stopped(
     let keys = parse_keys(&params, 2);
 
     let all = get_all_summaries(ctx).await?;
-    let mut stopped: Vec<DownloadSummary> = all
-        .into_iter()
-        .filter(|s| is_terminal(s.state))
-        .collect();
+    let mut stopped: Vec<DownloadSummary> =
+        all.into_iter().filter(|s| is_terminal(s.state)).collect();
     let mut seen: std::collections::HashSet<String> =
         stopped.iter().map(|s| s.id.clone()).collect();
 
@@ -334,12 +342,14 @@ pub(crate) async fn handle_tell_stopped(
     // must stay visible until they are purged or individually removed.
     if let Some(dm) = ctx.http() {
         let db = dm.db.clone();
-        if let Ok(Ok(manifests)) = tokio::task::spawn_blocking(move || db.list_download_headers()).await {
+        if let Ok(Ok(manifests)) =
+            tokio::task::spawn_blocking(move || db.list_download_headers()).await
+        {
             for manifest in manifests {
                 if is_terminal(manifest.state) && seen.insert(manifest.id.clone()) {
-                    stopped.push(DownloadSummary::from(&crate::manifest::snapshot_from_manifest(
-                        &manifest,
-                    )));
+                    stopped.push(DownloadSummary::from(
+                        &crate::manifest::snapshot_from_manifest(&manifest),
+                    ));
                 }
             }
         }
@@ -347,7 +357,11 @@ pub(crate) async fn handle_tell_stopped(
 
     // Deterministic order (creation ascending, id tie-break) so offset/num
     // paging is stable, unlike the previous HashMap iteration order.
-    stopped.sort_by(|a, b| a.created_at_ms.cmp(&b.created_at_ms).then_with(|| a.id.cmp(&b.id)));
+    stopped.sort_by(|a, b| {
+        a.created_at_ms
+            .cmp(&b.created_at_ms)
+            .then_with(|| a.id.cmp(&b.id))
+    });
 
     let page: Vec<Value> = stopped
         .into_iter()
@@ -524,7 +538,8 @@ pub(crate) async fn handle_get_peers(
         return Ok(Value::Array(vec![]));
     };
 
-    let peers = ctx.bt()
+    let peers = ctx
+        .bt()
         .ok_or_else(|| make_error(ERR_INTERNAL, "BT backend not available"))?
         .get_peers(*info_hash)
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;

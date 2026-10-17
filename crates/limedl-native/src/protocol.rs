@@ -21,8 +21,8 @@ const LIMEDL_KEY: &str = r"Software\Classes\limedl";
 pub fn is_magnet_registered() -> bool {
     #[cfg(windows)]
     {
-        if let Ok(key) = windows_registry::CURRENT_USER
-            .open(format!(r"{MAGNET_KEY}\shell\open\command"))
+        if let Ok(key) =
+            windows_registry::CURRENT_USER.open(format!(r"{MAGNET_KEY}\shell\open\command"))
             && let Ok(cmd) = key.get_string("")
             && let Ok(current_exe) = std::env::current_exe()
         {

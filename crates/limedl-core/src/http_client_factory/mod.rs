@@ -38,22 +38,23 @@ pub fn configure_client_builder(
     mut builder: ClientBuilder,
     settings: &AppSettings,
 ) -> Result<ClientBuilder> {
-    let (connect_timeout, read_timeout, pool_max_idle, keepalive) = if settings.scheduler.expert_mode {
-        let exp = &settings.scheduler.expert;
-        (
-            Duration::from_secs(exp.connect_timeout_secs),
-            Duration::from_secs(exp.read_timeout_secs),
-            exp.pool_max_idle_per_host,
-            Some(Duration::from_secs(exp.tcp_keepalive_secs)),
-        )
-    } else {
-        (
-            Duration::from_secs(30),
-            Duration::from_secs(30),
-            20,
-            Some(Duration::from_secs(60)),
-        )
-    };
+    let (connect_timeout, read_timeout, pool_max_idle, keepalive) =
+        if settings.scheduler.expert_mode {
+            let exp = &settings.scheduler.expert;
+            (
+                Duration::from_secs(exp.connect_timeout_secs),
+                Duration::from_secs(exp.read_timeout_secs),
+                exp.pool_max_idle_per_host,
+                Some(Duration::from_secs(exp.tcp_keepalive_secs)),
+            )
+        } else {
+            (
+                Duration::from_secs(30),
+                Duration::from_secs(30),
+                20,
+                Some(Duration::from_secs(60)),
+            )
+        };
 
     let default_user_agent = normalize_user_agent(&settings.download.default_user_agent)?;
     builder = builder

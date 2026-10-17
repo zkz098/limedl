@@ -60,13 +60,20 @@ mod tests {
 
     #[test]
     fn tr_fmt_substitutes_positionally() {
-        let msg = tr_fmt("Batch add finished: {}/{} succeeded", Language::EnUs, &[&3, &5]);
+        let msg = tr_fmt(
+            "Batch add finished: {}/{} succeeded",
+            Language::EnUs,
+            &[&3, &5],
+        );
         assert_eq!(msg, "Batch add finished: 3/5 succeeded");
     }
 
     #[test]
     fn tr_fmt_keeps_unfilled_placeholders_and_ignores_spare_arguments() {
-        assert_eq!(tr_fmt("Settings saved", Language::EnUs, &[&1]), "Settings saved");
+        assert_eq!(
+            tr_fmt("Settings saved", Language::EnUs, &[&1]),
+            "Settings saved"
+        );
         assert_eq!(
             tr_fmt("Batch add finished: {}/{} succeeded", Language::EnUs, &[&1]),
             "Batch add finished: 1/{} succeeded"

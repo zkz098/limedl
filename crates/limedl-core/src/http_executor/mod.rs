@@ -20,12 +20,10 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     buffer_pool::{DownloadBuffer, FlushObserver},
     database::Database,
+    download::{ManagedDownload, PERSIST_INTERVAL, RunOutcome},
     error::{DownloadError, Result},
     event_bus::DownloadEvent,
     file_ops::check_disk_space,
-    download::{
-        ManagedDownload, PERSIST_INTERVAL, RunOutcome,
-    },
     manager_state::ManagerState,
     manifest::Manifest,
     now_ms,
@@ -55,10 +53,14 @@ const WORK_STEAL_MIN_SPLIT_SIZE: u64 = 2 * 1024 * 1024;
 /// case the destination path — same directory, same device — serves the same
 /// purpose: device resolution only needs *a* path on the target filesystem.
 fn device_path_for(manifest: &Manifest) -> PathBuf {
-    [&manifest.temp_path, &manifest.destination_path, &manifest.destination_dir]
-        .into_iter()
-        .find(|candidate| !candidate.is_empty())
-        .map_or_else(|| PathBuf::from("."), PathBuf::from)
+    [
+        &manifest.temp_path,
+        &manifest.destination_path,
+        &manifest.destination_dir,
+    ]
+    .into_iter()
+    .find(|candidate| !candidate.is_empty())
+    .map_or_else(|| PathBuf::from("."), PathBuf::from)
 }
 
 /// Build the write buffer for a download: the shared HDD double-buffer pool,
@@ -81,10 +83,7 @@ async fn build_write_buffer(
 
     let (chunk_size, device_path) = {
         let core = managed.lock_core();
-        (
-            core.manifest.chunk_size,
-            device_path_for(&core.manifest),
-        )
+        (core.manifest.chunk_size, device_path_for(&core.manifest))
     };
 
     if disk_type == DiskType::Hdd && hdd_buffering {
@@ -235,7 +234,10 @@ struct BatchLimiter {
 
 impl BatchLimiter {
     fn new() -> Self {
-        Self { bytes: 0, chunks: 0 }
+        Self {
+            bytes: 0,
+            chunks: 0,
+        }
     }
 
     /// Account one received chunk; consume when the batch is full.

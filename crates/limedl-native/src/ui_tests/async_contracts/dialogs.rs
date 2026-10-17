@@ -143,8 +143,7 @@ pub(super) async fn saving_aria2_clients_persists_hashes_not_plaintext() {
     ui.window.set_settings_form(form);
 
     ui.window.invoke_aria2_client_add();
-    ui.window
-        .invoke_aria2_client_name_edited(0, "Phone".into());
+    ui.window.invoke_aria2_client_name_edited(0, "Phone".into());
     let token = ui
         .window
         .get_aria2_clients()

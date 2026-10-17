@@ -447,25 +447,22 @@ mod tests {
 
     #[test]
     fn proxy_values_are_never_mistaken_for_download_urls() {
-        let parsed = parse(
-            "aria2c --all-proxy http://proxy.local:8080 https://a.example/f.bin",
-        )
-        .expect("aria2c command");
+        let parsed = parse("aria2c --all-proxy http://proxy.local:8080 https://a.example/f.bin")
+            .expect("aria2c command");
         assert_eq!(parsed.urls, vec!["https://a.example/f.bin"]);
     }
 
     #[test]
     fn unknown_boolean_flags_do_not_eat_the_url() {
-        let parsed = parse("aria2c --continue https://a.example/f.bin")
-            .expect("aria2c command");
+        let parsed = parse("aria2c --continue https://a.example/f.bin").expect("aria2c command");
         assert_eq!(parsed.urls, vec!["https://a.example/f.bin"]);
         assert!(parsed.unsupported.is_empty());
     }
 
     #[test]
     fn ignores_performance_values_silently() {
-        let parsed = parse("aria2c -x 16 -s 16 -k 1M https://a.example/f.bin")
-            .expect("aria2c command");
+        let parsed =
+            parse("aria2c -x 16 -s 16 -k 1M https://a.example/f.bin").expect("aria2c command");
         assert_eq!(parsed.urls, vec!["https://a.example/f.bin"]);
         assert!(parsed.unsupported.is_empty());
     }

@@ -1,32 +1,27 @@
 //! Chunked (parallel) download path, tail sprint and worker supervision.
 
 use super::worker::{
-    ChunkWorkerCtx, all_chunks_completed, current_allocation, download_chunk, shutdown_chunk_workers,
+    ChunkWorkerCtx, all_chunks_completed, current_allocation, download_chunk,
+    shutdown_chunk_workers,
 };
-use crate::now_ms;
+use super::{
+    HttpExecutor, TAIL_SPRINT_MIN_SPLIT_SIZE, TAIL_SPRINT_STALL_WINDOW_SECS,
+    WORK_STEAL_MIN_SPLIT_SIZE, build_write_buffer, check_disk_space_periodically,
+    finish_buffer_flush, flush_write_buffer, wait_or_stop,
+};
 use crate::buffer_pool::DownloadBuffer;
 use crate::download::{ChunkWorkerOutcome, ManagedDownload, RunOutcome, cancellation_outcome};
 use crate::error::{DownloadError, Result};
 use crate::file_ops::open_download_file;
 use crate::manager_state::ManagerState;
 use crate::metalink::{MirrorPool, MirrorScoringConfig};
+use crate::now_ms;
 use crate::persistence::persist_manifest_snapshot;
 use crate::types::{DiskType, DownloadState, ThreadMode};
 use reqwest::Client;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use super::{
-    HttpExecutor,
-    TAIL_SPRINT_MIN_SPLIT_SIZE,
-    TAIL_SPRINT_STALL_WINDOW_SECS,
-    WORK_STEAL_MIN_SPLIT_SIZE,
-    build_write_buffer,
-    check_disk_space_periodically,
-    finish_buffer_flush,
-    flush_write_buffer,
-    wait_or_stop,
-};
 use tokio::task::JoinSet;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -118,7 +113,8 @@ impl HttpExecutor {
 
             if current_allocation(&managed) == 0
                 && workers.is_empty()
-                && let Some(outcome) = wait_or_stop(dm.as_ref(), &managed, &token, &write_buffer).await
+                && let Some(outcome) =
+                    wait_or_stop(dm.as_ref(), &managed, &token, &write_buffer).await
             {
                 return Ok(outcome);
             }
@@ -164,12 +160,7 @@ impl HttpExecutor {
                 }
             }
 
-            grow_worker_pool(
-                &mut workers,
-                &mut active_worker_ids,
-                &pool,
-                target_workers,
-            );
+            grow_worker_pool(&mut workers, &mut active_worker_ids, &pool, target_workers);
 
             if workers.is_empty() {
                 tokio::select! {
@@ -180,7 +171,15 @@ impl HttpExecutor {
                 continue;
             }
 
-            match join_one_worker(&managed, &mut workers, &mut active_worker_ids, &token, &write_buffer).await? {
+            match join_one_worker(
+                &managed,
+                &mut workers,
+                &mut active_worker_ids,
+                &token,
+                &write_buffer,
+            )
+            .await?
+            {
                 WorkerJoin::Recheck => continue,
                 WorkerJoin::Cancelled(outcome) => return Ok(outcome),
                 WorkerJoin::Outcome(outcome) => {
@@ -245,9 +244,15 @@ async fn open_chunked_target(
         let destination_dir = managed.lock_core().manifest.destination_dir.clone();
         dm.resolve_disk_type(Path::new(&destination_dir)).await
     };
-    let write_buffer =
-        build_write_buffer(dm.as_ref(), managed, &file, disk_type, hdd_buffering, ssd_write_combine_mb)
-            .await;
+    let write_buffer = build_write_buffer(
+        dm.as_ref(),
+        managed,
+        &file,
+        disk_type,
+        hdd_buffering,
+        ssd_write_combine_mb,
+    )
+    .await;
 
     // Set disk_type on snapshot for frontend badge display
     {
@@ -283,7 +288,10 @@ fn grow_worker_pool(
     while workers.len() < target_workers {
         let has_work = {
             let core = pool.managed.lock_core();
-            core.manifest.chunks.iter().any(|c| !c.completed && c.claimed_by.is_none())
+            core.manifest
+                .chunks
+                .iter()
+                .any(|c| !c.completed && c.claimed_by.is_none())
                 || core.manifest.chunks.iter().any(|c| {
                     !c.completed && c.claimed_by.is_some() && {
                         let remaining = c.end.saturating_sub(c.start + c.downloaded);

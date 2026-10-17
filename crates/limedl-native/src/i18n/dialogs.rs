@@ -9,11 +9,7 @@ pub fn format_probe_status(state: &str, hash: &str, lang: Language) -> String {
         "probing" => tr("Detecting checksum...", lang).to_string(),
         "found" => format!("SHA-256: {hash}"),
         "missing" => tr("No checksum file found", lang).to_string(),
-        "not_http" => tr(
-            "Checksum detection is only available for HTTP links",
-            lang,
-        )
-        .to_string(),
+        "not_http" => tr("Checksum detection is only available for HTTP links", lang).to_string(),
         _ => String::new(),
     }
 }

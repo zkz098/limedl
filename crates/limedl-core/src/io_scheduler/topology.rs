@@ -222,7 +222,9 @@ mod imp {
                     )
                 };
 
-                unsafe { CloseHandle(handle); }
+                unsafe {
+                    CloseHandle(handle);
+                }
 
                 if success != 0 && bytes_returned >= mem::size_of::<StorageDeviceNumber>() as u32 {
                     DeviceId::Physical(format!("PhysicalDrive{}", dev_number.device_number))
@@ -251,9 +253,8 @@ mod imp {
     use super::DeviceId;
 
     pub fn detect_device_id(path: &Path) -> DeviceId {
-        let meta = fs::metadata(path).or_else(|_| {
-            path.parent().and_then(|p| fs::metadata(p).ok()).ok_or(())
-        });
+        let meta = fs::metadata(path)
+            .or_else(|_| path.parent().and_then(|p| fs::metadata(p).ok()).ok_or(()));
         let Ok(meta) = meta else {
             return DeviceId::Unknown("stat_failed".into());
         };
@@ -335,8 +336,8 @@ mod imp {
 
 #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 mod imp {
-    use std::path::Path;
     use super::DeviceId;
+    use std::path::Path;
 
     pub fn detect_device_id(path: &Path) -> DeviceId {
         DeviceId::Volume(path.to_string_lossy().to_string())

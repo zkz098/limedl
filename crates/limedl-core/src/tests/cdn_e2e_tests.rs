@@ -219,8 +219,8 @@ async fn cdn_acceleration_triggers_for_cloudflare_domain() {
         headers: None,
         mirror_urls: None,
         user_agent: None,
-    priority: None,
-};
+        priority: None,
+    };
     let id = dm.start(request).await.unwrap();
     let task_id = TaskId::from_wire_string(&id.to_string()).unwrap();
     let inner = match task_id {

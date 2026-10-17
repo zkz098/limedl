@@ -192,7 +192,10 @@ impl Scheduler {
         for managed in &entries {
             let (id, dir) = {
                 let core = managed.lock_core();
-                (core.manifest.id.clone(), core.manifest.destination_dir.clone())
+                (
+                    core.manifest.id.clone(),
+                    core.manifest.destination_dir.clone(),
+                )
             };
             let dt = match dir_cache.get(&dir) {
                 Some(&dt) => dt,
@@ -247,7 +250,9 @@ impl Scheduler {
         let current_hour = match time::OffsetDateTime::now_local() {
             Ok(now) => now.hour(),
             Err(e) => {
-                tracing::warn!("Failed to determine local time, falling back to global speed limit: {e}");
+                tracing::warn!(
+                    "Failed to determine local time, falling back to global speed limit: {e}"
+                );
                 dm.rate_limiter().set_rate(settings.global_speed_limit_bps);
                 return;
             }
@@ -352,7 +357,8 @@ fn check_oscillation(
         };
         manifest.desired_thread_count = Some(lock_target.max(min_threads));
         manifest.updated_at_ms = now_ms();
-        aimd.hysteresis_lock_until = Some(now + thresholds.cooldown * thresholds.hysteresis_multiplier);
+        aimd.hysteresis_lock_until =
+            Some(now + thresholds.cooldown * thresholds.hysteresis_multiplier);
         aimd.consecutive_good_samples = 0;
         aimd.consecutive_bad_samples = 0;
         aimd.oscillation_count = 0;
@@ -440,7 +446,10 @@ impl AdaptiveThresholds {
 }
 
 /// Overclock mode: pin every adaptive, range-capable active task at `cap`.
-fn pin_overclock_targets<'a>(downloads: impl Iterator<Item = &'a Arc<ManagedDownload>>, cap: usize) {
+fn pin_overclock_targets<'a>(
+    downloads: impl Iterator<Item = &'a Arc<ManagedDownload>>,
+    cap: usize,
+) {
     for managed in downloads {
         let mut core = managed.lock_core();
         let manifest = &mut core.manifest;
@@ -517,8 +526,8 @@ fn update_one_adaptive(
 
         let pre_throughput = aimd.probe_pre_throughput.unwrap_or(0.0);
         let pre_threads = aimd.probe_pre_threads;
-        let improved = pre_throughput > 0.0
-            && throughput >= pre_throughput * (1.0 + thresholds.increase);
+        let improved =
+            pre_throughput > 0.0 && throughput >= pre_throughput * (1.0 + thresholds.increase);
         aimd.is_probing_up = false;
         aimd.probe_pre_throughput = None;
 
@@ -530,14 +539,7 @@ fn update_one_adaptive(
             aimd.recent_penalty = false;
             aimd.record_sample(throughput);
             track_direction(&mut aimd, Direction::Up);
-            check_oscillation(
-                &mut aimd,
-                manifest,
-                current,
-                min_threads,
-                now,
-                &thresholds,
-            );
+            check_oscillation(&mut aimd, manifest, current, min_threads, now, &thresholds);
             sync_snapshot_with_manifest(&mut core);
             return;
         }
@@ -554,14 +556,7 @@ fn update_one_adaptive(
         aimd.recent_penalty = false;
         aimd.record_sample(throughput);
         track_direction(&mut aimd, Direction::Down);
-        check_oscillation(
-            &mut aimd,
-            manifest,
-            current,
-            min_threads,
-            now,
-            &thresholds,
-        );
+        check_oscillation(&mut aimd, manifest, current, min_threads, now, &thresholds);
         sync_snapshot_with_manifest(&mut core);
         return;
     }
@@ -629,14 +624,7 @@ fn update_one_adaptive(
     // ── Oscillation tracking (AI = Up) ──
     if changed_up {
         track_direction(&mut aimd, Direction::Up);
-        check_oscillation(
-            &mut aimd,
-            manifest,
-            current,
-            min_threads,
-            now,
-            &thresholds,
-        );
+        check_oscillation(&mut aimd, manifest, current, min_threads, now, &thresholds);
         sync_snapshot_with_manifest(&mut core);
     }
 }
@@ -1090,8 +1078,7 @@ fn order_and_rotate_candidates(
         && !waiting.is_empty()
         && let Some(wait_pos) = waiting.iter().position(|w| {
             let w_id = w.lock_core().manifest.id.clone();
-            let w_is_hdd =
-                disk_types.get(&w_id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd;
+            let w_is_hdd = disk_types.get(&w_id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd;
             let w_prio = priority_of(w);
 
             if w_is_hdd && active_hdd_count >= max_parallel_hdd {
@@ -1108,8 +1095,7 @@ fn order_and_rotate_candidates(
     {
         let w = &waiting[wait_pos];
         let w_id = w.lock_core().manifest.id.clone();
-        let w_is_hdd =
-            disk_types.get(&w_id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd;
+        let w_is_hdd = disk_types.get(&w_id).copied().unwrap_or(DiskType::Ssd) == DiskType::Hdd;
         let w_prio = priority_of(w);
 
         let victim_pos = if w_is_hdd && active_hdd_count >= max_parallel_hdd {

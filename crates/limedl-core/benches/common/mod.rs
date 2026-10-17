@@ -1,4 +1,4 @@
-﻿//! Shared benchmark harness for limedl benchmarks.
+//! Shared benchmark harness for limedl benchmarks.
 //!
 //! Provides a [`BenchHarness`] struct that owns a multi-threaded tokio runtime
 //! and a local HTTP [`TestServer`] serving deterministic random content.

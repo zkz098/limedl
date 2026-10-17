@@ -137,10 +137,9 @@ impl Dispatcher {
     /// Publish a `DownloadEvent::Updated` for the given snapshot.
     pub fn emit_updated(&self, snapshot: &DownloadSnapshot) {
         let summary = DownloadSummary::from(snapshot);
-        self.event_bus
-            .publish(DownloadEvent::Updated {
-                summary: Box::new(summary),
-            });
+        self.event_bus.publish(DownloadEvent::Updated {
+            summary: Box::new(summary),
+        });
     }
 
     // ── Core download lifecycle ──────────────────────────────────────
@@ -263,7 +262,9 @@ impl Dispatcher {
         if let Some(s) = &self.settings_service {
             Ok(s.get().await)
         } else {
-            Err(DownloadError::Internal("SettingsService not configured".into()))
+            Err(DownloadError::Internal(
+                "SettingsService not configured".into(),
+            ))
         }
     }
 
@@ -272,7 +273,9 @@ impl Dispatcher {
         if let Some(s) = &self.settings_service {
             Ok(s.get_blocking())
         } else {
-            Err(DownloadError::Internal("SettingsService not configured".into()))
+            Err(DownloadError::Internal(
+                "SettingsService not configured".into(),
+            ))
         }
     }
 
@@ -384,11 +387,10 @@ impl Dispatcher {
                 .map_err(|e| DownloadError::Internal(format!("Failed to build HTTP client: {e}")))?
         };
 
-        let resp = client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| DownloadError::Internal(format!("Failed to fetch tracker list: {e}")))?;
+        let resp =
+            client.get(url).send().await.map_err(|e| {
+                DownloadError::Internal(format!("Failed to fetch tracker list: {e}"))
+            })?;
         let text = resp
             .text()
             .await
@@ -426,7 +428,9 @@ impl Dispatcher {
         if let Some(disk) = &self.disk_io {
             Ok(disk.get_io_status())
         } else {
-            Err(DownloadError::Internal("DiskIoService not configured".into()))
+            Err(DownloadError::Internal(
+                "DiskIoService not configured".into(),
+            ))
         }
     }
 
@@ -435,12 +439,17 @@ impl Dispatcher {
         if let Some(disk) = &self.disk_io {
             Ok(disk.toggle_game_mode(enabled))
         } else {
-            Err(DownloadError::Internal("DiskIoService not configured".into()))
+            Err(DownloadError::Internal(
+                "DiskIoService not configured".into(),
+            ))
         }
     }
 
     pub fn game_mode(&self) -> bool {
-        self.disk_io.as_ref().map(|d| d.game_mode()).unwrap_or(false)
+        self.disk_io
+            .as_ref()
+            .map(|d| d.game_mode())
+            .unwrap_or(false)
     }
 
     // ── Concurrency & Overclock ──────────────────────────────────────
@@ -458,7 +467,9 @@ impl Dispatcher {
         if let Some(c) = &self.concurrency {
             Ok(c.toggle_overclock_mode(enabled))
         } else {
-            Err(DownloadError::Internal("ConcurrencyManager not configured".into()))
+            Err(DownloadError::Internal(
+                "ConcurrencyManager not configured".into(),
+            ))
         }
     }
 
@@ -553,40 +564,38 @@ impl Dispatcher {
     }
 
     /// Proactively probe candidate SHA-256 checksum files for a URL.
-    pub async fn probe_checksum(&self, url: &str, file_name: Option<&str>) -> Result<Option<String>> {
+    pub async fn probe_checksum(
+        &self,
+        url: &str,
+        file_name: Option<&str>,
+    ) -> Result<Option<String>> {
         let client = self.http_client.clone().unwrap_or_default();
-        let target_file_name = file_name
-            .map(str::to_string)
-            .unwrap_or_else(|| {
-                reqwest::Url::parse(url)
-                    .ok()
-                    .and_then(|u| {
-                        u.path_segments()
-                            .and_then(|mut segments| segments.next_back().map(ToOwned::to_owned))
-                    })
-                    .unwrap_or_else(|| String::from("download"))
-            });
+        let target_file_name = file_name.map(str::to_string).unwrap_or_else(|| {
+            reqwest::Url::parse(url)
+                .ok()
+                .and_then(|u| {
+                    u.path_segments()
+                        .and_then(|mut segments| segments.next_back().map(ToOwned::to_owned))
+                })
+                .unwrap_or_else(|| String::from("download"))
+        });
         let user_agent = self
             .get_settings()
             .await
             .map(|s| s.download.default_user_agent)
             .unwrap_or_else(|_| crate::types::default_http_user_agent());
 
-        Ok(crate::checksum::detect_sha256(
-            &client,
-            url,
-            &target_file_name,
-            &user_agent,
-            &[],
-        )
-        .await)
+        Ok(crate::checksum::detect_sha256(&client, url, &target_file_name, &user_agent, &[]).await)
     }
 
     /// On-demand integrity verification for a task.
     /// Checks the destination file (or temp / corrupt file if incomplete),
     /// calculates checksum with fine-grained progress, updates task metadata,
     /// and returns the comparison result.
-    pub async fn verify_task_integrity(&self, task_id: &TaskId) -> Result<IntegrityVerificationResult> {
+    pub async fn verify_task_integrity(
+        &self,
+        task_id: &TaskId,
+    ) -> Result<IntegrityVerificationResult> {
         let dm = self
             .registry
             .get_typed::<crate::manager::DownloadManager>()
@@ -693,7 +702,9 @@ impl Dispatcher {
 
         // 5. Compare with expected checksum if available
         let expected = manifest.expected_checksum.clone();
-        let matches = expected.as_ref().map(|exp| exp.eq_ignore_ascii_case(&computed));
+        let matches = expected
+            .as_ref()
+            .map(|exp| exp.eq_ignore_ascii_case(&computed));
 
         // 6. Persist computed checksum
         if has_managed {

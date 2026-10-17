@@ -119,10 +119,7 @@ impl Database {
             })?;
             tx.pragma_update(None, "user_version", migration.version)
                 .with_context(|| {
-                    format!(
-                        "failed to update schema version to {}",
-                        migration.version
-                    )
+                    format!("failed to update schema version to {}", migration.version)
                 })?;
             tx.commit().with_context(|| {
                 format!(
@@ -335,9 +332,8 @@ fn quarantine_if_corrupt(path: &Path) -> Result<()> {
             if is_lock_contention(&message) {
                 // Another instance (or a crash left the lock behind): a real
                 // error, but not something to quarantine.
-                return Err(error).with_context(|| {
-                    format!("failed to open database at {}", path.display())
-                });
+                return Err(error)
+                    .with_context(|| format!("failed to open database at {}", path.display()));
             }
             tracing::error!(
                 "database at {} cannot be opened ({message}); moving it aside",

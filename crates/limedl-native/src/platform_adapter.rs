@@ -1,9 +1,9 @@
+#[cfg(windows)]
+use crate::MainWindow;
 use crate::context::AppContext;
 use crate::handlers::new_task::open_new_task_with_payload;
 use crate::protocol;
 use crate::ui_sync::restore_and_show_window;
-#[cfg(windows)]
-use crate::MainWindow;
 
 pub fn setup_platform_integration(
     ctx: &AppContext,
@@ -48,10 +48,10 @@ pub fn setup_platform_integration(
 
 #[cfg(windows)]
 fn setup_windows_hooks(ctx: &AppContext) {
+    use crate::platform_win;
+    use slint::ComponentHandle;
     use std::rc::Rc;
     use std::time::Duration;
-    use slint::ComponentHandle;
-    use crate::platform_win;
 
     let main_window = &ctx.ui;
     let ui_weak = ctx.ui_weak.clone();
@@ -160,9 +160,7 @@ fn open_dropped_files(
     ui_weak: &slint::Weak<MainWindow>,
     dispatcher: &std::sync::Arc<limedl_core::dispatcher::Dispatcher>,
     store: &std::sync::Arc<parking_lot::Mutex<crate::bridge::TaskStore>>,
-    entries_cache: &std::sync::Arc<
-        parking_lot::Mutex<Vec<limedl_core::types::TorrentFileEntry>>,
-    >,
+    entries_cache: &std::sync::Arc<parking_lot::Mutex<Vec<limedl_core::types::TorrentFileEntry>>>,
     included_cache: &std::sync::Arc<parking_lot::Mutex<Vec<bool>>>,
 ) {
     use slint::SharedString;
@@ -214,9 +212,9 @@ fn open_dropped_files(
             let lang = store_for_ui.lock().language();
             ui.set_new_task_batch_text(SharedString::from(&joined));
             ui.set_new_task_batch_mode(true);
-            ui.set_new_task_batch_count_text(SharedString::from(
-                crate::i18n::format_batch_count(count, lang),
-            ));
+            ui.set_new_task_batch_count_text(SharedString::from(crate::i18n::format_batch_count(
+                count, lang,
+            )));
             ui.set_new_task_batch_submitting(false);
             ui.set_new_task_batch_status_text(SharedString::default());
             ui.set_show_new_task_dialog(true);
@@ -239,4 +237,3 @@ fn sole_file_with_suffix(files: &[String], suffixes: &[&str]) -> Option<String> 
         _ => None,
     }
 }
-

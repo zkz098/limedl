@@ -86,9 +86,7 @@ fn is_unc_root(raw: &str) -> bool {
     let Some(rest) = raw.strip_prefix(r"\\") else {
         return false;
     };
-    let mut parts = rest
-        .split(['\\', '/'])
-        .filter(|part| !part.is_empty());
+    let mut parts = rest.split(['\\', '/']).filter(|part| !part.is_empty());
     matches!((parts.next(), parts.next()), (Some(_), Some(_)))
 }
 
@@ -376,7 +374,10 @@ mod tests {
     #[test]
     fn empty_and_unusable_keys_never_match() {
         let map = overrides(&[("", DiskType::Hdd), ("   ", DiskType::Hdd)]);
-        assert_eq!(lookup_media_override(&map, Path::new("/tmp/downloads")), None);
+        assert_eq!(
+            lookup_media_override(&map, Path::new("/tmp/downloads")),
+            None
+        );
         assert_eq!(
             lookup_media_override(&HashMap::<String, DiskType>::default(), Path::new("C:\\a")),
             None
@@ -480,15 +481,24 @@ mod tests {
             .filter(|(_, fstype)| is_network_filesystem(fstype))
             .map(|(mount_point, _)| mount_point)
             .collect();
-        assert_eq!(network, vec!["/mnt/nas".to_string(), "/mnt/space name".to_string()]);
+        assert_eq!(
+            network,
+            vec!["/mnt/nas".to_string(), "/mnt/space name".to_string()]
+        );
     }
 
     #[test]
     fn mount_points_are_matched_on_component_boundaries() {
-        assert!(path_is_within(Path::new("/mnt/nas/sub/f.bin"), Path::new("/mnt/nas")));
+        assert!(path_is_within(
+            Path::new("/mnt/nas/sub/f.bin"),
+            Path::new("/mnt/nas")
+        ));
         assert!(path_is_within(Path::new("/mnt/nas"), Path::new("/mnt/nas")));
         // A sibling with a shared name prefix belongs to another mount.
-        assert!(!path_is_within(Path::new("/mnt/nas2/f.bin"), Path::new("/mnt/nas")));
+        assert!(!path_is_within(
+            Path::new("/mnt/nas2/f.bin"),
+            Path::new("/mnt/nas")
+        ));
         // Every path is inside the root mount.
         assert!(path_is_within(Path::new("/anything"), Path::new("/")));
     }
@@ -496,7 +506,14 @@ mod tests {
     #[test]
     fn network_filesystems_are_classified_without_catching_local_ones() {
         for fstype in [
-            "nfs", "nfs4", "cifs", "smb3", "9p", "virtiofs", "drvfs", "fuse.sshfs",
+            "nfs",
+            "nfs4",
+            "cifs",
+            "smb3",
+            "9p",
+            "virtiofs",
+            "drvfs",
+            "fuse.sshfs",
         ] {
             assert!(is_network_filesystem(fstype), "{fstype} should be remote");
         }
@@ -505,8 +522,14 @@ mod tests {
 
         // Local filesystems — and a bare `fuse`, which covers ntfs-3g — stay
         // local so they keep being reported as SSD.
-        for fstype in ["ext4", "xfs", "btrfs", "zfs", "apfs", "hfs", "ntfs", "exfat", "fuse", "tmpfs", "overlay"] {
-            assert!(!is_network_filesystem(fstype), "{fstype} should not be remote");
+        for fstype in [
+            "ext4", "xfs", "btrfs", "zfs", "apfs", "hfs", "ntfs", "exfat", "fuse", "tmpfs",
+            "overlay",
+        ] {
+            assert!(
+                !is_network_filesystem(fstype),
+                "{fstype} should not be remote"
+            );
         }
     }
 }

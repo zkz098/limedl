@@ -3,8 +3,8 @@
 use limedl_core::types::{
     AdaptiveProfile, Aria2AuthMode, BackgroundOpacityPreset, BtAntiLeechAction, BtChokingAlgorithm,
     BtEncryptionMode, BtPreallocateMode, BtSeedChokingAlgorithm, ChecksumMode, ChunkSizeStrategy,
-    CloseBehavior, ColorMode, DoubleClickOnCompleted, DoubleClickOnUncompleted, LogLevel, ProxyMode,
-    QueueSortStrategy, SchedulerMode, ThemeColor,
+    CloseBehavior, ColorMode, DoubleClickOnCompleted, DoubleClickOnUncompleted, LogLevel,
+    ProxyMode, QueueSortStrategy, SchedulerMode, ThemeColor,
 };
 use slint::SharedString;
 

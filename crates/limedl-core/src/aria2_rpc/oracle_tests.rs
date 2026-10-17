@@ -373,7 +373,13 @@ async fn oracle_get_version_shape() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server_with_secret(Some(SECRET)).await;
     let client = oracle_client();
 
-    let limedl = rpc_call(&client, &rpc_url, "aria2.getVersion", json!(["token:oracle"])).await;
+    let limedl = rpc_call(
+        &client,
+        &rpc_url,
+        "aria2.getVersion",
+        json!(["token:oracle"]),
+    )
+    .await;
     let aria2 = oracle.call("aria2.getVersion", vec![]).await;
     for (label, resp) in [("limedl", &limedl), ("aria2", &aria2)] {
         assert!(
@@ -393,7 +399,9 @@ async fn oracle_get_version_shape() {
         report.note(format!("limedl getVersion does not advertise `{feature}`"));
     }
     for feature in l.difference(&a) {
-        report.note(format!("limedl getVersion advertises non-aria2 `{feature}`"));
+        report.note(format!(
+            "limedl getVersion advertises non-aria2 `{feature}`"
+        ));
     }
     report.note(format!(
         "version strings: limedl={} aria2={}",
@@ -463,10 +471,7 @@ async fn oracle_tell_status_keys() {
     let dir = tmp.path().join("output");
 
     let a_gid = oracle
-        .call(
-            "aria2.addUri",
-            vec![json!([url]), json!({"pause": "true"})],
-        )
+        .call("aria2.addUri", vec![json!([url]), json!({"pause": "true"})])
         .await["result"]
         .as_str()
         .expect("aria2 addUri gid")
@@ -573,8 +578,14 @@ async fn oracle_get_global_option_keys() {
 
     let aria2 = oracle.call("aria2.getGlobalOption", vec![]).await;
     let limedl = limedl_call(&client, &rpc_url, "aria2.getGlobalOption", vec![]).await;
-    assert!(aria2["result"].is_object(), "aria2 getGlobalOption: {aria2}");
-    assert!(limedl["result"].is_object(), "limedl getGlobalOption: {limedl}");
+    assert!(
+        aria2["result"].is_object(),
+        "aria2 getGlobalOption: {aria2}"
+    );
+    assert!(
+        limedl["result"].is_object(),
+        "limedl getGlobalOption: {limedl}"
+    );
 
     let mut report = GapReport::default();
     report.missing_keys(
@@ -619,7 +630,10 @@ async fn oracle_change_position_returns_integer() {
         .to_string();
 
     let aria2 = oracle
-        .call("aria2.changePosition", vec![json!(a_gid), json!(0), json!("POS_SET")])
+        .call(
+            "aria2.changePosition",
+            vec![json!(a_gid), json!(0), json!("POS_SET")],
+        )
         .await;
     let limedl = limedl_call(
         &client,
@@ -630,7 +644,10 @@ async fn oracle_change_position_returns_integer() {
     .await;
     assert!(aria2["error"].is_null(), "aria2 changePosition: {aria2}");
     assert!(limedl["error"].is_null(), "limedl changePosition: {limedl}");
-    assert!(aria2["result"].is_number(), "aria2 result must be an integer: {aria2}");
+    assert!(
+        aria2["result"].is_number(),
+        "aria2 result must be an integer: {aria2}"
+    );
     assert!(
         limedl["result"].is_number(),
         "limedl result must be an integer: {limedl}"
@@ -664,7 +681,9 @@ async fn oracle_transport_gaps() {
                 let body = resp.text().await.unwrap_or_default();
                 let parsed: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
                 if !parsed["result"].is_object() {
-                    report.note(format!("{label} HTTP GET/JSONP unsupported (status {status})"));
+                    report.note(format!(
+                        "{label} HTTP GET/JSONP unsupported (status {status})"
+                    ));
                 }
             }
             Err(error) => report.note(format!("{label} HTTP GET/JSONP request failed: {error}")),

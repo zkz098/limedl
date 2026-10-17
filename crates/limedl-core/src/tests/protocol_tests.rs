@@ -16,14 +16,14 @@ use std::time::Duration;
 use ntest::timeout;
 use tempfile::TempDir;
 
-use crate::{
-    DownloadBackend, DownloadManager, EventBus, RateLimiter,
-    types::{ChecksumMode, DownloadState, StartDownloadRequest, ThreadMode},
-};
 #[cfg(feature = "bt")]
 use crate::IrontideBtBackend;
 #[cfg(feature = "bt")]
 use crate::types::AppSettings;
+use crate::{
+    DownloadBackend, DownloadManager, EventBus, RateLimiter,
+    types::{ChecksumMode, DownloadState, StartDownloadRequest, ThreadMode},
+};
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -72,7 +72,10 @@ fn http_request(url: String, dest_dir: &std::path::Path) -> StartDownloadRequest
 async fn contract_start_and_status(backend: &dyn DownloadBackend, request: StartDownloadRequest) {
     let task_id = backend.start(request).await.expect("start should succeed");
 
-    let snapshot = backend.status(&task_id).await.expect("status should succeed");
+    let snapshot = backend
+        .status(&task_id)
+        .await
+        .expect("status should succeed");
     assert_eq!(
         snapshot.id,
         task_id.raw_id(),
@@ -121,10 +124,12 @@ async fn contract_pause_resume(backend: &dyn DownloadBackend, request: StartDown
     );
 
     // Resume
-    let snapshot = backend.resume(&task_id).await.expect("resume should succeed");
+    let snapshot = backend
+        .resume(&task_id)
+        .await
+        .expect("resume should succeed");
     assert!(
-        snapshot.state == DownloadState::Downloading
-            || snapshot.state == DownloadState::Queued,
+        snapshot.state == DownloadState::Downloading || snapshot.state == DownloadState::Queued,
         "after resume(), state should be Downloading or Queued, got {:?}",
         snapshot.state,
     );
@@ -137,7 +142,10 @@ async fn contract_pause_resume(backend: &dyn DownloadBackend, request: StartDown
 async fn contract_cancel(backend: &dyn DownloadBackend, request: StartDownloadRequest) {
     let task_id = backend.start(request).await.expect("start should succeed");
 
-    let snapshot = backend.cancel(&task_id).await.expect("cancel should succeed");
+    let snapshot = backend
+        .cancel(&task_id)
+        .await
+        .expect("cancel should succeed");
     assert_eq!(
         snapshot.state,
         DownloadState::Canceled,
@@ -152,8 +160,14 @@ async fn contract_list(
     request_a: StartDownloadRequest,
     request_b: StartDownloadRequest,
 ) {
-    let id_a = backend.start(request_a).await.expect("start A should succeed");
-    let id_b = backend.start(request_b).await.expect("start B should succeed");
+    let id_a = backend
+        .start(request_a)
+        .await
+        .expect("start A should succeed");
+    let id_b = backend
+        .start(request_b)
+        .await
+        .expect("start B should succeed");
 
     let list = backend.list().await.expect("list should succeed");
     assert_eq!(
@@ -185,7 +199,10 @@ async fn contract_list(
 async fn contract_remove(backend: &dyn DownloadBackend, request: StartDownloadRequest) {
     let task_id = backend.start(request).await.expect("start should succeed");
 
-    let _snapshot = backend.remove(&task_id).await.expect("remove should succeed");
+    let _snapshot = backend
+        .remove(&task_id)
+        .await
+        .expect("remove should succeed");
 
     let list = backend.list().await.expect("list should succeed");
     assert!(
@@ -227,7 +244,11 @@ async fn http_contract_start_and_status() -> TestResult {
     let dm = make_manager(&tmp.path().join("state"));
     let backend: &dyn DownloadBackend = &*dm;
 
-    contract_start_and_status(backend, http_request(server.file_url_bandwidth(10 * 1024), &dest_dir)).await;
+    contract_start_and_status(
+        backend,
+        http_request(server.file_url_bandwidth(10 * 1024), &dest_dir),
+    )
+    .await;
 
     dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
@@ -245,7 +266,11 @@ async fn http_contract_pause_resume() -> TestResult {
     let backend: &dyn DownloadBackend = &*dm;
 
     // 1 KB/s — keeps the download in-flight throughout the pause/resume steps
-    contract_pause_resume(backend, http_request(server.file_url_bandwidth(1024), &dest_dir)).await;
+    contract_pause_resume(
+        backend,
+        http_request(server.file_url_bandwidth(1024), &dest_dir),
+    )
+    .await;
 
     dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
@@ -262,7 +287,11 @@ async fn http_contract_cancel() -> TestResult {
     let dm = make_manager(&tmp.path().join("state"));
     let backend: &dyn DownloadBackend = &*dm;
 
-    contract_cancel(backend, http_request(server.file_url_bandwidth(1024), &dest_dir)).await;
+    contract_cancel(
+        backend,
+        http_request(server.file_url_bandwidth(1024), &dest_dir),
+    )
+    .await;
 
     dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
@@ -301,7 +330,11 @@ async fn http_contract_remove() -> TestResult {
     let dm = make_manager(&tmp.path().join("state"));
     let backend: &dyn DownloadBackend = &*dm;
 
-    contract_remove(backend, http_request(server.file_url_bandwidth(1024), &dest_dir)).await;
+    contract_remove(
+        backend,
+        http_request(server.file_url_bandwidth(1024), &dest_dir),
+    )
+    .await;
 
     dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
@@ -318,7 +351,11 @@ async fn http_contract_purge() -> TestResult {
     let dm = make_manager(&tmp.path().join("state"));
     let backend: &dyn DownloadBackend = &*dm;
 
-    contract_purge(backend, http_request(server.file_url_bandwidth(1024), &dest_dir)).await;
+    contract_purge(
+        backend,
+        http_request(server.file_url_bandwidth(1024), &dest_dir),
+    )
+    .await;
 
     dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
@@ -374,10 +411,7 @@ async fn bt_contract_list_empty() -> TestResult {
     let backend: &dyn DownloadBackend = &backend;
 
     let list = backend.list().await.expect("list on empty backend");
-    assert!(
-        list.is_empty(),
-        "list should be empty on fresh BT backend"
-    );
+    assert!(list.is_empty(), "list should be empty on fresh BT backend");
 
     backend.shutdown().await;
     Ok(())
@@ -492,11 +526,18 @@ async fn bt_contract_start_magnet_and_remove() -> TestResult {
     let task_id = backend.start(request).await.expect("start should succeed");
 
     // Remove directly (no separate cancel)
-    let _snapshot = backend.remove(&task_id).await.expect("remove should succeed");
+    let _snapshot = backend
+        .remove(&task_id)
+        .await
+        .expect("remove should succeed");
 
     // List should be empty
     let list = backend.list().await.expect("list should succeed");
-    assert!(list.is_empty(), "list should be empty after remove, got {} item(s)", list.len());
+    assert!(
+        list.is_empty(),
+        "list should be empty after remove, got {} item(s)",
+        list.len()
+    );
 
     backend.shutdown().await;
     Ok(())

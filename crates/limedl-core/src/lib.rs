@@ -1,7 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub mod alt_svc;
-pub(crate) mod manager_state;
 pub mod backend_registry;
 pub mod bootstrap;
 #[cfg(feature = "bt")]
@@ -17,10 +16,11 @@ pub mod event_bus;
 pub mod file_ops;
 pub mod http;
 pub mod http_client_factory;
-pub mod logging;
-pub mod manager;
 pub mod http_executor;
 pub mod io_scheduler;
+pub mod logging;
+pub mod manager;
+pub(crate) mod manager_state;
 pub mod manifest;
 pub mod metalink;
 pub mod persistence;
@@ -70,9 +70,9 @@ pub use manager::DownloadManager;
 pub use protocol::DownloadBackend;
 pub use rate_limiter::RateLimiter;
 pub use services::{ConcurrencyManager, DiskIoService, SettingsService};
-pub use types::CloseBehavior;
 pub use settings::{normalize_tracker_list_lossy, normalize_tracker_list_url};
 pub use speed_tracker::SpeedTracker;
+pub use types::CloseBehavior;
 
 // Aria2 JSON-RPC compatibility layer (enabled by default in the desktop app,
 // available via `--features aria2-rpc` for NAS/server builds).

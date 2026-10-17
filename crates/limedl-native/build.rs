@@ -43,7 +43,10 @@ fn main() {
         let mut res = winres::WindowsResource::new();
         res.set_icon("ui/assets/icon.ico");
         res.set("ProductName", "limedl");
-        res.set("FileDescription", "limedl - Native High-Performance Download Manager");
+        res.set(
+            "FileDescription",
+            "limedl - Native High-Performance Download Manager",
+        );
         res.set("LegalCopyright", "Copyright (c) 2026 zkz098");
         if let Err(e) = res.compile() {
             eprintln!("cargo:warning=Failed to compile Windows resources: {e}");

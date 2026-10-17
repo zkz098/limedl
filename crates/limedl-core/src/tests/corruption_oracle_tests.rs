@@ -93,7 +93,10 @@ async fn download_to_completion(
 
 /// The core oracle: re-read the assembled destination file from disk, hash it
 /// independently with SHA-256, and require it to equal the source's known hash.
-fn assert_file_matches_source(snap: &crate::types::DownloadSnapshot, server: &TestServer) -> TestResult {
+fn assert_file_matches_source(
+    snap: &crate::types::DownloadSnapshot,
+    server: &TestServer,
+) -> TestResult {
     let dest = PathBuf::from(&snap.destination_path);
     assert!(
         dest.exists(),

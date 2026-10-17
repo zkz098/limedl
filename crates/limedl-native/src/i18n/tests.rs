@@ -188,9 +188,7 @@ fn parse_po(path: &Path) -> HashMap<String, String> {
                 }
                 mode = Some("str");
             }
-        } else if let Some(stripped) =
-            trimmed.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
-        {
+        } else if let Some(stripped) = trimmed.strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
             let val = stripped.replace("\\\"", "\"");
             match mode {
                 Some("id") => {
@@ -199,9 +197,7 @@ fn parse_po(path: &Path) -> HashMap<String, String> {
                     }
                 }
                 Some("str") => {
-                    if let Some(str_val) =
-                        current_id.as_ref().and_then(|id| entries.get_mut(id))
-                    {
+                    if let Some(str_val) = current_id.as_ref().and_then(|id| entries.get_mut(id)) {
                         str_val.push_str(&val);
                     }
                 }
@@ -347,7 +343,11 @@ fn extract_tr_literals(text: &str) -> Vec<String> {
         if c == '\'' {
             // A char literal is three characters (`'x'`); anything else is a
             // lifetime or a stray quote and is skipped one character at a time.
-            i += if chars.get(i + 2) == Some(&'\'') { 3 } else { 1 };
+            i += if chars.get(i + 2) == Some(&'\'') {
+                3
+            } else {
+                1
+            };
             continue;
         }
         if c != '"' {
@@ -401,8 +401,10 @@ fn every_rust_message_exists_in_the_catalogs() {
     let mut rust_files = Vec::new();
     collect_rs_files(&base_dir.join("src"), &mut rust_files);
 
-    let keys: std::collections::HashSet<&'static str> =
-        super::catalog::CATALOG.iter().map(|entry| entry.msgid).collect();
+    let keys: std::collections::HashSet<&'static str> = super::catalog::CATALOG
+        .iter()
+        .map(|entry| entry.msgid)
+        .collect();
 
     let mut missing = Vec::new();
     for file in &rust_files {
@@ -443,7 +445,9 @@ fn catalog_columns_are_complete_and_english_is_cjk_free() {
         }
         let english = entry.translations[2];
         assert!(
-            !english.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)),
+            !english
+                .chars()
+                .any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)),
             "CJK leaked into the English column of {:?}",
             entry.msgid
         );

@@ -42,7 +42,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use base64::Engine as _;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeMap;
@@ -165,8 +165,7 @@ pub fn run(
     json.push('\n');
 
     if let Some(parent) = out_file.parent().filter(|p| !p.as_os_str().is_empty()) {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("create {}", parent.display()))?;
+        fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
     }
     fs::write(out_file, &json).with_context(|| format!("write {}", out_file.display()))?;
 
@@ -176,7 +175,12 @@ pub fn run(
     Ok(())
 }
 
-fn platform_entry(key: &str, entry: &AssetEntry, version: &str, repo: &str) -> Result<PlatformEntry> {
+fn platform_entry(
+    key: &str,
+    entry: &AssetEntry,
+    version: &str,
+    repo: &str,
+) -> Result<PlatformEntry> {
     if !VALID_KINDS.contains(&entry.kind.as_str()) {
         bail!(
             "asset '{key}' has kind '{}' (expected one of: {})",
@@ -199,8 +203,8 @@ fn platform_entry(key: &str, entry: &AssetEntry, version: &str, repo: &str) -> R
     }
     // base64(minisign signature file text) — the form `minisign_verify`'s
     // Signature::decode expects after the client base64-decodes it.
-    let sig_text = fs::read_to_string(&sig_path)
-        .with_context(|| format!("read {}", sig_path.display()))?;
+    let sig_text =
+        fs::read_to_string(&sig_path).with_context(|| format!("read {}", sig_path.display()))?;
     let signature = BASE64.encode(sig_text.trim().as_bytes());
 
     let mut pqc_sig_path = entry.path.clone().into_os_string();
@@ -219,8 +223,7 @@ fn platform_entry(key: &str, entry: &AssetEntry, version: &str, repo: &str) -> R
         None
     };
 
-    let bytes = fs::read(&entry.path)
-        .with_context(|| format!("read {}", entry.path.display()))?;
+    let bytes = fs::read(&entry.path).with_context(|| format!("read {}", entry.path.display()))?;
     let sha256 = sha256_hex(&bytes);
 
     let file_name = entry
@@ -274,7 +277,11 @@ mod tests {
 
         let setup = dir.join("setup.exe");
         fs::write(&setup, b"installer bytes").unwrap();
-        fs::write(dir.join("setup.exe.sig"), "untrusted comment: setup\nRWSIG2").unwrap();
+        fs::write(
+            dir.join("setup.exe.sig"),
+            "untrusted comment: setup\nRWSIG2",
+        )
+        .unwrap();
 
         let assets = dir.join("assets.json");
         fs::write(
@@ -337,7 +344,11 @@ mod tests {
         let value: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&out).unwrap()).unwrap();
         let decoded = BASE64
-            .decode(value["platforms"]["darwin-aarch64-portable"]["signature"].as_str().unwrap())
+            .decode(
+                value["platforms"]["darwin-aarch64-portable"]["signature"]
+                    .as_str()
+                    .unwrap(),
+            )
             .unwrap();
         assert_eq!(decoded, b"untrusted comment: sig\nRWSIG");
     }
@@ -351,7 +362,10 @@ mod tests {
         let assets = dir.join("assets.json");
         fs::write(
             &assets,
-            format!(r#"{{"k": {{"kind": "squirrel", "path": "{}"}}}}"#, json_path(&artifact)),
+            format!(
+                r#"{{"k": {{"kind": "squirrel", "path": "{}"}}}}"#,
+                json_path(&artifact)
+            ),
         )
         .unwrap();
         let err = run("0.4.1", &assets, "", &dir.join("out.json"), "r").unwrap_err();
@@ -366,16 +380,25 @@ mod tests {
         let assets = dir.join("assets.json");
         fs::write(
             &assets,
-            format!(r#"{{"k": {{"kind": "portable", "path": "{}"}}}}"#, json_path(&artifact)),
+            format!(
+                r#"{{"k": {{"kind": "portable", "path": "{}"}}}}"#,
+                json_path(&artifact)
+            ),
         )
         .unwrap();
         let err = run("0.4.1", &assets, "", &dir.join("out.json"), "r").unwrap_err();
-        assert!(format!("{err:#}").contains("signature file missing"), "{err:#}");
+        assert!(
+            format!("{err:#}").contains("signature file missing"),
+            "{err:#}"
+        );
 
         let absent = dir.join("absent.zip");
         fs::write(
             &assets,
-            format!(r#"{{"k": {{"kind": "portable", "path": "{}"}}}}"#, json_path(&absent)),
+            format!(
+                r#"{{"k": {{"kind": "portable", "path": "{}"}}}}"#,
+                json_path(&absent)
+            ),
         )
         .unwrap();
         let err = run("0.4.1", &assets, "", &dir.join("out.json"), "r").unwrap_err();
@@ -395,7 +418,11 @@ mod tests {
     fn serializes_pqc_signature_when_present() {
         let fixture = fixture();
         let app_pqc = fixture.dir.join("app.zip.pqc.sig");
-        fs::write(&app_pqc, "untrusted comment: ml-dsa-65 signature\nQUJDRA==\n").unwrap();
+        fs::write(
+            &app_pqc,
+            "untrusted comment: ml-dsa-65 signature\nQUJDRA==\n",
+        )
+        .unwrap();
 
         let out = fixture.dir.join("latest-native.json");
         run("0.4.1", &fixture.assets, "notes", &out, "zkz098/limedl").unwrap();

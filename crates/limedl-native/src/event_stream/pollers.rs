@@ -9,8 +9,9 @@ use slint::{SharedString, VecModel};
 use limedl_core::types::TaskId;
 
 use crate::bridge::{
-    ClipboardPayload, file_status_to_item, format_speed, generate_piece_map_image, parse_clipboard_download_text,
-    peer_info_to_item, summary_to_inspector_info, tracker_info_to_item,
+    ClipboardPayload, file_status_to_item, format_speed, generate_piece_map_image,
+    parse_clipboard_download_text, peer_info_to_item, summary_to_inspector_info,
+    tracker_info_to_item,
 };
 use crate::context::AppContext;
 use crate::i18n;

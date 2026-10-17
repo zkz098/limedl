@@ -173,11 +173,9 @@ pub(super) async fn an_event_for_a_task_the_backend_forgot_drops_the_row_and_clo
     )]);
 
     let stale = http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100);
-    ui.ctx
-        .event_bus
-        .publish(DownloadEvent::Updated {
-            summary: Box::new(stale),
-        });
+    ui.ctx.event_bus.publish(DownloadEvent::Updated {
+        summary: Box::new(stale),
+    });
     ui.pump_until("the row to be dropped", || ui.visible_rows() == 1)
         .await;
 
@@ -232,12 +230,10 @@ pub(super) async fn a_lagged_subscriber_gets_the_whole_list_back() {
     // Publish past the capacity (64) without awaiting: the listener task has not
     // been polled yet, so its next `recv()` must return `Lagged`.
     for _ in 0..100 {
-        ui.ctx
-            .event_bus
-            .publish(DownloadEvent::Warning {
-                id: http_wire(1),
-                message: "flood".into(),
-            });
+        ui.ctx.event_bus.publish(DownloadEvent::Warning {
+            id: http_wire(1),
+            message: "flood".into(),
+        });
     }
 
     ui.pump_until("the list to be replaced", || ui.visible_rows() == 2)

@@ -109,11 +109,7 @@ fn checksum_field_value(mode: ChecksumMode, hash: &str) -> String {
 }
 
 /// Rebuild the torrent file-selection model from the cached entries.
-pub(super) fn push_torrent_items(
-    ui: &MainWindow,
-    entries: &[TorrentFileEntry],
-    included: &[bool],
-) {
+pub(super) fn push_torrent_items(ui: &MainWindow, entries: &[TorrentFileEntry], included: &[bool]) {
     let items: Vec<NewTaskTorrentFileItem> = entries
         .iter()
         .zip(included.iter())

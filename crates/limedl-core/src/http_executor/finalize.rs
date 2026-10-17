@@ -1,17 +1,17 @@
 //! Finalization: checksum verification, atomic rename and completion events.
 
-use super::worker::{finalize_was_canceled};
-use crate::{calculate_checksum_with_progress, now_ms};
+use super::HttpExecutor;
+use super::worker::finalize_was_canceled;
 use crate::download::{ManagedDownload, RunOutcome};
 use crate::error::{Result, io_error_with_path};
 use crate::event_bus::DownloadEvent;
 use crate::file_ops::finalize_temp_file;
 use crate::manager_state::ManagerState;
 use crate::types::{ChecksumMode, DownloadProgress, DownloadState};
+use crate::{calculate_checksum_with_progress, now_ms};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
-use super::HttpExecutor;
 use tokio_util::sync::CancellationToken;
 
 impl HttpExecutor {

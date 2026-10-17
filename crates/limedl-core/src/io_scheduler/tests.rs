@@ -91,12 +91,18 @@ async fn media_overrides_reach_device_resolution_and_queues() {
     );
     // A queue built before the override cannot adopt the new policy, so it is
     // replaced rather than reused (this is what used to require a restart).
-    assert_eq!(manager.get_or_create_queue(&file_path).metrics().disk_type, forced);
+    assert_eq!(
+        manager.get_or_create_queue(&file_path).metrics().disk_type,
+        forced
+    );
 
     // Clearing the overrides restores the detected answer.
     manager.set_overrides(&override_map(&[]));
     assert_eq!(manager.resolve_device(&file_path).1, detected);
-    assert_eq!(manager.get_or_create_queue(&file_path).metrics().disk_type, detected);
+    assert_eq!(
+        manager.get_or_create_queue(&file_path).metrics().disk_type,
+        detected
+    );
 }
 
 #[tokio::test]

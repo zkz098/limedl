@@ -41,18 +41,23 @@ pub fn open_in_file_manager(path: &Path) -> io::Result<()> {
             .arg(path)
             .output()
             .map_err(|e| {
-                io::Error::new(e.kind(), format!("failed to launch xdg-open for {}: {e}", path.display()))
+                io::Error::new(
+                    e.kind(),
+                    format!("failed to launch xdg-open for {}: {e}", path.display()),
+                )
             })?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-            return Err(io::Error::other(
-                format!(
-                    "xdg-open exited with {} for {}: {}",
-                    output.status,
-                    path.display(),
-                    if stderr.is_empty() { "no desktop session or file manager available".to_string() } else { stderr }
-                ),
-            ));
+            return Err(io::Error::other(format!(
+                "xdg-open exited with {} for {}: {}",
+                output.status,
+                path.display(),
+                if stderr.is_empty() {
+                    "no desktop session or file manager available".to_string()
+                } else {
+                    stderr
+                }
+            )));
         }
     }
     Ok(())
@@ -79,11 +84,17 @@ pub fn reveal_in_file_manager(path: &Path) -> io::Result<()> {
     }
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("open").arg("-R").arg(path).spawn()?;
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(path)
+            .spawn()?;
     }
     #[cfg(target_os = "linux")]
     {
-        let dir = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(path);
+        let dir = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(path);
         open_in_file_manager(dir)?;
     }
     Ok(())
@@ -109,4 +120,3 @@ mod tests {
         );
     }
 }
-

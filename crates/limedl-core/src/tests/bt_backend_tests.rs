@@ -102,8 +102,14 @@ async fn bt_backend_settings_propagate_after_apply_settings() {
     {
         let engine = core.bt_backend.engine_if_ready().expect("engine is up");
         let bt = lock(&engine.bt_settings);
-        assert!(!bt.dht_enabled, "engine dht_enabled should be false after apply");
-        assert!(bt.upnp_enabled, "engine upnp_enabled should be true after apply");
+        assert!(
+            !bt.dht_enabled,
+            "engine dht_enabled should be false after apply"
+        );
+        assert!(
+            bt.upnp_enabled,
+            "engine upnp_enabled should be true after apply"
+        );
     }
 
     core.registry.shutdown_all().await;

@@ -1,0 +1,31 @@
+# rustfmt configuration.
+#
+# Deliberately minimal, and stable-only. This workspace builds on the stable
+# channel (`rust-toolchain.toml`), and the options that would let the formatter
+# follow this repository's hand-laid tables — `imports_granularity`,
+# `group_imports`, `style_edition`, `fn_single_line`, `format_code_in_doc_comments`
+# — are nightly-only: on stable rustfmt prints "unstable features are only
+# available in nightly channel" and then *ignores* them. A configuration that is
+# not in effect is worse than no configuration, because it looks like it works,
+# so those stay out. See `docs/ci-operations.md`.
+#
+# `newline_style` is load-bearing rather than cosmetic: the default `Auto`
+# resolves to the *platform* default, so on Windows this would emit CRLF while
+# Linux CI emits LF and `cargo fmt --check` would disagree with itself about the
+# same commit. It is pinned here and mirrored by `eol=lf` in `.gitattributes`;
+# the two files are one decision.
+newline_style = "Unix"
+
+# Everything else keeps its default on purpose:
+#
+# - `max_width = 100`. Raising it was measured against the pre-rustfmt tree and
+#   made the diff *worse* (178 → 272 changed files), because a wider budget makes
+#   rustfmt rejoin the multi-line argument wraps the code already had, which are
+#   far more common here than the 358 lines that were actually over 100 columns.
+# - `use_small_heuristics = "Default"`, `trailing_comma = "Vertical"`,
+#   `merge_derives = true`: the defaults, so the style does not depend on a
+#   second knob nobody reads.
+# - `normalize_comments = false` and `wrap_comments = false` (the defaults): the
+#   comment blocks in this repository are prose and sometimes aligned ASCII
+#   tables, and reflowing them would be a worse read, not a better one.
+# - `hard_tabs = false`, `tab_spaces = 4` (the defaults).

@@ -34,7 +34,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use base64::Engine as _;
 use limedl_core::http_client_factory::configure_client_builder;
 use limedl_core::types::AppSettings;
@@ -49,8 +49,7 @@ use serde::Deserialize;
 /// not match the key the artifacts were signed with, so rotating the secret
 /// cannot silently break the update channel. Rotation runbook:
 /// `docs/update-signing-key.md` (keynum E0CB82693CECD49E).
-const PUBKEY_B64: &str =
-    "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUwQ0I4MjY5M0NFQ0Q0OUUKUldTZTFPdzhhWUxMNEl5MGVSRk4rNDB1bXF4ZDJreGxQb3lnMUFxSmRQQmJsQk1TTURPaEt3KzcK";
+const PUBKEY_B64: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUwQ0I4MjY5M0NFQ0Q0OUUKUldTZTFPdzhhWUxMNEl5MGVSRk4rNDB1bXF4ZDJreGxQb3lnMUFxSmRQQmJsQk1TTURPaEt3KzcK";
 
 /// ML-DSA-65 post-quantum public key (raw 1952 bytes, standard base64).
 /// Public by design — the 32-byte seed private key only lives in the CI secret
@@ -58,8 +57,7 @@ const PUBKEY_B64: &str =
 ///
 /// `cargo xtask guard` refuses to ship a build whose constant does not match
 /// the key derived from `LIMEDL_PQC_SIGNING_KEY`.
-const PQC_PUBKEY_B64: &str =
-    "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";
+const PQC_PUBKEY_B64: &str = "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";
 
 /// Repo hosting the release assets; must match the `--repo` default of
 /// `cargo xtask manifest` and the release workflow.
@@ -141,17 +139,15 @@ impl UpdateManifest {
 /// (or a future mirror/fork) from pointing the updater at an arbitrary URL and
 /// making clients download unrelated bytes before the signature check fails.
 fn validate_asset_url(url: &str, version: &str) -> Result<()> {
-    let prefix = format!(
-        "https://github.com/{RELEASE_REPO}/releases/download/v{version}/"
-    );
+    let prefix = format!("https://github.com/{RELEASE_REPO}/releases/download/v{version}/");
     let Some(file_name) = url.strip_prefix(&prefix) else {
         bail!("artifact URL '{url}' is not under '{prefix}'");
     };
     let sane = !file_name.is_empty()
         && file_name.len() <= 128
-        && file_name.bytes().all(|b| {
-            b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'+')
-        });
+        && file_name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'+'));
     if !sane {
         bail!("artifact URL '{url}' does not end in a plain file name");
     }
@@ -216,9 +212,7 @@ pub fn detect_install_kind() -> InstallKind {
 fn installer_registry_entry_exists() -> bool {
     const UNINSTALL_KEY: &str =
         r"Software\Microsoft\Windows\CurrentVersion\Uninstall\limedl-native";
-    windows_registry::CURRENT_USER
-        .open(UNINSTALL_KEY)
-        .is_ok()
+    windows_registry::CURRENT_USER.open(UNINSTALL_KEY).is_ok()
 }
 
 /// The OS/arch half of a manifest key (`windows-x86_64`, `linux-aarch64`, …).
@@ -286,7 +280,11 @@ pub async fn check_for_update(settings: &AppSettings) -> Result<Option<Available
             );
         }
     };
-    let expected_kind = if kind == InstallKind::Installer { "installer" } else { "portable" };
+    let expected_kind = if kind == InstallKind::Installer {
+        "installer"
+    } else {
+        "portable"
+    };
     if asset.kind != expected_kind {
         bail!(
             "asset '{}' is kind '{}', expected '{expected_kind}'",
@@ -326,8 +324,9 @@ async fn fetch_manifest(settings: &AppSettings) -> Result<UpdateManifest> {
     if !PQC_PUBKEY_B64.is_empty() {
         match fetch_text(&client, MANIFEST_PQC_SIG_URL).await {
             Ok(pqc_sig_text) => {
-                verify_pqc_signature_text(&bytes, &pqc_sig_text)
-                    .context("update manifest ML-DSA-65 post-quantum signature verification failed")?;
+                verify_pqc_signature_text(&bytes, &pqc_sig_text).context(
+                    "update manifest ML-DSA-65 post-quantum signature verification failed",
+                )?;
             }
             Err(e) => {
                 tracing::warn!(
@@ -353,10 +352,7 @@ async fn fetch_asset(client: &reqwest::Client, url: &str, what: &str) -> Result<
     {
         bail!("{what} is {len} bytes, above the {MAX_UPDATE_BYTES} byte limit");
     }
-    let bytes = resp
-        .bytes()
-        .await
-        .with_context(|| format!("read {what}"))?;
+    let bytes = resp.bytes().await.with_context(|| format!("read {what}"))?;
     if bytes.len() as u64 > MAX_UPDATE_BYTES {
         bail!("{what} exceeded the {MAX_UPDATE_BYTES} byte limit");
     }
@@ -438,20 +434,14 @@ pub async fn download_and_verify(
     use tokio::io::AsyncWriteExt;
     let mut hasher = sha2::Sha256::new();
     let mut downloaded: u64 = 0;
-    while let Some(chunk) = resp
-        .chunk()
-        .await
-        .context("read update download stream")?
-    {
+    while let Some(chunk) = resp.chunk().await.context("read update download stream")? {
         file.write_all(&chunk)
             .await
             .context("write update download")?;
         hasher.update(&chunk);
         downloaded += chunk.len() as u64;
         if downloaded > MAX_UPDATE_BYTES {
-            bail!(
-                "update download exceeded the {MAX_UPDATE_BYTES} byte limit — aborting"
-            );
+            bail!("update download exceeded the {MAX_UPDATE_BYTES} byte limit — aborting");
         }
         progress(downloaded, total);
     }
@@ -462,16 +452,16 @@ pub async fn download_and_verify(
         .await
         .with_context(|| format!("re-read {}", dest.display()))?;
     if let Some(expected) = update.asset.sha256.as_deref() {
-        verify_sha256(&bytes, expected)
-            .context("sha256 mismatch (update download corrupted?)")?;
+        verify_sha256(&bytes, expected).context("sha256 mismatch (update download corrupted?)")?;
     }
     verify_signature(&bytes, &update.asset.signature)
         .context("minisign signature verification failed (update not authentic)")?;
 
     if !PQC_PUBKEY_B64.is_empty() {
         if let Some(pqc_sig) = update.asset.pqc_signature.as_deref() {
-            verify_pqc_signature(&bytes, pqc_sig)
-                .context("ML-DSA-65 post-quantum signature verification failed (update not authentic)")?;
+            verify_pqc_signature(&bytes, pqc_sig).context(
+                "ML-DSA-65 post-quantum signature verification failed (update not authentic)",
+            )?;
         } else {
             tracing::warn!("update asset has no pqcSignature; verified classical signature only");
         }
@@ -505,7 +495,10 @@ fn install_via_installer(_file: &Path) -> Result<InstallOutcome> {
 }
 
 /// Portable: extract the executable from the archive and replace in place.
-fn install_via_self_replace(update: &AvailableUpdate, verified_file: &Path) -> Result<InstallOutcome> {
+fn install_via_self_replace(
+    update: &AvailableUpdate,
+    verified_file: &Path,
+) -> Result<InstallOutcome> {
     #[cfg(target_os = "linux")]
     if std::env::var_os("APPIMAGE").is_some() {
         bail!(
@@ -571,10 +564,7 @@ fn resign_macos_bundle_after_replace() -> Result<()> {
             String::from_utf8_lossy(&output.stderr).trim()
         );
     }
-    tracing::info!(
-        "自更新完成：已为 {} 重新做 ad-hoc 签名",
-        bundle.display()
-    );
+    tracing::info!("自更新完成：已为 {} 重新做 ad-hoc 签名", bundle.display());
     Ok(())
 }
 
@@ -773,16 +763,21 @@ fn verify_pqc_signature_bytes(data: &[u8], sig_bytes: &[u8], context: &[u8]) -> 
     let pubkey_bytes = base64::engine::general_purpose::STANDARD
         .decode(PQC_PUBKEY_B64.trim())
         .context("decode embedded PQC public key base64")?;
-    let pubkey_array: [u8; ml_dsa_65::PK_LEN] = pubkey_bytes
-        .try_into()
-        .map_err(|_| anyhow!("embedded PQC public key has invalid length (expected {} bytes)", ml_dsa_65::PK_LEN))?;
+    let pubkey_array: [u8; ml_dsa_65::PK_LEN] = pubkey_bytes.try_into().map_err(|_| {
+        anyhow!(
+            "embedded PQC public key has invalid length (expected {} bytes)",
+            ml_dsa_65::PK_LEN
+        )
+    })?;
     let pubkey = ml_dsa_65::PublicKey::try_from_bytes(pubkey_array)
         .map_err(|e| anyhow!("parse embedded PQC public key: {e}"))?;
 
-    let sig_array: [u8; ml_dsa_65::SIG_LEN] = sig_bytes
-        .to_vec()
-        .try_into()
-        .map_err(|_| anyhow!("PQC signature has invalid length (expected {} bytes)", ml_dsa_65::SIG_LEN))?;
+    let sig_array: [u8; ml_dsa_65::SIG_LEN] = sig_bytes.to_vec().try_into().map_err(|_| {
+        anyhow!(
+            "PQC signature has invalid length (expected {} bytes)",
+            ml_dsa_65::SIG_LEN
+        )
+    })?;
 
     if !pubkey.verify(data, &sig_array, context) {
         bail!("ML-DSA-65 post-quantum verification rejected artifact");

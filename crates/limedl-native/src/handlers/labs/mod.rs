@@ -14,9 +14,9 @@ use slint::SharedString;
 
 use limedl_core::types::UrlRewriteRule;
 
+use crate::MainWindow;
 use crate::bridge::{evaluate_url_rewrite, url_rewrite_rules_to_slint};
 use crate::context::AppContext;
-use crate::MainWindow;
 
 /// Wire every Labs callback onto the main window.
 pub fn register(ctx: &AppContext) {

@@ -110,7 +110,13 @@ async fn ssd_pingpong_no_fault_byte_identical() -> TestResult {
     let dir = tempfile::tempdir()?;
     let file = preallocated_file(dir.path(), TOTAL)?;
     let worker = IoWorker::new(Arc::new(crate::io_scheduler::DiskDeviceManager::new()));
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(HALF, file.clone(), dir.path().join("test.bin"), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        HALF,
+        file.clone(),
+        dir.path().join("test.bin"),
+        worker,
+        None,
+    );
 
     let mut offset = 0u64;
     while offset < TOTAL {
@@ -123,7 +129,11 @@ async fn ssd_pingpong_no_fault_byte_identical() -> TestResult {
     let on_disk = std::fs::read(dir.path().join("test.bin"))?;
     assert_eq!(on_disk.len() as u64, TOTAL);
     for (i, &b) in on_disk.iter().enumerate() {
-        assert_eq!(b, pattern_at(i as u64), "SSD buffer wrote wrong byte at {i}");
+        assert_eq!(
+            b,
+            pattern_at(i as u64),
+            "SSD buffer wrote wrong byte at {i}"
+        );
     }
     Ok(())
 }
@@ -142,7 +152,13 @@ async fn ssd_pingpong_flush_failure_surfaces_error_without_corruption() -> TestR
     let dir = tempfile::tempdir()?;
     let file = preallocated_file(dir.path(), TOTAL)?;
     let worker = IoWorker::new(Arc::new(crate::io_scheduler::DiskDeviceManager::new()));
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(HALF, file.clone(), dir.path().join("test.bin"), worker, None);
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(
+        HALF,
+        file.clone(),
+        dir.path().join("test.bin"),
+        worker,
+        None,
+    );
     let ptr = Arc::as_ptr(&file) as usize;
 
     // Fail the 3rd background batch — a middle flush, with correct data before
@@ -205,7 +221,14 @@ async fn hdd_double_buffer_no_fault_byte_identical() -> TestResult {
     let pool = Arc::new(BufferPool::new(0, 0, 1, 1)); // min 64 KiB half
     let slot = pool.acquire_slot().await;
     let worker = IoWorker::new(Arc::new(crate::io_scheduler::DiskDeviceManager::new()));
-    let buf = DownloadBuffer::new_with_worker(pool, slot, file.clone(), dir.path().join("test.bin"), worker, None);
+    let buf = DownloadBuffer::new_with_worker(
+        pool,
+        slot,
+        file.clone(),
+        dir.path().join("test.bin"),
+        worker,
+        None,
+    );
 
     let mut offset = 0u64;
     while offset < TOTAL {
@@ -218,7 +241,11 @@ async fn hdd_double_buffer_no_fault_byte_identical() -> TestResult {
     let on_disk = std::fs::read(dir.path().join("test.bin"))?;
     assert_eq!(on_disk.len() as u64, TOTAL);
     for (i, &b) in on_disk.iter().enumerate() {
-        assert_eq!(b, pattern_at(i as u64), "HDD buffer wrote wrong byte at {i}");
+        assert_eq!(
+            b,
+            pattern_at(i as u64),
+            "HDD buffer wrote wrong byte at {i}"
+        );
     }
     Ok(())
 }
@@ -236,7 +263,14 @@ async fn hdd_double_buffer_flush_failure_surfaces_error_without_corruption() -> 
     let pool = Arc::new(BufferPool::new(0, 0, 1, 1)); // min 64 KiB half
     let slot = pool.acquire_slot().await;
     let worker = IoWorker::new(Arc::new(crate::io_scheduler::DiskDeviceManager::new()));
-    let buf = DownloadBuffer::new_with_worker(pool, slot, file.clone(), dir.path().join("test.bin"), worker, None);
+    let buf = DownloadBuffer::new_with_worker(
+        pool,
+        slot,
+        file.clone(),
+        dir.path().join("test.bin"),
+        worker,
+        None,
+    );
     let ptr = Arc::as_ptr(&file) as usize;
 
     let _inj = crate::file_ops::fault::injection_lock().await;
@@ -256,7 +290,10 @@ async fn hdd_double_buffer_flush_failure_surfaces_error_without_corruption() -> 
 
     let on_disk = std::fs::read(dir.path().join("test.bin"))?;
     let written = assert_no_wrong_bytes(&on_disk);
-    assert!(written < TOTAL, "failed batch must leave bytes absent (surfaced)");
+    assert!(
+        written < TOTAL,
+        "failed batch must leave bytes absent (surfaced)"
+    );
     assert!(written > 0, "expected correctly-written bytes to survive");
     Ok(())
 }

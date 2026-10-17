@@ -7,7 +7,10 @@ use crate::i18n::{self, Language};
 pub fn generate_piece_map_image(pieces: &[BtPieceInfo], lang: Language) -> (Image, String) {
     if pieces.is_empty() {
         let buf = SharedPixelBuffer::<Rgba8Pixel>::new(1, 1);
-        return (Image::from_rgba8(buf), i18n::format_piece_map_summary(0, 0, 0.0, lang));
+        return (
+            Image::from_rgba8(buf),
+            i18n::format_piece_map_summary(0, 0, 0.0, lang),
+        );
     }
 
     let total = pieces.len();
@@ -31,7 +34,13 @@ pub fn generate_piece_map_image(pieces: &[BtPieceInfo], lang: Language) -> (Imag
     };
 
     let rows: u32 = (total as u32).div_ceil(cols).max(1);
-    let cell_size: u32 = if rows > 40 { 6 } else if rows > 20 { 8 } else { 10 };
+    let cell_size: u32 = if rows > 40 {
+        6
+    } else if rows > 20 {
+        8
+    } else {
+        10
+    };
     let padding: u32 = 1;
 
     let width = cols * cell_size;
@@ -41,12 +50,27 @@ pub fn generate_piece_map_image(pieces: &[BtPieceInfo], lang: Language) -> (Imag
     let slice = buffer.make_mut_slice();
 
     // Background color: #0f1114
-    let bg_pixel = Rgba8Pixel { r: 15, g: 17, b: 20, a: 255 };
+    let bg_pixel = Rgba8Pixel {
+        r: 15,
+        g: 17,
+        b: 20,
+        a: 255,
+    };
     slice.fill(bg_pixel);
 
     // Color definitions
-    let completed_pixel = Rgba8Pixel { r: 132, g: 204, b: 22, a: 255 }; // #84cc16
-    let pending_pixel = Rgba8Pixel { r: 38, g: 42, b: 49, a: 255 };    // #262a31
+    let completed_pixel = Rgba8Pixel {
+        r: 132,
+        g: 204,
+        b: 22,
+        a: 255,
+    }; // #84cc16
+    let pending_pixel = Rgba8Pixel {
+        r: 38,
+        g: 42,
+        b: 49,
+        a: 255,
+    }; // #262a31
 
     for (idx, piece) in pieces.iter().enumerate() {
         let col = (idx as u32) % cols;

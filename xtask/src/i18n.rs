@@ -45,9 +45,11 @@ pub fn run(cmd: I18nCommand) -> Result<()> {
         I18nCommand::Generate { lang_dir, out_file } => {
             let content = generate_catalog(&lang_dir)?;
             if let Some(parent) = out_file.parent() {
-                fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
+                fs::create_dir_all(parent)
+                    .with_context(|| format!("create {}", parent.display()))?;
             }
-            fs::write(&out_file, content).with_context(|| format!("write {}", out_file.display()))?;
+            fs::write(&out_file, content)
+                .with_context(|| format!("write {}", out_file.display()))?;
             println!("wrote Rust translation catalog -> {}", out_file.display());
             Ok(())
         }
@@ -246,7 +248,10 @@ fn po_string(raw: &str, path: &Path) -> Result<String> {
                 out.push('\\');
                 out.push(other);
             }
-            None => bail!("{}: trailing backslash in .po string: {raw}", path.display()),
+            None => bail!(
+                "{}: trailing backslash in .po string: {raw}",
+                path.display()
+            ),
         }
     }
     Ok(out)

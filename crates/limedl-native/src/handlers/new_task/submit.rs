@@ -573,7 +573,10 @@ mod tests {
         assert_eq!(parse_user_checksum(""), None);
         assert_eq!(parse_user_checksum("   "), None);
         // MD5 (32 chars) unsupported
-        assert_eq!(parse_user_checksum("d41d8cd98f00b204e9800998ecf8427e"), None);
+        assert_eq!(
+            parse_user_checksum("d41d8cd98f00b204e9800998ecf8427e"),
+            None
+        );
         // SHA-1 (40 chars) unsupported
         assert_eq!(
             parse_user_checksum("da39a3ee5e6b4b0d3255bfef95601890afd80709"),
@@ -584,9 +587,7 @@ mod tests {
         assert_eq!(parse_user_checksum(&format!("sha256:{HASH_128}")), None);
         // Invalid hex characters
         assert_eq!(
-            parse_user_checksum(
-                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8zz"
-            ),
+            parse_user_checksum("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8zz"),
             None
         );
     }

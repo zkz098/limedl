@@ -70,7 +70,10 @@ const EXPECTED_METHODS: &[&str] = &[
 
 /// Find the position of `gid` in a `tellWaiting` reply.
 fn index_in_waiting(resp: &serde_json::Value, gid: &str) -> Option<usize> {
-    resp["result"].as_array()?.iter().position(|entry| entry["gid"] == gid)
+    resp["result"]
+        .as_array()?
+        .iter()
+        .position(|entry| entry["gid"] == gid)
 }
 
 // ── Contract ──────────────────────────────────────────────────────────────
@@ -317,7 +320,10 @@ async fn interop_tell_status_http_field_schema() {
         );
     }
     // errorCode/errorMessage are only present for stopped downloads.
-    assert!(status.get("errorCode").is_none(), "active download: {status}");
+    assert!(
+        status.get("errorCode").is_none(),
+        "active download: {status}"
+    );
     assert_eq!(
         status["bitfield"].as_str().map(str::len),
         status["numPieces"]
@@ -366,10 +372,16 @@ async fn interop_tell_status_bt_field_schema() {
     let deadline = std::time::Instant::now() + Duration::from_secs(20);
     let status = loop {
         let resp = rpc_call(&client, &rpc_url, "aria2.tellStatus", json!([gid])).await;
-        if resp["result"]["files"].as_array().is_some_and(|f| !f.is_empty()) {
+        if resp["result"]["files"]
+            .as_array()
+            .is_some_and(|f| !f.is_empty())
+        {
             break resp["result"].clone();
         }
-        assert!(std::time::Instant::now() < deadline, "no BT metadata: {resp}");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "no BT metadata: {resp}"
+        );
         tokio::time::sleep(Duration::from_millis(50)).await;
     };
 
@@ -381,11 +393,11 @@ async fn interop_tell_status_bt_field_schema() {
     assert_eq!(status["seeder"], "false", "{status}");
     assert!(status["numSeeders"].is_string(), "{status}");
     assert_eq!(status["bittorrent"]["mode"], "single", "{status}");
+    assert!(status["bittorrent"]["info"]["name"].is_string(), "{status}");
     assert!(
-        status["bittorrent"]["info"]["name"].is_string(),
+        status["files"].as_array().is_some_and(|f| f.len() == 1),
         "{status}"
     );
-    assert!(status["files"].as_array().is_some_and(|f| f.len() == 1), "{status}");
 
     let _ = rpc_call(&client, &rpc_url, "aria2.remove", json!([gid])).await;
     let _ = shutdown_tx.send(true);

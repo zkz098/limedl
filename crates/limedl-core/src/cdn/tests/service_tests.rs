@@ -50,9 +50,7 @@ async fn monitor_test_emits_progress_and_complete_ready() -> TestResult {
     // Phase 2: subscribe and spawn the monitoring loop in background.
     let monitor_cdn = Arc::clone(&cdn);
     let monitor_eb = Arc::clone(&event_bus);
-    let monitor_handle = tokio::spawn(async move {
-        monitor_cdn.monitor_test(monitor_eb).await
-    });
+    let monitor_handle = tokio::spawn(async move { monitor_cdn.monitor_test(monitor_eb).await });
 
     // Phase 3: wait for monitor_test's first event to decide when to apply_ip.
     // If we receive CdnProgress: monitor_test observed Testing — drive to Ready.
@@ -165,10 +163,7 @@ async fn monitor_test_emits_progress_and_complete_ready() -> TestResult {
             "monitor_test must emit at least one CdnProgress event when apply_ip is used"
         );
     }
-    assert!(
-        got_complete,
-        "monitor_test must emit a CdnComplete event"
-    );
+    assert!(got_complete, "monitor_test must emit a CdnComplete event");
 
     // Await the monitor handle to ensure no panics in background.
     let outcome = monitor_handle.await?;
@@ -204,9 +199,7 @@ async fn monitor_test_emits_complete_on_error() -> TestResult {
 
     let monitor_cdn = Arc::clone(&cdn);
     let monitor_eb = Arc::clone(&event_bus);
-    let monitor_handle = tokio::spawn(async move {
-        monitor_cdn.monitor_test(monitor_eb).await
-    });
+    let monitor_handle = tokio::spawn(async move { monitor_cdn.monitor_test(monitor_eb).await });
 
     // Wait for a poll cycle, then drive the accelerator into an error
     // state that monitor_test can observe. The background task from

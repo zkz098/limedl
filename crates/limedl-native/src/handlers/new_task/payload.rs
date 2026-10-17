@@ -11,13 +11,13 @@ use slint::SharedString;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::types::TorrentFileEntry;
 
+use crate::MainWindow;
 use crate::bridge::{self, ClipboardPayload, TaskStore};
 use crate::handlers::common::with_ui;
 use crate::handlers::new_task::{
     apply_aria2_input, fill_batch, preview_torrent, reset_transient_state, spawn_probe,
 };
 use crate::ui_sync::restore_and_show_window;
-use crate::MainWindow;
 
 pub fn open_new_task_with_payload(
     raw_payload: &str,
@@ -27,7 +27,11 @@ pub fn open_new_task_with_payload(
     entries_cache: &Arc<Mutex<Vec<TorrentFileEntry>>>,
     included_cache: &Arc<Mutex<Vec<bool>>>,
 ) {
-    let payload = raw_payload.trim().trim_matches('"').trim_matches('\'').trim();
+    let payload = raw_payload
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'')
+        .trim();
     if payload.is_empty() {
         return;
     }
@@ -101,14 +105,11 @@ fn strip_file_url(payload: &str) -> String {
 /// (compared ASCII-case-insensitively).
 fn has_extension(path: &Path, extensions: &[&str]) -> bool {
     path.is_file()
-        && path
-            .extension()
-            .and_then(OsStr::to_str)
-            .is_some_and(|ext| {
-                extensions
-                    .iter()
-                    .any(|wanted| ext.eq_ignore_ascii_case(wanted))
-            })
+        && path.extension().and_then(OsStr::to_str).is_some_and(|ext| {
+            extensions
+                .iter()
+                .any(|wanted| ext.eq_ignore_ascii_case(wanted))
+        })
 }
 
 /// Pre-fill the dialog from the first mirror list of a `.metalink`/`.meta4` file.

@@ -490,6 +490,22 @@ jobs:
           # is no --fail-under-lines here yet: land a baseline gate once the
           # number has settled in CI.
           cargo llvm-cov nextest --cargo-profile dev --no-fail-fast --manifest-path crates/limedl-native/Cargo.toml --lcov --output-path crates/limedl-native/lcov-native.info --ignore-filename-regex 'crates.limedl-core' --no-cfg-coverage
+      # Formatting is checked against a *pinned* toolchain instead of this job's
+      # `stable`: rustfmt's output changes between Rust releases (the style
+      # edition is the obvious one, and it silently ignores its nightly-only
+      # options — see `rustfmt.toml`), so an unrelated toolchain bump would
+      # otherwise fail this step with no code change. That is the same failure
+      # mode that made `cargo-llvm-cov` and `nextest` pinned above; bumping this
+      # pin is a deliberate commit that carries the resulting `cargo fmt` output.
+      # `--profile minimal --component rustfmt` keeps the download to the
+      # formatter alone, and `cargo fmt` compiles nothing, so this does not
+      # disturb the coverage-artifact ordering contract above.
+      #
+      # The check is byte-identical on Linux, macOS and Windows only because
+      # `rustfmt.toml` pins `newline_style = "Unix"` and `.gitattributes` pins
+      # `eol=lf`. Changing one without the others makes it a coin flip.
+      - run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt
+      - run: cargo +1.99.0 fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # The theme-token convention ("`Theme.c<hex>` tokens only, never new hardcoded
       # hex in components") had a scanner but no caller: `cargo xtask theme check`

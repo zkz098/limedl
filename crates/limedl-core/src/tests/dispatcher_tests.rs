@@ -20,17 +20,17 @@ use crate::backend_registry::BackendRegistry;
 use crate::buffer_pool::BufferPool;
 use crate::cdn::CdnService;
 use crate::dispatcher::Dispatcher;
-use crate::event_bus::{DownloadEvent, EventBus};
 use crate::download::{DownloadCore, ManagedDownload};
+use crate::event_bus::{DownloadEvent, EventBus};
 use crate::manager::DownloadManager;
-use crate::manifest::{Manifest, CHUNK_SIZE};
+use crate::manifest::{CHUNK_SIZE, Manifest};
 use crate::rate_limiter::RateLimiter;
 use crate::services::{ConcurrencyManager, DiskIoService, SettingsService};
 use crate::types::{
     AppSettings, BtSettings, CdnAccelerationSettings, ChecksumMode, DownloadDefaultsSettings,
     DownloadSnapshot, DownloadState, IoBaselineSettings, MatchType, Priority, ReplacementMode,
-    RewriteTarget, SchedulerMode, SchedulerSettings, TaskId, ThreadMode, TraditionalSchedulerSettings,
-    UrlRewriteRule, UrlRewriteSettings,
+    RewriteTarget, SchedulerMode, SchedulerSettings, TaskId, ThreadMode,
+    TraditionalSchedulerSettings, UrlRewriteRule, UrlRewriteSettings,
 };
 use std::sync::atomic::Ordering;
 
@@ -206,7 +206,10 @@ async fn dispatcher_cancel_emits_updated() -> TestResult {
     let event = rx.try_recv()?;
     match event {
         DownloadEvent::Updated { summary } => {
-            assert_eq!(summary.id, id_str, "cancel: Updated event id must match task id");
+            assert_eq!(
+                summary.id, id_str,
+                "cancel: Updated event id must match task id"
+            );
         }
         other => panic!("cancel: expected Updated, got {other:?}"),
     }
@@ -236,7 +239,10 @@ async fn dispatcher_remove_emits_updated() -> TestResult {
     let event = rx.try_recv()?;
     match event {
         DownloadEvent::Updated { summary } => {
-            assert_eq!(summary.id, id_str, "remove: Updated event id must match task id");
+            assert_eq!(
+                summary.id, id_str,
+                "remove: Updated event id must match task id"
+            );
         }
         other => panic!("remove: expected Updated, got {other:?}"),
     }
@@ -266,7 +272,10 @@ async fn dispatcher_purge_emits_updated() -> TestResult {
     let event = rx.try_recv()?;
     match event {
         DownloadEvent::Updated { summary } => {
-            assert_eq!(summary.id, id_str, "purge: Updated event id must match task id");
+            assert_eq!(
+                summary.id, id_str,
+                "purge: Updated event id must match task id"
+            );
         }
         other => panic!("purge: expected Updated, got {other:?}"),
     }
@@ -296,7 +305,10 @@ async fn dispatcher_pause_emits_updated() -> TestResult {
     let event = rx.try_recv()?;
     match event {
         DownloadEvent::Updated { summary } => {
-            assert_eq!(summary.id, id_str, "pause: Updated event id must match task id");
+            assert_eq!(
+                summary.id, id_str,
+                "pause: Updated event id must match task id"
+            );
         }
         other => panic!("pause: expected Updated, got {other:?}"),
     }
@@ -406,10 +418,14 @@ fn bt_runtime_status_without_bt_backend_returns_internal_error() {
 /// spinning up a download backend.
 fn make_full_dispatcher(
     state_dir: &std::path::Path,
-) -> (Dispatcher, Arc<ConcurrencyManager>, Arc<BufferPool>, Arc<CdnService>) {
-    let settings_service = Arc::new(
-        SettingsService::new(state_dir.join("settings.json")).expect("SettingsService"),
-    );
+) -> (
+    Dispatcher,
+    Arc<ConcurrencyManager>,
+    Arc<BufferPool>,
+    Arc<CdnService>,
+) {
+    let settings_service =
+        Arc::new(SettingsService::new(state_dir.join("settings.json")).expect("SettingsService"));
     let pool = Arc::new(BufferPool::new(64, 16, 2, 1));
     let disk_io = Arc::new(DiskIoService::new(pool.clone(), settings_service.clone()));
     let concurrency = Arc::new(ConcurrencyManager::new(1, 1));
@@ -501,7 +517,10 @@ async fn dispatcher_set_priority_emits_updated() -> TestResult {
     let event = rx.try_recv()?;
     match event {
         DownloadEvent::Updated { summary } => {
-            assert_eq!(summary.id, id_str, "set_priority: Updated event id must match task id");
+            assert_eq!(
+                summary.id, id_str,
+                "set_priority: Updated event id must match task id"
+            );
         }
         other => panic!("set_priority: expected Updated, got {other:?}"),
     }
@@ -583,10 +602,16 @@ async fn dispatcher_without_optional_services_reports_errors() -> TestResult {
     assert!(!dispatcher.get_overclock_mode());
     assert!(dispatcher.default_download_dir().await.is_none());
     assert_eq!(
-        dispatcher.resolve_mirror_urls("https://example.com/f").await,
+        dispatcher
+            .resolve_mirror_urls("https://example.com/f")
+            .await,
         vec!["https://example.com/f".to_string()]
     );
-    assert!(dispatcher.detect_disk_type(std::path::Path::new("/tmp")).is_ok());
+    assert!(
+        dispatcher
+            .detect_disk_type(std::path::Path::new("/tmp"))
+            .is_ok()
+    );
     assert!(dispatcher.list().await?.is_empty());
     assert!(!dispatcher.has_active_downloads().await);
 
@@ -647,7 +672,12 @@ async fn dispatcher_save_settings_syncs_concurrency_and_buffer_pool() -> TestRes
 
     // Read-side helpers reflect the persisted state.
     assert_eq!(
-        dispatcher.get_settings().await?.scheduler.automatic.max_parallel_threads,
+        dispatcher
+            .get_settings()
+            .await?
+            .scheduler
+            .automatic
+            .max_parallel_threads,
         11
     );
     assert_eq!(dispatcher.get_settings_blocking()?.bt.max_downloads, 3);
@@ -744,7 +774,9 @@ async fn dispatcher_resolve_mirror_urls_applies_enabled_rules() -> TestResult {
     assert_eq!(resolved.last().map(String::as_str), Some(original));
 
     assert_eq!(
-        dispatcher.resolve_mirror_urls("https://example.com/plain").await,
+        dispatcher
+            .resolve_mirror_urls("https://example.com/plain")
+            .await,
         vec!["https://example.com/plain".to_string()]
     );
     Ok(())
@@ -786,10 +818,7 @@ async fn dispatcher_fetch_tracker_list_normalizes_remote_text() -> TestResult {
     );
 
     assert!(
-        dispatcher
-            .fetch_tracker_list("not a url")
-            .await
-            .is_err(),
+        dispatcher.fetch_tracker_list("not a url").await.is_err(),
         "an unparsable tracker-list URL must be an error"
     );
     Ok(())

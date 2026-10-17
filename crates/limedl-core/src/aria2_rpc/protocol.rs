@@ -7,8 +7,8 @@
 use crate::types::{BtFileStatus, DownloadState, DownloadSummary, TaskId, TaskKind};
 use irontide::core::Id20;
 
-use serde_json::Value;
 use super::context::RpcContext;
+use serde_json::Value;
 use uuid::Uuid;
 
 pub fn internal_id_to_gid(internal_id: &str) -> String {
@@ -143,12 +143,18 @@ pub(crate) fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
         "status".to_string(),
         Value::String(state_to_aria2(&summary.state).to_string()),
     );
-    map.insert("totalLength".to_string(), Value::String(u64_str(summary.total_bytes)));
+    map.insert(
+        "totalLength".to_string(),
+        Value::String(u64_str(summary.total_bytes)),
+    );
     map.insert(
         "completedLength".to_string(),
         Value::String(summary.downloaded_bytes.to_string()),
     );
-    map.insert("uploadLength".to_string(), Value::String(u64_str(summary.uploaded_bytes)));
+    map.insert(
+        "uploadLength".to_string(),
+        Value::String(u64_str(summary.uploaded_bytes)),
+    );
     map.insert(
         "downloadSpeed".to_string(),
         Value::String(f64_str(summary.speed_bytes_per_second)),
@@ -170,7 +176,11 @@ pub(crate) fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
         );
         map.insert(
             "numSeeders".to_string(),
-            Value::String(summary.peer_count.map_or_else(|| "0".to_string(), |p| p.to_string())),
+            Value::String(
+                summary
+                    .peer_count
+                    .map_or_else(|| "0".to_string(), |p| p.to_string()),
+            ),
         );
         map.insert("seeder".to_string(), Value::String(bool_str(seeder)));
     }
@@ -181,14 +191,21 @@ pub(crate) fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
         // the human-readable reason stays in `errorMessage`.
         map.insert(
             "errorCode".to_string(),
-            Value::String(if summary.error.is_some() { "1".to_string() } else { "0".to_string() }),
+            Value::String(if summary.error.is_some() {
+                "1".to_string()
+            } else {
+                "0".to_string()
+            }),
         );
         map.insert(
             "errorMessage".to_string(),
             Value::String(summary.error.clone().unwrap_or_default()),
         );
     }
-    map.insert("dir".to_string(), Value::String(summary.destination_path.clone()));
+    map.insert(
+        "dir".to_string(),
+        Value::String(summary.destination_path.clone()),
+    );
     map.insert("files".to_string(), build_file_list(summary));
     // `bitfield`/`numPieces`/`pieceLength` and the BitTorrent `bittorrent`
     // object need a backend/manifest lookup, so the caller adds them for

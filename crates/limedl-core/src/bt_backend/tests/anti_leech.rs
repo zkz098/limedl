@@ -229,7 +229,10 @@ async fn anti_leech_spawn_replaces_the_previous_loop() {
     Arc::clone(&backend).spawn_anti_leech_loop();
     let second = backend.anti_leech_task.lock().as_ref().map(|h| h.id());
     assert!(second.is_some(), "the replacement loop is stored");
-    assert_ne!(first, second, "spawn must abort and replace the previous loop");
+    assert_ne!(
+        first, second,
+        "spawn must abort and replace the previous loop"
+    );
 
     backend.shutdown().await;
 }

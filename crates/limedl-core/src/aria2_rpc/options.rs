@@ -4,14 +4,14 @@ use std::path::Path;
 
 use base64::Engine;
 
+use super::context::RpcContext;
+use super::jsonrpc::{ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, make_error};
+use super::protocol::resolve_gid;
+use super::query::{extract_gid, get_all_summaries};
 use crate::http::has_header;
 use crate::types::{ChecksumMode, TaskId};
 use serde_json::Value;
 use std::path::PathBuf;
-use super::context::RpcContext;
-use super::jsonrpc::{ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, make_error};
-use super::protocol::{resolve_gid};
-use super::query::{extract_gid, get_all_summaries};
 
 /// Global aria2 option keys AriaNg reads, taken from its
 /// `aria2GlobalAvailableOptions` (`src/scripts/config/aria2Options.js`) plus the
@@ -287,16 +287,15 @@ pub(crate) fn push_header(headers: &mut Vec<String>, raw: &str) {
 /// aria2 serialises every boolean option as a string over JSON-RPC
 /// (`"pause": "true"`); accept raw booleans too.
 pub(crate) fn aria2_bool(value: &Value) -> bool {
-    value
-        .as_bool()
-        .unwrap_or_else(|| value.as_str().is_some_and(|s| s.eq_ignore_ascii_case("true") || s == "1"))
+    value.as_bool().unwrap_or_else(|| {
+        value
+            .as_str()
+            .is_some_and(|s| s.eq_ignore_ascii_case("true") || s == "1")
+    })
 }
 
 /// Read a boolean option from an aria2 options object.
-pub(crate) fn option_is_true(
-    options: Option<&serde_json::Map<String, Value>>,
-    key: &str,
-) -> bool {
+pub(crate) fn option_is_true(options: Option<&serde_json::Map<String, Value>>, key: &str) -> bool {
     options.and_then(|o| o.get(key)).is_some_and(aria2_bool)
 }
 
@@ -346,9 +345,7 @@ pub(crate) fn split_aria2_tail(params: &[Value], from: usize) -> Aria2Tail {
 
 /// Parse aria2's `select-file`: a 1-based comma-separated index list, into the
 /// engine's 0-based file indices.
-pub(crate) fn parse_select_file(
-    value: &Value,
-) -> std::result::Result<Vec<usize>, JsonRpcError> {
+pub(crate) fn parse_select_file(value: &Value) -> std::result::Result<Vec<usize>, JsonRpcError> {
     let raw = value.as_str().ok_or_else(|| {
         make_error(
             ERR_INVALID_PARAMS,
@@ -363,7 +360,10 @@ pub(crate) fn parse_select_file(
             continue;
         }
         let index: usize = part.parse().map_err(|_| {
-            make_error(ERR_INVALID_PARAMS, format!("invalid select-file index: {part}"))
+            make_error(
+                ERR_INVALID_PARAMS,
+                format!("invalid select-file index: {part}"),
+            )
         })?;
         if index == 0 {
             return Err(make_error(
@@ -506,7 +506,11 @@ fn aria2_global_options(settings: &crate::types::AppSettings) -> serde_json::Map
         }
     }
 
-    let split = settings.scheduler.automatic.max_threads_per_task.to_string();
+    let split = settings
+        .scheduler
+        .automatic
+        .max_threads_per_task
+        .to_string();
     let max_concurrent = match settings.scheduler.mode {
         SchedulerMode::Traditional => settings.scheduler.traditional.max_parallel_tasks,
         SchedulerMode::Automatic => settings.scheduler.automatic.max_parallel_threads,
@@ -553,7 +557,10 @@ fn aria2_global_options(settings: &crate::types::AppSettings) -> serde_json::Map
         ("lowest-speed-limit", "0".to_string()),
         ("max-connection-per-server", split.clone()),
         ("max-file-not-found", "0".to_string()),
-        ("max-tries", settings.download.default_max_retries.to_string()),
+        (
+            "max-tries",
+            settings.download.default_max_retries.to_string(),
+        ),
         ("min-split-size", "20M".to_string()),
         ("netrc-path", String::new()),
         ("no-netrc", flag(true)),
@@ -587,10 +594,7 @@ fn aria2_global_options(settings: &crate::types::AppSettings) -> serde_json::Map
         ("header", String::new()),
         ("save-cookies", String::new()),
         ("use-head", flag(false)),
-        (
-            "user-agent",
-            settings.download.default_user_agent.clone(),
-        ),
+        ("user-agent", settings.download.default_user_agent.clone()),
         // ftp / sftp
         ("ftp-user", String::new()),
         ("ftp-passwd", String::new()),
@@ -746,7 +750,8 @@ pub(crate) async fn handle_change_global_option(
         .and_then(|v| v.as_object())
         .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing options object"))?;
 
-    let dm = ctx.http()
+    let dm = ctx
+        .http()
         .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
     let mut settings = dm
         .settings()
@@ -1218,7 +1223,10 @@ pub(crate) async fn handle_get_option(
     map.insert("all-proxy-user".to_string(), Value::String(String::new()));
     map.insert("all-proxy-passwd".to_string(), Value::String(String::new()));
     map.insert("checksum".to_string(), Value::String(String::new()));
-    map.insert("check-integrity".to_string(), Value::String("false".to_string()));
+    map.insert(
+        "check-integrity".to_string(),
+        Value::String("false".to_string()),
+    );
     map.insert("bt-max-peers".to_string(), Value::String("128".to_string()));
     map.insert(
         "bt-request-peer-speed-limit".to_string(),
@@ -1228,7 +1236,10 @@ pub(crate) async fn handle_get_option(
         "bt-remove-unselected-file".to_string(),
         Value::String("false".to_string()),
     );
-    map.insert("bt-stop-timeout".to_string(), Value::String("0".to_string()));
+    map.insert(
+        "bt-stop-timeout".to_string(),
+        Value::String("0".to_string()),
+    );
     map.insert("bt-tracker".to_string(), Value::String(String::new()));
 
     Ok(Value::Object(map))
@@ -1253,7 +1264,10 @@ mod tests {
             "getGlobalOption is missing AriaNg keys: {missing:?}"
         );
         for (key, value) in &options {
-            assert!(value.is_string(), "{key} must be a string like aria2: {value}");
+            assert!(
+                value.is_string(),
+                "{key} must be a string like aria2: {value}"
+            );
         }
     }
 }

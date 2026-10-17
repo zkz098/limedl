@@ -76,7 +76,9 @@ fn are_regions_close(loc_a: &str, loc_b: &str) -> bool {
     }
 
     // Europe cluster
-    let europe = ["de", "fr", "nl", "gb", "uk", "ch", "at", "se", "no", "fi", "pl", "it", "es"];
+    let europe = [
+        "de", "fr", "nl", "gb", "uk", "ch", "at", "se", "no", "fi", "pl", "it", "es",
+    ];
     if europe.contains(&a.as_str()) && europe.contains(&b.as_str()) {
         return true;
     }

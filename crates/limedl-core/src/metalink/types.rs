@@ -31,13 +31,25 @@ impl MetalinkFile {
     /// Pick the strongest cryptographic hash supported by limedl.
     /// Priority order: SHA-512 > SHA-256 > BLAKE3.
     pub fn best_checksum(&self) -> Option<(ChecksumMode, String)> {
-        if let Some(entry) = self.hashes.iter().find(|h| h.algorithm == ChecksumMode::Sha512) {
+        if let Some(entry) = self
+            .hashes
+            .iter()
+            .find(|h| h.algorithm == ChecksumMode::Sha512)
+        {
             return Some((ChecksumMode::Sha512, entry.hash.clone()));
         }
-        if let Some(entry) = self.hashes.iter().find(|h| h.algorithm == ChecksumMode::Sha256) {
+        if let Some(entry) = self
+            .hashes
+            .iter()
+            .find(|h| h.algorithm == ChecksumMode::Sha256)
+        {
             return Some((ChecksumMode::Sha256, entry.hash.clone()));
         }
-        if let Some(entry) = self.hashes.iter().find(|h| h.algorithm == ChecksumMode::Blake3) {
+        if let Some(entry) = self
+            .hashes
+            .iter()
+            .find(|h| h.algorithm == ChecksumMode::Blake3)
+        {
             return Some((ChecksumMode::Blake3, entry.hash.clone()));
         }
         None

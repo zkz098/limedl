@@ -10,24 +10,17 @@
 //! and would otherwise form a dependency cycle.  Methods whose `dm` parameter
 //! was unused take no state at all.
 
-use std::{
-    fs,
-    path::PathBuf,
-    sync::Arc,
-    time::Duration,
-};
+use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
+    download::{ManagedDownload, WaitState},
     error::{DownloadError, Result, io_error_with_path},
     event_bus::DownloadEvent,
     file_ops::open_download_file,
-    download::{
-        ManagedDownload, WaitState,
-    },
     manager_state::ManagerState,
     now_ms,
     types::{ChunkInfo, DownloadProgress, DownloadSnapshot, DownloadState, DownloadSummary},
@@ -134,7 +127,8 @@ impl TaskLifecycle {
                     core.snapshot.final_url = core.manifest.final_url.clone();
                 }
 
-                let (client, cdn_accelerated, cdn_node_ip) = manager.resolve_client(url_to_try).await;
+                let (client, cdn_accelerated, cdn_node_ip) =
+                    manager.resolve_client(url_to_try).await;
                 {
                     let mut core = managed.lock_core();
                     core.snapshot.cdn_accelerated = cdn_accelerated;
@@ -196,10 +190,12 @@ impl TaskLifecycle {
                             "{:016x}",
                             xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
                         );
-                        manager.event_bus().publish(DownloadEvent::Aria2Notification {
-                            event_name: "aria2.onDownloadError".into(),
-                            gid,
-                        });
+                        manager
+                            .event_bus()
+                            .publish(DownloadEvent::Aria2Notification {
+                                event_name: "aria2.onDownloadError".into(),
+                                gid,
+                            });
 
                         break;
                     }
@@ -210,9 +206,7 @@ impl TaskLifecycle {
                 let core = managed.lock_core();
                 core.snapshot.state != DownloadState::Canceled
             };
-            if should_persist
-                && let Err(error) = manager.persist(managed.clone()).await
-            {
+            if should_persist && let Err(error) = manager.persist(managed.clone()).await {
                 log_background_error("persist background download state", &error);
             }
             manager.evict_completed().await;
@@ -280,10 +274,7 @@ impl TaskLifecycle {
     // ── Wait helpers ──────────────────────────────────────────────────
 
     /// Wait until a download's runtime token is dropped (worker exited).
-    pub(crate) async fn wait_until_stopped(
-        &self,
-        managed: &Arc<ManagedDownload>,
-    ) {
+    pub(crate) async fn wait_until_stopped(&self, managed: &Arc<ManagedDownload>) {
         if managed.lock_runtime().is_none() {
             return;
         }
@@ -330,10 +321,7 @@ impl TaskLifecycle {
     // ── File operations ───────────────────────────────────────────────
 
     /// Delete the temp file (and any corrupt leftover file) for a download.
-    pub(crate) fn cleanup_files(
-        &self,
-        managed: &Arc<ManagedDownload>,
-    ) -> Result<()> {
+    pub(crate) fn cleanup_files(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
         let manifest = managed.lock_core().manifest.clone();
         let temp_path = PathBuf::from(manifest.temp_path);
         if temp_path.exists() {
@@ -347,10 +335,7 @@ impl TaskLifecycle {
     }
 
     /// Delete the destination file for a download (used by `purge`).
-    fn cleanup_destination_file(
-        &self,
-        managed: &Arc<ManagedDownload>,
-    ) -> Result<()> {
+    fn cleanup_destination_file(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
         let manifest = managed.lock_core().manifest.clone();
         let destination_path = PathBuf::from(&manifest.destination_path);
         if destination_path.exists() {
@@ -365,10 +350,7 @@ impl TaskLifecycle {
     }
 
     /// Prepare a fresh (empty) temp file for a download.
-    pub(crate) fn prepare_fresh_temp_file(
-        &self,
-        managed: &Arc<ManagedDownload>,
-    ) -> Result<()> {
+    pub(crate) fn prepare_fresh_temp_file(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
         let manifest = managed.lock_core().manifest.clone();
         let temp_path = PathBuf::from(manifest.temp_path);
         if temp_path.exists() {
@@ -384,11 +366,7 @@ impl TaskLifecycle {
     }
 
     /// Reset all progress counters for a download.
-    pub(crate) fn reset_progress(
-        &self,
-        managed: &Arc<ManagedDownload>,
-        force_single_stream: bool,
-    ) {
+    pub(crate) fn reset_progress(&self, managed: &Arc<ManagedDownload>, force_single_stream: bool) {
         let now = now_ms();
         let mut core = managed.lock_core();
         core.speed_tracker.reset();
@@ -462,10 +440,7 @@ impl TaskLifecycle {
 
     /// Build a `DownloadSnapshot` from a managed download, computing speed
     /// and ETA from AIMD state.
-    pub(crate) fn build_snapshot(
-        &self,
-        managed: Arc<ManagedDownload>,
-    ) -> DownloadSnapshot {
+    pub(crate) fn build_snapshot(&self, managed: Arc<ManagedDownload>) -> DownloadSnapshot {
         let core = managed.lock_core();
         let mut snapshot = core.snapshot.clone();
         let chunks: Vec<ChunkInfo> = core
@@ -538,11 +513,7 @@ impl TaskLifecycle {
     }
 
     /// Emit a lightweight `download-progress` event for incremental UI updates.
-    pub(crate) fn emit_progress(
-        &self,
-        dm: &dyn ManagerState,
-        managed: &Arc<ManagedDownload>,
-    ) {
+    pub(crate) fn emit_progress(&self, dm: &dyn ManagerState, managed: &Arc<ManagedDownload>) {
         let snapshot = self.build_snapshot(managed.clone());
         let progress = DownloadProgress::from(&snapshot);
         dm.event_bus().publish(DownloadEvent::Progress { progress });

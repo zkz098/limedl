@@ -1,4 +1,4 @@
-﻿//! Benchmarks for the token-bucket rate limiter.
+//! Benchmarks for the token-bucket rate limiter.
 //!
 //! Measures overhead of the async and blocking consume paths, rate
 //! switching cost, and concurrent fairness under contention.
@@ -23,7 +23,9 @@ fn bench_consume_unlimited(c: &mut Criterion) {
 
     c.bench_function("rate_limiter/consume_unlimited", |b| {
         b.iter(|| {
-            harness.rt.block_on(limiter.consume(std::hint::black_box(4096)));
+            harness
+                .rt
+                .block_on(limiter.consume(std::hint::black_box(4096)));
         });
     });
 }
@@ -40,7 +42,9 @@ fn bench_consume_limited(c: &mut Criterion) {
 
     c.bench_function("rate_limiter/consume_limited", |b| {
         b.iter(|| {
-            harness.rt.block_on(limiter.consume(std::hint::black_box(8192)));
+            harness
+                .rt
+                .block_on(limiter.consume(std::hint::black_box(8192)));
         });
     });
 }

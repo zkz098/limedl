@@ -83,7 +83,11 @@ impl super::IrontideBtBackend {
                 }
             }),
             info_hash: Some(info_hash.to_hex()),
-            created_at_ms: self.torrent_created_at.get(info_hash).map(|r| *r.value()).unwrap_or(now),
+            created_at_ms: self
+                .torrent_created_at
+                .get(info_hash)
+                .map(|r| *r.value())
+                .unwrap_or(now),
             updated_at_ms: now,
             cdn_accelerated: false,
             cdn_node_ip: None,

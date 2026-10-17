@@ -4,9 +4,9 @@
 //! and centralized cross-protocol I/O control for HTTP, BitTorrent, and future protocols.
 
 pub mod queue;
-pub mod topology;
 #[cfg(test)]
 mod tests;
+pub mod topology;
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -16,12 +16,12 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-pub use queue::{DeviceMetric, DeviceQueue};
-pub use topology::{DeviceId, DeviceTopology};
-use crate::file_ops::SyncMode;
 use crate::error::DownloadError;
 use crate::file_ops::MediaOverrides;
+use crate::file_ops::SyncMode;
 use crate::types::{DiskType, FastDashMap};
+pub use queue::{DeviceMetric, DeviceQueue};
+pub use topology::{DeviceId, DeviceTopology};
 
 /// Unified global device-level I/O manager.
 #[derive(Clone)]
@@ -93,7 +93,10 @@ impl DiskDeviceManager {
 
     /// Collect live runtime metrics for all active physical/logical device queues.
     pub fn get_device_metrics(&self) -> Vec<DeviceMetric> {
-        self.queues.iter().map(|entry| entry.value().metrics()).collect()
+        self.queues
+            .iter()
+            .map(|entry| entry.value().metrics())
+            .collect()
     }
 }
 

@@ -147,7 +147,11 @@ pub fn format_toast_update_downloading(version: &str, lang: Language) -> String 
 }
 
 pub fn format_toast_update_ready(version: &str, lang: Language) -> String {
-    tr_fmt("v{} downloaded and verified. Restart to apply.", lang, &[&version])
+    tr_fmt(
+        "v{} downloaded and verified. Restart to apply.",
+        lang,
+        &[&version],
+    )
 }
 
 pub fn format_toast_update_installer_launched(lang: Language) -> &'static str {
@@ -163,7 +167,10 @@ pub fn format_toast_update_store_triggered(lang: Language) -> &'static str {
 }
 
 pub fn format_toast_update_not_found(lang: Language) -> &'static str {
-    tr("No update information found. Please check for updates again.", lang)
+    tr(
+        "No update information found. Please check for updates again.",
+        lang,
+    )
 }
 
 pub fn format_toast_update_up_to_date(lang: Language) -> &'static str {
@@ -171,7 +178,11 @@ pub fn format_toast_update_up_to_date(lang: Language) -> &'static str {
 }
 
 pub fn format_toast_update_available(version: &str, lang: Language) -> String {
-    tr_fmt("New version v{} available. Go to About to update.", lang, &[&version])
+    tr_fmt(
+        "New version v{} available. Go to About to update.",
+        lang,
+        &[&version],
+    )
 }
 
 pub fn format_toast_update_check_failed(err: &str, lang: Language) -> String {
@@ -183,7 +194,11 @@ pub fn format_toast_update_restart_failed(err: &str, lang: Language) -> String {
 }
 
 pub fn format_toast_invalid_checksum(lang: Language) -> String {
-    tr("Invalid checksum format (supports SHA-256, SHA-512, BLAKE3)", lang).to_string()
+    tr(
+        "Invalid checksum format (supports SHA-256, SHA-512, BLAKE3)",
+        lang,
+    )
+    .to_string()
 }
 
 pub fn format_toast_integrity_checking(file_name: &str, lang: Language) -> String {
@@ -191,19 +206,29 @@ pub fn format_toast_integrity_checking(file_name: &str, lang: Language) -> Strin
 }
 
 pub fn format_toast_integrity_passed(file_name: &str, mode: &str, lang: Language) -> String {
-    tr_fmt("{} verified successfully ({} match)", lang, &[&file_name, &mode])
+    tr_fmt(
+        "{} verified successfully ({} match)",
+        lang,
+        &[&file_name, &mode],
+    )
 }
 
 pub fn format_toast_integrity_mismatch(file_name: &str, mode: &str, lang: Language) -> String {
-    tr_fmt("{} verification failed: {} mismatch!", lang, &[&file_name, &mode])
+    tr_fmt(
+        "{} verification failed: {} mismatch!",
+        lang,
+        &[&file_name, &mode],
+    )
 }
 
 pub fn format_toast_integrity_computed(file_name: &str, mode: &str, lang: Language) -> String {
-    tr_fmt("{} integrity computed ({}), hash copied to clipboard", lang, &[&file_name, &mode])
+    tr_fmt(
+        "{} integrity computed ({}), hash copied to clipboard",
+        lang,
+        &[&file_name, &mode],
+    )
 }
 
 pub fn format_toast_integrity_failed(err: &str, lang: Language) -> String {
     tr_fmt("Integrity verification failed: {}", lang, &[&err])
 }
-
-

@@ -290,12 +290,18 @@ fn view_mode_button_shows_text_only_on_wide_viewports() {
 
         ui.set_window_size(PREFERRED_SIZE.0, PREFERRED_SIZE.1);
         let (_, _, pref_w, _) = ui.bounds("MainWindow::btn_view_mode");
-        assert!(pref_w <= 32.0, "icon-only button at preferred width, got {pref_w}");
+        assert!(
+            pref_w <= 32.0,
+            "icon-only button at preferred width, got {pref_w}"
+        );
 
         // At wide viewport (>= 1360px), it expands to show the text label.
         ui.set_window_size(1400.0, 800.0);
         let (_, _, wide_w, _) = ui.bounds("MainWindow::btn_view_mode");
-        assert!(wide_w >= 60.0, "expanded button with text at 1400px, got {wide_w}");
+        assert!(
+            wide_w >= 60.0,
+            "expanded button with text at 1400px, got {wide_w}"
+        );
         ui.assert_inside_window("MainWindow::btn_view_mode");
         ui.assert_inside_window("MainWindow::ta_new_task");
     });
@@ -331,9 +337,13 @@ fn drop_hint_pill_icon_and_text_are_vertically_centered() {
 fn table_header_sort_icon_is_vertically_centered() {
     with_ui(|ui| {
         ui.set_window_size(1280.0, 800.0);
-        ui.seed(vec![
-            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
-        ]);
+        ui.seed(vec![http_task(
+            1,
+            "alpha.bin",
+            DownloadState::Downloading,
+            10,
+            100,
+        )]);
         ui.click("MainWindow::btn_view_mode");
         // Click on Progress header to sort by Progress (field 3)
         ui.click("TaskTable::hdr_progress");
@@ -355,9 +365,13 @@ fn table_header_sort_icon_is_vertically_centered() {
 fn table_data_columns_do_not_overlap_action_buttons_at_preferred_size() {
     with_ui(|ui| {
         ui.set_window_size(PREFERRED_SIZE.0, PREFERRED_SIZE.1);
-        ui.seed(vec![
-            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
-        ]);
+        ui.seed(vec![http_task(
+            1,
+            "alpha.bin",
+            DownloadState::Downloading,
+            10,
+            100,
+        )]);
         ui.click("MainWindow::btn_view_mode");
 
         let (eta_x, _, eta_w, _) = ui.bounds("TaskTable::hdr_eta");
@@ -371,4 +385,3 @@ fn table_data_columns_do_not_overlap_action_buttons_at_preferred_size() {
         );
     });
 }
-

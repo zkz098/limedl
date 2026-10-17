@@ -2,24 +2,18 @@
 
 use base64::Engine;
 
-use crate::types::{DownloadState, Priority, StartDownloadRequest, TaskId, TaskKind};
-use irontide::core::Id20;
-use serde_json::Value;
 use super::context::{RpcContext, broadcast_event};
-use super::options::{
-    collect_request_headers,
-    extract_option_str,
-    extract_option_u32,
-    extract_option_usize,
-    option_is_true,
-    parse_checksum_option,
-    parse_select_file,
-    split_aria2_tail,
-};
 use super::jsonrpc::{ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, make_error};
+use super::options::{
+    collect_request_headers, extract_option_str, extract_option_u32, extract_option_usize,
+    option_is_true, parse_checksum_option, parse_select_file, split_aria2_tail,
+};
 use super::protocol::{internal_id_to_gid, resolve_gid};
 use super::query::{extract_gid, get_all_summaries, waiting_order};
 use super::system::cleanup_old_aria2_temp_files;
+use crate::types::{DownloadState, Priority, StartDownloadRequest, TaskId, TaskKind};
+use irontide::core::Id20;
+use serde_json::Value;
 use uuid::Uuid;
 
 /// Which backend `aria2.addUri` must route a URI to.
@@ -103,7 +97,8 @@ pub(crate) async fn handle_add_uri(
     // Dedup: if a non-terminal download for this URL already exists, return its GID.
     // Magnets are deduplicated by the BT session itself.
     if kind == TaskKind::Http {
-        let dm = ctx.http()
+        let dm = ctx
+            .http()
             .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
         if let Some(existing_id) = dm.find_active_by_url(&request.url).await {
             let gid = internal_id_to_gid(&existing_id);
@@ -247,11 +242,19 @@ pub(crate) async fn handle_add_metalink(
         .decode(metalink_b64)
         .map_err(|_| make_error(ERR_INVALID_PARAMS, "Invalid base64 metalink data"))?;
 
-    let metalink_xml = std::str::from_utf8(&metalink_bytes)
-        .map_err(|_| make_error(ERR_INVALID_PARAMS, "Metalink payload is not valid UTF-8 XML"))?;
+    let metalink_xml = std::str::from_utf8(&metalink_bytes).map_err(|_| {
+        make_error(
+            ERR_INVALID_PARAMS,
+            "Metalink payload is not valid UTF-8 XML",
+        )
+    })?;
 
-    let doc = crate::metalink::parse_metalink_xml(metalink_xml)
-        .map_err(|e| make_error(ERR_INVALID_PARAMS, format!("Failed to parse metalink XML: {e}")))?;
+    let doc = crate::metalink::parse_metalink_xml(metalink_xml).map_err(|e| {
+        make_error(
+            ERR_INVALID_PARAMS,
+            format!("Failed to parse metalink XML: {e}"),
+        )
+    })?;
 
     let (_, options, position) = split_aria2_tail(&params, 1);
     let options = options.as_ref();
@@ -317,7 +320,8 @@ pub(crate) async fn handle_add_metalink(
         if let Some(pieces) = file.pieces
             && let Some(dm) = ctx.http()
         {
-            dm.set_piece_verification(&task_id.to_string(), pieces).await;
+            dm.set_piece_verification(&task_id.to_string(), pieces)
+                .await;
         }
 
         if position == Some(0) {

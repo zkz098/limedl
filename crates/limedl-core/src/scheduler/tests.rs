@@ -498,7 +498,11 @@ fn task_cap_default_is_at_least_one() {
 
 // ── AIMD anti-deadlock & anti-cascade tests ───────────────────────────
 
-fn make_managed_task(desired: usize, allocated: usize, profile: crate::types::AdaptiveProfile) -> std::sync::Arc<crate::download::ManagedDownload> {
+fn make_managed_task(
+    desired: usize,
+    allocated: usize,
+    profile: crate::types::AdaptiveProfile,
+) -> std::sync::Arc<crate::download::ManagedDownload> {
     let mut m = manifest("https://example.com/file.bin");
     m.state = DownloadState::Downloading;
     m.supports_ranges = true;
@@ -553,7 +557,11 @@ fn aimd_deadlock_broken_by_proactive_probing() {
     super::update_one_adaptive(&managed, &settings, adaptive_cap, min_threads);
     {
         let core = managed.lock_core();
-        assert_eq!(core.manifest.desired_thread_count, Some(2), "should probe up to 2 threads");
+        assert_eq!(
+            core.manifest.desired_thread_count,
+            Some(2),
+            "should probe up to 2 threads"
+        );
         let aimd = managed.lock_aimd();
         assert!(aimd.is_probing_up);
         assert_eq!(aimd.probe_pre_threads, 1);
@@ -587,10 +595,17 @@ fn aimd_probe_rollback_when_no_gain() {
 
     {
         let core = managed.lock_core();
-        assert_eq!(core.manifest.desired_thread_count, Some(1), "should rollback to 1 thread");
+        assert_eq!(
+            core.manifest.desired_thread_count,
+            Some(1),
+            "should rollback to 1 thread"
+        );
         let aimd = managed.lock_aimd();
         assert!(!aimd.is_probing_up);
-        assert!(aimd.cooldown_until.is_some(), "should enter cooldown after failed probe");
+        assert!(
+            aimd.cooldown_until.is_some(),
+            "should enter cooldown after failed probe"
+        );
     }
 }
 
@@ -620,10 +635,17 @@ fn aimd_probe_success_retains_increase() {
 
     {
         let core = managed.lock_core();
-        assert_eq!(core.manifest.desired_thread_count, Some(2), "should retain 2 threads");
+        assert_eq!(
+            core.manifest.desired_thread_count,
+            Some(2),
+            "should retain 2 threads"
+        );
         let aimd = managed.lock_aimd();
         assert!(!aimd.is_probing_up);
-        assert!(aimd.last_throughput.is_some_and(|t| (t - 1800.0).abs() < 2.0));
+        assert!(
+            aimd.last_throughput
+                .is_some_and(|t| (t - 1800.0).abs() < 2.0)
+        );
     }
 }
 
@@ -650,10 +672,20 @@ fn aimd_no_cascade_after_decrease() {
 
     {
         let core = managed.lock_core();
-        assert_eq!(core.manifest.desired_thread_count, Some(3), "should decrease from 6 to 3");
+        assert_eq!(
+            core.manifest.desired_thread_count,
+            Some(3),
+            "should decrease from 6 to 3"
+        );
         let aimd = managed.lock_aimd();
-        assert!(aimd.last_throughput.is_none(), "baseline must be cleared to prevent cascade");
-        assert!(aimd.settling_until.is_some(), "settling period must be active");
+        assert!(
+            aimd.last_throughput.is_none(),
+            "baseline must be cleared to prevent cascade"
+        );
+        assert!(
+            aimd.settling_until.is_some(),
+            "settling period must be active"
+        );
     }
 
     // Now rebalance takes effect: allocated becomes 3
@@ -667,7 +699,11 @@ fn aimd_no_cascade_after_decrease() {
     super::update_one_adaptive(&managed, &settings, adaptive_cap, min_threads);
     {
         let core = managed.lock_core();
-        assert_eq!(core.manifest.desired_thread_count, Some(3), "must not cascade to 2 or 1");
+        assert_eq!(
+            core.manifest.desired_thread_count,
+            Some(3),
+            "must not cascade to 2 or 1"
+        );
     }
 }
 
@@ -695,9 +731,21 @@ fn test_expert_queue_sort_strategies() {
     // Task A: High priority, 100MB remaining, created at 300ms
     let task_a = make_task("task_a", Priority::High, 100 * 1024 * 1024, 0, 300);
     // Task B: Normal priority, 10MB remaining, created at 200ms
-    let task_b = make_task("task_b", Priority::Normal, 20 * 1024 * 1024, 10 * 1024 * 1024, 200);
+    let task_b = make_task(
+        "task_b",
+        Priority::Normal,
+        20 * 1024 * 1024,
+        10 * 1024 * 1024,
+        200,
+    );
     // Task C: Low priority, 5MB remaining, created at 100ms
-    let task_c = make_task("task_c", Priority::Low, 10 * 1024 * 1024, 5 * 1024 * 1024, 100);
+    let task_c = make_task(
+        "task_c",
+        Priority::Low,
+        10 * 1024 * 1024,
+        5 * 1024 * 1024,
+        100,
+    );
 
     // 1. Priority First (default)
     {
@@ -706,9 +754,21 @@ fn test_expert_queue_sort_strategies() {
         settings.scheduler.expert_mode = true;
         settings.scheduler.expert.queue_sort_strategy = QueueSortStrategy::PriorityFirst;
         let sorted = super::sort_automatic_candidates(&candidates, &settings);
-        assert_eq!(sorted[0].lock_core().manifest.id, "task_a", "High priority first");
-        assert_eq!(sorted[1].lock_core().manifest.id, "task_b", "Normal priority second");
-        assert_eq!(sorted[2].lock_core().manifest.id, "task_c", "Low priority third");
+        assert_eq!(
+            sorted[0].lock_core().manifest.id,
+            "task_a",
+            "High priority first"
+        );
+        assert_eq!(
+            sorted[1].lock_core().manifest.id,
+            "task_b",
+            "Normal priority second"
+        );
+        assert_eq!(
+            sorted[2].lock_core().manifest.id,
+            "task_c",
+            "Low priority third"
+        );
     }
 
     // 2. Shortest Job First
@@ -718,9 +778,21 @@ fn test_expert_queue_sort_strategies() {
         settings.scheduler.expert_mode = true;
         settings.scheduler.expert.queue_sort_strategy = QueueSortStrategy::ShortestJobFirst;
         let sorted = super::sort_automatic_candidates(&candidates, &settings);
-        assert_eq!(sorted[0].lock_core().manifest.id, "task_c", "5MB remaining first");
-        assert_eq!(sorted[1].lock_core().manifest.id, "task_b", "10MB remaining second");
-        assert_eq!(sorted[2].lock_core().manifest.id, "task_a", "100MB remaining third");
+        assert_eq!(
+            sorted[0].lock_core().manifest.id,
+            "task_c",
+            "5MB remaining first"
+        );
+        assert_eq!(
+            sorted[1].lock_core().manifest.id,
+            "task_b",
+            "10MB remaining second"
+        );
+        assert_eq!(
+            sorted[2].lock_core().manifest.id,
+            "task_a",
+            "100MB remaining third"
+        );
     }
 
     // 3. FIFO
@@ -730,9 +802,21 @@ fn test_expert_queue_sort_strategies() {
         settings.scheduler.expert_mode = true;
         settings.scheduler.expert.queue_sort_strategy = QueueSortStrategy::Fifo;
         let sorted = super::sort_automatic_candidates(&candidates, &settings);
-        assert_eq!(sorted[0].lock_core().manifest.id, "task_c", "Created at 100ms first");
-        assert_eq!(sorted[1].lock_core().manifest.id, "task_b", "Created at 200ms second");
-        assert_eq!(sorted[2].lock_core().manifest.id, "task_a", "Created at 300ms third");
+        assert_eq!(
+            sorted[0].lock_core().manifest.id,
+            "task_c",
+            "Created at 100ms first"
+        );
+        assert_eq!(
+            sorted[1].lock_core().manifest.id,
+            "task_b",
+            "Created at 200ms second"
+        );
+        assert_eq!(
+            sorted[2].lock_core().manifest.id,
+            "task_a",
+            "Created at 300ms third"
+        );
     }
 }
 
@@ -754,7 +838,11 @@ fn test_expert_host_cap() {
     let mut tracker = super::HostCapTracker::new(2);
     let m = manifest("https://example.com/file.bin");
     assert_eq!(tracker.grant(&m, 4), 2, "must be capped at max_per_host");
-    assert_eq!(tracker.grant(&m, 4), 0, "no capacity remaining for this host");
+    assert_eq!(
+        tracker.grant(&m, 4),
+        0,
+        "no capacity remaining for this host"
+    );
 }
 
 #[test]
@@ -848,11 +936,22 @@ fn test_rebalance_automatic_allows_ssd_when_hdd_quota_full() {
     let settings = automatic_settings(32, 2, 8);
     let mut state = super::AutomaticRebalanceState::default();
 
-    super::rebalance_automatic(&all_tasks, &all_tasks, &settings, &mut state, &disk_types, 2);
+    super::rebalance_automatic(
+        &all_tasks,
+        &all_tasks,
+        &settings,
+        &mut state,
+        &disk_types,
+        2,
+    );
 
     let active = active_ids(&all_tasks);
     // 2 HDD tasks + 2 SSD tasks = 4 active
-    assert_eq!(active.len(), 4, "expected 2 HDD + 2 SSD active, got: {active:?}");
+    assert_eq!(
+        active.len(),
+        4,
+        "expected 2 HDD + 2 SSD active, got: {active:?}"
+    );
     assert!(active.contains(&"hdd_0".to_string()));
     assert!(active.contains(&"hdd_1".to_string()));
     assert!(active.contains(&"ssd_0".to_string()));
@@ -893,10 +992,13 @@ fn test_rebalance_traditional_caps_hdd_parallel_tasks() {
 
     let active = active_ids(&all_tasks);
     // 2 HDD + 2 SSD = 4 active (< 5 max_parallel_tasks)
-    assert_eq!(active.len(), 4, "expected 2 HDD + 2 SSD active, got: {active:?}");
+    assert_eq!(
+        active.len(),
+        4,
+        "expected 2 HDD + 2 SSD active, got: {active:?}"
+    );
     assert!(active.contains(&"hdd_0".to_string()));
     assert!(active.contains(&"hdd_1".to_string()));
     assert!(active.contains(&"ssd_0".to_string()));
     assert!(active.contains(&"ssd_1".to_string()));
 }
-

@@ -1,4 +1,4 @@
-﻿//! Benchmarks for the buffer pool subsystem.
+//! Benchmarks for the buffer pool subsystem.
 //!
 //! Compares HDD double-buffer vs SSD local buffer write throughput.
 //! These are **I/O benchmarks** 鈥?data is written to a real disk.

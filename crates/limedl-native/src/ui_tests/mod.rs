@@ -42,11 +42,11 @@ use slint::{ComponentHandle, LogicalSize, Model};
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
 
+use limedl_core::services::SettingsService;
 use limedl_core::types::{
     AppSettings, DownloadState, DownloadSummary, Priority, TaskKind, ThreadMode,
 };
 use limedl_core::{BackendRegistry, Dispatcher, EventBus};
-use limedl_core::services::SettingsService;
 
 use crate::context::AppContext;
 use crate::i18n::Language;
@@ -132,7 +132,10 @@ pub(crate) fn with_ui(body: impl FnOnce(&mut TestUi)) {
 /// Unix — a test that hardcodes one passes on Windows and fails on macOS and
 /// Linux, where the suite also runs.
 pub(crate) fn absolute_dir(name: &str) -> String {
-    std::env::temp_dir().join(name).to_string_lossy().to_string()
+    std::env::temp_dir()
+        .join(name)
+        .to_string_lossy()
+        .to_string()
 }
 
 /// Build a window whose startup state comes from `settings` — used to assert

@@ -6,9 +6,9 @@ use limedl_core::types::{
 };
 use slint::{ModelRc, SharedString, VecModel};
 
+use super::format_timestamp_ms;
 use crate::i18n::{self, Language};
 use crate::{CdnCandidateItem, LabsFormData, UrlRewriteRuleItem, UrlRewriteTargetItem};
-use super::format_timestamp_ms;
 
 #[allow(clippy::too_many_arguments)]
 pub fn app_settings_to_labs_form(
@@ -29,13 +29,41 @@ pub fn app_settings_to_labs_form(
 ) -> LabsFormData {
     let cdn = &settings.cdn_acceleration;
     let (status_type, status_label) = if is_testing {
-        ("testing", match lang { Language::ZhCn => "测速中", Language::ZhTw => "測速中", Language::EnUs => "Testing" })
+        (
+            "testing",
+            match lang {
+                Language::ZhCn => "测速中",
+                Language::ZhTw => "測速中",
+                Language::EnUs => "Testing",
+            },
+        )
     } else if cdn.last_error.is_some() {
-        ("error", match lang { Language::ZhCn => "测速失败", Language::ZhTw => "測速失敗", Language::EnUs => "Failed" })
+        (
+            "error",
+            match lang {
+                Language::ZhCn => "测速失败",
+                Language::ZhTw => "測速失敗",
+                Language::EnUs => "Failed",
+            },
+        )
     } else if cdn.active_ip.is_some() {
-        ("ready", match lang { Language::ZhCn => "准备就绪", Language::ZhTw => "準備就緒", Language::EnUs => "Ready" })
+        (
+            "ready",
+            match lang {
+                Language::ZhCn => "准备就绪",
+                Language::ZhTw => "準備就緒",
+                Language::EnUs => "Ready",
+            },
+        )
     } else {
-        ("idle", match lang { Language::ZhCn => "未配置", Language::ZhTw => "未配置", Language::EnUs => "Not Configured" })
+        (
+            "idle",
+            match lang {
+                Language::ZhCn => "未配置",
+                Language::ZhTw => "未配置",
+                Language::EnUs => "Not Configured",
+            },
+        )
     };
 
     let active_speed_text = cdn
@@ -50,7 +78,11 @@ pub fn app_settings_to_labs_form(
 
     LabsFormData {
         cdn_enabled: cdn.enabled,
-        cdn_provider: SharedString::from(if cdn.provider.is_empty() { "cloudflare" } else { &cdn.provider }),
+        cdn_provider: SharedString::from(if cdn.provider.is_empty() {
+            "cloudflare"
+        } else {
+            &cdn.provider
+        }),
         cdn_custom_test_url: SharedString::from(cdn.custom_test_url.as_deref().unwrap_or_default()),
         cdn_custom_cidrs: SharedString::from(cdn.custom_cidrs.as_deref().unwrap_or_default()),
         cdn_status_type: SharedString::from(status_type),
@@ -75,9 +107,15 @@ pub fn app_settings_to_labs_form(
         url_rewrite_test_url: SharedString::from(test_url),
         url_rewrite_test_matched_rule: SharedString::from(matched_rule),
         url_rewrite_test_candidates_count: candidates.len() as i32,
-        url_rewrite_test_result_1: SharedString::from(candidates.first().cloned().unwrap_or_default()),
-        url_rewrite_test_result_2: SharedString::from(candidates.get(1).cloned().unwrap_or_default()),
-        url_rewrite_test_result_3: SharedString::from(candidates.get(2).cloned().unwrap_or_default()),
+        url_rewrite_test_result_1: SharedString::from(
+            candidates.first().cloned().unwrap_or_default(),
+        ),
+        url_rewrite_test_result_2: SharedString::from(
+            candidates.get(1).cloned().unwrap_or_default(),
+        ),
+        url_rewrite_test_result_3: SharedString::from(
+            candidates.get(2).cloned().unwrap_or_default(),
+        ),
     }
 }
 
@@ -85,7 +123,11 @@ pub fn update_app_settings_from_labs_form(settings: &mut AppSettings, form: &Lab
     settings.cdn_acceleration.enabled = form.cdn_enabled;
     settings.cdn_acceleration.provider = form.cdn_provider.trim().to_string();
     let test_url = form.cdn_custom_test_url.trim().to_string();
-    settings.cdn_acceleration.custom_test_url = if test_url.is_empty() { None } else { Some(test_url) };
+    settings.cdn_acceleration.custom_test_url = if test_url.is_empty() {
+        None
+    } else {
+        Some(test_url)
+    };
     let cidrs = form.cdn_custom_cidrs.trim().to_string();
     settings.cdn_acceleration.custom_cidrs = if cidrs.is_empty() { None } else { Some(cidrs) };
     settings.url_rewrite.enabled = form.url_rewrite_enabled;
@@ -252,13 +294,11 @@ pub fn create_url_rewrite_preset(preset_key: &str, lang: Language) -> Option<Url
             encode_url: false,
             fallback_to_original: true,
             order: 1,
-            targets: vec![
-                RewriteTarget {
-                    url_template: "https://hf-mirror.com/$1".to_string(),
-                    enabled: true,
-                    order: 0,
-                },
-            ],
+            targets: vec![RewriteTarget {
+                url_template: "https://hf-mirror.com/$1".to_string(),
+                enabled: true,
+                order: 0,
+            }],
         }),
         "civitai" => Some(UrlRewriteRule {
             id: format!("preset-civitai-{}", uuid::Uuid::new_v4().simple()),
@@ -270,13 +310,11 @@ pub fn create_url_rewrite_preset(preset_key: &str, lang: Language) -> Option<Url
             encode_url: true,
             fallback_to_original: true,
             order: 2,
-            targets: vec![
-                RewriteTarget {
-                    url_template: "https://civitai.work".to_string(),
-                    enabled: true,
-                    order: 0,
-                },
-            ],
+            targets: vec![RewriteTarget {
+                url_template: "https://civitai.work".to_string(),
+                enabled: true,
+                order: 0,
+            }],
         }),
         _ => None,
     }

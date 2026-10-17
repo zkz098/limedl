@@ -5,9 +5,7 @@ use std::time::Duration;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use limedl_core::dispatcher::Dispatcher;
-use limedl_core::types::{
-    AppSettings, ColorMode, SortDirection, ThemeColor, UrlRewriteRule,
-};
+use limedl_core::types::{AppSettings, ColorMode, SortDirection, ThemeColor, UrlRewriteRule};
 
 use crate::bridge::{
     Aria2ClientText, DiskTypeOverrideText, SpeedLimitSlotText, TaskStore, app_settings_to_form,
@@ -19,8 +17,7 @@ use crate::bridge::{
 };
 use crate::i18n::{self, Language};
 use crate::{
-    ColorModePref, MainWindow, TaskItem, Theme, ThemeAccent, UpdateState, platform_win,
-    POWER_GUARD,
+    ColorModePref, MainWindow, POWER_GUARD, TaskItem, Theme, ThemeAccent, UpdateState, platform_win,
 };
 
 /// Push the table-density / column-visibility preferences into the window.
@@ -35,7 +32,10 @@ pub fn apply_view_preferences(ui: &MainWindow, settings: &AppSettings) {
     ui.set_column_progress(column_is_visible(&appearance.visible_columns, "progress"));
     ui.set_column_speed(column_is_visible(&appearance.visible_columns, "speed"));
     ui.set_column_priority(column_is_visible(&appearance.visible_columns, "priority"));
-    ui.set_column_upload_speed(column_is_visible(&appearance.visible_columns, "uploadSpeed"));
+    ui.set_column_upload_speed(column_is_visible(
+        &appearance.visible_columns,
+        "uploadSpeed",
+    ));
     ui.set_column_seeds(column_is_visible(&appearance.visible_columns, "seeds"));
     ui.set_column_eta(column_is_visible(&appearance.visible_columns, "eta"));
 }
@@ -120,7 +120,11 @@ pub fn push_aria2_client_rows(ui: &MainWindow, rows: &[Aria2ClientText]) {
 }
 
 /// Decide whether the main window must stay hidden for this launch.
-pub fn should_start_hidden(requested_hidden: bool, login_launch: bool, setup_completed: bool) -> bool {
+pub fn should_start_hidden(
+    requested_hidden: bool,
+    login_launch: bool,
+    setup_completed: bool,
+) -> bool {
     (requested_hidden || login_launch) && setup_completed
 }
 
@@ -188,8 +192,7 @@ pub(crate) fn apply_tasks(ui: &MainWindow, items: Vec<TaskItem>) {
 
     // General reconciliation:
     // 1. Remove rows that no longer exist in the target items.
-    let target_ids: foldhash::HashSet<&str> =
-        items.iter().map(|item| item.id.as_str()).collect();
+    let target_ids: foldhash::HashSet<&str> = items.iter().map(|item| item.id.as_str()).collect();
     let mut row = 0;
     while row < model.row_count() {
         let keep = model
@@ -284,8 +287,15 @@ pub fn refresh_labs_state(
 
     let ranges_text = "173.245.48.0/20, 103.21.244.0/22, 103.22.200.0/22, 103.31.4.0/22, 141.101.64.0/18, 108.162.192.0/18, 190.93.240.0/20, 188.114.96.0/20, 197.234.240.0/22, 198.41.128.0/17, 162.158.0.0/15, 104.16.0.0/13, 104.24.0.0/14, 172.64.0.0/13, 131.0.72.0/22";
 
-    let active_ip_str = settings.cdn_acceleration.active_ip.clone().unwrap_or_default();
-    let speed_imp = settings.cdn_acceleration.active_speed_mbps.map(|s| format!("+{:.1}%", (s * 0.75).min(180.0)));
+    let active_ip_str = settings
+        .cdn_acceleration
+        .active_ip
+        .clone()
+        .unwrap_or_default();
+    let speed_imp = settings
+        .cdn_acceleration
+        .active_speed_mbps
+        .map(|s| format!("+{:.1}%", (s * 0.75).min(180.0)));
 
     let form_data = app_settings_to_labs_form(
         settings,
@@ -310,10 +320,7 @@ pub fn refresh_labs_state(
 }
 
 /// Push a mutation into the self-update UI state (must run on the UI thread).
-pub fn push_update_state(
-    ui_weak: &slint::Weak<MainWindow>,
-    mutate: impl FnOnce(&mut UpdateState),
-) {
+pub fn push_update_state(ui_weak: &slint::Weak<MainWindow>, mutate: impl FnOnce(&mut UpdateState)) {
     if let Some(ui) = ui_weak.upgrade() {
         let mut st = ui.get_update_state();
         mutate(&mut st);

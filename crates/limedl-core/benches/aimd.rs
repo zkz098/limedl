@@ -1,4 +1,4 @@
-﻿//! Benchmarks for the AIMD congestion controller.
+//! Benchmarks for the AIMD congestion controller.
 //!
 //! These are pure algorithm benchmarks 鈥?no network I/O, no TestServer needed.
 //! All AIMD functions are synchronous. The `common` module is imported but its
@@ -30,7 +30,9 @@ fn bench_sample_throughput(c: &mut Criterion) {
                 for i in 0..100 {
                     now += Duration::from_millis(10);
                     let bytes = std::hint::black_box((i as u64 + 1) * 1024 * 1024);
-                    let _ = std::hint::black_box(state.sample_throughput(bytes, std::hint::black_box(now)));
+                    let _ = std::hint::black_box(
+                        state.sample_throughput(bytes, std::hint::black_box(now)),
+                    );
                 }
             },
             BatchSize::SmallInput,
@@ -56,7 +58,8 @@ fn bench_reduce_threads(c: &mut Criterion) {
             profile,
             |b, profile| {
                 b.iter(|| {
-                    let result = reduce_threads(std::hint::black_box(16), *profile, std::hint::black_box(1));
+                    let result =
+                        reduce_threads(std::hint::black_box(16), *profile, std::hint::black_box(1));
                     std::hint::black_box(result);
                 });
             },

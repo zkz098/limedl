@@ -340,7 +340,10 @@ mod tests {
         {
             let core = managed.lock_core();
             assert_eq!(core.durable_bytes, 40);
-            assert!(core.manifest.chunks[0].dirty, "durable progress is persisted");
+            assert!(
+                core.manifest.chunks[0].dirty,
+                "durable progress is persisted"
+            );
         }
 
         // A second flush resumes from where the first stopped.
@@ -375,8 +378,10 @@ mod tests {
         // chunk re-planned on top of an old one).
         chunks[0].durable_downloaded = 10_000;
         chunks[0].downloaded = 30;
-        let managed =
-            ManagedDownload::from_manifest(Manifest { chunks, ..test_manifest() });
+        let managed = ManagedDownload::from_manifest(Manifest {
+            chunks,
+            ..test_manifest()
+        });
 
         assert_eq!(durable_of(&managed, 0), 30, "clamped to what was received");
         assert!(!managed.lock_core().manifest.chunks[0].durable_complete());

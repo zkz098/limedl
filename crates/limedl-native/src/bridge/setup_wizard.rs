@@ -1,13 +1,16 @@
+use super::forms::{
+    chunk_strategy_to_str, color_mode_to_str, combo, proxy_mode_to_str, str_to_proxy_mode,
+    theme_color_to_str,
+};
 use crate::i18n;
-use super::forms::{chunk_strategy_to_str, color_mode_to_str, combo, proxy_mode_to_str, str_to_proxy_mode, theme_color_to_str};
-use limedl_core::types::{ColorMode, ThemeColor,
-    AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, 
-    ChunkSizeStrategy, ProxyMode, SchedulerMode,
+use limedl_core::types::{
+    AdaptiveProfile, AppSettings, AutomaticSchedulerSettings, ChunkSizeStrategy, ColorMode,
+    ProxyMode, SchedulerMode, ThemeColor,
 };
 use slint::SharedString;
 
-use crate::i18n::Language;
 use crate::SetupFormData;
+use crate::i18n::Language;
 
 // ── First-run setup wizard ───────────────────────────────────────────
 
@@ -53,7 +56,11 @@ pub fn app_settings_to_setup_form(settings: &AppSettings, lang: Language) -> Set
         ),
         cdn_enabled: settings.cdn_acceleration.enabled,
         cdn_active_ip: SharedString::from(
-            settings.cdn_acceleration.active_ip.clone().unwrap_or_default(),
+            settings
+                .cdn_acceleration
+                .active_ip
+                .clone()
+                .unwrap_or_default(),
         ),
         rpc_enabled: settings.aria2_rpc.enabled,
         rpc_port: SharedString::from(settings.aria2_rpc.port.to_string()),

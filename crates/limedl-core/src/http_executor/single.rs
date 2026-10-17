@@ -3,7 +3,10 @@
 use bytes::Bytes;
 use futures_util::StreamExt;
 
-use crate::now_ms;
+use super::{
+    BatchLimiter, HttpExecutor, ProgressThrottle, RequestBudget, build_write_buffer,
+    check_disk_space_periodically, finish_buffer_flush, flush_write_buffer, wait_or_stop,
+};
 use crate::buffer_pool::DownloadBuffer;
 use crate::download::{ManagedDownload, RunOutcome, cancellation_outcome, record_durable_bytes};
 use crate::error::{DownloadError, Result, io_error_with_path};
@@ -11,6 +14,7 @@ use crate::file_ops::{open_download_file, reset_download_file, write_all_at};
 use crate::http::{apply_extra_headers, identity_encoding, if_range_header};
 use crate::manager_state::ManagerState;
 use crate::manifest::contiguous_prefix_end;
+use crate::now_ms;
 use crate::retry::{jittered_backoff_delay, register_retry_penalty, request_with_retry};
 use crate::types::{DiskType, DownloadState};
 use reqwest::{Client, StatusCode, header};
@@ -18,17 +22,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
-use super::{
-    BatchLimiter,
-    HttpExecutor,
-    ProgressThrottle,
-    RequestBudget,
-    build_write_buffer,
-    check_disk_space_periodically,
-    finish_buffer_flush,
-    flush_write_buffer,
-    wait_or_stop,
-};
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
@@ -49,7 +42,8 @@ impl HttpExecutor {
         token: CancellationToken,
         max_retries: u32,
     ) -> Result<RunOutcome> {
-        let (file, total_bytes, disk_type, write_buffer) = open_single_target(&dm, &managed).await?;
+        let (file, total_bytes, disk_type, write_buffer) =
+            open_single_target(&dm, &managed).await?;
         let write_buffer = Some(write_buffer);
 
         let checksum_mode = managed.lock_core().manifest.checksum_mode;
@@ -57,7 +51,8 @@ impl HttpExecutor {
             let core = managed.lock_core();
             contiguous_prefix_end(&core.manifest)
         };
-        let mut hasher = if initial_offset == 0 && checksum_mode != crate::types::ChecksumMode::None {
+        let mut hasher = if initial_offset == 0 && checksum_mode != crate::types::ChecksumMode::None
+        {
             crate::checksum::ChecksumHasher::new(checksum_mode).ok()
         } else {
             None
@@ -146,8 +141,13 @@ impl SingleRun<'_> {
     /// One request → drain → handle cycle. `Some(outcome)` means the caller must
     /// return it; `None` means loop again.
     async fn attempt(&mut self, total_bytes: Option<u64>) -> Result<Option<RunOutcome>> {
-        if let Some(outcome) =
-            wait_or_stop(self.dm.as_ref(), self.managed, self.token, self.write_buffer).await
+        if let Some(outcome) = wait_or_stop(
+            self.dm.as_ref(),
+            self.managed,
+            self.token,
+            self.write_buffer,
+        )
+        .await
         {
             return Ok(Some(outcome));
         }
@@ -222,7 +222,8 @@ impl SingleRun<'_> {
         head: &RequestHead,
         start_offset: u64,
         use_http3: bool,
-    ) -> impl std::future::Future<Output = std::result::Result<reqwest::Response, reqwest::Error>> {
+    ) -> impl std::future::Future<Output = std::result::Result<reqwest::Response, reqwest::Error>>
+    {
         single_request(
             self.client.clone(),
             head.url.clone(),
@@ -338,7 +339,8 @@ impl SingleRun<'_> {
             bytes,
         )
         .await?;
-        self.dm.record_progress(self.managed, None, bytes.len() as u64);
+        self.dm
+            .record_progress(self.managed, None, bytes.len() as u64);
         self.throttle
             .tick(self.dm.db(), self.dm.as_ref(), self.managed)
             .await?;
@@ -358,7 +360,8 @@ impl SingleRun<'_> {
             bytes,
         )
         .await;
-        self.dm.record_progress(self.managed, None, bytes.len() as u64);
+        self.dm
+            .record_progress(self.managed, None, bytes.len() as u64);
     }
 
     /// A body the server cut short: back off and retry, or give up once the retry
@@ -459,7 +462,10 @@ impl RequestHead {
     async fn try_http3(&self, run: &SingleRun<'_>, start_offset: u64) -> Option<reqwest::Response> {
         let (proxy_mode, alt_svc_enabled) = {
             let settings = run.dm.settings_service().get_blocking();
-            (settings.proxy.mode, settings.scheduler.http3_alt_svc_enabled)
+            (
+                settings.proxy.mode,
+                settings.scheduler.http3_alt_svc_enabled,
+            )
         };
         let (host, port) = run.dm.alt_svc().should_attempt_http3(
             &self.url,
@@ -530,9 +536,15 @@ async fn open_single_target(
     let ssd_write_combine_mb = settings.io_baseline.ssd_write_combine_mb;
     drop(settings);
     let disk_type = dm.resolve_disk_type(Path::new(&destination_dir)).await;
-    let write_buffer =
-        build_write_buffer(dm.as_ref(), managed, &file, disk_type, hdd_buffering, ssd_write_combine_mb)
-            .await;
+    let write_buffer = build_write_buffer(
+        dm.as_ref(),
+        managed,
+        &file,
+        disk_type,
+        hdd_buffering,
+        ssd_write_combine_mb,
+    )
+    .await;
 
     // Set disk_type on snapshot for frontend badge display
     {
@@ -564,7 +576,8 @@ async fn single_request(
         // Resuming sends `Range`: a compressed 206 would shift byte offsets, so
         // this request must not negotiate compression even though the fresh
         // (offset 0) GET does.
-        builder = identity_encoding(builder.header(header::RANGE, format!("bytes={start_offset}-")));
+        builder =
+            identity_encoding(builder.header(header::RANGE, format!("bytes={start_offset}-")));
         if let Some((name, value)) = validator {
             builder = builder.header(name, value);
         }

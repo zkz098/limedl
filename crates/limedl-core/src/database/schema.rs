@@ -187,12 +187,7 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 6,
         name: "add_priority",
         up: |conn| {
-            add_column_if_missing(
-                conn,
-                "downloads",
-                "priority",
-                "INTEGER NOT NULL DEFAULT 1",
-            )
+            add_column_if_missing(conn, "downloads", "priority", "INTEGER NOT NULL DEFAULT 1")
         },
     },
     Migration {

@@ -17,7 +17,10 @@ pub fn is_valid_sha256_hex(s: &str) -> bool {
 
 /// Extract the file basename from a path or relative path string.
 fn extract_basename(path_str: &str) -> &str {
-    let s = path_str.trim().trim_start_matches("./").trim_start_matches(".\\");
+    let s = path_str
+        .trim()
+        .trim_start_matches("./")
+        .trim_start_matches(".\\");
     let after_slash = s.rsplit(['/', '\\']).next().unwrap_or(s);
     after_slash.trim()
 }
@@ -38,7 +41,11 @@ pub fn parse_sha256_file(content: &str, target_file_name: Option<&str>) -> Optio
 
     for line in content.lines() {
         let line = line.trim();
-        if line.is_empty() || line.starts_with('#') || line.starts_with("-----") || line.starts_with("Hash:") {
+        if line.is_empty()
+            || line.starts_with('#')
+            || line.starts_with("-----")
+            || line.starts_with("Hash:")
+        {
             continue;
         }
 
@@ -71,7 +78,9 @@ pub fn parse_sha256_file(content: &str, target_file_name: Option<&str>) -> Optio
                     return Some(candidate.to_ascii_lowercase());
                 }
                 let rest = line[64..].trim_start_matches([' ', '*', '\t']);
-                if rest.is_empty() || extract_basename(rest).eq_ignore_ascii_case(target_base.unwrap()) {
+                if rest.is_empty()
+                    || extract_basename(rest).eq_ignore_ascii_case(target_base.unwrap())
+                {
                     return Some(candidate.to_ascii_lowercase());
                 }
             }
@@ -89,7 +98,11 @@ pub fn parse_sha256sums(content: &str, target_file_name: &str) -> Option<String>
 
     for line in content.lines() {
         let line = line.trim();
-        if line.is_empty() || line.starts_with('#') || line.starts_with("-----") || line.starts_with("Hash:") {
+        if line.is_empty()
+            || line.starts_with('#')
+            || line.starts_with("-----")
+            || line.starts_with("Hash:")
+        {
             continue;
         }
 
@@ -370,12 +383,16 @@ pub fn detect_checksum_from_headers(headers: &HeaderMap) -> Option<(ChecksumMode
     }
 
     // 2. AWS S3 headers (base64 encoded)
-    if let Some(v) = headers.get("x-amz-checksum-sha512").and_then(|h| h.to_str().ok())
+    if let Some(v) = headers
+        .get("x-amz-checksum-sha512")
+        .and_then(|h| h.to_str().ok())
         && let Some(hex) = decode_b64_to_hex(v, 64)
     {
         candidates.push((ChecksumMode::Sha512, hex));
     }
-    if let Some(v) = headers.get("x-amz-checksum-sha256").and_then(|h| h.to_str().ok())
+    if let Some(v) = headers
+        .get("x-amz-checksum-sha256")
+        .and_then(|h| h.to_str().ok())
         && let Some(hex) = decode_b64_to_hex(v, 32)
     {
         candidates.push((ChecksumMode::Sha256, hex));
@@ -455,7 +472,8 @@ mod tests {
     use super::*;
 
     const SAMPLE_HASH: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-    const SAMPLE_HASH_UPPER: &str = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855";
+    const SAMPLE_HASH_UPPER: &str =
+        "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855";
     const OTHER_HASH: &str = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 
     #[test]
@@ -490,10 +508,7 @@ mod tests {
             parse_sha256_file(&content, Some("debian.iso")),
             Some(OTHER_HASH.to_string())
         );
-        assert_eq!(
-            parse_sha256_file(&content, Some("nonexistent.iso")),
-            None
-        );
+        assert_eq!(parse_sha256_file(&content, Some("nonexistent.iso")), None);
     }
 
     #[test]
@@ -549,8 +564,15 @@ mod tests {
         let candidates = generate_candidate_urls(url);
         let urls: Vec<_> = candidates.into_iter().map(|c| c.url).collect();
 
-        assert!(urls.contains(&"https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso.sha256".to_string()));
-        assert!(urls.contains(&"https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso.sha256sum".to_string()));
+        assert!(urls.contains(
+            &"https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso.sha256".to_string()
+        ));
+        assert!(
+            urls.contains(
+                &"https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso.sha256sum"
+                    .to_string()
+            )
+        );
         assert!(urls.contains(&"https://releases.ubuntu.com/24.04/SHA256SUMS".to_string()));
         assert!(urls.contains(&"https://releases.ubuntu.com/24.04/sha256sums.txt".to_string()));
     }
@@ -561,7 +583,9 @@ mod tests {
         let candidates = generate_candidate_urls(url);
         let urls: Vec<_> = candidates.into_iter().map(|c| c.url).collect();
 
-        assert!(urls.contains(&"https://example.com/downloads/package.tar.gz.sha256?token=secret123".to_string()));
+        assert!(urls.contains(
+            &"https://example.com/downloads/package.tar.gz.sha256?token=secret123".to_string()
+        ));
         assert!(urls.contains(&"https://example.com/downloads/package.tar.gz.sha256".to_string()));
         assert!(urls.contains(&"https://example.com/downloads/SHA256SUMS".to_string()));
     }
@@ -795,7 +819,10 @@ mod tests {
         // echo -n "abc" | sha256sum | xxd -r -p | base64 => unhWv48Bz+pBQUDeXa4iI7ADY6OWF3qctBD/YfIAFa0=
         let b64 = "unhWv48Bz+pBQUDeXa4iI7ADY6OWF3qctBD/YfIAFa0=";
         let mut headers = HeaderMap::new();
-        headers.insert("Digest", HeaderValue::from_str(&format!("SHA-256={b64}")).unwrap());
+        headers.insert(
+            "Digest",
+            HeaderValue::from_str(&format!("SHA-256={b64}")).unwrap(),
+        );
 
         let res = detect_checksum_from_headers(&headers);
         assert_eq!(

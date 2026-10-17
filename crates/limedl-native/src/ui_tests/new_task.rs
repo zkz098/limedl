@@ -235,7 +235,8 @@ fn test_long_url_does_not_break_dialog_layout() {
             "b".repeat(400),
             "c".repeat(400)
         );
-        ui.window.invoke_new_task_url_changed(long_cmd.clone().into());
+        ui.window
+            .invoke_new_task_url_changed(long_cmd.clone().into());
         ui.window.set_new_task_url(long_cmd.into());
 
         let (url2_x, _, url2_w, _) = ui.bounds("NewTaskDialog::nt-url-input");
@@ -254,5 +255,3 @@ fn test_long_url_does_not_break_dialog_layout() {
         );
     });
 }
-
-

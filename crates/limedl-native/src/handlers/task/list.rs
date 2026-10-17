@@ -5,11 +5,11 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+use crate::MainWindow;
 use crate::bridge::{SortField, TaskStore};
 use crate::context::AppContext;
 use crate::handlers::common::{mutate_store, reload_tasks, with_ui};
 use crate::ui_sync::{persist_sort_preference, refresh_ui};
-use crate::MainWindow;
 
 /// Apply a sort mutation, refresh the window and report the resulting sort
 /// state. `None` means the window was already gone, so callers must not persist
@@ -58,9 +58,9 @@ pub fn register(ctx: &AppContext) {
         let store = store.clone();
         let dispatcher = dispatcher.clone();
         ui.on_set_sort_field(move |field_idx| {
-            let Some((field, asc)) =
-                mutate_sort(&ui_weak, &store, |store| store.set_sort_field(SortField::from(field_idx)))
-            else {
+            let Some((field, asc)) = mutate_sort(&ui_weak, &store, |store| {
+                store.set_sort_field(SortField::from(field_idx))
+            }) else {
                 return;
             };
             persist_sort_preference(&dispatcher, field, asc);
@@ -73,11 +73,9 @@ pub fn register(ctx: &AppContext) {
         let store = store.clone();
         let dispatcher = dispatcher.clone();
         ui.on_toggle_sort_asc(move || {
-            let Some((field, asc)) =
-                mutate_sort(&ui_weak, &store, |store| {
-                    store.toggle_sort_order();
-                })
-            else {
+            let Some((field, asc)) = mutate_sort(&ui_weak, &store, |store| {
+                store.toggle_sort_order();
+            }) else {
                 return;
             };
             persist_sort_preference(&dispatcher, field, asc);

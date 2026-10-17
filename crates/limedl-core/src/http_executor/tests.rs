@@ -1,5 +1,5 @@
-use super::worker::*;
 use super::RequestBudget;
+use super::worker::*;
 
 use crate::manifest::ChunkManifest;
 use crate::types::{ChecksumMode, DownloadState, Priority, ThreadMode};
@@ -287,7 +287,10 @@ fn finalize_refuses_a_download_with_unflushed_bytes() {
     let error = super::finalize::ensure_core_fully_durable(&core)
         .expect_err("a shortfall must not be published");
     let message = error.to_string();
-    assert!(message.contains("40 byte(s)"), "unexpected message: {message}");
+    assert!(
+        message.contains("40 byte(s)"),
+        "unexpected message: {message}"
+    );
     assert!(
         message.contains("refusing to publish"),
         "unexpected message: {message}"

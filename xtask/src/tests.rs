@@ -346,4 +346,3 @@ fn icons_generation_creates_expected_assets() {
 
     fs::remove_dir_all(&dir).ok();
 }
-

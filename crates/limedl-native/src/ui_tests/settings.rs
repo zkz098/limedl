@@ -5,9 +5,9 @@
 //! `tokio::spawn`, so those two tests are `with_ui_async` + `pump_until`. The
 //! schedule editor itself is fully synchronous and needs no pumping.
 
-use crate::SpeedLimitSlotItem;
-use crate::DiskTypeOverrideItem;
 use crate::Aria2ClientItem;
+use crate::DiskTypeOverrideItem;
+use crate::SpeedLimitSlotItem;
 use slint::Model;
 
 use super::{TestUi, absolute_dir, with_ui};
@@ -64,8 +64,7 @@ fn the_aria2_client_editor_generates_reveals_and_removes_rows() {
 
         // A second row, then removing the first must keep the second's data.
         ui.window.invoke_aria2_client_add();
-        ui.window
-            .invoke_aria2_client_name_edited(1, "Phone".into());
+        ui.window.invoke_aria2_client_name_edited(1, "Phone".into());
         assert_eq!(client_rows(ui).len(), 2);
         assert_eq!(client_rows(ui)[1].name.as_str(), "Phone");
 
@@ -81,8 +80,7 @@ fn the_aria2_client_editor_generates_reveals_and_removes_rows() {
         // Out-of-range indices are no-ops, not panics.
         ui.window.invoke_aria2_client_remove(9);
         ui.window.invoke_aria2_client_regenerate(9);
-        ui.window
-            .invoke_aria2_client_name_edited(9, "nope".into());
+        ui.window.invoke_aria2_client_name_edited(9, "nope".into());
         assert_eq!(client_rows(ui).len(), 1);
     });
 }
@@ -260,8 +258,7 @@ fn the_media_override_editor_edits_rows_in_place_and_removes_only_the_one_asked_
 
         // A blank path is not usable as a key, so the hint goes back to
         // "type an absolute path" rather than describing a media type.
-        ui.window
-            .invoke_disk_override_path_edited(0, "   ".into());
+        ui.window.invoke_disk_override_path_edited(0, "   ".into());
         let rows = override_rows(ui);
         assert_eq!(
             rows[0].path.as_str(),

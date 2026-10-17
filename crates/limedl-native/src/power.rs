@@ -82,7 +82,9 @@ impl PowerGuard {
         Self::with_acquire(imp::Guard::acquire)
     }
 
-    fn with_acquire(acquire: impl Fn() -> Result<imp::Guard, String> + Send + Sync + 'static) -> Self {
+    fn with_acquire(
+        acquire: impl Fn() -> Result<imp::Guard, String> + Send + Sync + 'static,
+    ) -> Self {
         Self {
             state: Mutex::new(GuardState {
                 active_downloads: 0,
@@ -208,9 +210,7 @@ mod imp {
     impl Guard {
         pub fn acquire() -> Result<Self, String> {
             unsafe {
-                SetThreadExecutionState(
-                    ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED,
-                );
+                SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED);
             }
             Ok(Self {
                 owner: std::thread::current().id(),
@@ -544,11 +544,7 @@ mod tests {
         }
 
         assert!(guard.is_preventing(), "the lock must survive the race");
-        assert_eq!(
-            recorded.acquired(),
-            1,
-            "one rising edge, one OS lock"
-        );
+        assert_eq!(recorded.acquired(), 1, "one rising edge, one OS lock");
 
         assert!(guard.update(0));
         assert!(!guard.is_preventing());

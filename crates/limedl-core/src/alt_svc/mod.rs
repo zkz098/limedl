@@ -161,11 +161,12 @@ fn parse_single_entry(item: &str) -> Option<ParsedAltSvcEntry> {
     let authority = proto_parts.next()?.trim();
 
     // Strip quotes around authority if present
-    let authority = if authority.starts_with('"') && authority.ends_with('"') && authority.len() >= 2 {
-        &authority[1..authority.len() - 1]
-    } else {
-        authority
-    };
+    let authority =
+        if authority.starts_with('"') && authority.ends_with('"') && authority.len() >= 2 {
+            &authority[1..authority.len() - 1]
+        } else {
+            authority
+        };
 
     // Parse authority into host and port
     let (host, port) = if let Some(stripped) = authority.strip_prefix(':') {
@@ -173,7 +174,11 @@ fn parse_single_entry(item: &str) -> Option<ParsedAltSvcEntry> {
         (None, port)
     } else if let Some((h, p)) = authority.rsplit_once(':') {
         let port: u16 = p.parse().ok()?;
-        let host = if h.is_empty() { None } else { Some(h.to_string()) };
+        let host = if h.is_empty() {
+            None
+        } else {
+            Some(h.to_string())
+        };
         (host, port)
     } else {
         return None;
@@ -237,12 +242,20 @@ impl AltSvcManager {
     /// Look up a valid (unexpired and not broken) HTTP/3 alternative service.
     ///
     /// Prefers standard `h3`, falling back to draft protocols like `h3-29`.
-    pub fn get_valid_alt_svc(&self, origin_host: &str, origin_port: u16, now_ms: u64) -> Option<AltSvcRecord> {
+    pub fn get_valid_alt_svc(
+        &self,
+        origin_host: &str,
+        origin_port: u16,
+        now_ms: u64,
+    ) -> Option<AltSvcRecord> {
         let key = (origin_host.to_string(), origin_port);
         let entry = self.cache.get(&key)?;
 
         // Find standard "h3" first
-        if let Some(rec) = entry.iter().find(|r| r.protocol == "h3" && r.is_valid(now_ms)) {
+        if let Some(rec) = entry
+            .iter()
+            .find(|r| r.protocol == "h3" && r.is_valid(now_ms))
+        {
             return Some(rec.clone());
         }
 
@@ -274,7 +287,12 @@ impl AltSvcManager {
     }
 
     /// Record Alt-Svc header directly from response headers and URL if valid.
-    pub fn record_from_response(&self, url: &str, headers: &reqwest::header::HeaderMap, now_ms: u64) {
+    pub fn record_from_response(
+        &self,
+        url: &str,
+        headers: &reqwest::header::HeaderMap,
+        now_ms: u64,
+    ) {
         if let Some(alt_val) = headers.get(reqwest::header::ALT_SVC)
             && let Ok(alt_str) = alt_val.to_str()
             && let Some((host, port)) = extract_https_origin(url)
@@ -432,7 +450,8 @@ impl AltSvcManager {
 
         if let Some(mut entry) = self.cache.get_mut(&key) {
             for rec in entry.iter_mut() {
-                if rec.protocol.starts_with("h3") && (rec.fail_count > 0 || rec.broken_until_ms > 0) {
+                if rec.protocol.starts_with("h3") && (rec.fail_count > 0 || rec.broken_until_ms > 0)
+                {
                     rec.mark_success();
                     to_persist.push(rec.clone());
                 }
@@ -583,7 +602,8 @@ mod tests {
         manager.record_from_response(url, &headers, now);
 
         // Now should attempt HTTP/3
-        let target = manager.should_attempt_http3(url, crate::types::ProxyMode::Disabled, true, now);
+        let target =
+            manager.should_attempt_http3(url, crate::types::ProxyMode::Disabled, true, now);
         assert_eq!(target, Some(("example.com".into(), 443)));
 
         // If proxy is enabled, should bypass HTTP/3
@@ -637,7 +657,12 @@ mod tests {
         // Expired after max_age
         assert!(
             manager
-                .should_attempt_http3(url, crate::types::ProxyMode::Disabled, true, now + 3_600_001)
+                .should_attempt_http3(
+                    url,
+                    crate::types::ProxyMode::Disabled,
+                    true,
+                    now + 3_600_001
+                )
                 .is_none()
         );
     }
@@ -700,5 +725,3 @@ mod tests {
         );
     }
 }
-
-

@@ -105,7 +105,9 @@ pub fn disk_override_rows_to_slint(
                 } else {
                     MEDIA_SSD_INDEX
                 },
-                detected_text: SharedString::from(i18n::format_disk_override_detected(detected, lang)),
+                detected_text: SharedString::from(i18n::format_disk_override_detected(
+                    detected, lang,
+                )),
             }
         })
         .collect()

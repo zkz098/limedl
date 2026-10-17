@@ -143,23 +143,23 @@ pub const COPYDATA_MAGIC: usize = 0x4C494D45;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 #[cfg(windows)]
 use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MonitorFromRect, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONULL,
-    MONITOR_DEFAULTTOPRIMARY,
+    GetMonitorInfoW, MONITOR_DEFAULTTONULL, MONITOR_DEFAULTTOPRIMARY, MONITORINFO, MonitorFromRect,
+    MonitorFromWindow,
 };
+#[cfg(windows)]
+use windows::Win32::System::DataExchange::COPYDATASTRUCT;
 #[cfg(windows)]
 use windows::Win32::UI::Shell::{
     DefSubclassProc, DragAcceptFiles, DragFinish, DragQueryFileW, HDROP, RemoveWindowSubclass,
     SetWindowSubclass,
 };
 #[cfg(windows)]
-use windows::Win32::System::DataExchange::COPYDATASTRUCT;
-#[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowPlacement, GetWindowRect, IsIconic, IsZoomed, SetForegroundWindow, SetWindowPlacement,
-    SetWindowPos, ShowWindow, SIZE_MAXIMIZED, SIZE_MINIMIZED, SIZE_RESTORED, SW_HIDE, SW_RESTORE,
-    SW_SHOWMAXIMIZED, SW_SHOWNORMAL, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER, WINDOWPLACEMENT,
-    WINDOWPLACEMENT_FLAGS, WM_COPYDATA, WM_DROPFILES, WM_EXITSIZEMOVE, WM_SHOWWINDOW, WM_SIZE,
-    WPF_RESTORETOMAXIMIZED,
+    GetWindowPlacement, GetWindowRect, IsIconic, IsZoomed, SIZE_MAXIMIZED, SIZE_MINIMIZED,
+    SIZE_RESTORED, SW_HIDE, SW_RESTORE, SW_SHOWMAXIMIZED, SW_SHOWNORMAL, SWP_NOACTIVATE,
+    SWP_NOSIZE, SWP_NOZORDER, SetForegroundWindow, SetWindowPlacement, SetWindowPos, ShowWindow,
+    WINDOWPLACEMENT, WINDOWPLACEMENT_FLAGS, WM_COPYDATA, WM_DROPFILES, WM_EXITSIZEMOVE,
+    WM_SHOWWINDOW, WM_SIZE, WPF_RESTORETOMAXIMIZED,
 };
 
 /// Store the drag-drop / IPC callbacks without touching the OS window.
@@ -232,9 +232,8 @@ pub fn sync_window_theme(window: &slint::Window, is_dark: bool) {
     {
         use raw_window_handle::{HasWindowHandle, RawWindowHandle};
         use windows::Win32::Graphics::Dwm::{
-            DwmSetWindowAttribute, DWMWA_CAPTION_COLOR, DWMWA_TEXT_COLOR,
-            DWMWA_USE_IMMERSIVE_DARK_MODE, DWMWA_WINDOW_CORNER_PREFERENCE,
-            DWMWCP_ROUND,
+            DWMWA_CAPTION_COLOR, DWMWA_TEXT_COLOR, DWMWA_USE_IMMERSIVE_DARK_MODE,
+            DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DwmSetWindowAttribute,
         };
 
         let win_handle = window.window_handle();
@@ -399,9 +398,7 @@ fn read_copydata_payload(cds: &COPYDATASTRUCT) -> Option<String> {
     if cds.cbData == 0 || cds.lpData.is_null() {
         return None;
     }
-    let slice = unsafe {
-        std::slice::from_raw_parts(cds.lpData as *const u8, cds.cbData as usize)
-    };
+    let slice = unsafe { std::slice::from_raw_parts(cds.lpData as *const u8, cds.cbData as usize) };
     let text = String::from_utf8_lossy(slice).trim().to_string();
     if text.is_empty() { None } else { Some(text) }
 }
@@ -503,7 +500,9 @@ pub fn center_window_on_monitor(hwnd: HWND) {
                     0,
                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
                 );
-                tracing::info!("窗口已智能居中于显示器工作区: x={x}, y={y} (工作区 {work_w}x{work_h})");
+                tracing::info!(
+                    "窗口已智能居中于显示器工作区: x={x}, y={y} (工作区 {work_w}x{work_h})"
+                );
             }
         }
     }
@@ -628,9 +627,7 @@ pub fn apply_restored_window_placement(
     // was dropped before the window existed shows up here and keeps the retry
     // alive. The `is_visible` half stops the retry once the window is really up,
     // so it cannot fight a user who restores a maximized window by hand.
-    let still_missing_placement = geom.is_maximized
-        && !current_maximized
-        && window.is_minimized();
+    let still_missing_placement = geom.is_maximized && !current_maximized && window.is_minimized();
 
     tracing::info!(
         "窗口位置已恢复: ({}, {}) {}x{} (最大化: {}, 已应用: {})",
@@ -773,8 +770,8 @@ pub fn hide_window(window: &slint::Window) {
 pub fn os_description() -> String {
     #[cfg(windows)]
     {
-        if let Ok(key) = windows_registry::LOCAL_MACHINE
-            .open(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion")
+        if let Ok(key) =
+            windows_registry::LOCAL_MACHINE.open(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion")
         {
             let product = key
                 .get_string("ProductName")
@@ -944,7 +941,8 @@ mod tests {
 
     #[test]
     fn window_geometry_save_and_load_roundtrip() {
-        let temp_dir = std::env::temp_dir().join(format!("limedl_test_win_geom_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("limedl_test_win_geom_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&temp_dir);
 
         let geom = WindowGeometry {
@@ -1044,7 +1042,11 @@ mod tests {
         assert!(!PLACEMENT_APPLIED.load(Ordering::SeqCst));
         PLACEMENT_APPLIED.store(true, Ordering::SeqCst);
         let temp = tempfile::tempdir().unwrap();
-        assert!(ensure_restored_window_placement(ui.window(), temp.path(), false));
+        assert!(ensure_restored_window_placement(
+            ui.window(),
+            temp.path(),
+            false
+        ));
         reset_placement_applied_for_test();
     }
 }

@@ -310,7 +310,11 @@ async fn tail_sprint_selective_release_completes() -> TestResult {
         // triggering tail sprint / work stealing. The sprint request proceeds immediately.
         let file_end = state.bytes.len() - 1;
         let tail_start = file_end.saturating_sub(TAIL_ZONE - 1);
-        if end >= tail_start && !state.stalled.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        if end >= tail_start
+            && !state
+                .stalled
+                .swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
             sleep(Duration::from_millis(STALL_DELAY_MS)).await;
         }
 

@@ -231,6 +231,30 @@ job was not already building).
   then — the xtask suite only pins `theme generate` against the checked-in
   `theme.slint` — so the file-type palette drifted in with 3 unmapped colors and
   13 unmapped tints.
+- **Formatting (`check-rust`, rustfmt pinned to 1.99.0).**
+  `cargo +1.99.0 fmt --all -- --check` runs before clippy. The pin is the point:
+  rustfmt's output changes between Rust releases (style edition, plus
+  occasional default changes), so following the job's floating `stable` would
+  fail the gate on an unrelated toolchain bump — the failure mode that already
+  forced pins on `cargo-llvm-cov`, `nextest`, `cargo-hack` and `cargo-machete`.
+  Bumping the pin is a deliberate commit that carries the resulting
+  `cargo fmt` output. The step compiles nothing, so it does not disturb the
+  coverage-artifact ordering described above.
+  Two properties make the check byte-identical on Linux/macOS/Windows, and they
+  are one decision written in three places: `rustfmt.toml` sets
+  `newline_style = "Unix"` (the default `Auto` means *platform* default, so
+  Windows would emit CRLF and CI would emit LF for the same commit),
+  `.gitattributes` sets `* text=auto eol=lf`, and CI runs the same pinned
+  version everywhere. Change one without the others and the gate becomes a coin
+  flip.
+  `rustfmt.toml` is deliberately minimal because the options that would let the
+  style follow this repository's hand-laid tables (`imports_granularity`,
+  `group_imports`, `style_edition`, `fn_single_line`) are nightly-only and are
+  *silently ignored* on stable — the file says so, and `theme.rs`'s
+  `ACCENT_MAP`/`UNCHANGED` carry a `#[rustfmt::skip]` with the reason instead.
+  `max_width` stays at 100: raising it to 120 was measured against the
+  pre-rustfmt tree and made the diff worse (178 → 272 changed files), because
+  rustfmt then rejoins the multi-line argument wraps the code already had.
 - **Not adopted: `cargo udeps`.** It needs a nightly toolchain plus a full
   build, and rust-cache keys include the toolchain version, so it would add a
   multi-GB cache generation against the 10 GB ceiling this repo already fights
@@ -261,6 +285,11 @@ features, same nextest version), so a green local run means a green CI run.
   does not execute doctests; the workspace has none today, so if one is ever
   added, add a `cargo test --doc` step to the gate and to CI's `check-rust` job
   together.
+- Run `cargo fmt --all` before committing and `cargo fmt --all -- --check` as
+  part of the gate (see the formatting bullet above). CI pins rustfmt to 1.99.0
+  so a Rust release cannot reformat the tree unasked; the local toolchain only
+  has to be close enough to produce the same output, and a mismatch shows up as
+  a diff in the check rather than as a silent rewrite.
 - `cargo hack` and `cargo machete` are part of the gate (see the section above).
   `CARGO_BUILD_WARNINGS=deny` must be set for the `cargo hack` run exactly as for
   clippy, or the feature-matrix step stops being fatal on warnings. The
@@ -268,7 +297,8 @@ features, same nextest version), so a green local run means a green CI run.
   stopping at the first, matching the gate's preference for complete failure
   output. `cargo xtask theme check` is a step in `check-rust`, and
   `cargo xtask i18n check` rides in the xtask nextest run
-  (`i18n_catalog_matches_repo_catalogs`).
+  (`i18n_catalog_matches_repo_catalogs`). `cargo fmt --all -- --check` is the
+  first step of `check-rust`; see the formatting bullet above.
 - Windows: initialize MSVC first (`vcvarsall.bat x64`).
 
 ## macOS linker note (`-A linker_messages`)

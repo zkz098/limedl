@@ -53,7 +53,9 @@ fn parse_single_link_header(link_text: &str, meta: &mut MetalinkHttpMetadata) {
     let Some(end_idx) = link_text[start_idx + 1..].find('>') else {
         return;
     };
-    let url = link_text[start_idx + 1..start_idx + 1 + end_idx].trim().to_string();
+    let url = link_text[start_idx + 1..start_idx + 1 + end_idx]
+        .trim()
+        .to_string();
     if url.is_empty() {
         return;
     }

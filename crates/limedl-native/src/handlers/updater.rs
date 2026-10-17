@@ -13,13 +13,13 @@ use parking_lot::Mutex;
 
 use limedl_core::dispatcher::Dispatcher;
 
+use crate::MainWindow;
 use crate::bridge::TaskStore;
 use crate::context::AppContext;
 use crate::i18n::{self, Language};
 use crate::toast::{ToastQueue, push_toast};
 use crate::ui_sync::{push_update_state, set_update_error};
 use crate::update::{self, AvailableUpdate, InstallKind, InstallOutcome};
-use crate::MainWindow;
 
 /// Handles shared by the update flows, cloned once per callback.
 #[derive(Clone)]
@@ -86,7 +86,9 @@ impl UpdateCtx {
 
 /// Throttled download progress reporter (150 ms, but always emits the final
 /// tick so the dialog never stops just short of 100%).
-fn progress_reporter(ui: &slint::Weak<MainWindow>) -> impl Fn(u64, Option<u64>) + Send + Sync + 'static {
+fn progress_reporter(
+    ui: &slint::Weak<MainWindow>,
+) -> impl Fn(u64, Option<u64>) + Send + Sync + 'static {
     let ui = ui.clone();
     let last_emit = Mutex::new(Instant::now() - Duration::from_secs(10));
     move |done: u64, total: Option<u64>| {
@@ -217,11 +219,7 @@ fn trigger_store_update(ctx: UpdateCtx, lang: Language) {
         if let Err(err) = update::store::trigger_update().await {
             let msg = format!("{err:#}");
             set_update_error(&ctx.ui_weak, &msg);
-            ctx.toast(
-                i18n::format_toast_update_failed(&msg, lang),
-                "error",
-                5,
-            );
+            ctx.toast(i18n::format_toast_update_failed(&msg, lang), "error", 5);
         }
     });
 }
@@ -257,12 +255,7 @@ fn download_and_install(ctx: UpdateCtx, update: AvailableUpdate, lang: Language)
 }
 
 /// Apply a verified artifact (portable self-replace or installer handoff).
-async fn finish_install(
-    ctx: UpdateCtx,
-    update: &AvailableUpdate,
-    verified: &Path,
-    lang: Language,
-) {
+async fn finish_install(ctx: UpdateCtx, update: &AvailableUpdate, verified: &Path, lang: Language) {
     match update::install_verified(update, verified) {
         Ok(InstallOutcome::ReplacedRestartPending) => {
             let ui_weak = ctx.ui_weak.clone();

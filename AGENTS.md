@@ -20,6 +20,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Fetch UI font   | `cargo xtask fetch-font [--verify]` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                  |
 | Drive the UI    | `set "SLINT_EMIT_DEBUG_INFO=1" && set "SLINT_MCP_PORT=8080" && cargo run -p limedl-native --features slint/mcp` (see `docs/manual-smoke-testing.md`)              |
 | Theme / tokens  | `cargo xtask theme generate` · `cargo xtask theme apply` · `cargo xtask theme check`                                                                               |
+| Format          | `cargo fmt --all` · `cargo fmt --all -- --check` (CI pins rustfmt to 1.99.0; `newline_style = "Unix"` + `.gitattributes eol=lf`)                                  |
 | Translations    | `cargo xtask i18n generate` · `cargo xtask i18n check` (see `docs/i18n.md`)                                                                                          |
 | Generate icons  | `cargo xtask gen-icons [msix\|hicolor\|macos-iconset] --out-dir <dir>`                                                                                             |
 | Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `docs/update-signing-key.md`)             |
@@ -114,6 +115,10 @@ cargo machete --with-metadata
 # The theme-token scanner: no new hardcoded hex in `ui/*.slint` components
 # (alpha tints and scheme-identical colors are allowlisted in `xtask/src/theme.rs`).
 cargo xtask theme check
+
+# Formatting. `cargo fmt` locally; CI runs the same check through a pinned
+# rustfmt (1.99.0) so a Rust release cannot reformat the tree unasked.
+cargo fmt --all -- --check
 ```
 
 `cargo hack` walks every `limedl-core` feature combination — `--no-default-features`

@@ -1,4 +1,3 @@
-
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
@@ -166,7 +165,11 @@ pub fn expand_ipv6_cidrs(ranges: &[&str], samples_per_cidr: usize) -> Vec<Ipv6Ad
         };
 
         let network = ipv6_network_address(ip, prefix);
-        let total = if prefix >= 128 { 0u128 } else { 1u128 << (128 - prefix) };
+        let total = if prefix >= 128 {
+            0u128
+        } else {
+            1u128 << (128 - prefix)
+        };
         let max_offset = total.saturating_sub(1);
         let count = (samples_per_cidr as u128).min(max_offset);
 
@@ -200,8 +203,8 @@ struct CfIpsResult {
 /// Fetch Cloudflare IP ranges from the REST API (both v4 and v6 in one request).
 ///
 /// Returns expanded IPv4 and IPv6 sample addresses plus the raw CIDR strings.
-pub async fn fetch_cloudflare_ips(
-) -> anyhow::Result<(Vec<Ipv4Addr>, Vec<Ipv6Addr>, Vec<String>, Vec<String>)> {
+pub async fn fetch_cloudflare_ips()
+-> anyhow::Result<(Vec<Ipv4Addr>, Vec<Ipv6Addr>, Vec<String>, Vec<String>)> {
     let response = tokio::time::timeout(FETCH_TIMEOUT, reqwest::get(CLOUDFLARE_IPS_API))
         .await
         .map_err(|_| anyhow::anyhow!("fetch timed out after {}s", FETCH_TIMEOUT.as_secs()))?
@@ -262,8 +265,14 @@ impl CdnIpCache {
 
     /// Create a cache populated from static fallback CIDR ranges.
     pub fn from_fallback() -> Self {
-        let ipv4_cidrs: Vec<String> = CLOUDFLARE_IPV4_RANGES.iter().map(ToString::to_string).collect();
-        let ipv6_cidrs: Vec<String> = CLOUDFLARE_IPV6_RANGES.iter().map(ToString::to_string).collect();
+        let ipv4_cidrs: Vec<String> = CLOUDFLARE_IPV4_RANGES
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        let ipv6_cidrs: Vec<String> = CLOUDFLARE_IPV6_RANGES
+            .iter()
+            .map(ToString::to_string)
+            .collect();
         let ipv4_addrs = expand_ipv4_cidrs(CLOUDFLARE_IPV4_RANGES, 3);
         let ipv6_addrs = expand_ipv6_cidrs(CLOUDFLARE_IPV6_RANGES, 3);
         Self {
@@ -283,10 +292,7 @@ impl CdnIpCache {
 /// 1. Cache hit (< 24h, non-empty) → return immediately
 /// 2. Stale cache with data → return stale, refresh in background
 /// 3. Empty cache → must fetch; cancellation triggers static fallback
-pub async fn get_ip_ranges(
-    cache: Arc<Mutex<CdnIpCache>>,
-    cancel: CancellationToken,
-) -> CdnIpCache {
+pub async fn get_ip_ranges(cache: Arc<Mutex<CdnIpCache>>, cancel: CancellationToken) -> CdnIpCache {
     // Fast path: cache is valid (<24h, non-empty) — return immediately.
     {
         let cached = cache.lock().await;

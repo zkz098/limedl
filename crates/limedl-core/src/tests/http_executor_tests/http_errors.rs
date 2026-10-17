@@ -439,7 +439,6 @@ async fn wrong_content_length_truncates_completed_download() -> TestResult {
 #[tokio::test]
 #[timeout(30_000)]
 async fn stream_interruption_resumes_and_completes() -> TestResult {
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use axum::{
         Router,
         body::Body,
@@ -449,6 +448,7 @@ async fn stream_interruption_resumes_and_completes() -> TestResult {
         routing::any,
     };
     use futures_util::stream;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     let test_data = generate_test_content(64 * 1024);
     let total_len = test_data.len();
@@ -461,8 +461,8 @@ async fn stream_interruption_resumes_and_completes() -> TestResult {
             "/interrupted",
             any(
                 move |method: Method,
-                 State((data, attempts)): State<(Arc<Vec<u8>>, Arc<AtomicUsize>)>,
-                 headers: HeaderMap| async move {
+                      State((data, attempts)): State<(Arc<Vec<u8>>, Arc<AtomicUsize>)>,
+                      headers: HeaderMap| async move {
                     let mut resp_headers = HeaderMap::new();
                     resp_headers.insert(header::ACCEPT_RANGES, "bytes".parse().unwrap());
                     resp_headers.insert(
@@ -488,10 +488,7 @@ async fn stream_interruption_resumes_and_completes() -> TestResult {
                             std::io::ErrorKind::ConnectionReset,
                             "simulated reset",
                         );
-                        let s = stream::iter(vec![
-                            Ok::<_, std::io::Error>(chunk),
-                            Err(err),
-                        ]);
+                        let s = stream::iter(vec![Ok::<_, std::io::Error>(chunk), Err(err)]);
                         resp_headers.insert(
                             header::CONTENT_LENGTH,
                             data.len().to_string().parse().unwrap(),
@@ -502,7 +499,11 @@ async fn stream_interruption_resumes_and_completes() -> TestResult {
                                 .parse()
                                 .unwrap(),
                         );
-                        (StatusCode::PARTIAL_CONTENT, resp_headers, Body::from_stream(s))
+                        (
+                            StatusCode::PARTIAL_CONTENT,
+                            resp_headers,
+                            Body::from_stream(s),
+                        )
                             .into_response()
                     } else {
                         // Resumed GET attempt: serve from requested Range
@@ -589,4 +590,3 @@ async fn stream_interruption_resumes_and_completes() -> TestResult {
     server_handle.abort();
     Ok(())
 }
-

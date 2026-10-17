@@ -1,7 +1,9 @@
 //! Tests for the persisted BitTorrent task index (`bt_task_repo`).
 
 use super::Database;
-use crate::types::{BtUploadStatus, DownloadState, DownloadSummary, Priority, TaskKind, ThreadMode};
+use crate::types::{
+    BtUploadStatus, DownloadState, DownloadSummary, Priority, TaskKind, ThreadMode,
+};
 
 fn summary(id: &str, state: DownloadState, created_at_ms: u64) -> DownloadSummary {
     DownloadSummary {
@@ -73,7 +75,12 @@ fn replace_is_a_full_snapshot_not_an_upsert() {
     db.replace_bt_tasks(&[summary("bb", DownloadState::Completed, 200)])
         .unwrap();
 
-    let ids: Vec<String> = db.list_bt_tasks().unwrap().into_iter().map(|t| t.id).collect();
+    let ids: Vec<String> = db
+        .list_bt_tasks()
+        .unwrap()
+        .into_iter()
+        .map(|t| t.id)
+        .collect();
     assert_eq!(ids, vec!["bb".to_string()]);
 }
 
@@ -87,7 +94,12 @@ fn list_orders_newest_first() {
     ])
     .unwrap();
 
-    let ids: Vec<String> = db.list_bt_tasks().unwrap().into_iter().map(|t| t.id).collect();
+    let ids: Vec<String> = db
+        .list_bt_tasks()
+        .unwrap()
+        .into_iter()
+        .map(|t| t.id)
+        .collect();
     assert_eq!(ids, vec!["new", "mid", "old"]);
 }
 
@@ -102,7 +114,12 @@ fn delete_removes_only_the_target_row() {
 
     db.delete_bt_task("aa").unwrap();
 
-    let ids: Vec<String> = db.list_bt_tasks().unwrap().into_iter().map(|t| t.id).collect();
+    let ids: Vec<String> = db
+        .list_bt_tasks()
+        .unwrap()
+        .into_iter()
+        .map(|t| t.id)
+        .collect();
     assert_eq!(ids, vec!["bb".to_string()]);
 
     // Deleting a missing row is a no-op, not an error.

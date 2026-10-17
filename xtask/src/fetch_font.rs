@@ -36,7 +36,7 @@ use std::process::Command;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use flate2::read::DeflateDecoder;
 
 use crate::sha256_hex;
@@ -190,7 +190,9 @@ fn run_with(
     }
 
     if !verify_font(staging.path(), spec) {
-        annotation("MiSans VF failed the pinned size/sha256 check (did Xiaomi change the font build?)");
+        annotation(
+            "MiSans VF failed the pinned size/sha256 check (did Xiaomi change the font build?)",
+        );
         bail!(
             "Fetched font failed verification.\n  \
              expected: {} bytes, sha256={}\n  \
@@ -212,13 +214,7 @@ fn run_with(
 
 // ── Fetch paths ─────────────────────────────────────────────────────────────
 
-fn fetch_via_zip(
-    url: &str,
-    out: &Path,
-    tmp: &TempDir,
-    spec: &Spec,
-    policy: &Policy,
-) -> Result<()> {
+fn fetch_via_zip(url: &str, out: &Path, tmp: &TempDir, spec: &Spec, policy: &Policy) -> Result<()> {
     let mut failures = Vec::new();
     for pass in 1..=policy.passes {
         if pass > 1 {
@@ -291,8 +287,7 @@ fn import_from_source(source: &str, out: &Path, policy: &Policy) -> Result<()> {
         let curl = Curl::new(policy)?;
         curl.plain_download(source, out)
     } else {
-        let resolved =
-            fs::canonicalize(source).with_context(|| format!("resolve {source}"))?;
+        let resolved = fs::canonicalize(source).with_context(|| format!("resolve {source}"))?;
         println!("Using MiSans VF from {} ...", resolved.display());
         fs::copy(&resolved, out)
             .with_context(|| format!("copy {} to {}", resolved.display(), out.display()))?;
@@ -644,7 +639,9 @@ impl Curl {
                         return Ok(total);
                     }
                 }
-                Err(error) => failures.push(format!("{} (range probe): {error:#}", transport.label)),
+                Err(error) => {
+                    failures.push(format!("{} (range probe): {error:#}", transport.label))
+                }
             }
 
             let mut args = self.common(*transport, PROBE_TIMEOUT, 0, Duration::ZERO);
@@ -662,7 +659,10 @@ impl Curl {
                 Err(error) => failures.push(format!("{} (HEAD): {error:#}", transport.label)),
             }
         }
-        bail!("server did not report content length\n  {}", failures.join("\n  "))
+        bail!(
+            "server did not report content length\n  {}",
+            failures.join("\n  ")
+        )
     }
 
     /// One ranged read, walked across the ladder. The response must be 206 with
@@ -791,12 +791,18 @@ impl FileSource {
 
 impl ZipSource for FileSource {
     fn total_len(&self) -> Result<u64> {
-        let file = self.file.lock().map_err(|_| anyhow::anyhow!("file lock poisoned"))?;
+        let file = self
+            .file
+            .lock()
+            .map_err(|_| anyhow::anyhow!("file lock poisoned"))?;
         Ok(file.metadata().context("stat zip file")?.len())
     }
 
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> Result<()> {
-        let mut file = self.file.lock().map_err(|_| anyhow::anyhow!("file lock poisoned"))?;
+        let mut file = self
+            .file
+            .lock()
+            .map_err(|_| anyhow::anyhow!("file lock poisoned"))?;
         file.seek(SeekFrom::Start(offset))
             .context("seek in zip file")?;
         file.read_exact(buf).context("read from zip file")?;
@@ -894,7 +900,10 @@ struct Staging {
 impl Staging {
     fn new(dir: &Path) -> Result<Self> {
         Ok(Self {
-            path: dir.join(format!("{FONT_NAME}.staging-{}", uuid::Uuid::new_v4().simple())),
+            path: dir.join(format!(
+                "{FONT_NAME}.staging-{}",
+                uuid::Uuid::new_v4().simple()
+            )),
             active: true,
         })
     }
@@ -1059,8 +1068,8 @@ mod tests {
         let spec = Spec {
             entry_suffix: "MiSansVF.ttf".to_string(),
             expected_size: 3,
-            expected_sha256:
-                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad".to_string(),
+            expected_sha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+                .to_string(),
         };
         assert!(verify_font(&path, &spec));
         assert!(!verify_font(&dir.join("missing.ttf"), &spec));
@@ -1084,10 +1093,15 @@ mod tests {
     #[test]
     fn parses_probe_headers_and_features() {
         assert_eq!(
-            parse_content_range_total("HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 0-0/227880072\r\n"),
+            parse_content_range_total(
+                "HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 0-0/227880072\r\n"
+            ),
             Some(227_880_072)
         );
-        assert_eq!(parse_content_range_total("Content-Range: bytes 0-0/5"), Some(5));
+        assert_eq!(
+            parse_content_range_total("Content-Range: bytes 0-0/5"),
+            Some(5)
+        );
         assert_eq!(parse_content_range_total("Content-Length: 5"), None);
         assert_eq!(
             parse_content_length("HTTP/1.1 200 OK\nContent-Length: 12\n\n"),
@@ -1097,7 +1111,9 @@ mod tests {
             parse_status("HTTP/1.1 302 Found\r\n\r\nHTTP/2 206\r\n"),
             Some(206)
         );
-        assert!(features_include_http2("Features: alt-svc AsynchDNS HSTS HTTP2\n"));
+        assert!(features_include_http2(
+            "Features: alt-svc AsynchDNS HSTS HTTP2\n"
+        ));
         assert!(!features_include_http2("Features: alt-svc AsynchDNS\n"));
     }
 
@@ -1120,7 +1136,14 @@ mod tests {
         };
         // No `--force`: the existing copy wins and the bogus --from-path is
         // never consulted.
-        run_with(&dir, &opts, Some("does-not-exist.ttf"), &spec, &Policy::default()).unwrap();
+        run_with(
+            &dir,
+            &opts,
+            Some("does-not-exist.ttf"),
+            &spec,
+            &Policy::default(),
+        )
+        .unwrap();
         fs::remove_dir_all(&dir).ok();
     }
 
@@ -1144,7 +1167,10 @@ mod tests {
             &Policy::default(),
         )
         .unwrap();
-        assert_eq!(fs::read(dir.join(FONT_DIR).join(FONT_NAME)).unwrap(), payload);
+        assert_eq!(
+            fs::read(dir.join(FONT_DIR).join(FONT_NAME)).unwrap(),
+            payload
+        );
         fs::remove_dir_all(&dir).ok();
     }
 
@@ -1197,7 +1223,9 @@ mod tests {
             std::thread::spawn(move || {
                 for stream in listener.incoming() {
                     let Ok(mut stream) = stream else { break };
-                    let Ok(clone) = stream.try_clone() else { continue };
+                    let Ok(clone) = stream.try_clone() else {
+                        continue;
+                    };
                     let mut reader = std::io::BufReader::new(clone);
                     let mut request_line = String::new();
                     if std::io::BufRead::read_line(&mut reader, &mut request_line).unwrap_or(0) == 0
@@ -1222,7 +1250,11 @@ mod tests {
                     let (status, start, end) = if method == "HEAD" {
                         ("200 OK", 0, total - 1)
                     } else if let Some((start, end)) = range {
-                        ("206 Partial Content", start.min(total - 1), end.min(total - 1))
+                        (
+                            "206 Partial Content",
+                            start.min(total - 1),
+                            end.min(total - 1),
+                        )
                     } else {
                         ("200 OK", 0, total - 1)
                     };
@@ -1234,9 +1266,8 @@ mod tests {
                     let mut response =
                         format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\n", body.len());
                     if status.starts_with("206") {
-                        response.push_str(&format!(
-                            "Content-Range: bytes {start}-{end}/{total}\r\n"
-                        ));
+                        response
+                            .push_str(&format!("Content-Range: bytes {start}-{end}/{total}\r\n"));
                     }
                     response.push_str("Accept-Ranges: bytes\r\nConnection: close\r\n\r\n");
                     let _ = stream.write_all(response.as_bytes());

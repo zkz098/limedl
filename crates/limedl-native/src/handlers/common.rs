@@ -14,9 +14,9 @@ use limedl_core::dispatcher::Dispatcher;
 use limedl_core::error::Result as CoreResult;
 use limedl_core::types::{DownloadSummary, TaskId};
 
+use crate::MainWindow;
 use crate::bridge::TaskStore;
 use crate::ui_sync::refresh_ui;
-use crate::MainWindow;
 
 /// Run `f` with an upgraded window handle, skipping the callback when the
 /// window has already been dropped.

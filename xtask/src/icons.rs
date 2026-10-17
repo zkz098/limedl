@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
-use image::imageops::FilterType;
 use image::ImageReader;
+use image::imageops::FilterType;
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum IconsCommand {
@@ -122,7 +122,10 @@ fn gen_msix(source: &Path, out_dir: &Path) -> Result<()> {
         resize_and_save(&img, *size, &out_path)?;
         println!("  wrote {} ({}x{})", out_path.display(), size, size);
     }
-    println!("MSIX assets generated successfully in {}", out_dir.display());
+    println!(
+        "MSIX assets generated successfully in {}",
+        out_dir.display()
+    );
     Ok(())
 }
 
@@ -140,7 +143,10 @@ fn gen_hicolor(source: &Path, out_dir: &Path) -> Result<()> {
         resize_and_save(&img, *size, &out_path)?;
         println!("  wrote {}", out_path.display());
     }
-    println!("hicolor icons generated successfully in {}", out_dir.display());
+    println!(
+        "hicolor icons generated successfully in {}",
+        out_dir.display()
+    );
     Ok(())
 }
 
@@ -158,6 +164,9 @@ fn gen_macos_iconset(source: &Path, out_dir: &Path) -> Result<()> {
         resize_and_save(&img, *size, &out_path)?;
         println!("  wrote {} ({}x{})", out_path.display(), size, size);
     }
-    println!("macOS iconset generated successfully in {}", out_dir.display());
+    println!(
+        "macOS iconset generated successfully in {}",
+        out_dir.display()
+    );
     Ok(())
 }

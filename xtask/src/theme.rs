@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use regex::Regex;
 
@@ -46,6 +46,11 @@ pub const KEEP_LITERAL: &[&str] = &["6b7280"];
 /// whatever surface the card sits on, so the same literal reads correctly on the
 /// light and the dark surface and a per-scheme token would only add indirection.
 /// That is also why their opaque counterparts *are* in [`STATIC_MAP`].
+//
+// `rustfmt::skip`: the list is grouped (allowlisted neutrals, then the file-type
+// tints) and one entry per line keeps that grouping visible; rustfmt would pack
+// it back into ~100-column lines and lose the comment boundaries.
+#[rustfmt::skip]
 pub const UNCHANGED: &[&str] = &[
     "ffffff",
     "dc2626",
@@ -206,6 +211,11 @@ pub struct AccentEntry {
     pub light: AccentColor,
 }
 
+// `rustfmt::skip`: one accent per row, with its dark and light ramp on the same
+// line, is the point of this table — the five hues are meant to be compared
+// across a row. rustfmt expands each `AccentColor` to eight lines and the
+// comparison is gone.
+#[rustfmt::skip]
 pub const ACCENT_MAP: &[AccentEntry] = &[
     AccentEntry {
         key: "84cc16",
@@ -299,21 +309,35 @@ export global Theme {
 
     for (hex, light) in STATIC_MAP {
         out.push_str(&format!("    /// dark #{hex} / light #{light}\n"));
-        out.push_str(&format!("    in property <color> c{hex}: dark ? #{hex} : #{light};\n"));
+        out.push_str(&format!(
+            "    in property <color> c{hex}: dark ? #{hex} : #{light};\n"
+        ));
     }
 
     for entry in ACCENT_MAP {
         let hex = entry.key;
         let dark_expr = format!(
             "accent == ThemeAccent.Amber ? #{} : accent == ThemeAccent.Sky ? #{} : accent == ThemeAccent.Violet ? #{} : accent == ThemeAccent.Monochrome ? #{} : #{}",
-            entry.dark.amber, entry.dark.sky, entry.dark.violet, entry.dark.monochrome, entry.dark.lime
+            entry.dark.amber,
+            entry.dark.sky,
+            entry.dark.violet,
+            entry.dark.monochrome,
+            entry.dark.lime
         );
         let light_expr = format!(
             "accent == ThemeAccent.Amber ? #{} : accent == ThemeAccent.Sky ? #{} : accent == ThemeAccent.Violet ? #{} : accent == ThemeAccent.Monochrome ? #{} : #{}",
-            entry.light.amber, entry.light.sky, entry.light.violet, entry.light.monochrome, entry.light.lime
+            entry.light.amber,
+            entry.light.sky,
+            entry.light.violet,
+            entry.light.monochrome,
+            entry.light.lime
         );
-        out.push_str(&format!("    /// brand accent (was dark #{hex}) — follows theme_color\n"));
-        out.push_str(&format!("    in property <color> c{hex}: dark ? ({dark_expr}) : ({light_expr});\n"));
+        out.push_str(&format!(
+            "    /// brand accent (was dark #{hex}) — follows theme_color\n"
+        ));
+        out.push_str(&format!(
+            "    in property <color> c{hex}: dark ? ({dark_expr}) : ({light_expr});\n"
+        ));
     }
 
     out.push_str("}\n");
@@ -325,9 +349,11 @@ pub fn run(cmd: ThemeCommand) -> Result<()> {
         ThemeCommand::Generate { out_file } => {
             let content = generate_theme_slint();
             if let Some(parent) = out_file.parent() {
-                fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
+                fs::create_dir_all(parent)
+                    .with_context(|| format!("create {}", parent.display()))?;
             }
-            fs::write(&out_file, content).with_context(|| format!("write {}", out_file.display()))?;
+            fs::write(&out_file, content)
+                .with_context(|| format!("write {}", out_file.display()))?;
             println!("wrote Slint theme -> {}", out_file.display());
             Ok(())
         }
@@ -436,7 +462,11 @@ fn theme_import(file: &Path) -> String {
         .parent()
         .and_then(Path::file_name)
         .is_some_and(|n| n == "components");
-    let rel = if is_component { "../theme.slint" } else { "theme.slint" };
+    let rel = if is_component {
+        "../theme.slint"
+    } else {
+        "theme.slint"
+    };
     format!("import {{ Theme }} from \"{rel}\";")
 }
 

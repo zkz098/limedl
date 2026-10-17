@@ -216,4 +216,3 @@ fn the_about_tab_shows_github_repo_link_and_open_button() {
         );
     });
 }
-

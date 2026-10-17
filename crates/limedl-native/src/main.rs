@@ -34,8 +34,8 @@ mod url_utils;
 use power::PowerGuard;
 pub static POWER_GUARD: std::sync::LazyLock<PowerGuard> = std::sync::LazyLock::new(PowerGuard::new);
 
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use anyhow::Context;
 use parking_lot::Mutex;
@@ -113,18 +113,11 @@ async fn run() -> anyhow::Result<()> {
         .await
         .with_context(|| "初始化核心引擎失败")?;
 
-    let initial_settings = core
-        .dispatcher
-        .get_settings()
-        .await
-        .unwrap_or_default();
+    let initial_settings = core.dispatcher.get_settings().await.unwrap_or_default();
 
     limedl_core::init_logging(&initial_settings.logging, &state_dir)
         .with_context(|| "初始化日志失败")?;
-    tracing::info!(
-        "启动 limedl Native 桌面客户端 ({})...",
-        renderer::NAME
-    );
+    tracing::info!("启动 limedl Native 桌面客户端 ({})...", renderer::NAME);
 
     autostart::sync_from_settings(initial_settings.autostart);
 
@@ -170,7 +163,10 @@ async fn run() -> anyhow::Result<()> {
         rpc_shutdown: rpc_shutdown.clone(),
         install_kind: update::detect_install_kind(),
     })?;
-    let UiState { window: main_window, ctx } = ui;
+    let UiState {
+        window: main_window,
+        ctx,
+    } = ui;
 
     // Everything from here on needs the operating system: the real window
     // handle only exists once the event loop runs, and theme/geometry talk to
@@ -274,7 +270,11 @@ async fn run() -> anyhow::Result<()> {
     if start_hidden {
         tracing::info!(
             "以静默模式启动（仅托盘；来源：{}）",
-            if hidden_flag { "--hidden" } else { "MSIX 登录启动" }
+            if hidden_flag {
+                "--hidden"
+            } else {
+                "MSIX 登录启动"
+            }
         );
         platform_win::set_window_visible(false);
         platform_win::trim_working_set();
@@ -324,9 +324,10 @@ fn install_signal_shutdown() {
     use tokio::signal::unix::{SignalKind, signal};
 
     tokio::spawn(async move {
-        let (Ok(mut terminate), Ok(mut interrupt)) =
-            (signal(SignalKind::terminate()), signal(SignalKind::interrupt()))
-        else {
+        let (Ok(mut terminate), Ok(mut interrupt)) = (
+            signal(SignalKind::terminate()),
+            signal(SignalKind::interrupt()),
+        ) else {
             tracing::warn!("could not install the SIGTERM/SIGINT handlers");
             return;
         };

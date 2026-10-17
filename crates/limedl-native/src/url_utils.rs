@@ -163,7 +163,8 @@ pub fn percent_decode(input: &str) -> String {
     let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'%' && i + 3 <= bytes.len()
+        if bytes[i] == b'%'
+            && i + 3 <= bytes.len()
             && let Ok(value) = u8::from_str_radix(&input[i + 1..i + 3], 16)
         {
             out.push(value);
@@ -201,13 +202,28 @@ mod tests {
             vec!["https://host/a1b[3-4].zip", "https://host/a2b[3-4].zip"]
         );
         // Non-range inputs pass through unchanged
-        assert_eq!(expand_url_ranges("https://host/a.zip"), vec!["https://host/a.zip"]);
-        assert_eq!(expand_url_ranges("https://host/a[-1].zip"), vec!["https://host/a[-1].zip"]);
-        assert_eq!(expand_url_ranges("https://host/a[x-y].zip"), vec!["https://host/a[x-y].zip"]);
+        assert_eq!(
+            expand_url_ranges("https://host/a.zip"),
+            vec!["https://host/a.zip"]
+        );
+        assert_eq!(
+            expand_url_ranges("https://host/a[-1].zip"),
+            vec!["https://host/a[-1].zip"]
+        );
+        assert_eq!(
+            expand_url_ranges("https://host/a[x-y].zip"),
+            vec!["https://host/a[x-y].zip"]
+        );
         // Reversed range: no expansion
-        assert_eq!(expand_url_ranges("https://host/a[3-1].zip"), vec!["https://host/a[3-1].zip"]);
+        assert_eq!(
+            expand_url_ranges("https://host/a[3-1].zip"),
+            vec!["https://host/a[3-1].zip"]
+        );
         // Giant range guard
-        assert_eq!(expand_url_ranges("https://host/a[1-1001].zip"), vec!["https://host/a[1-1001].zip"]);
+        assert_eq!(
+            expand_url_ranges("https://host/a[1-1001].zip"),
+            vec!["https://host/a[1-1001].zip"]
+        );
     }
 
     #[test]
@@ -261,8 +277,7 @@ aria2c \"https://host/b.zip\" --out \"b.zip\" --header \"Cookie: a=1\" --dir /ou
         assert_eq!(mirrors[0].mirror_urls, vec!["https://mirror/a.zip"]);
 
         // With -Z each target is its own task.
-        let sequential =
-            parse_batch_entries("aria2c -Z https://host/a.zip https://host/b.zip");
+        let sequential = parse_batch_entries("aria2c -Z https://host/a.zip https://host/b.zip");
         assert_eq!(sequential.len(), 2);
         assert!(sequential.iter().all(|e| e.mirror_urls.is_empty()));
     }
@@ -285,8 +300,14 @@ aria2c \"https://host/b.zip\" --out \"b.zip\" --header \"Cookie: a=1\" --dir /ou
             extract_batch_file_name("https://host.com/path/to/file%20name.zip").as_deref(),
             Some("file name.zip")
         );
-        assert_eq!(extract_batch_file_name("https://host.com/dir/").as_deref(), None);
-        assert_eq!(extract_batch_file_name("magnet:?xt=urn:btih:ab").as_deref(), None);
+        assert_eq!(
+            extract_batch_file_name("https://host.com/dir/").as_deref(),
+            None
+        );
+        assert_eq!(
+            extract_batch_file_name("magnet:?xt=urn:btih:ab").as_deref(),
+            None
+        );
         assert_eq!(extract_batch_file_name("not a url").as_deref(), None);
     }
 

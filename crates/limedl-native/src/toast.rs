@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use parking_lot::Mutex;
@@ -187,13 +187,22 @@ mod tests {
     fn repeated_warnings_are_collapsed_and_new_ones_are_not() {
         let mut dedup = WarningDedup::new();
 
-        assert!(dedup.should_show("http:1", "peer banned"), "the first warning is shown");
+        assert!(
+            dedup.should_show("http:1", "peer banned"),
+            "the first warning is shown"
+        );
         assert!(
             !dedup.should_show("http:1", "peer banned"),
             "the same warning again within the window is dropped"
         );
-        assert!(dedup.should_show("http:1", "disk full"), "a different message is news");
-        assert!(dedup.should_show("http:2", "peer banned"), "a different task is news");
+        assert!(
+            dedup.should_show("http:1", "disk full"),
+            "a different message is news"
+        );
+        assert!(
+            dedup.should_show("http:2", "peer banned"),
+            "a different task is news"
+        );
         assert!(
             dedup.should_show("http:1", "peer banned"),
             "only the *most recent* key is remembered, so alternating messages all show"

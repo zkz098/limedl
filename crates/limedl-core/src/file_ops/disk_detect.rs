@@ -307,7 +307,10 @@ mod imp {
             let status =
                 unsafe { WNetGetConnectionW(local.as_ptr(), buffer.as_mut_ptr(), &mut length) };
             if status == NO_ERROR {
-                let end = buffer.iter().position(|unit| *unit == 0).unwrap_or(buffer.len());
+                let end = buffer
+                    .iter()
+                    .position(|unit| *unit == 0)
+                    .unwrap_or(buffer.len());
                 return String::from_utf16(&buffer[..end]).ok();
             }
             // ERROR_MORE_DATA updates `length` with the size that is needed.
@@ -402,7 +405,9 @@ mod imp {
             let media = wsl_media_for_base_path(base_path.as_deref());
             // Feed the per-distro cache so a subsequent download to the same
             // distro does not walk the registry again.
-            wsl_media_cache().lock().insert(name.to_ascii_lowercase(), media);
+            wsl_media_cache()
+                .lock()
+                .insert(name.to_ascii_lowercase(), media);
             distros.push((name, media));
         }
         unsafe { RegCloseKey(lxss) };
@@ -481,7 +486,10 @@ mod imp {
         if status != ERROR_SUCCESS {
             return None;
         }
-        let end = buffer.iter().position(|unit| *unit == 0).unwrap_or(buffer.len());
+        let end = buffer
+            .iter()
+            .position(|unit| *unit == 0)
+            .unwrap_or(buffer.len());
         String::from_utf16(&buffer[..end]).ok()
     }
 
@@ -832,7 +840,10 @@ mod imp {
             let root_wide = to_wide_null(&drive_root);
             let drive_type = unsafe { GetDriveTypeW(root_wide.as_ptr()) };
             if matches!(drive_type, DRIVE_FIXED | DRIVE_REMOVABLE | DRIVE_REMOTE) {
-                result.insert(format!("{letter}:"), detect_disk_type(Path::new(&drive_root)));
+                result.insert(
+                    format!("{letter}:"),
+                    detect_disk_type(Path::new(&drive_root)),
+                );
             }
         }
         for (distro, media) in wsl_distros() {
@@ -866,15 +877,26 @@ mod imp {
             assert_eq!(wsl_distro_from_path(Path::new(r"\\wsl$")), None);
 
             // Everything else stays a plain location.
-            for path in [r"\\nas\downloads\file.bin", r"C:\downloads", r"D:", "relative"] {
+            for path in [
+                r"\\nas\downloads\file.bin",
+                r"C:\downloads",
+                r"D:",
+                "relative",
+            ] {
                 assert_eq!(wsl_distro_from_path(Path::new(path)), None, "{path}");
             }
         }
 
         #[test]
         fn drive_letters_are_read_from_local_paths_only() {
-            assert_eq!(drive_letter_for(Path::new(r"d:\downloads")), Some("D:".to_string()));
-            assert_eq!(drive_letter_for(Path::new(r"\\?\D:\x")), Some("D:".to_string()));
+            assert_eq!(
+                drive_letter_for(Path::new(r"d:\downloads")),
+                Some("D:".to_string())
+            );
+            assert_eq!(
+                drive_letter_for(Path::new(r"\\?\D:\x")),
+                Some("D:".to_string())
+            );
             // Rooted-but-relative paths resolve against the current drive.
             let current = std::env::current_dir().expect("cwd");
             assert_eq!(
@@ -925,11 +947,15 @@ mod imp {
 
         #[test]
         fn unknown_distro_falls_back_to_network_without_a_registry_entry() {
-            assert_eq!(resolve_wsl_media("limedl-nonexistent-distro"), DiskType::Network);
+            assert_eq!(
+                resolve_wsl_media("limedl-nonexistent-distro"),
+                DiskType::Network
+            );
         }
 
         #[test]
-        fn network_path_lookup_returns_a_unc_path_or_nothing() {            // The letters are (almost certainly) unmapped, but the assertion has
+        fn network_path_lookup_returns_a_unc_path_or_nothing() {
+            // The letters are (almost certainly) unmapped, but the assertion has
             // to hold either way: this is the redirector round-trip, not a
             // predicate we control.
             for letter in ["Q:", "q:", "1:"] {
@@ -1019,7 +1045,11 @@ mod imp {
             let rotational_path = entry.path().join("queue/rotational");
             if let Ok(val) = fs::read_to_string(&rotational_path) {
                 let name = entry.file_name().to_string_lossy().to_string();
-                let disk_type = if val.trim() == "1" { DiskType::Hdd } else { DiskType::Ssd };
+                let disk_type = if val.trim() == "1" {
+                    DiskType::Hdd
+                } else {
+                    DiskType::Ssd
+                };
                 result.insert(name, disk_type);
             }
         }
@@ -1055,7 +1085,7 @@ mod imp {
 
 #[cfg(target_os = "macos")]
 mod imp {
-    use std::ffi::{c_void, CStr};
+    use std::ffi::{CStr, c_void};
     use std::path::Path;
 
     use crate::types::DiskType;
@@ -1263,16 +1293,16 @@ mod imp {
         bsd_name_key: CFStringRef,
         target_disk: &str,
     ) -> bool {
-        let bsd_prop = unsafe {
-            IORegistryEntryCreateCFProperty(entry, bsd_name_key, std::ptr::null(), 0)
-        };
+        let bsd_prop =
+            unsafe { IORegistryEntryCreateCFProperty(entry, bsd_name_key, std::ptr::null(), 0) };
         if bsd_prop.is_null() {
             return false;
         }
 
         let matches = unsafe {
-            cfstring_to_string(bsd_prop as CFStringRef)
-                .is_some_and(|name| name == target_disk || name.starts_with(&format!("{target_disk}s")))
+            cfstring_to_string(bsd_prop as CFStringRef).is_some_and(|name| {
+                name == target_disk || name.starts_with(&format!("{target_disk}s"))
+            })
         };
         unsafe { CFRelease(bsd_prop) };
         matches
@@ -1290,9 +1320,8 @@ mod imp {
         let mut result = None;
 
         for depth in 0..8 {
-            let prop = unsafe {
-                IORegistryEntryCreateCFProperty(current, rot_key, std::ptr::null(), 0)
-            };
+            let prop =
+                unsafe { IORegistryEntryCreateCFProperty(current, rot_key, std::ptr::null(), 0) };
 
             if !prop.is_null()
                 && let Some(is_rotational) = unsafe { cfbool_value(prop) }
@@ -1353,5 +1382,5 @@ mod imp {
     }
 }
 
-pub use imp::detect_disk_type;
 pub use imp::detect_all_disk_types;
+pub use imp::detect_disk_type;

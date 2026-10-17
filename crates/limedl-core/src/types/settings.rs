@@ -1,11 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-
 use super::bt::BtSettings;
 use super::common::{
-    default_true, AdaptiveProfile, BackgroundOpacityPreset, ChecksumMode, CloseBehavior, ColorMode,
-    DiskType, DoubleClickSettings, LogLevel, ProxyMode, SchedulerMode, SortDirection, SortKey,
-    SpeedLimitSlot, ThemeColor, UrlRewriteRule,
+    AdaptiveProfile, BackgroundOpacityPreset, ChecksumMode, CloseBehavior, ColorMode, DiskType,
+    DoubleClickSettings, LogLevel, ProxyMode, SchedulerMode, SortDirection, SortKey,
+    SpeedLimitSlot, ThemeColor, UrlRewriteRule, default_true,
 };
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

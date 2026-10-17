@@ -1,6 +1,6 @@
+use parking_lot::RwLock;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 use crate::error::Result;
 use crate::settings::{load_settings, normalize_settings, persist_settings};
@@ -74,11 +74,7 @@ impl SettingsService {
     /// Returns the default download directory if non-empty.
     pub async fn default_download_dir(&self) -> Option<String> {
         let dir = self.settings.read().download.default_download_dir.clone();
-        if dir.is_empty() {
-            None
-        } else {
-            Some(dir)
-        }
+        if dir.is_empty() { None } else { Some(dir) }
     }
 
     /// Returns the settings file path.
@@ -125,7 +121,10 @@ mod tests {
             handle.await.expect("task did not panic").expect("update");
         }
 
-        assert_eq!(service.get_blocking().download.default_max_retries, base + 10);
+        assert_eq!(
+            service.get_blocking().download.default_max_retries,
+            base + 10
+        );
     }
 
     #[tokio::test]

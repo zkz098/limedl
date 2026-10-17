@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 use slint::SharedString;
 
 use crate::MainWindow;
+use crate::SettingsFormData;
 use crate::bridge::TaskStore;
 use crate::context::AppContext;
 use crate::handlers::common::with_ui;
@@ -17,7 +18,6 @@ use crate::paths::dirs_or_temp_dir;
 use crate::task_ops::open_path_in_explorer;
 use crate::toast::ToastQueue;
 use crate::toast::push_toast;
-use crate::SettingsFormData;
 use limedl_core::dispatcher::Dispatcher;
 
 /// Ask for a folder and store it in one settings-form field.

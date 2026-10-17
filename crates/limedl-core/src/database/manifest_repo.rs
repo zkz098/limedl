@@ -2,7 +2,7 @@
 use foldhash::HashMap;
 
 use anyhow::{Context, Result};
-use rusqlite::{named_params, params, Connection};
+use rusqlite::{Connection, named_params, params};
 
 use super::chunk_repo::chunk_to_params;
 #[cfg(test)]

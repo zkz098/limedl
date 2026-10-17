@@ -1,4 +1,4 @@
-﻿use ntest::timeout;
+use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::types::{DownloadState, StartDownloadRequest, TaskId};
@@ -46,8 +46,8 @@ async fn mirror_fallback_on_primary_failure() {
         headers: None,
         mirror_urls: Some(vec![broken_url.to_string(), mirror_url.clone()]),
         user_agent: None,
-    priority: None,
-};
+        priority: None,
+    };
     let id = dm.start(request).await.unwrap();
     let task_id = TaskId::from_wire_string(&id.to_string()).unwrap();
     let inner = match task_id {

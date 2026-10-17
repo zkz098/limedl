@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::types::{DownloadState, TaskId};
 
+use crate::MainWindow;
 use crate::bridge::TaskStore;
 use crate::context::AppContext;
 use crate::handlers::common::{
@@ -17,7 +18,6 @@ use crate::handlers::common::{
 };
 use crate::i18n;
 use crate::toast::{ToastQueue, push_toast};
-use crate::MainWindow;
 
 /// Delete (or purge) the current multi-selection: the rows disappear
 /// immediately, the backend catches up in the background and the list is

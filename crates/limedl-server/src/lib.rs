@@ -170,9 +170,10 @@ fn acquire_instance_lock(data_dir: &Path) -> anyhow::Result<std::fs::File> {
 pub async fn shutdown_signal() {
     use tokio::signal::unix::{SignalKind, signal};
 
-    let (Ok(mut terminate), Ok(mut interrupt)) =
-        (signal(SignalKind::terminate()), signal(SignalKind::interrupt()))
-    else {
+    let (Ok(mut terminate), Ok(mut interrupt)) = (
+        signal(SignalKind::terminate()),
+        signal(SignalKind::interrupt()),
+    ) else {
         tracing::warn!("could not install the SIGTERM/SIGINT handlers; falling back to Ctrl+C");
         let _ = tokio::signal::ctrl_c().await;
         return;

@@ -6,8 +6,10 @@ use limedl_core::types::ChecksumMode;
 
 use slint::Model;
 
-use super::{open_new_task_dialog_without_the_clipboard_race, seed_torrent_files, settle_dialog_animation};
 use super::super::{Language, TestUi, new_window};
+use super::{
+    open_new_task_dialog_without_the_clipboard_race, seed_torrent_files, settle_dialog_animation,
+};
 
 /// The submit path is where the dialog's collected state becomes a
 /// `StartDownloadRequest`. Nothing else sees it: `bridge/`'s unit tests stop at
@@ -498,5 +500,8 @@ pub(super) async fn submitting_an_aria2c_batch_applies_per_line_options() {
         .find(|start| start.url == "https://example.invalid/b.zip")
         .expect("the plain line must keep its task");
     assert_eq!(plain.file_name.as_deref(), Some("b.zip"));
-    assert_eq!(plain.headers, None, "headers do not leak across batch lines");
+    assert_eq!(
+        plain.headers, None,
+        "headers do not leak across batch lines"
+    );
 }

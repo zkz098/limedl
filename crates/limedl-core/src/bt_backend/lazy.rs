@@ -99,7 +99,9 @@ const IDLE_SETTLE: Duration = Duration::from_secs(20);
 fn is_unfinished_state(state: DownloadState) -> bool {
     matches!(
         state,
-        DownloadState::Downloading | DownloadState::Queued | DownloadState::Retrying
+        DownloadState::Downloading
+            | DownloadState::Queued
+            | DownloadState::Retrying
             | DownloadState::Verifying
     )
 }
@@ -222,10 +224,7 @@ impl LazyBtBackend {
                 // cannot spawn the warm-up because it only holds `&self`.
                 // A cached startup error deliberately blocks the retry, matching
                 // the "no silent retry after a failed session" contract.
-                if !this.lightweight_mode()
-                    && !this.is_ready()
-                    && this.startup_error().is_none()
-                {
+                if !this.lightweight_mode() && !this.is_ready() && this.startup_error().is_none() {
                     this.spawn_startup();
                 }
                 this.sync_index().await;
@@ -258,9 +257,8 @@ impl LazyBtBackend {
                 }
                 // A task op merely *handing out* the engine (before its torrent
                 // is in the session) must not be mistaken for idleness.
-                let idle_for_ms = now_ms().saturating_sub(
-                    this.last_activity_ms.load(Ordering::Acquire),
-                );
+                let idle_for_ms =
+                    now_ms().saturating_sub(this.last_activity_ms.load(Ordering::Acquire));
                 if idle_for_ms < u64::try_from(IDLE_SETTLE.as_millis()).unwrap_or(u64::MAX) {
                     continue;
                 }
@@ -682,10 +680,9 @@ impl LazyBtBackend {
     /// Volatile transfer metrics are zeroed so a stopped session cannot show a
     /// stale speed, peer count or ETA.
     fn index_summaries(&self) -> Result<Vec<DownloadSummary>> {
-        let mut summaries = self
-            .db
-            .list_bt_tasks()
-            .map_err(|e| DownloadError::Torrent(format!("failed to read the BT task index: {e}")))?;
+        let mut summaries = self.db.list_bt_tasks().map_err(|e| {
+            DownloadError::Torrent(format!("failed to read the BT task index: {e}"))
+        })?;
         for summary in &mut summaries {
             summary.speed_bytes_per_second = None;
             summary.upload_speed_bytes_per_second = None;
@@ -939,7 +936,11 @@ mod tests {
             .await
             .expect("list must fall back to the index");
 
-        assert_eq!(list.len(), 1, "indexed task must be served while the engine is down");
+        assert_eq!(
+            list.len(),
+            1,
+            "indexed task must be served while the engine is down"
+        );
         let row = &list[0];
         assert_eq!(row.id, id);
         assert_eq!(row.state, DownloadState::Paused);
@@ -949,7 +950,10 @@ mod tests {
         assert_eq!(row.eta_seconds, None);
         assert_eq!(row.connection_count, 0);
         assert_eq!(row.peer_count, Some(0));
-        assert!(!backend.is_ready(), "serving the index must not start the engine");
+        assert!(
+            !backend.is_ready(),
+            "serving the index must not start the engine"
+        );
 
         backend.shutdown().await;
     }
@@ -964,7 +968,10 @@ mod tests {
 
         backend
             .db
-            .replace_bt_tasks(&[sample_summary("bb".repeat(20).as_str(), DownloadState::Paused)])
+            .replace_bt_tasks(&[sample_summary(
+                "bb".repeat(20).as_str(),
+                DownloadState::Paused,
+            )])
             .expect("seed the index");
         assert!(
             !backend.has_unfinished_tasks(),
@@ -973,7 +980,10 @@ mod tests {
 
         backend
             .db
-            .replace_bt_tasks(&[sample_summary("cc".repeat(20).as_str(), DownloadState::Downloading)])
+            .replace_bt_tasks(&[sample_summary(
+                "cc".repeat(20).as_str(),
+                DownloadState::Downloading,
+            )])
             .expect("seed the index");
         assert!(backend.has_unfinished_tasks());
 

@@ -2,24 +2,19 @@
 
 use futures_util::{SinkExt, StreamExt};
 
+use super::context::RpcContext;
+use super::dispatch::dispatch_method;
+use super::jsonrpc::{
+    ERR_INVALID_REQUEST, ERR_PARSE, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
+    error_response, success_response,
+};
+use crate::event_bus::DownloadEvent;
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws::{Message, WebSocket};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use crate::event_bus::DownloadEvent;
 use serde_json::Value;
 use std::sync::Arc;
-use super::context::RpcContext;
-use super::dispatch::dispatch_method;
-use super::jsonrpc::{
-    ERR_INVALID_REQUEST,
-    ERR_PARSE,
-    JsonRpcNotification,
-    JsonRpcRequest,
-    JsonRpcResponse,
-    error_response,
-    success_response,
-};
 
 pub(crate) async fn handle_jsonrpc_http(
     axum::extract::State(ctx): axum::extract::State<Arc<RpcContext>>,
@@ -116,7 +111,13 @@ pub(crate) async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
 pub(crate) async fn process_jsonrpc_payload(ctx: &RpcContext, body: &str) -> Option<String> {
     let value: Value = match serde_json::from_str(body) {
         Ok(value) => value,
-        Err(_) => return Some(serialize_response(&error_response(None, ERR_PARSE, "Parse error"))),
+        Err(_) => {
+            return Some(serialize_response(&error_response(
+                None,
+                ERR_PARSE,
+                "Parse error",
+            )));
+        }
     };
 
     match value {

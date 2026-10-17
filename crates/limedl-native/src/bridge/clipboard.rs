@@ -19,7 +19,9 @@ pub fn parse_clipboard_download_text(text: &str) -> ClipboardPayload {
         s.starts_with("http://")
             || s.starts_with("https://")
             || s.starts_with("magnet:?")
-            || (s.contains('[') && s.contains(']') && (s.contains("http://") || s.contains("https://")))
+            || (s.contains('[')
+                && s.contains(']')
+                && (s.contains("http://") || s.contains("https://")))
     };
 
     for raw in text.lines() {

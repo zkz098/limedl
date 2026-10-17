@@ -118,7 +118,10 @@ fn test_settings_round_trip_with_cdn() {
 fn task_id_http_wire_round_trip() {
     let uuid = uuid::Uuid::new_v4();
     let original = TaskId::Http(uuid);
-    assert_eq!(TaskId::from_wire_string(&original.raw_id()).unwrap(), original);
+    assert_eq!(
+        TaskId::from_wire_string(&original.raw_id()).unwrap(),
+        original
+    );
     let prefixed = format!("http:{}", original.raw_id());
     assert_eq!(TaskId::from_wire_string(&prefixed).unwrap(), original);
     assert_eq!(original.to_string(), uuid.to_string());
@@ -131,7 +134,10 @@ fn task_id_bt_wire_round_trip() {
     let original = TaskId::Bt(hash);
     let prefixed = format!("bt:{}", original.raw_id());
     assert_eq!(TaskId::from_wire_string(&prefixed).unwrap(), original);
-    assert_eq!(original.raw_id(), "abababababababababababababababababababab");
+    assert_eq!(
+        original.raw_id(),
+        "abababababababababababababababababababab"
+    );
 }
 
 #[test]

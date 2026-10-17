@@ -11,8 +11,8 @@ use std::fs::File;
 
 use bytes::Bytes;
 
-use crate::error::DownloadError;
 use super::{write_all_at, write_all_vectored_at};
+use crate::error::DownloadError;
 
 /// Write sync policy for IoWorker batch processing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

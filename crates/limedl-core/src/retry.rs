@@ -13,12 +13,12 @@ use reqwest::{Response, StatusCode};
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
+use super::download::ManagedDownload;
 use super::error::{DownloadError, Result};
 use super::http::{
     ANTI_ABUSE_SNIFF_LIMIT, ResponseDisposition, anti_abuse_forbidden_error,
     classify_download_response, looks_like_anti_abuse_page, read_body_prefix,
 };
-use super::download::ManagedDownload;
 use super::now_ms;
 use super::types::DownloadState;
 
@@ -105,11 +105,9 @@ async fn process_response_attempt(
             backoff_or_cancel(token, *attempt).await?;
             Ok(None)
         }
-        ResponseDisposition::Invalid(status) => {
-            Err(DownloadError::InvalidResponse(format!(
-                "http status {status}"
-            )))
-        }
+        ResponseDisposition::Invalid(status) => Err(DownloadError::InvalidResponse(format!(
+            "http status {status}"
+        ))),
     }
 }
 

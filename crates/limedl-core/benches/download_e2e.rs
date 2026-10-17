@@ -1,4 +1,4 @@
-﻿//! End-to-end download benchmarks.
+//! End-to-end download benchmarks.
 //!
 //! Measures download throughput under different network conditions using
 //! the local `TestServer` and a shared `reqwest` client.  Five scenarios

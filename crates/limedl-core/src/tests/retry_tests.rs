@@ -26,8 +26,8 @@ use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
 use crate::aimd::AimdState;
-use crate::error::DownloadError;
 use crate::download::DownloadCore;
+use crate::error::DownloadError;
 use crate::manifest::Manifest;
 use crate::retry::{backoff_delay, jittered_backoff_delay, request_with_retry};
 use crate::test_harness::TestServer;
@@ -597,7 +597,10 @@ async fn transport_error_retries_and_exhausts() -> TestResult {
 
     let result = request_with_retry(factory, token, 2, managed).await;
 
-    assert!(result.is_err(), "expected error after exhausting transport retries");
+    assert!(
+        result.is_err(),
+        "expected error after exhausting transport retries"
+    );
 
     // 1 initial attempt + 2 retries = 3 total calls
     assert_eq!(*call_count.lock().unwrap(), 3);

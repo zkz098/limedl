@@ -455,9 +455,17 @@ unsafe extern "system" {
     fn GetLastError() -> u32;
     fn SetFileValidData(h_file: isize, valid_data_length: i64) -> i32;
     fn GetCurrentProcess() -> isize;
-    fn OpenProcessToken(process_handle: isize, desired_access: u32, token_handle: *mut isize) -> i32;
+    fn OpenProcessToken(
+        process_handle: isize,
+        desired_access: u32,
+        token_handle: *mut isize,
+    ) -> i32;
     fn CloseHandle(handle: isize) -> i32;
-    fn LookupPrivilegeValueW(lp_system_name: *const u16, lp_name: *const u16, lp_luid: *mut Luid) -> i32;
+    fn LookupPrivilegeValueW(
+        lp_system_name: *const u16,
+        lp_name: *const u16,
+        lp_luid: *mut Luid,
+    ) -> i32;
     fn AdjustTokenPrivileges(
         token_handle: isize,
         disable_all_privileges: i32,
@@ -471,19 +479,27 @@ unsafe extern "system" {
 /// Check and acquire `SeManageVolumePrivilege` once per process.
 /// This privilege is required for instant, zero-filling-free `SetFileValidData` allocation.
 #[cfg(windows)]
-static HAS_MANAGE_VOLUME_PRIVILEGE: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
-    unsafe {
+static HAS_MANAGE_VOLUME_PRIVILEGE: std::sync::LazyLock<bool> =
+    std::sync::LazyLock::new(|| unsafe {
         const TOKEN_ADJUST_PRIVILEGES: u32 = 0x0020;
         const TOKEN_QUERY: u32 = 0x0008;
         const SE_PRIVILEGE_ENABLED: u32 = 0x00000002;
 
         let mut token: isize = 0;
-        if OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &mut token) == 0 {
+        if OpenProcessToken(
+            GetCurrentProcess(),
+            TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY,
+            &mut token,
+        ) == 0
+        {
             return false;
         }
 
         let name: Vec<u16> = "SeManageVolumePrivilege\0".encode_utf16().collect();
-        let mut luid = Luid { low_part: 0, high_part: 0 };
+        let mut luid = Luid {
+            low_part: 0,
+            high_part: 0,
+        };
         if LookupPrivilegeValueW(std::ptr::null(), name.as_ptr(), &mut luid) == 0 {
             CloseHandle(token);
             return false;
@@ -508,8 +524,7 @@ static HAS_MANAGE_VOLUME_PRIVILEGE: std::sync::LazyLock<bool> = std::sync::LazyL
         let err = GetLastError();
         CloseHandle(token);
         res != 0 && err == 0
-    }
-});
+    });
 
 /// Attempt instantaneous disk preallocation on Windows without zero-filling or fragmentation.
 /// Requires `SeManageVolumePrivilege` (enabled when run as admin or with volume management rights).

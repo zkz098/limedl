@@ -2,10 +2,10 @@
 
 use std::time::Duration;
 
+use crate::MainWindow;
 use crate::context::AppContext;
 use crate::i18n;
 use crate::toast::{ToastQueue, push_toast};
-use crate::MainWindow;
 
 /// Copy `text` and confirm with a toast. The clipboard call itself runs off the
 /// UI thread because it can block on the Windows clipboard.

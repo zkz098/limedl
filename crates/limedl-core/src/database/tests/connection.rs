@@ -161,8 +161,12 @@ fn a_healthy_database_is_left_alone() {
 
     {
         let db = Database::open(&path).unwrap();
-        db.insert_download(&new_test_manifest("keep", "https://example.com/keep", "k.bin"))
-            .unwrap();
+        db.insert_download(&new_test_manifest(
+            "keep",
+            "https://example.com/keep",
+            "k.bin",
+        ))
+        .unwrap();
     }
 
     // Reopening must not quarantine a database that passes its integrity check.
@@ -190,13 +194,20 @@ fn an_unreadable_database_is_quarantined_and_recreated() {
     drop(db);
 
     let quarantined = quarantined_files(dir.path());
-    assert_eq!(quarantined.len(), 1, "expected exactly one quarantined file");
+    assert_eq!(
+        quarantined.len(),
+        1,
+        "expected exactly one quarantined file"
+    );
     assert_eq!(
         std::fs::read(&quarantined[0]).unwrap(),
         b"this is not a sqlite database at all",
         "the original bytes must be preserved for inspection"
     );
-    assert!(path.exists(), "a usable database must exist at the original path");
+    assert!(
+        path.exists(),
+        "a usable database must exist at the original path"
+    );
 }
 
 #[timeout(30_000)]

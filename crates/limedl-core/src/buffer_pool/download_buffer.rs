@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use bytes::Bytes;
 use parking_lot::Mutex;
@@ -10,9 +10,9 @@ use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 use super::worker::IoWorker;
-use crate::file_ops::SyncMode;
 use super::{BufferPool, SlotGuard};
 use crate::error::DownloadError;
+use crate::file_ops::SyncMode;
 use crate::file_ops::write_all_at;
 
 /// RAII guard that releases the flip token and notifies waiters on drop.
@@ -410,7 +410,8 @@ impl DownloadBuffer {
             label: "HDD",
             observer: self.flush_observer.as_ref(),
         };
-        self.buffer_chunk_pingpong_impl(cfg, halves, offset, data).await
+        self.buffer_chunk_pingpong_impl(cfg, halves, offset, data)
+            .await
     }
 
     /// Local ping-pong mode: same double-buffer flip logic as HDD but without
@@ -428,7 +429,8 @@ impl DownloadBuffer {
             label: "SSD ping-pong",
             observer: self.flush_observer.as_ref(),
         };
-        self.buffer_chunk_pingpong_impl(cfg, halves, offset, data).await
+        self.buffer_chunk_pingpong_impl(cfg, halves, offset, data)
+            .await
     }
 
     /// Flush a single half's buffer to disk without pool tracking.
@@ -459,9 +461,8 @@ impl DownloadBuffer {
                 for (off, chunk) in &entries {
                     write_all_at(&f, chunk, *off)?;
                 }
-                f.sync_data().map_err(|e| {
-                    DownloadError::Internal(format!("fsync failed: {e}"))
-                })?;
+                f.sync_data()
+                    .map_err(|e| DownloadError::Internal(format!("fsync failed: {e}")))?;
                 Ok(())
             })
             .await
@@ -720,9 +721,9 @@ impl DownloadBuffer {
             BufferMode::Double {
                 usage_a, usage_b, ..
             } => usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed),
-            BufferMode::LocalPingPong { usage_a, usage_b, .. } => {
-                usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed)
-            }
+            BufferMode::LocalPingPong {
+                usage_a, usage_b, ..
+            } => usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed),
         }
     }
 

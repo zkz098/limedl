@@ -1,5 +1,7 @@
 use super::*;
-use crate::types::{BtChokingAlgorithm, BtPortRange, BtSeedChokingAlgorithm, MatchType, ReplacementMode};
+use crate::types::{
+    BtChokingAlgorithm, BtPortRange, BtSeedChokingAlgorithm, MatchType, ReplacementMode,
+};
 use std::io::Write;
 use tempfile::tempdir;
 
@@ -578,10 +580,7 @@ fn test_normalize_keeps_prevent_sleep() {
     let mut settings = AppSettings::default();
     settings.power.prevent_sleep = false;
     assert!(
-        !normalize_settings(settings)
-            .unwrap()
-            .power
-            .prevent_sleep,
+        !normalize_settings(settings).unwrap().power.prevent_sleep,
         "normalize_settings must carry the power section through unchanged"
     );
 }
@@ -896,7 +895,10 @@ fn normalize_aria2_listen_address_falls_back_to_loopback() {
         let mut settings = AppSettings::default();
         settings.aria2_rpc.listen_address = invalid.to_string();
         assert_eq!(
-            normalize_settings(settings).unwrap().aria2_rpc.listen_address,
+            normalize_settings(settings)
+                .unwrap()
+                .aria2_rpc
+                .listen_address,
             "127.0.0.1",
             "{invalid:?} must fall back to loopback"
         );
@@ -908,7 +910,10 @@ fn normalize_aria2_listen_address_falls_back_to_loopback() {
         let mut settings = AppSettings::default();
         settings.aria2_rpc.listen_address = valid.to_string();
         assert_eq!(
-            normalize_settings(settings).unwrap().aria2_rpc.listen_address,
+            normalize_settings(settings)
+                .unwrap()
+                .aria2_rpc
+                .listen_address,
             valid.trim(),
             "{valid:?} must survive normalization"
         );
@@ -920,10 +925,12 @@ fn normalize_aria2_listen_address_falls_back_to_loopback() {
 #[test]
 fn normalize_aria2_cors_origins_trims_and_drops_blanks() {
     let mut settings = AppSettings::default();
-    settings.aria2_rpc.cors_allowed_origins =
-        vec!["  http://app.example  ".into(), "   ".into()];
+    settings.aria2_rpc.cors_allowed_origins = vec!["  http://app.example  ".into(), "   ".into()];
     assert_eq!(
-        normalize_settings(settings).unwrap().aria2_rpc.cors_allowed_origins,
+        normalize_settings(settings)
+            .unwrap()
+            .aria2_rpc
+            .cors_allowed_origins,
         vec!["http://app.example".to_string()]
     );
 }

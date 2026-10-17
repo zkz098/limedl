@@ -1,45 +1,26 @@
 //! Remote probe and the top-level run loop (single-stream vs chunked).
 
-use crate::now_ms;
+use super::HttpExecutor;
 use crate::aimd::AimdState;
 use crate::download::{ManagedDownload, RunOutcome, supports_parallelism};
 use crate::error::{DownloadError, Result};
 use crate::file_ops::check_disk_space;
 use crate::http::{
-    ANTI_ABUSE_SNIFF_LIMIT,
-    anti_abuse_forbidden_error,
-    apply_extra_headers,
-    extract_total_bytes,
-    has_header,
-    header_string,
-    identity_encoding,
-    infer_candidate_referers,
-    infer_file_name,
-    looks_like_anti_abuse_page,
-    read_body_prefix,
-    supports_ranges,
-    validate_probe_response,
+    ANTI_ABUSE_SNIFF_LIMIT, anti_abuse_forbidden_error, apply_extra_headers, extract_total_bytes,
+    has_header, header_string, identity_encoding, infer_candidate_referers, infer_file_name,
+    looks_like_anti_abuse_page, read_body_prefix, supports_ranges, validate_probe_response,
 };
 use crate::manager_state::ManagerState;
 use crate::manifest::{
-    RemoteMetadata,
-    has_partial_chunk_progress,
-    plan_chunks,
-    resolve_chunk_size,
-    validators_changed,
+    RemoteMetadata, has_partial_chunk_progress, plan_chunks, resolve_chunk_size, validators_changed,
 };
+use crate::now_ms;
 use crate::types::{
-    AdaptiveProfile,
-    ChecksumMode,
-    DownloadState,
-    StartDownloadRequest,
-    TaskKind,
-    ThreadMode,
+    AdaptiveProfile, ChecksumMode, DownloadState, StartDownloadRequest, TaskKind, ThreadMode,
 };
 use reqwest::{Client, StatusCode, header};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use super::HttpExecutor;
 use tokio_util::sync::CancellationToken;
 
 impl HttpExecutor {
@@ -56,7 +37,7 @@ impl HttpExecutor {
         let head = identity_encoding(apply_extra_headers(
             client.head(url).header(header::USER_AGENT, user_agent),
             extra_headers,
-))
+        ))
         .send()
         .await;
         let mut response = match head {
@@ -147,7 +128,8 @@ impl HttpExecutor {
         let file_name =
             infer_file_name(&final_url, &headers).ok_or(DownloadError::MissingFileName)?;
 
-        dm.alt_svc().record_from_response(&final_url, &headers, now_ms());
+        dm.alt_svc()
+            .record_from_response(&final_url, &headers, now_ms());
 
         let headers_checksum = crate::checksum::detect_checksum_from_headers(&headers);
 
@@ -195,7 +177,9 @@ impl HttpExecutor {
             && pieces.piece_length > 0
         {
             pieces.piece_length
-        } else if settings.scheduler.expert_mode && settings.scheduler.expert.custom_chunk_size_mb > 0 {
+        } else if settings.scheduler.expert_mode
+            && settings.scheduler.expert.custom_chunk_size_mb > 0
+        {
             settings.scheduler.expert.custom_chunk_size_mb * 1024 * 1024
         } else {
             resolve_chunk_size(settings.scheduler.chunk_size_strategy, metadata.total_bytes)
@@ -237,7 +221,9 @@ impl HttpExecutor {
         {
             // Priority 1: Check response headers (RFC 3230 / RFC 9530 / S3 / GCS)
             if let Some((mode, hash)) = metadata.headers_checksum.clone() {
-                tracing::info!("Auto-detected expected checksum from HTTP headers: {mode:?} {hash}");
+                tracing::info!(
+                    "Auto-detected expected checksum from HTTP headers: {mode:?} {hash}"
+                );
                 let mut core = managed.lock_core();
                 if core.manifest.expected_checksum.is_none() {
                     core.manifest.expected_checksum = Some(hash.clone());
@@ -435,14 +421,9 @@ async fn detect_and_store_sha256(client: &Client, managed: &Arc<ManagedDownload>
             core.manifest.extra_headers.clone(),
         )
     };
-    if let Some(detected_hash) = crate::checksum::detect_sha256(
-        client,
-        &target_url,
-        &file_name,
-        &user_agent,
-        &extra_headers,
-    )
-    .await
+    if let Some(detected_hash) =
+        crate::checksum::detect_sha256(client, &target_url, &file_name, &user_agent, &extra_headers)
+            .await
     {
         tracing::info!("Auto-detected SHA-256 for {}: {}", file_name, detected_hash);
         let mut core = managed.lock_core();
