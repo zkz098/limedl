@@ -1,0 +1,44 @@
+# Line endings
+# ============
+# Every text file is stored with LF and also checked out with LF, on every
+# platform.
+#
+# `text=auto` alone is not enough. It lets `core.autocrlf` (or the platform
+# default) decide the *working tree*, so a Windows checkout would be CRLF while
+# a Linux/macOS CI checkout is LF — and `cargo fmt --check`, which is a gate
+# (see `docs/ci-operations.md`), compares bytes on disk. The same commit would
+# pass on one machine and fail on another. `rustfmt.toml` pins
+# `newline_style = "Unix"` for the same reason; the two files are one decision.
+#
+# The desktop client is developed on Windows, so this is a deliberate trade:
+# editors there have to keep LF (which is the default for VS Code, RustRover and
+# `rust-analyzer`). The alternative — `eol=crlf` — was measured at 300 changed
+# files instead of 60, because the repository is overwhelmingly LF already.
+* text=auto eol=lf
+
+# Windows-native command scripts are the one exception: `cmd.exe` mis-parses
+# multi-line `if`/`goto` blocks whose lines end in LF. None are tracked today;
+# these two lines exist so the first one added does not break the gate.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets: never converted, never diffed as text.
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+*.gz binary
+
+# Generated files: collapsed in the GitHub diff view and excluded from the
+# language statistics, so the mechanical churn of a regeneration does not hide
+# the reviewable changes. Keep these paths in sync with the xtask commands that
+# write them.
+crates/limedl-native/src/i18n/catalog.rs linguist-generated=true
+crates/limedl-native/ui/theme.slint linguist-generated=true
