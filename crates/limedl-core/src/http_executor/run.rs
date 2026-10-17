@@ -107,6 +107,8 @@ impl HttpExecutor {
         let file_name =
             infer_file_name(&final_url, &headers).ok_or(DownloadError::MissingFileName)?;
 
+        dm.http.alt_svc.record_from_response(&final_url, &headers, now_ms());
+
         Ok(RemoteMetadata {
             final_url,
             file_name,

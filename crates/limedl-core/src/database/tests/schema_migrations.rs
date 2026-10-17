@@ -58,8 +58,8 @@ fn migration_compat_v1_with_mirror_columns_backfilled() {
         let conn = db.lock_write();
         assert_eq!(
             read_user_version(&conn),
-            10,
-            "expected user_version = 10 after migration"
+            11,
+            "expected user_version = 11 after migration"
         );
     }
 
@@ -97,8 +97,8 @@ fn migration_compat_v0_fully_backfilled() {
         let conn = db.lock_write();
         assert_eq!(
             read_user_version(&conn),
-            10,
-            "expected user_version = 10 after migration"
+            11,
+            "expected user_version = 11 after migration"
         );
     }
 
@@ -165,7 +165,7 @@ fn partially_applied_migration_is_recovered_on_open() {
     let db = Database::open(&path).expect("a half-migrated database must still open");
     {
         let conn = db.lock_write();
-        assert_eq!(read_user_version(&conn), 10);
+        assert_eq!(read_user_version(&conn), 11);
     }
 
     let mut m = new_test_manifest("recovered", "https://example.com/r", "r.bin");

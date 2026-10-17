@@ -310,9 +310,15 @@ pub struct SchedulerSettings {
     pub expert_mode: bool,
     #[serde(default)]
     pub expert: ExpertSchedulerSettings,
+    #[serde(default = "default_http3_alt_svc_enabled")]
+    pub http3_alt_svc_enabled: bool,
 }
 
 fn default_warmup() -> bool {
+    true
+}
+
+fn default_http3_alt_svc_enabled() -> bool {
     true
 }
 
@@ -327,6 +333,7 @@ impl Default for SchedulerSettings {
             connection_warmup_enabled: true,
             expert_mode: false,
             expert: ExpertSchedulerSettings::default(),
+            http3_alt_svc_enabled: true,
         }
     }
 }

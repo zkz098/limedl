@@ -90,6 +90,20 @@ CREATE TABLE IF NOT EXISTS chunks (
     PRIMARY KEY (download_id, chunk_index),
     FOREIGN KEY (download_id) REFERENCES downloads(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS alt_svc_cache (
+    origin_host TEXT NOT NULL,
+    origin_port INTEGER NOT NULL,
+    protocol TEXT NOT NULL,
+    alt_host TEXT NOT NULL,
+    alt_port INTEGER NOT NULL,
+    expires_at_ms INTEGER NOT NULL,
+    persist INTEGER NOT NULL DEFAULT 0,
+    fail_count INTEGER NOT NULL DEFAULT 0,
+    broken_until_ms INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (origin_host, origin_port, protocol)
+);
+CREATE INDEX IF NOT EXISTS idx_alt_svc_expires ON alt_svc_cache(expires_at_ms);
 ";
 
 pub(crate) struct Migration {
@@ -220,6 +234,29 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
                 CREATE INDEX IF NOT EXISTS idx_bt_tasks_created ON bt_tasks(created_at_ms DESC);",
             )
             .context("failed to create bt_tasks table")?;
+            Ok(())
+        },
+    },
+    Migration {
+        version: 11,
+        name: "add_alt_svc_cache",
+        up: |conn| {
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS alt_svc_cache (
+                    origin_host TEXT NOT NULL,
+                    origin_port INTEGER NOT NULL,
+                    protocol TEXT NOT NULL,
+                    alt_host TEXT NOT NULL,
+                    alt_port INTEGER NOT NULL,
+                    expires_at_ms INTEGER NOT NULL,
+                    persist INTEGER NOT NULL DEFAULT 0,
+                    fail_count INTEGER NOT NULL DEFAULT 0,
+                    broken_until_ms INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (origin_host, origin_port, protocol)
+                );
+                CREATE INDEX IF NOT EXISTS idx_alt_svc_expires ON alt_svc_cache(expires_at_ms);",
+            )
+            .context("failed to create alt_svc_cache table")?;
             Ok(())
         },
     },

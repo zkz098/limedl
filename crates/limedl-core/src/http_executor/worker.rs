@@ -468,35 +468,88 @@ impl ChunkWorkerCtx {
             )
         };
 
-        let response = request_with_retry(
-            || {
-                let client = self.client.clone();
-                let url = url.clone();
-                let user_agent = user_agent.clone();
-                let extra_headers = extra_headers.clone();
-                let validator = validator.clone();
-                async move {
-                    build_segment_request(
-                        &client,
-                        &url,
-                        &user_agent,
-                        &extra_headers,
-                        current,
-                        end,
-                        validator,
-                    )
-                    .send()
-                    .await
+        let (proxy_mode, alt_svc_enabled) = {
+            let settings = self.manager.settings_service.get_blocking();
+            (settings.proxy.mode, settings.scheduler.http3_alt_svc_enabled)
+        };
+        let http3_target = self.manager.http.alt_svc.should_attempt_http3(
+            &url,
+            proxy_mode,
+            alt_svc_enabled,
+            now_ms(),
+        );
+
+        let mut response = None;
+        if let Some((ref host, port)) = http3_target {
+            let client = self.client.clone();
+            let req = build_segment_request(
+                &client,
+                &url,
+                &user_agent,
+                &extra_headers,
+                current,
+                end,
+                validator.clone(),
+            )
+            .version(reqwest::Version::HTTP_3);
+
+            match tokio::time::timeout(std::time::Duration::from_secs(5), req.send()).await {
+                Ok(Ok(res)) => {
+                    self.manager.http.alt_svc.mark_success(host, port);
+                    response = Some(res);
                 }
-            },
-            self.token.clone(),
-            self.max_retries,
-            self.managed.clone(),
-        )
-        .await;
+                Ok(Err(err)) => {
+                    tracing::warn!(
+                        "HTTP/3 request to {url} failed: {err}; tripping circuit breaker and falling back to TCP"
+                    );
+                    self.manager.http.alt_svc.mark_broken(host, port, now_ms());
+                }
+                Err(_) => {
+                    tracing::warn!(
+                        "HTTP/3 request to {url} timed out; tripping circuit breaker and falling back to TCP"
+                    );
+                    self.manager.http.alt_svc.mark_broken(host, port, now_ms());
+                }
+            }
+        }
+
+        let response = match response {
+            Some(res) => Ok(res),
+            None => {
+                request_with_retry(
+                    || {
+                        let client = self.client.clone();
+                        let url = url.clone();
+                        let user_agent = user_agent.clone();
+                        let extra_headers = extra_headers.clone();
+                        let validator = validator.clone();
+                        async move {
+                            build_segment_request(
+                                &client,
+                                &url,
+                                &user_agent,
+                                &extra_headers,
+                                current,
+                                end,
+                                validator,
+                            )
+                            .send()
+                            .await
+                        }
+                    },
+                    self.token.clone(),
+                    self.max_retries,
+                    self.managed.clone(),
+                )
+                .await
+            }
+        };
 
         match response {
-            Ok(response) => Ok(response),
+            Ok(response) => {
+                self.manager.http.alt_svc.record_from_response(&url, response.headers(), now_ms());
+                Ok(response)
+            }
             Err(error) => {
                 if is_too_many_requests_error(&error) {
                     let concurrency = self

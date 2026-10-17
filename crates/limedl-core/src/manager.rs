@@ -66,6 +66,8 @@ pub struct HttpClientInfra {
     pub cdn_client_cache: Arc<ParkingRwLock<HashMap<(String, IpAddr), Client>>>,
     /// Optional CDN accelerator for Cloudflare IP probing and DNS rewriting.
     cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
+    /// Cross-task persistent Alt-Svc cache for HTTP/3 upgrades.
+    pub alt_svc: Arc<super::http::alt_svc::AltSvcManager>,
 }
 
 /// File system paths for download state persistence and settings storage.
@@ -115,6 +117,7 @@ impl Clone for DownloadManager {
                 client: self.http.client.clone(),
                 cdn_client_cache: self.http.cdn_client_cache.clone(),
                 cdn_accelerator: self.http.cdn_accelerator.clone(),
+                alt_svc: self.http.alt_svc.clone(),
             },
             dirs: StateDirs {
                 state_dir: self.dirs.state_dir.clone(),
@@ -149,6 +152,12 @@ impl DownloadManager {
         let settings = context.settings_service.get_blocking();
         let client = build_http_client(&settings)?;
 
+        let alt_svc = Arc::new(super::http::alt_svc::AltSvcManager::new(context.db.clone()));
+        if let Err(e) = alt_svc.preload_from_db() {
+            tracing::warn!("Failed to preload Alt-Svc cache from database: {e}");
+        }
+        alt_svc.clean_expired(crate::now_ms());
+
         let settings_path = state_dir
             .parent()
             .ok_or_else(|| {
@@ -164,6 +173,7 @@ impl DownloadManager {
                 client: Arc::new(RwLock::new(client)),
                 cdn_client_cache: Arc::new(ParkingRwLock::new(HashMap::default())),
                 cdn_accelerator: Arc::new(RwLock::new(None)),
+                alt_svc,
             },
             dirs: StateDirs {
                 state_dir,

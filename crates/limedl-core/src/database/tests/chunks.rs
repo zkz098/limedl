@@ -291,8 +291,8 @@ fn migration_compat_v0_with_chunk_size_backfilled() {
         let conn = db.lock_write();
         assert_eq!(
             read_user_version(&conn),
-            10,
-            "expected user_version = 10 after migration"
+            11,
+            "expected user_version = 11 after migration"
         );
         let has_mirror_urls = table_has_column(&conn, "downloads", "mirror_urls").unwrap();
         assert!(

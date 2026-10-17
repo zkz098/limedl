@@ -75,8 +75,21 @@ impl HttpExecutor {
                 contiguous_prefix_end(&core.manifest)
             };
 
-            let response = request_with_retry(
-                || {
+            let (proxy_mode, alt_svc_enabled) = {
+                let settings = dm.settings_service.get_blocking();
+                (settings.proxy.mode, settings.scheduler.http3_alt_svc_enabled)
+            };
+            let http3_target = dm.http.alt_svc.should_attempt_http3(
+                &url,
+                proxy_mode,
+                alt_svc_enabled,
+                now_ms(),
+            );
+
+            let mut response = None;
+            if let Some((ref host, port)) = http3_target {
+                match tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
                     single_request(
                         client.clone(),
                         url.clone(),
@@ -84,13 +97,54 @@ impl HttpExecutor {
                         extra_headers.clone(),
                         start_offset,
                         validator.clone(),
+                        true,
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(res)) => {
+                        dm.http.alt_svc.mark_success(host, port);
+                        response = Some(res);
+                    }
+                    Ok(Err(err)) => {
+                        tracing::warn!(
+                            "HTTP/3 single request to {url} failed: {err}; tripping circuit breaker and falling back to TCP"
+                        );
+                        dm.http.alt_svc.mark_broken(host, port, now_ms());
+                    }
+                    Err(_) => {
+                        tracing::warn!(
+                            "HTTP/3 single request to {url} timed out; tripping circuit breaker and falling back to TCP"
+                        );
+                        dm.http.alt_svc.mark_broken(host, port, now_ms());
+                    }
+                }
+            }
+
+            let response = match response {
+                Some(res) => res,
+                None => {
+                    request_with_retry(
+                        || {
+                            single_request(
+                                client.clone(),
+                                url.clone(),
+                                user_agent.clone(),
+                                extra_headers.clone(),
+                                start_offset,
+                                validator.clone(),
+                                false,
+                            )
+                        },
+                        token.clone(),
+                        max_retries,
+                        managed.clone(),
                     )
-                },
-                token.clone(),
-                max_retries,
-                managed.clone(),
-            )
-            .await?;
+                    .await?
+                }
+            };
+
+            dm.http.alt_svc.record_from_response(&url, response.headers(), now_ms());
 
             let status = response.status();
             let mut stream = response.bytes_stream();
@@ -282,11 +336,15 @@ async fn single_request(
     extra_headers: Vec<String>,
     start_offset: u64,
     validator: Option<(header::HeaderName, header::HeaderValue)>,
+    use_http3: bool,
 ) -> std::result::Result<reqwest::Response, reqwest::Error> {
     let mut builder = apply_extra_headers(
         client.get(url).header(header::USER_AGENT, user_agent),
         &extra_headers,
     );
+    if use_http3 {
+        builder = builder.version(reqwest::Version::HTTP_3);
+    }
     if start_offset > 0 {
         // Resuming sends `Range`: a compressed 206 would shift byte offsets, so
         // this request must not negotiate compression even though the fresh
