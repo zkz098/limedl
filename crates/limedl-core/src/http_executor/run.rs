@@ -146,7 +146,11 @@ impl HttpExecutor {
         }
 
         let settings = dm.settings_service.get().await;
-        let chunk_size = if settings.scheduler.expert_mode && settings.scheduler.expert.custom_chunk_size_mb > 0 {
+        let chunk_size = if let Some(ref pieces) = *managed.pieces.lock()
+            && pieces.piece_length > 0
+        {
+            pieces.piece_length
+        } else if settings.scheduler.expert_mode && settings.scheduler.expert.custom_chunk_size_mb > 0 {
             settings.scheduler.expert.custom_chunk_size_mb * 1024 * 1024
         } else {
             resolve_chunk_size(settings.scheduler.chunk_size_strategy, metadata.total_bytes)

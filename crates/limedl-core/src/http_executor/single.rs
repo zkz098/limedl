@@ -111,9 +111,26 @@ impl HttpExecutor {
                 core.manifest.updated_at_ms = now_ms();
             }
 
+            const SINGLE_MICRO_BATCH_SIZE: usize = 128 * 1024;
+            let mut local_buf = Vec::with_capacity(SINGLE_MICRO_BATCH_SIZE);
+            let mut batch_start_offset = absolute_offset;
             let mut stream_error = None;
             while let Some(chunk) = tokio::select! {
                 _ = token.cancelled() => {
+                    if !local_buf.is_empty() {
+                        let bytes = Bytes::from(std::mem::take(&mut local_buf));
+                        let _ = write_chunk_bytes(
+                            &managed,
+                            &file,
+                            &write_buffer,
+                            disk_type,
+                            batch_start_offset,
+                            &bytes,
+                        )
+                        .await;
+                        dm.task_lifecycle
+                            .record_progress(&dm, &managed, None, bytes.len() as u64);
+                    }
                     // Flush remaining rate limiter bytes before exiting
                     batch.flush(&dm.rate_limiter).await;
                     // Persist buffered data before exit: `downloaded_bytes` was
@@ -133,18 +150,44 @@ impl HttpExecutor {
                 };
                 batch.account(&dm.rate_limiter, chunk.len()).await;
                 guard_content_length(total_bytes, absolute_offset, chunk.len())?;
+                local_buf.extend_from_slice(&chunk);
+                absolute_offset += chunk.len() as u64;
+
+                if local_buf.len() >= SINGLE_MICRO_BATCH_SIZE {
+                    let bytes = Bytes::from(std::mem::replace(
+                        &mut local_buf,
+                        Vec::with_capacity(SINGLE_MICRO_BATCH_SIZE),
+                    ));
+                    write_chunk_bytes(
+                        &managed,
+                        &file,
+                        &write_buffer,
+                        disk_type,
+                        batch_start_offset,
+                        &bytes,
+                    )
+                    .await?;
+                    dm.task_lifecycle
+                        .record_progress(&dm, &managed, None, bytes.len() as u64);
+                    batch_start_offset = absolute_offset;
+                    throttle.tick(&dm.db, &dm, &managed).await?;
+                    check_disk_space_periodically(&dm, &managed, &mut last_disk_check).await?;
+                }
+            }
+
+            if !local_buf.is_empty() {
+                let bytes = Bytes::from(std::mem::take(&mut local_buf));
                 write_chunk_bytes(
                     &managed,
                     &file,
                     &write_buffer,
                     disk_type,
-                    absolute_offset,
-                    &chunk,
+                    batch_start_offset,
+                    &bytes,
                 )
                 .await?;
                 dm.task_lifecycle
-                    .record_progress(&dm, &managed, None, chunk.len() as u64);
-                absolute_offset += chunk.len() as u64;
+                    .record_progress(&dm, &managed, None, bytes.len() as u64);
                 throttle.tick(&dm.db, &dm, &managed).await?;
                 check_disk_space_periodically(&dm, &managed, &mut last_disk_check).await?;
             }

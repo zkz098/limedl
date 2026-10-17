@@ -92,6 +92,7 @@ impl DownloadManager {
                     manifest.desired_thread_count,
                 )),
                 stop_notify: tokio::sync::Notify::new(),
+                pieces: Mutex::new(None),
             });
 
             tokio::task::block_in_place(|| {

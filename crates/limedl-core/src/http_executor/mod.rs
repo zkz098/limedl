@@ -27,7 +27,8 @@ use crate::{
     error::{DownloadError, Result, io_error_with_path},
     event_bus::DownloadEvent,
     file_ops::{
-        check_disk_space, finalize_temp_file, open_download_file, reset_download_file, write_all_at,
+        check_disk_space, finalize_temp_file, open_download_file, read_all_at, reset_download_file,
+        write_all_at,
     },
     http::{
         ANTI_ABUSE_SNIFF_LIMIT, anti_abuse_forbidden_error, apply_extra_headers,
@@ -42,10 +43,12 @@ use crate::{
         record_progress_on_managed, supports_parallelism,
     },
     manager::DownloadManager,
+    checksum::hash_slices,
     manifest::{
         ChunkManifest, RemoteMetadata, contiguous_prefix_end, has_partial_chunk_progress,
         plan_chunks, resolve_chunk_size, validators_changed,
     },
+    metalink::{MirrorPool, MirrorScoringConfig},
     now_ms,
     persistence::persist_manifest_snapshot,
     rate_limiter::RateLimiter,

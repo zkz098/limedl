@@ -1,15 +1,14 @@
 //! Chunked (parallel) download path, tail sprint and worker supervision.
 
 use super::worker::{
-    ChunkWorkerCtx, all_chunks_completed, claim_or_steal_chunk_with_min_size, current_allocation,
-    download_chunk, shutdown_chunk_workers,
+    ChunkWorkerCtx, all_chunks_completed, current_allocation, download_chunk, shutdown_chunk_workers,
 };
 use super::{
     Arc, CancellationToken, ChunkWorkerOutcome, Client, DiskType, DownloadBuffer, DownloadError,
     DownloadManager, DownloadState, Duration, HttpExecutor, Instant, JoinSet, ManagedDownload,
-    Path, PathBuf, Result, RunOutcome, TAIL_SPRINT_MIN_SPLIT_SIZE, TAIL_SPRINT_STALL_WINDOW_SECS,
-    ThreadMode, WORK_STEAL_MIN_SPLIT_SIZE, build_write_buffer, cancellation_outcome,
-    check_disk_space_periodically, finish_buffer_flush, flush_write_buffer, identity_encoding,
+    MirrorPool, MirrorScoringConfig, Path, PathBuf, Result, RunOutcome, TAIL_SPRINT_MIN_SPLIT_SIZE,
+    TAIL_SPRINT_STALL_WINDOW_SECS, ThreadMode, WORK_STEAL_MIN_SPLIT_SIZE, build_write_buffer,
+    cancellation_outcome, check_disk_space_periodically, finish_buffer_flush, flush_write_buffer,
     now_ms, open_download_file, persist_manifest_snapshot, sleep, wait_or_stop,
 };
 
@@ -43,6 +42,26 @@ impl HttpExecutor {
                 )
             };
 
+        let (primary_url, mirror_urls) = {
+            let core = managed.lock_core();
+            (
+                core.manifest.final_url.clone(),
+                core.manifest.mirror_urls.clone(),
+            )
+        };
+        let mirror_pool = if !mirror_urls.is_empty() {
+            Some(Arc::new(MirrorPool::from_urls(
+                &primary_url,
+                &mirror_urls,
+                MirrorScoringConfig::default(),
+                settings.scheduler.expert.max_connections_per_host,
+            )))
+        } else {
+            None
+        };
+
+        let claim_times = Arc::new(parking_lot::Mutex::new(std::collections::HashMap::new()));
+
         let pool = WorkerPool {
             dm: &dm,
             managed: &managed,
@@ -53,18 +72,17 @@ impl HttpExecutor {
             disk_type,
             max_retries,
             work_steal_min_split,
+            mirror_pool,
+            claim_times: claim_times.clone(),
         };
 
         let mut workers = JoinSet::new();
-        let mut next_worker_id = 0usize;
-        let mut chunk_claim_times: std::collections::HashMap<usize, std::time::Instant> =
-            std::collections::HashMap::new();
+        let mut active_worker_ids = std::collections::HashSet::new();
         let mut last_disk_check = Instant::now();
 
         loop {
-            chunk_claim_times.clear();
             if token.is_cancelled() {
-                shutdown_chunk_workers(&managed, &mut workers).await;
+                shutdown_chunk_workers(&managed, &mut workers, &mut active_worker_ids).await;
                 // Persist buffered chunks before exit so resume continues from a
                 // consistent point and the buffer is never dropped with data.
                 flush_write_buffer(&write_buffer, "cancel").await;
@@ -74,7 +92,7 @@ impl HttpExecutor {
             check_disk_space_periodically(&dm, &managed, &mut last_disk_check).await?;
 
             if all_chunks_completed(&managed) {
-                shutdown_chunk_workers(&managed, &mut workers).await;
+                shutdown_chunk_workers(&managed, &mut workers, &mut active_worker_ids).await;
                 finish_buffer_flush(&dm, &managed, &write_buffer).await?;
                 return Ok(RunOutcome::Finished);
             }
@@ -107,7 +125,7 @@ impl HttpExecutor {
             // offset, so releasing claims before the flush would make the next
             // claim skip data that never reached the file.
             if target_workers == 0 && !workers.is_empty() {
-                shutdown_chunk_workers(&managed, &mut workers).await;
+                shutdown_chunk_workers(&managed, &mut workers, &mut active_worker_ids).await;
                 flush_write_buffer(&write_buffer, "demote").await;
                 continue;
             }
@@ -115,23 +133,23 @@ impl HttpExecutor {
             // ── Tail Sprint ──────────────────────────────────────
             // Stage 1: Fresh-connection retry for stalled tail chunks.
             // Stage 2: Split the last unclaimed chunk into two sub-chunks.
-            if tail_sprint_enabled
-                && tail_sprint_step(
+            if tail_sprint_enabled {
+                let snapshot_claims = claim_times.lock().clone();
+                if tail_sprint_step(
                     &managed,
-                    &chunk_claim_times,
+                    &snapshot_claims,
                     tail_sprint_stall_limit,
                     tail_sprint_min_split,
-                )
-            {
-                continue;
+                ) {
+                    continue;
+                }
             }
 
             grow_worker_pool(
                 &mut workers,
+                &mut active_worker_ids,
                 &pool,
                 target_workers,
-                &mut next_worker_id,
-                &mut chunk_claim_times,
             );
 
             if workers.is_empty() {
@@ -143,7 +161,7 @@ impl HttpExecutor {
                 continue;
             }
 
-            match join_one_worker(&managed, &mut workers, &token, &write_buffer).await? {
+            match join_one_worker(&managed, &mut workers, &mut active_worker_ids, &token, &write_buffer).await? {
                 WorkerJoin::Recheck => continue,
                 WorkerJoin::Cancelled(outcome) => return Ok(outcome),
                 WorkerJoin::Outcome(outcome) => {
@@ -152,6 +170,7 @@ impl HttpExecutor {
                         &managed,
                         &token,
                         &mut workers,
+                        &mut active_worker_ids,
                         &write_buffer,
                         outcome,
                     )
@@ -182,7 +201,7 @@ impl HttpExecutor {
 async fn open_chunked_target(
     dm: &Arc<DownloadManager>,
     managed: &Arc<ManagedDownload>,
-    client: &Client,
+    _client: &Client,
 ) -> Result<(Arc<std::fs::File>, DiskType, Arc<DownloadBuffer>, bool)> {
     let (file_path, total_size) = {
         let core = managed.lock_core();
@@ -200,21 +219,9 @@ async fn open_chunked_target(
     // HDD/SSD optimization: set up buffered writing
     let settings = dm.settings().await?;
     let tail_sprint_enabled = settings.scheduler.tail_sprint_enabled;
-    let warmup_enabled = settings.scheduler.connection_warmup_enabled;
     let hdd_buffering = settings.io_baseline.hdd_buffer_enabled;
     let ssd_write_combine_mb = settings.io_baseline.ssd_write_combine_mb;
     drop(settings);
-    // ── Connection warmup: pre-establish TCP+TLS before workers start ──
-    if warmup_enabled {
-        let final_url = managed.lock_core().manifest.final_url.clone();
-        let _ = identity_encoding(
-            client
-                .get(&final_url)
-                .header(reqwest::header::RANGE, "bytes=0-0"),
-        )
-        .send()
-        .await;
-    }
     let disk_type = {
         let destination_dir = managed.lock_core().manifest.destination_dir.clone();
         dm.resolve_disk_type(Path::new(&destination_dir)).await
@@ -243,31 +250,36 @@ struct WorkerPool<'a> {
     disk_type: DiskType,
     max_retries: u32,
     work_steal_min_split: u64,
+    mirror_pool: Option<Arc<MirrorPool>>,
+    claim_times: Arc<parking_lot::Mutex<std::collections::HashMap<usize, std::time::Instant>>>,
 }
 
 /// Spawn workers until `target_workers` or no claimable chunk is left.
 fn grow_worker_pool(
-    workers: &mut JoinSet<Result<ChunkWorkerOutcome>>,
+    workers: &mut JoinSet<(usize, Result<ChunkWorkerOutcome>)>,
+    active_worker_ids: &mut std::collections::HashSet<usize>,
     pool: &WorkerPool<'_>,
     target_workers: usize,
-    next_worker_id: &mut usize,
-    chunk_claim_times: &mut std::collections::HashMap<usize, std::time::Instant>,
 ) {
     while workers.len() < target_workers {
-        let worker_id = *next_worker_id;
-        let chunk = {
-            let mut core = pool.managed.lock_core();
-            claim_or_steal_chunk_with_min_size(
-                &mut core.manifest,
-                worker_id,
-                target_workers,
-                pool.work_steal_min_split,
-            )
+        let has_work = {
+            let core = pool.managed.lock_core();
+            core.manifest.chunks.iter().any(|c| !c.completed && c.claimed_by.is_none())
+                || core.manifest.chunks.iter().any(|c| {
+                    !c.completed && c.claimed_by.is_some() && {
+                        let remaining = c.end.saturating_sub(c.start + c.downloaded);
+                        remaining >= pool.work_steal_min_split
+                    }
+                })
         };
-        let Some(chunk) = chunk else {
+        if !has_work {
+            break;
+        }
+
+        let Some(worker_id) = (0..target_workers).find(|id| !active_worker_ids.contains(id)) else {
             break;
         };
-        chunk_claim_times.insert(chunk.index, std::time::Instant::now());
+        active_worker_ids.insert(worker_id);
 
         {
             let mut core = pool.managed.lock_core();
@@ -289,13 +301,16 @@ fn grow_worker_pool(
         let wbuf = pool.write_buffer.clone();
         let dtyp = pool.disk_type;
         let max_retries = pool.max_retries;
+        let work_steal_min_split = pool.work_steal_min_split;
+        let mirror_pool = pool.mirror_pool.clone();
+        let claim_times = pool.claim_times.clone();
+
         workers.spawn(async move {
-            download_chunk(ChunkWorkerCtx {
+            let outcome = download_chunk(ChunkWorkerCtx {
                 managed,
                 client,
                 token,
                 file,
-                chunk,
                 max_retries,
                 db,
                 rate_limiter,
@@ -303,10 +318,13 @@ fn grow_worker_pool(
                 write_buffer: wbuf,
                 disk_type: dtyp,
                 worker_id,
+                work_steal_min_split,
+                mirror_pool,
+                claim_times,
             })
-            .await
+            .await;
+            (worker_id, outcome)
         });
-        *next_worker_id = next_worker_id.saturating_add(1);
     }
 }
 
@@ -447,13 +465,14 @@ enum WorkerJoin {
 /// Await the next finished worker (or cancellation).
 async fn join_one_worker(
     managed: &Arc<ManagedDownload>,
-    workers: &mut JoinSet<Result<ChunkWorkerOutcome>>,
+    workers: &mut JoinSet<(usize, Result<ChunkWorkerOutcome>)>,
+    active_worker_ids: &mut std::collections::HashSet<usize>,
     token: &CancellationToken,
     write_buffer: &Option<Arc<DownloadBuffer>>,
 ) -> Result<WorkerJoin> {
     let join_result = tokio::select! {
         _ = token.cancelled() => {
-            shutdown_chunk_workers(managed, workers).await;
+            shutdown_chunk_workers(managed, workers, active_worker_ids).await;
             flush_write_buffer(write_buffer, "cancel").await;
             return Ok(WorkerJoin::Cancelled(cancellation_outcome(managed)));
         }
@@ -463,15 +482,19 @@ async fn join_one_worker(
     let Some(join_result) = join_result else {
         return Ok(WorkerJoin::Recheck);
     };
-    let worker_outcome = match join_result {
-        Ok(Ok(outcome)) => outcome,
-        Ok(Err(error)) => {
-            shutdown_chunk_workers(managed, workers).await;
-            return Err(error);
-        }
+    let (worker_id, worker_res) = match join_result {
+        Ok(res) => res,
         Err(error) => {
-            shutdown_chunk_workers(managed, workers).await;
+            shutdown_chunk_workers(managed, workers, active_worker_ids).await;
             return Err(DownloadError::InvalidResponse(error.to_string()));
+        }
+    };
+    active_worker_ids.remove(&worker_id);
+    let worker_outcome = match worker_res {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            shutdown_chunk_workers(managed, workers, active_worker_ids).await;
+            return Err(error);
         }
     };
     Ok(WorkerJoin::Outcome(worker_outcome))
@@ -489,7 +512,8 @@ async fn handle_worker_outcome(
     dm: &Arc<DownloadManager>,
     managed: &Arc<ManagedDownload>,
     token: &CancellationToken,
-    workers: &mut JoinSet<Result<ChunkWorkerOutcome>>,
+    workers: &mut JoinSet<(usize, Result<ChunkWorkerOutcome>)>,
+    active_worker_ids: &mut std::collections::HashSet<usize>,
     write_buffer: &Option<Arc<DownloadBuffer>>,
     outcome: ChunkWorkerOutcome,
 ) -> Result<SupervisorStep> {
@@ -499,7 +523,7 @@ async fn handle_worker_outcome(
             tracing::info!(
                 "Received HTTP 429 Too Many Requests; downgrading to single-thread mode"
             );
-            shutdown_chunk_workers(managed, workers).await;
+            shutdown_chunk_workers(managed, workers, active_worker_ids).await;
             flush_write_buffer(write_buffer, "downgrade").await;
             {
                 let mut core = managed.lock_core();
@@ -525,7 +549,7 @@ async fn handle_worker_outcome(
             Ok(SupervisorStep::Continue)
         }
         ChunkWorkerOutcome::RestartSingle => {
-            shutdown_chunk_workers(managed, workers).await;
+            shutdown_chunk_workers(managed, workers, active_worker_ids).await;
             // Data is deliberately discarded (fresh temp file) — clear
             // the buffer so the Drop canary doesn't misfire a false
             // "data lost" warning.
@@ -535,12 +559,12 @@ async fn handle_worker_outcome(
             Ok(SupervisorStep::RestartSingle)
         }
         ChunkWorkerOutcome::Paused => {
-            shutdown_chunk_workers(managed, workers).await;
+            shutdown_chunk_workers(managed, workers, active_worker_ids).await;
             flush_write_buffer(write_buffer, "pause").await;
             Ok(SupervisorStep::Return(RunOutcome::Paused))
         }
         ChunkWorkerOutcome::Canceled => {
-            shutdown_chunk_workers(managed, workers).await;
+            shutdown_chunk_workers(managed, workers, active_worker_ids).await;
             flush_write_buffer(write_buffer, "cancel").await;
             Ok(SupervisorStep::Return(RunOutcome::Canceled))
         }

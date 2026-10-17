@@ -115,6 +115,7 @@ async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
             runtime: ParkingMutex::new(None),
             aimd: ParkingMutex::new(AimdState::default()),
             stop_notify: Notify::new(),
+            pieces: ParkingMutex::new(None),
         })
     };
 

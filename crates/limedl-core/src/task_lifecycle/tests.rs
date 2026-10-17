@@ -109,6 +109,7 @@ fn make_managed(id: &str, state: DownloadState, created_at_ms: u64) -> ManagedDo
         runtime: ParkingMutex::new(None),
         aimd: ParkingMutex::new(AimdState::default()),
         stop_notify: Notify::new(),
+        pieces: ParkingMutex::new(None),
     }
 }
 

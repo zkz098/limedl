@@ -72,7 +72,7 @@ fn default_scheduler_tick_ms() -> u64 {
 }
 
 fn default_max_connections_per_host() -> usize {
-    6
+    16
 }
 
 fn default_aimd_degrade_threshold() -> f64 {

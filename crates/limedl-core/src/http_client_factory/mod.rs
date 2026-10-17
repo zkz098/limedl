@@ -64,7 +64,8 @@ pub fn configure_client_builder(
         .connect_timeout(connect_timeout)
         .pool_max_idle_per_host(pool_max_idle)
         .pool_idle_timeout(Duration::from_secs(120))
-        .tcp_keepalive(keepalive);
+        .tcp_keepalive(keepalive)
+        .http2_adaptive_window(true);
 
     match settings.proxy.mode {
         ProxyMode::Disabled => {

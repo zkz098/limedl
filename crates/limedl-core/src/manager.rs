@@ -535,6 +535,7 @@ impl DownloadManager {
             runtime: Mutex::new(None),
             aimd: Mutex::new(AimdState::initial(adaptive_profile, desired_thread_count)),
             stop_notify: Notify::new(),
+            pieces: Mutex::new(None),
         });
 
         self.persist(managed.clone()).await?;
@@ -555,6 +556,13 @@ impl DownloadManager {
         self.controls.rebalance_notify.notify_waiters();
 
         Ok(download_id)
+    }
+
+    /// Set progressive Metalink piece verification info on an active managed download.
+    pub async fn set_piece_verification(&self, id: &str, pieces: crate::metalink::PieceVerification) {
+        if let Some(managed) = self.downloads.read().await.get(id) {
+            *managed.pieces.lock() = Some(pieces);
+        }
     }
 
     pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {

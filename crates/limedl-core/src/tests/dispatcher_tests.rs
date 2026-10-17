@@ -157,6 +157,7 @@ fn make_download(id: &str, state: DownloadState) -> Arc<ManagedDownload> {
         runtime: ParkingMutex::new(None),
         aimd: ParkingMutex::new(AimdState::default()),
         stop_notify: Notify::new(),
+        pieces: ParkingMutex::new(None),
     })
 }
 

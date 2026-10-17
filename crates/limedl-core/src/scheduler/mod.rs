@@ -35,7 +35,7 @@ use crate::{
 const SCHEDULER_TICK: Duration = Duration::from_secs(2);
 
 /// Maximum concurrent connections (threads) allowed to a single hostname.
-const MAX_CONNECTIONS_PER_HOST: usize = 6;
+const MAX_CONNECTIONS_PER_HOST: usize = 16;
 
 /// Rebalance passes a task may spend waiting for a slot before automatic mode
 /// rotates it in by preempting the lowest-ranked active task.

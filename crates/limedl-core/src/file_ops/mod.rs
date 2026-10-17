@@ -235,6 +235,20 @@ pub fn write_all_at(file: &File, mut buffer: &[u8], mut offset: u64) -> Result<(
     Ok(())
 }
 
+pub fn read_all_at(file: &File, mut buffer: &mut [u8], mut offset: u64) -> Result<usize> {
+    let mut total_read = 0;
+    while !buffer.is_empty() {
+        let read = read_once_at(file, buffer, offset)?;
+        if read == 0 {
+            break;
+        }
+        total_read += read;
+        offset += read as u64;
+        buffer = &mut buffer[read..];
+    }
+    Ok(total_read)
+}
+
 /// Cap a single `pwritev` call at the POSIX `UIO_MAXIOV` limit (1024).
 #[cfg(unix)]
 const MAX_IOV_BATCH: usize = 1024;
@@ -376,7 +390,7 @@ pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], mut offset: u64) -> Re
 /// on Unix platforms to eliminate memory allocations and copies, with single-syscall
 /// coalescing fallback on other platforms.
 #[cfg(not(unix))]
-pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], offset: u64) -> Result<()> {
+pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], mut offset: u64) -> Result<()> {
     if bufs.is_empty() {
         return Ok(());
     }
@@ -384,14 +398,15 @@ pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], offset: u64) -> Result
         return write_all_at(file, bufs[0], offset);
     }
 
-    // Windows / non-Unix fallback: coalesce slices into a contiguous buffer
-    // to perform a single seek_write syscall.
-    let total_len: usize = bufs.iter().map(|b| b.len()).sum();
-    let mut combined = Vec::with_capacity(total_len);
+    // Windows / non-Unix fallback: write slices directly in sequence without
+    // allocating a large heap buffer or copying multi-megabyte data.
     for b in bufs {
-        combined.extend_from_slice(b);
+        if !b.is_empty() {
+            write_all_at(file, b, offset)?;
+            offset += b.len() as u64;
+        }
     }
-    write_all_at(file, &combined, offset)
+    Ok(())
 }
 
 // ── Windows Fast Preallocation & Sparse File Support ──
@@ -657,11 +672,25 @@ fn write_once_at(file: &File, buffer: &[u8], offset: u64) -> std::io::Result<usi
     file.write_at(buffer, offset)
 }
 
+#[cfg(unix)]
+fn read_once_at(file: &File, buffer: &mut [u8], offset: u64) -> std::io::Result<usize> {
+    use std::os::unix::fs::FileExt;
+
+    file.read_at(buffer, offset)
+}
+
 #[cfg(windows)]
 fn write_once_at(file: &File, buffer: &[u8], offset: u64) -> std::io::Result<usize> {
     use std::os::windows::fs::FileExt;
 
     file.seek_write(buffer, offset)
+}
+
+#[cfg(windows)]
+fn read_once_at(file: &File, buffer: &mut [u8], offset: u64) -> std::io::Result<usize> {
+    use std::os::windows::fs::FileExt;
+
+    file.seek_read(buffer, offset)
 }
 
 mod disk_detect;

@@ -306,6 +306,7 @@ fn make_managed(id: &str, state: DownloadState, url: &str) -> Arc<ManagedDownloa
         runtime: ParkingMutex::new(None),
         aimd: ParkingMutex::new(AimdState::default()),
         stop_notify: Notify::new(),
+        pieces: ParkingMutex::new(None),
     })
 }
 

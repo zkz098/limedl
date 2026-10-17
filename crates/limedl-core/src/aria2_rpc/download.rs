@@ -296,6 +296,12 @@ pub(crate) async fn handle_add_metalink(
             .await
             .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
+        if let Some(pieces) = file.pieces
+            && let Some(dm) = ctx.http()
+        {
+            dm.set_piece_verification(&task_id.to_string(), pieces).await;
+        }
+
         if position == Some(0) {
             let _ = ctx.dispatcher.set_priority(&task_id, Priority::High).await;
         }

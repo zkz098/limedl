@@ -105,6 +105,7 @@ pub struct ManagedDownload {
     pub runtime: Mutex<Option<CancellationToken>>,
     pub aimd: Mutex<AimdState>,
     pub stop_notify: Notify,
+    pub pieces: Mutex<Option<crate::metalink::PieceVerification>>,
 }
 impl ManagedDownload {
     pub fn lock_core(&self) -> MutexGuard<'_, DownloadCore> {
@@ -242,6 +243,7 @@ impl ManagedDownload {
             runtime: Mutex::new(None),
             aimd: Mutex::new(AimdState::initial(None, None)),
             stop_notify: Notify::new(),
+            pieces: Mutex::new(None),
         })
     }
 }

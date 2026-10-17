@@ -260,6 +260,7 @@ fn rebalance_task(
         runtime: parking_lot::Mutex::new(None),
         aimd: parking_lot::Mutex::new(crate::aimd::AimdState::default()),
         stop_notify: tokio::sync::Notify::new(),
+        pieces: parking_lot::Mutex::new(None),
     })
 }
 
@@ -495,6 +496,7 @@ fn make_managed_task(desired: usize, allocated: usize, profile: crate::types::Ad
         runtime: parking_lot::Mutex::new(None),
         aimd: parking_lot::Mutex::new(crate::aimd::AimdState::default()),
         stop_notify: tokio::sync::Notify::new(),
+        pieces: parking_lot::Mutex::new(None),
     })
 }
 
@@ -670,6 +672,7 @@ fn test_expert_queue_sort_strategies() {
             runtime: parking_lot::Mutex::new(None),
             aimd: parking_lot::Mutex::new(crate::aimd::AimdState::default()),
             stop_notify: tokio::sync::Notify::new(),
+            pieces: parking_lot::Mutex::new(None),
         })
     };
 
@@ -720,7 +723,10 @@ fn test_expert_queue_sort_strategies() {
 #[test]
 fn test_expert_host_cap() {
     let mut settings = settings_automatic();
-    assert_eq!(super::effective_max_connections_per_host(&settings), 6);
+    assert_eq!(
+        super::effective_max_connections_per_host(&settings),
+        super::MAX_CONNECTIONS_PER_HOST
+    );
 
     settings.scheduler.expert_mode = true;
     settings.scheduler.expert.max_connections_per_host = 32;
