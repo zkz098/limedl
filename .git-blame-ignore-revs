@@ -1,0 +1,17 @@
+# Commits that rewrote almost every file without changing behaviour, so
+# `git blame` can skip them and point at the commit that actually wrote the
+# line.
+#
+# Locally:  git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub:   honours this file automatically in the blame view.
+#
+# Append-only, in chronological order. Both entries are mechanical rewrites of
+# the whole workspace; reviewing them hunk by hunk is not useful, and
+# `git show <sha> --ignore-cr-at-eol` or `git diff -w` renders them empty or
+# near-empty.
+
+# style: normalize line endings to LF and add .gitattributes
+68a20304c33482af47b9733346ec9bd7a1d8f173
+
+# style: format the workspace with rustfmt
+bcbf8be633b80d838a7631d7fe25764d3681acf1
