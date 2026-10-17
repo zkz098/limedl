@@ -65,6 +65,18 @@ impl Language {
             Language::EnUs => "en-US",
         }
     }
+
+    /// Column of this language in the generated translation catalog.
+    ///
+    /// The order must match `LOCALES` in `xtask/src/i18n.rs`; the `i18n::tr`
+    /// tests pin both ends of that contract.
+    pub(crate) fn catalog_index(self) -> usize {
+        match self {
+            Language::ZhCn => 0,
+            Language::ZhTw => 1,
+            Language::EnUs => 2,
+        }
+    }
 }
 
 /// Activate bundled translation catalog in Slint runtime.

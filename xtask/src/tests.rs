@@ -271,6 +271,23 @@ fn theme_generation_matches_repo_theme() {
 }
 
 #[test]
+fn i18n_catalog_matches_repo_catalogs() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("xtask sits one level below the repo root");
+    let catalog_file = repo_root.join("crates/limedl-native/src/i18n/catalog.rs");
+    let disk_content = fs::read_to_string(&catalog_file).expect("read i18n/catalog.rs");
+    let generated = i18n::generate_catalog(&repo_root.join("crates/limedl-native/lang"))
+        .expect("generate the Rust translation catalog");
+    assert_eq!(
+        disk_content.replace("\r\n", "\n"),
+        generated.replace("\r\n", "\n"),
+        "i18n/catalog.rs is out of sync with lang/*/LC_MESSAGES/limedl-native.po. \
+         Run `cargo xtask i18n generate`."
+    );
+}
+
+#[test]
 fn icons_generation_creates_expected_assets() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

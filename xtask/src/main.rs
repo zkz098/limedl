@@ -45,6 +45,7 @@ use rand::Rng as _;
 
 mod bump_version;
 mod fetch_font;
+mod i18n;
 mod icons;
 mod manifest;
 mod theme;
@@ -188,6 +189,9 @@ enum Command {
     /// Slint theme operations (generate theme.slint, apply tokens, check unmapped colors).
     #[command(subcommand)]
     Theme(theme::ThemeCommand),
+    /// Translation catalog operations (generate the Rust lookup table, check it is in sync).
+    #[command(subcommand)]
+    I18n(i18n::I18nCommand),
     /// Generate desktop packaging icons (MSIX, Linux hicolor, macOS iconset).
     #[command(subcommand)]
     GenIcons(icons::IconsCommand),
@@ -278,6 +282,7 @@ fn main() -> Result<()> {
             &bump_version::Options { dry_run, no_push },
         ),
         Command::Theme(cmd) => theme::run(cmd),
+        Command::I18n(cmd) => i18n::run(cmd),
         Command::GenIcons(cmd) => icons::run(cmd),
     }
 }

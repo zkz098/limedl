@@ -1,68 +1,40 @@
 //! Task list and status formatting (eta, state, threads, priority, io status).
 
-use super::{DownloadState, Language};
+use super::{DownloadState, Language, tr, tr_fmt};
 
 /// Format ETA seconds localized.
 pub fn format_eta(eta: Option<u64>, lang: Language) -> String {
-    match eta {
-        Some(s) if s > 0 => match lang {
-            Language::ZhCn => {
-                if s >= 86400 {
-                    let d = s / 86400;
-                    let h = (s % 86400) / 3600;
-                    format!("剩余 {d}天{h}小时")
-                } else if s >= 3600 {
-                    let h = s / 3600;
-                    let m = (s % 3600) / 60;
-                    format!("剩余 {h}小时{m}分")
-                } else if s >= 60 {
-                    let m = s / 60;
-                    let sec = s % 60;
-                    format!("剩余 {m}分{sec}秒")
-                } else {
-                    format!("剩余 {s}秒")
-                }
-            }
-            Language::ZhTw => {
-                if s >= 86400 {
-                    let d = s / 86400;
-                    let h = (s % 86400) / 3600;
-                    format!("剩餘 {d}天{h}小時")
-                } else if s >= 3600 {
-                    let h = s / 3600;
-                    let m = (s % 3600) / 60;
-                    format!("剩餘 {h}小時{m}分")
-                } else if s >= 60 {
-                    let m = s / 60;
-                    let sec = s % 60;
-                    format!("剩餘 {m}分{sec}秒")
-                } else {
-                    format!("剩餘 {s}秒")
-                }
-            }
-            Language::EnUs => {
-                if s >= 86400 {
-                    let d = s / 86400;
-                    let h = (s % 86400) / 3600;
-                    format!("{d}d {h}h left")
-                } else if s >= 3600 {
-                    let h = s / 3600;
-                    let m = (s % 3600) / 60;
-                    format!("{h}h {m}m left")
-                } else if s >= 60 {
-                    let m = s / 60;
-                    let sec = s % 60;
-                    format!("{m}m {sec}s left")
-                } else {
-                    format!("{s}s left")
-                }
-            }
-        },
-        _ => String::new(),
+    // `None` and `Some(0)` both mean "no estimate yet".
+    let Some(seconds) = eta.filter(|seconds| *seconds > 0) else {
+        return String::new();
+    };
+    if seconds >= 86400 {
+        tr_fmt(
+            "{}d {}h left",
+            lang,
+            &[&(seconds / 86400), &((seconds % 86400) / 3600)],
+        )
+    } else if seconds >= 3600 {
+        tr_fmt(
+            "{}h {}m left",
+            lang,
+            &[&(seconds / 3600), &((seconds % 3600) / 60)],
+        )
+    } else if seconds >= 60 {
+        tr_fmt("{}m {}s left", lang, &[&(seconds / 60), &(seconds % 60)])
+    } else {
+        tr_fmt("{}s left", lang, &[&seconds])
     }
 }
 
 /// Format download state label localized.
+///
+/// Kept as a local three-language table rather than a catalog lookup: the UI
+/// shows the same English source as a longer status label (`@tr("Downloading")`
+/// is "正在下载"), while a list cell reads better as "下载中". Same msgid, two
+/// translations — the `msgctxt` case documented in `docs/i18n.md`; the other
+/// variants agree with the catalog and are listed here only to keep the table
+/// exhaustive.
 pub fn format_state_label(state: &DownloadState, lang: Language) -> &'static str {
     match (state, lang) {
         (DownloadState::Downloading, Language::ZhCn) => "下载中",
@@ -98,33 +70,25 @@ pub fn format_threads_text(
     allocated_threads: usize,
     lang: Language,
 ) -> String {
-    let mode_str = thread_mode.unwrap_or("Default");
-    match lang {
-        Language::ZhCn => format!("{mode_str} (已分配: {allocated_threads} 线程)"),
-        Language::ZhTw => format!("{mode_str} (已分配: {allocated_threads} 執行緒)"),
-        Language::EnUs => format!("{mode_str} (Allocated: {allocated_threads} threads)"),
-    }
+    // "Default" is a mode identifier, not display text, so it is not translated.
+    tr_fmt(
+        "{} (Allocated: {} threads)",
+        lang,
+        &[&thread_mode.unwrap_or("Default"), &allocated_threads],
+    )
 }
 
 /// Format seed / leech peer counts localized.
 pub fn format_seed_leech(seed: Option<u64>, leech: Option<u64>, lang: Language) -> String {
     match (seed, leech) {
-        (Some(s), Some(l)) => match lang {
-            Language::ZhCn => format!("做种: {s} | 下载: {l}"),
-            Language::ZhTw => format!("做種: {s} | 下載: {l}"),
-            Language::EnUs => format!("Seeds: {s} | Peers: {l}"),
-        },
+        (Some(seed), Some(leech)) => tr_fmt("Seeds: {} | Peers: {}", lang, &[&seed, &leech]),
         _ => String::new(),
     }
 }
 
 /// "Unknown" text localized.
 pub fn format_unknown(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "未知",
-        Language::ZhTw => "未知",
-        Language::EnUs => "Unknown",
-    }
+    tr("Unknown", lang)
 }
 
 /// Piece map summary localized.
@@ -135,37 +99,32 @@ pub fn format_piece_map_summary(
     lang: Language,
 ) -> String {
     if total == 0 {
-        return match lang {
-            Language::ZhCn => "暂无分片数据".to_string(),
-            Language::ZhTw => "暫無分片資料".to_string(),
-            Language::EnUs => "No piece data".to_string(),
-        };
+        return tr("No piece data", lang).to_string();
     }
-    match lang {
-        Language::ZhCn => format!("{completed} / {total} 分片 ({percent:.1}%)"),
-        Language::ZhTw => format!("{completed} / {total} 分片 ({percent:.1}%)"),
-        Language::EnUs => format!("{completed} / {total} pieces ({percent:.1}%)"),
-    }
+    tr_fmt(
+        "{} / {} pieces ({}%)",
+        lang,
+        &[&completed, &total, &format!("{percent:.1}")],
+    )
 }
 
 /// Buffer pool not ready localized.
 pub fn format_io_status_not_ready(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "智能缓冲池未就绪",
-        Language::ZhTw => "智慧快取池未就緒",
-        Language::EnUs => "Smart buffer pool not ready",
-    }
+    tr("Smart buffer pool not ready", lang)
 }
+
 /// Disk probe found no mount point.
 pub fn format_no_disk_detected(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "未检测到磁盘信息",
-        Language::ZhTw => "未偵測到磁碟資訊",
-        Language::EnUs => "No disk information detected",
-    }
+    tr("No disk information detected", lang)
 }
 
 /// Localized disk type name used in the IO baseline summary.
+///
+/// Kept as a local three-language table rather than a catalog lookup: the disk
+/// override editor's ComboBox shows the same English source as a short badge
+/// (`@tr("SSD")` / `@tr("HDD")`), while this summary needs the descriptive
+/// "SSD 固态硬盘". Same msgid, two translations — the `msgctxt` case documented
+/// in `docs/i18n.md`.
 pub fn format_disk_type_name(disk: limedl_core::types::DiskType, lang: Language) -> &'static str {
     match (disk, lang) {
         (limedl_core::types::DiskType::Ssd, Language::ZhCn) => "SSD 固态硬盘",
@@ -191,40 +150,32 @@ pub fn format_io_status_line(
     active_buffers: u64,
     lang: Language,
 ) -> String {
-    match lang {
-        Language::ZhCn => {
-            format!("已用缓存: {allocated} / 上限: {capacity} (活跃缓冲槽: {active_buffers} 个)")
-        }
-        Language::ZhTw => {
-            format!("已用快取: {allocated} / 上限: {capacity} (活躍快取槽: {active_buffers} 個)")
-        }
-        Language::EnUs => format!(
-            "Buffer in use: {allocated} / limit: {capacity} ({active_buffers} active slots)"
-        ),
-    }
+    tr_fmt(
+        "Buffer in use: {} / limit: {} ({} active slots)",
+        lang,
+        &[&allocated, &capacity, &active_buffers],
+    )
 }
+
 /// Priority label localized (high / normal / low).
 pub fn format_priority_label(
     priority: limedl_core::types::Priority,
     lang: Language,
 ) -> &'static str {
     use limedl_core::types::Priority;
-    match (priority, lang) {
-        (Priority::High, Language::ZhCn) => "高",
-        (Priority::High, Language::ZhTw) => "高",
-        (Priority::High, Language::EnUs) => "High",
-        (Priority::Normal, Language::ZhCn) => "普通",
-        (Priority::Normal, Language::ZhTw) => "普通",
-        (Priority::Normal, Language::EnUs) => "Normal",
-        (Priority::Low, Language::ZhCn) => "低",
-        (Priority::Low, Language::ZhTw) => "低",
-        (Priority::Low, Language::EnUs) => "Low",
-    }
+    let msgid = match priority {
+        Priority::High => "High",
+        Priority::Normal => "Normal",
+        Priority::Low => "Low",
+    };
+    tr(msgid, lang)
 }
+
 /// "%APPDATA%-style" OS description shown in the About tab.
 ///
 /// Windows reports a friendly product name + build (registry), other platforms
-/// fall back to the compile-time target description.
+/// fall back to the compile-time target description. The parts are platform
+/// identifiers, so there is nothing to translate.
 pub fn format_platform_description(os: &str, arch: &str, renderer: &str) -> String {
     format!("{arch} / {os} ({renderer})")
 }
@@ -239,21 +190,14 @@ pub fn format_warning_with_file(file_name: &str, message: &str) -> String {
 
 /// Fallback display name for a task started without a resolved file name.
 pub fn format_unnamed_task(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "下载任务",
-        Language::ZhTw => "下載任務",
-        Language::EnUs => "Download Task",
-    }
+    tr("Download Task", lang)
 }
+
 /// In-app toast for task terminal events (works alongside the OS notification).
 pub fn format_toast_state(file_name: &str, state: &DownloadState, lang: Language) -> String {
-    match (state, lang) {
-        (DownloadState::Completed, Language::ZhCn) => format!("下载完成: {file_name}"),
-        (DownloadState::Completed, Language::ZhTw) => format!("下載完成: {file_name}"),
-        (DownloadState::Completed, Language::EnUs) => format!("Completed: {file_name}"),
-        (DownloadState::Failed, Language::ZhCn) => format!("下载失败: {file_name}"),
-        (DownloadState::Failed, Language::ZhTw) => format!("下載失敗: {file_name}"),
-        (DownloadState::Failed, Language::EnUs) => format!("Failed: {file_name}"),
+    match state {
+        DownloadState::Completed => tr_fmt("Completed: {}", lang, &[&file_name]),
+        DownloadState::Failed => tr_fmt("Failed: {}", lang, &[&file_name]),
         _ => format_state_label(state, lang).to_string(),
     }
 }

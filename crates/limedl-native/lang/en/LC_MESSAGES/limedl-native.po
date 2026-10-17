@@ -2137,3 +2137,596 @@ msgstr "Random jitter percentage (0-100%) added to retry backoff to avoid thunde
 
 msgid "Custom"
 msgstr "Custom"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Rust-side messages
+#
+# Text composed in Rust — toasts and settings validation — resolves through the
+# same catalogs as the Slint `@tr` strings, so a translator edits one file per
+# locale. The msgid is the English source string; `{}` are positional arguments
+# substituted by `i18n::tr_fmt`. Regenerate `src/i18n/catalog.rs` with
+# `cargo xtask i18n generate`; `cargo xtask i18n check` is the gate.
+# ─────────────────────────────────────────────────────────────────────────────
+
+msgid "Download task added: {}"
+msgstr "Download task added: {}"
+
+msgid "Failed to add task: {}"
+msgstr "Failed to add task: {}"
+
+msgid "Batch add finished: {}/{} succeeded"
+msgstr "Batch add finished: {}/{} succeeded"
+
+msgid "Settings saved"
+msgstr "Settings saved"
+
+msgid "Failed to save settings: {}"
+msgstr "Failed to save settings: {}"
+
+msgid "Invalid settings: {}"
+msgstr "Invalid settings: {}"
+
+msgid "Setup completed"
+msgstr "Setup completed"
+
+msgid "Tracker list synced: {} entries"
+msgstr "Tracker list synced: {} entries"
+
+msgid "Tracker sync failed: {}"
+msgstr "Tracker sync failed: {}"
+
+msgid "Download link copied to clipboard"
+msgstr "Download link copied to clipboard"
+
+msgid "File name copied to clipboard"
+msgstr "File name copied to clipboard"
+
+msgid "Labs settings saved"
+msgstr "Labs settings saved"
+
+msgid "Failed to save Labs settings: {}"
+msgstr "Failed to save Labs settings: {}"
+
+msgid "CDN node applied: {}"
+msgstr "CDN node applied: {}"
+
+msgid "CDN acceleration cleared"
+msgstr "CDN acceleration cleared"
+
+msgid "CDN speedtest finished, node {} locked"
+msgstr "CDN speedtest finished, node {} locked"
+
+msgid "CDN speedtest finished"
+msgstr "CDN speedtest finished"
+
+msgid "CDN speedtest failed: {}"
+msgstr "CDN speedtest failed: {}"
+
+msgid "Aria2 RPC started (port {})"
+msgstr "Aria2 RPC started (port {})"
+
+msgid "Aria2 RPC stopped"
+msgstr "Aria2 RPC stopped"
+
+msgid "Token copied"
+msgstr "Token copied"
+
+msgid "Failed to generate token: {}"
+msgstr "Failed to generate token: {}"
+
+msgid "Autostart failed: {}"
+msgstr "Autostart failed: {}"
+
+msgid "Priority set to {} — {}"
+msgstr "Priority set to {} — {}"
+
+msgid "Failed to set priority: {}"
+msgstr "Failed to set priority: {}"
+
+msgid "At least one file must stay selected"
+msgstr "At least one file must stay selected"
+
+msgid "Failed to update torrent file selection: {}"
+msgstr "Failed to update torrent file selection: {}"
+
+msgid "Cleared {} completed record(s)"
+msgstr "Cleared {} completed record(s)"
+
+msgid "No completed records to clear"
+msgstr "No completed records to clear"
+
+msgid "Failed to clear completed records"
+msgstr "Failed to clear completed records"
+
+msgid "Factory reset complete, restarting…"
+msgstr "Factory reset complete, restarting…"
+
+msgid "Factory reset failed: {}"
+msgstr "Factory reset failed: {}"
+
+msgid "Downloading update v{}..."
+msgstr "Downloading update v{}..."
+
+msgid "Installer launched. Exiting to complete update."
+msgstr "Installer launched. Exiting to complete update."
+
+msgid "Update failed: {}"
+msgstr "Update failed: {}"
+
+msgid "Opening Microsoft Store to update..."
+msgstr "Opening Microsoft Store to update..."
+
+msgid "No update information found. Please check for updates again."
+msgstr "No update information found. Please check for updates again."
+
+msgid "You are already on the latest version."
+msgstr "You are already on the latest version."
+
+msgid "New version v{} available. Go to About to update."
+msgstr "New version v{} available. Go to About to update."
+
+msgid "Failed to check for updates: {}"
+msgstr "Failed to check for updates: {}"
+
+msgid "Failed to restart: {}"
+msgstr "Failed to restart: {}"
+
+msgid "Invalid checksum format (supports SHA-256, SHA-512, BLAKE3)"
+msgstr "Invalid checksum format (supports SHA-256, SHA-512, BLAKE3)"
+
+msgid "Verifying integrity: {}"
+msgstr "Verifying integrity: {}"
+
+msgid "{} verified successfully ({} match)"
+msgstr "{} verified successfully ({} match)"
+
+msgid "{} verification failed: {} mismatch!"
+msgstr "{} verification failed: {} mismatch!"
+
+msgid "{} integrity computed ({}), hash copied to clipboard"
+msgstr "{} integrity computed ({}), hash copied to clipboard"
+
+msgid "Integrity verification failed: {}"
+msgstr "Integrity verification failed: {}"
+
+msgid "Max retries"
+msgstr "Max retries"
+
+msgid "Max parallel tasks"
+msgstr "Max parallel tasks"
+
+msgid "Global speed limit"
+msgstr "Global speed limit"
+
+msgid "Scheduler max parallel threads"
+msgstr "Scheduler max parallel threads"
+
+msgid "Max threads per task"
+msgstr "Max threads per task"
+
+msgid "Min threads per task"
+msgstr "Min threads per task"
+
+msgid "BT listen port"
+msgstr "BT listen port"
+
+msgid "Max peers per torrent"
+msgstr "Max peers per torrent"
+
+msgid "BT max downloads"
+msgstr "BT max downloads"
+
+msgid "BT max seeds"
+msgstr "BT max seeds"
+
+msgid "BT max torrents"
+msgstr "BT max torrents"
+
+msgid "BT active limit"
+msgstr "BT active limit"
+
+msgid "BT global download limit"
+msgstr "BT global download limit"
+
+msgid "BT global upload limit"
+msgstr "BT global upload limit"
+
+msgid "Seeding upload limit"
+msgstr "Seeding upload limit"
+
+msgid "Share ratio limit"
+msgstr "Share ratio limit"
+
+msgid "Anti-leech grace period"
+msgstr "Anti-leech grace period"
+
+msgid "Anti-leech ratio threshold"
+msgstr "Anti-leech ratio threshold"
+
+msgid "Anti-leech ban duration"
+msgstr "Anti-leech ban duration"
+
+msgid "Anti-leech upload slots"
+msgstr "Anti-leech upload slots"
+
+msgid "Max upload slots per torrent"
+msgstr "Max upload slots per torrent"
+
+msgid "Smart ban threshold"
+msgstr "Smart ban threshold"
+
+msgid "Eviction ban duration"
+msgstr "Eviction ban duration"
+
+msgid "No-contribution timeout"
+msgstr "No-contribution timeout"
+
+msgid "IO buffer limit"
+msgstr "IO buffer limit"
+
+msgid "Game mode buffer"
+msgstr "Game mode buffer"
+
+msgid "Max parallel HDD transfers"
+msgstr "Max parallel HDD transfers"
+
+msgid "Game mode max parallel"
+msgstr "Game mode max parallel"
+
+msgid "SSD write-combine buffer"
+msgstr "SSD write-combine buffer"
+
+msgid "Log retention count"
+msgstr "Log retention count"
+
+msgid "Log retention days"
+msgstr "Log retention days"
+
+msgid "Aria2 port"
+msgstr "Aria2 port"
+
+msgid "In-memory record limit"
+msgstr "In-memory record limit"
+
+msgid "Speed limit schedule start hour"
+msgstr "Speed limit schedule start hour"
+
+msgid "Speed limit schedule end hour"
+msgstr "Speed limit schedule end hour"
+
+msgid "Speed limit schedule rate"
+msgstr "Speed limit schedule rate"
+
+msgid "Media override directory"
+msgstr "Media override directory"
+
+msgid "Scheduler tick duration"
+msgstr "Scheduler tick duration"
+
+msgid "Max connections per host"
+msgstr "Max connections per host"
+
+msgid "AIMD degrade threshold"
+msgstr "AIMD degrade threshold"
+
+msgid "AIMD increase threshold"
+msgstr "AIMD increase threshold"
+
+msgid "AIMD severe drop threshold"
+msgstr "AIMD severe drop threshold"
+
+msgid "AIMD cooldown duration"
+msgstr "AIMD cooldown duration"
+
+msgid "AIMD samples needed"
+msgstr "AIMD samples needed"
+
+msgid "AIMD probe stable cycles"
+msgstr "AIMD probe stable cycles"
+
+msgid "AIMD decrease factor"
+msgstr "AIMD decrease factor"
+
+msgid "AIMD additive step ratio"
+msgstr "AIMD additive step ratio"
+
+msgid "AIMD oscillation threshold"
+msgstr "AIMD oscillation threshold"
+
+msgid "AIMD hysteresis multiplier"
+msgstr "AIMD hysteresis multiplier"
+
+msgid "Custom chunk size"
+msgstr "Custom chunk size"
+
+msgid "Tail sprint stall window"
+msgstr "Tail sprint stall window"
+
+msgid "Tail sprint min split size"
+msgstr "Tail sprint min split size"
+
+msgid "Work steal min split size"
+msgstr "Work steal min split size"
+
+msgid "Network connect timeout"
+msgstr "Network connect timeout"
+
+msgid "Network read timeout"
+msgstr "Network read timeout"
+
+msgid "Connection pool max idle per host"
+msgstr "Connection pool max idle per host"
+
+msgid "TCP keepalive duration"
+msgstr "TCP keepalive duration"
+
+msgid "Retry backoff base delay"
+msgstr "Retry backoff base delay"
+
+msgid "Retry backoff max delay"
+msgstr "Retry backoff max delay"
+
+msgid "Retry backoff jitter percent"
+msgstr "Retry backoff jitter percent"
+
+msgid "Invalid {}: '{}' — please enter a valid number"
+msgstr "Invalid {}: '{}' — please enter a valid number"
+
+msgid "Invalid {}: '{}' — please enter a valid integer"
+msgstr "Invalid {}: '{}' — please enter a valid integer"
+
+msgid "Invalid {}: '{}' — please enter a port in 0-65535"
+msgstr "Invalid {}: '{}' — please enter a port in 0-65535"
+
+msgid "{} must be between {} and {}"
+msgstr "{} must be between {} and {}"
+
+msgid "{} cannot be 0"
+msgstr "{} cannot be 0"
+
+msgid "A proxy URL is required when the proxy mode is manual"
+msgstr "A proxy URL is required when the proxy mode is manual"
+
+msgid "{} must be an absolute path: '{}' (e.g. D:\\Downloads or \\\\NAS\\share)"
+msgstr "{} must be an absolute path: '{}' (e.g. D:\\Downloads or \\\\NAS\\share)"
+
+msgid "Duplicate path: '{}' — one entry per directory"
+msgstr "Duplicate path: '{}' — one entry per directory"
+
+msgid "Invalid IP address format"
+msgstr "Invalid IP address format"
+
+msgid "Client name cannot be empty"
+msgstr "Client name cannot be empty"
+
+msgid "Duplicate client name: '{}'"
+msgstr "Duplicate client name: '{}'"
+
+msgid "Client '{}' has no token — regenerate it"
+msgstr "Client '{}' has no token — regenerate it"
+
+msgid "Client {}"
+msgstr "Client {}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Rust-side messages (tray, notifications, task status, dialogs)
+#
+# Same contract as the sections above: msgid is the English source, `{}` are the
+# positional arguments of `i18n::tr_fmt`.
+# ─────────────────────────────────────────────────────────────────────────────
+
+msgid "Testing"
+msgstr "Testing"
+
+msgid "Ready"
+msgstr "Ready"
+
+msgid "Measuring candidate edge nodes"
+msgstr "Measuring candidate edge nodes"
+
+msgid "Speedtest finished"
+msgstr "Speedtest finished"
+
+msgid "Direct DNS (Benchmark)"
+msgstr "Direct DNS (Benchmark)"
+
+msgid "Not Configured"
+msgstr "Not Configured"
+
+msgid "Speedtest failed"
+msgstr "Speedtest failed"
+
+msgid "Fetching IP ranges"
+msgstr "Fetching IP ranges"
+
+msgid "Screening latency"
+msgstr "Screening latency"
+
+msgid "Measuring bandwidth"
+msgstr "Measuring bandwidth"
+
+msgid "Cancelled"
+msgstr "Cancelled"
+
+msgid "Detecting checksum..."
+msgstr "Detecting checksum..."
+
+msgid "No checksum file found"
+msgstr "No checksum file found"
+
+msgid "Checksum detection is only available for HTTP links"
+msgstr "Checksum detection is only available for HTTP links"
+
+msgid "Parsing torrent..."
+msgstr "Parsing torrent..."
+
+msgid "Preview failed: {}"
+msgstr "Preview failed: {}"
+
+msgid "{} files · {}"
+msgstr "{} files · {}"
+
+msgid "Select at least one file"
+msgstr "Select at least one file"
+
+msgid "Parsed aria2c command: {} link"
+msgstr "Parsed aria2c command: {} link"
+
+msgid "Parsed aria2c command: {} links"
+msgstr "Parsed aria2c command: {} links"
+
+msgid "{} · {} header"
+msgstr "{} · {} header"
+
+msgid "{} · {} headers"
+msgstr "{} · {} headers"
+
+msgid "{} (ignored: {})"
+msgstr "{} (ignored: {})"
+
+msgid "No valid links detected"
+msgstr "No valid links detected"
+
+msgid "Will add {} tasks"
+msgstr "Will add {} tasks"
+
+msgid "Submitting... {}/{}"
+msgstr "Submitting... {}/{}"
+
+msgid "Batch submitted: {}/{} succeeded"
+msgstr "Batch submitted: {}/{} succeeded"
+
+msgid "Download link detected: {}"
+msgstr "Download link detected: {}"
+
+msgid "Detected {} batch download links"
+msgstr "Detected {} batch download links"
+
+msgid "Select Torrent File"
+msgstr "Select Torrent File"
+
+msgid "Torrent Files (*.torrent)"
+msgstr "Torrent Files (*.torrent)"
+
+msgid "Select Download Folder"
+msgstr "Select Download Folder"
+
+msgid "Select Log Folder"
+msgstr "Select Log Folder"
+
+msgid "limedl could not start"
+msgstr "limedl could not start"
+
+msgid "limedl failed to start:\n\n{}\n\nDetails were written to:\n{}"
+msgstr "limedl failed to start:\n\n{}\n\nDetails were written to:\n{}"
+
+msgid "Detected: {}"
+msgstr "Detected: {}"
+
+msgid "Enter an absolute path (e.g. D:\\Downloads or \\\\NAS\\share)"
+msgstr "Enter an absolute path (e.g. D:\\Downloads or \\\\NAS\\share)"
+
+msgid "Invalid directory media override: {}"
+msgstr "Invalid directory media override: {}"
+
+msgid "New Custom Rule"
+msgstr "New Custom Rule"
+
+msgid "GitHub Mirror Proxy"
+msgstr "GitHub Mirror Proxy"
+
+msgid "Hugging Face Mirror"
+msgstr "Hugging Face Mirror"
+
+msgid "Civitai Mirror"
+msgstr "Civitai Mirror"
+
+msgid "Invalid speed limit schedule: {}"
+msgstr "Invalid speed limit schedule: {}"
+
+msgid "Global speed limit enabled (1 MB/s)"
+msgstr "Global speed limit enabled (1 MB/s)"
+
+msgid "Global speed limit disabled"
+msgstr "Global speed limit disabled"
+
+msgid "{}d {}h left"
+msgstr "{}d {}h left"
+
+msgid "{}h {}m left"
+msgstr "{}h {}m left"
+
+msgid "{}m {}s left"
+msgstr "{}m {}s left"
+
+msgid "{}s left"
+msgstr "{}s left"
+
+msgid "{} (Allocated: {} threads)"
+msgstr "{} (Allocated: {} threads)"
+
+msgid "Seeds: {} | Peers: {}"
+msgstr "Seeds: {} | Peers: {}"
+
+msgid "No piece data"
+msgstr "No piece data"
+
+msgid "{} / {} pieces ({}%)"
+msgstr "{} / {} pieces ({}%)"
+
+msgid "Smart buffer pool not ready"
+msgstr "Smart buffer pool not ready"
+
+msgid "No disk information detected"
+msgstr "No disk information detected"
+
+msgid "Buffer in use: {} / limit: {} ({} active slots)"
+msgstr "Buffer in use: {} / limit: {} ({} active slots)"
+
+msgid "Download Task"
+msgstr "Download Task"
+
+msgid "Completed: {}"
+msgstr "Completed: {}"
+
+msgid "Failed: {}"
+msgstr "Failed: {}"
+
+msgid "Download Completed"
+msgstr "Download Completed"
+
+msgid "File saved: {}"
+msgstr "File saved: {}"
+
+msgid "Network error"
+msgstr "Network error"
+
+msgid "Download Failed"
+msgstr "Download Failed"
+
+msgid "Task failed: {} ({})"
+msgstr "Task failed: {} ({})"
+
+msgid "limedl v{} is available"
+msgstr "limedl v{} is available"
+
+msgid "Open Settings → About to download and install the update."
+msgstr "Open Settings → About to download and install the update."
+
+msgid "Show Main Window"
+msgstr "Show Main Window"
+
+msgid "Speed Limit (1 MB/s)"
+msgstr "Speed Limit (1 MB/s)"
+
+msgid "Toggle Game Mode"
+msgstr "Toggle Game Mode"
+
+msgid "Exit limedl"
+msgstr "Exit limedl"
+
+msgid "limedl - Download Manager"
+msgstr "limedl - Download Manager"
+
+msgid "Failed to save settings"
+msgstr "Failed to save settings"

@@ -302,3 +302,150 @@ fn test_all_slint_tr_strings_in_po_catalogs() {
         );
     }
 }
+
+/// Recursively collect `.rs` files below `dir`.
+fn collect_rs_files(dir: &Path, list: &mut Vec<PathBuf>) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                collect_rs_files(&p, list);
+            } else if p.extension().is_some_and(|ext| ext == "rs") {
+                list.push(p);
+            }
+        }
+    }
+}
+
+/// Every `msgid` literal that is the first argument of an `i18n::tr` /
+/// `i18n::tr_fmt` call.
+///
+/// Comments and string literals are skipped by a small state machine: the module
+/// docs and this very file mention `tr("…")` as an example, and `@tr(` appears in
+/// the Slint scan above. The callee name is read back from the source so a call
+/// like `attr("…")` is not mistaken for `tr("…")`.
+fn extract_tr_literals(text: &str) -> Vec<String> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut results = Vec::new();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '/' && chars.get(i + 1) == Some(&'/') {
+            while i < chars.len() && chars[i] != '\n' {
+                i += 1;
+            }
+            continue;
+        }
+        if c == '/' && chars.get(i + 1) == Some(&'*') {
+            i += 2;
+            while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                i += 1;
+            }
+            i += 2;
+            continue;
+        }
+        if c == '\'' {
+            // A char literal is three characters (`'x'`); anything else is a
+            // lifetime or a stray quote and is skipped one character at a time.
+            i += if chars.get(i + 2) == Some(&'\'') { 3 } else { 1 };
+            continue;
+        }
+        if c != '"' {
+            i += 1;
+            continue;
+        }
+
+        // Read the string literal.
+        let mut j = i + 1;
+        let mut content = String::new();
+        while j < chars.len() {
+            match chars[j] {
+                '\\' => {
+                    if let Some(escaped) = chars.get(j + 1) {
+                        content.push(*escaped);
+                        j += 2;
+                    } else {
+                        j += 1;
+                    }
+                }
+                '"' => break,
+                other => {
+                    content.push(other);
+                    j += 1;
+                }
+            }
+        }
+
+        // Only a `tr(`/`tr_fmt(` call directly before the literal counts.
+        if chars.get(i.wrapping_sub(1)) == Some(&'(') {
+            let mut m = i - 1;
+            let mut callee = String::new();
+            while m > 0 && (chars[m - 1].is_alphanumeric() || chars[m - 1] == '_') {
+                callee.insert(0, chars[m - 1]);
+                m -= 1;
+            }
+            if callee == "tr" || callee == "tr_fmt" {
+                results.push(content);
+            }
+        }
+        i = j + 1;
+    }
+    results
+}
+
+/// A `tr`/`tr_fmt` key that is not in the generated catalog would silently
+/// render English forever; fail instead.
+#[test]
+fn every_rust_message_exists_in_the_catalogs() {
+    let base_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut rust_files = Vec::new();
+    collect_rs_files(&base_dir.join("src"), &mut rust_files);
+
+    let keys: std::collections::HashSet<&'static str> =
+        super::catalog::CATALOG.iter().map(|entry| entry.msgid).collect();
+
+    let mut missing = Vec::new();
+    for file in &rust_files {
+        let content = std::fs::read_to_string(file).expect("read rust file");
+        for msgid in extract_tr_literals(&content) {
+            if !keys.contains(msgid.as_str()) {
+                missing.push((file.clone(), msgid));
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "tr/tr_fmt keys missing from the .po catalogs (run `cargo xtask i18n generate` \
+         after adding them): {missing:#?}"
+    );
+}
+
+/// Every catalog entry has a translation in all three columns, and no Chinese
+/// reaches the English column.
+///
+/// The two language self-names are the only messages whose *source* string is
+/// Chinese — they are shown in their own language in the language picker — so
+/// they are the only keys allowed to contain CJK.
+#[test]
+fn catalog_columns_are_complete_and_english_is_cjk_free() {
+    const CJK_SOURCE_ALLOWLIST: &[&str] = &["简体中文", "繁體中文"];
+
+    for entry in super::catalog::CATALOG {
+        for (index, translation) in entry.translations.iter().enumerate() {
+            assert!(
+                !translation.is_empty(),
+                "empty translation in column {index} for {:?}",
+                entry.msgid
+            );
+        }
+        if CJK_SOURCE_ALLOWLIST.contains(&entry.msgid) {
+            continue;
+        }
+        let english = entry.translations[2];
+        assert!(
+            !english.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)),
+            "CJK leaked into the English column of {:?}",
+            entry.msgid
+        );
+    }
+}

@@ -4,8 +4,19 @@
 //! CJK) so the English UI does not leak Chinese. The helpers are split by
 //! domain into submodules and re-exported here, so call sites keep using
 //! `i18n::format_*` unchanged.
+//!
+//! The strings themselves live in the gettext catalogs
+//! (`lang/<locale>/LC_MESSAGES/limedl-native.po`): `@tr` in `.slint` files and
+//! [`tr`]/[`tr_fmt`] here read the same catalogs, so a message used from both
+//! sides is translated once. `catalog.rs` is generated from them by
+//! `cargo xtask i18n generate`.
 
 use limedl_core::types::DownloadState;
+
+mod catalog;
+mod tr;
+
+pub use tr::{tr, tr_fmt};
 
 mod cdn;
 mod dialogs;

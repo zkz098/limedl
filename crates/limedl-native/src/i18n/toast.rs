@@ -1,184 +1,96 @@
 //! In-app toast text for every feature area.
 
-use super::{Language, format_priority_label};
+use super::{Language, format_priority_label, tr, tr_fmt};
 
 pub fn format_toast_task_added(file_name: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("已添加下载任务: {file_name}"),
-        Language::ZhTw => format!("已新增下載任務: {file_name}"),
-        Language::EnUs => format!("Download task added: {file_name}"),
-    }
+    tr_fmt("Download task added: {}", lang, &[&file_name])
 }
 
 pub fn format_toast_task_add_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("添加下载任务失败: {err}"),
-        Language::ZhTw => format!("新增下載任務失敗: {err}"),
-        Language::EnUs => format!("Failed to add task: {err}"),
-    }
+    tr_fmt("Failed to add task: {}", lang, &[&err])
 }
 
 pub fn format_toast_batch_done(ok: usize, total: usize, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("批量添加完成: {ok}/{total} 成功"),
-        Language::ZhTw => format!("批次新增完成: {ok}/{total} 成功"),
-        Language::EnUs => format!("Batch add finished: {ok}/{total} succeeded"),
-    }
+    tr_fmt("Batch add finished: {}/{} succeeded", lang, &[&ok, &total])
 }
 
 pub fn format_toast_settings_saved(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "设置已保存",
-        Language::ZhTw => "設定已儲存",
-        Language::EnUs => "Settings saved",
-    }
+    tr("Settings saved", lang)
 }
 
 pub fn format_toast_settings_save_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("保存设置失败: {err}"),
-        Language::ZhTw => format!("儲存設定失敗: {err}"),
-        Language::EnUs => format!("Failed to save settings: {err}"),
-    }
+    tr_fmt("Failed to save settings: {}", lang, &[&err])
 }
 
 pub fn format_toast_settings_invalid(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("设置校验失败: {err}"),
-        Language::ZhTw => format!("設定驗證失敗: {err}"),
-        Language::EnUs => format!("Invalid settings: {err}"),
-    }
+    tr_fmt("Invalid settings: {}", lang, &[&err])
 }
 
 pub fn format_toast_setup_finished(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "初始设置已保存完成",
-        Language::ZhTw => "初始設定已儲存完成",
-        Language::EnUs => "Setup completed",
-    }
+    tr("Setup completed", lang)
 }
 
 pub fn format_toast_tracker_synced(count: usize, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("Tracker 列表同步成功: {count} 个"),
-        Language::ZhTw => format!("Tracker 清單同步成功: {count} 個"),
-        Language::EnUs => format!("Tracker list synced: {count} entries"),
-    }
+    tr_fmt("Tracker list synced: {} entries", lang, &[&count])
 }
 
 pub fn format_toast_tracker_sync_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("Tracker 同步失败: {err}"),
-        Language::ZhTw => format!("Tracker 同步失敗: {err}"),
-        Language::EnUs => format!("Tracker sync failed: {err}"),
-    }
+    tr_fmt("Tracker sync failed: {}", lang, &[&err])
 }
 
 pub fn format_toast_link_copied(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "下载链接已复制到剪贴板",
-        Language::ZhTw => "下載連結已複製到剪貼簿",
-        Language::EnUs => "Download link copied to clipboard",
-    }
+    tr("Download link copied to clipboard", lang)
 }
 
 pub fn format_toast_filename_copied(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "文件名已复制到剪贴板",
-        Language::ZhTw => "檔案名稱已複製到剪貼簿",
-        Language::EnUs => "File name copied to clipboard",
-    }
+    tr("File name copied to clipboard", lang)
 }
 
 pub fn format_toast_labs_saved(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "实验室设置已保存",
-        Language::ZhTw => "實驗室設定已儲存",
-        Language::EnUs => "Labs settings saved",
-    }
+    tr("Labs settings saved", lang)
 }
 
 pub fn format_toast_labs_save_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("保存实验室设置失败: {err}"),
-        Language::ZhTw => format!("儲存實驗室設定失敗: {err}"),
-        Language::EnUs => format!("Failed to save Labs settings: {err}"),
-    }
+    tr_fmt("Failed to save Labs settings: {}", lang, &[&err])
 }
 
 pub fn format_toast_cdn_applied(ip: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("已应用 CDN 节点: {ip}"),
-        Language::ZhTw => format!("已套用 CDN 節點: {ip}"),
-        Language::EnUs => format!("CDN node applied: {ip}"),
-    }
+    tr_fmt("CDN node applied: {}", lang, &[&ip])
 }
 
 pub fn format_toast_cdn_cleared(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "已清除 CDN 加速配置",
-        Language::ZhTw => "已清除 CDN 加速設定",
-        Language::EnUs => "CDN acceleration cleared",
-    }
+    tr("CDN acceleration cleared", lang)
 }
 
 pub fn format_toast_cdn_test_done(ip: Option<&str>, lang: Language) -> String {
-    match (ip, lang) {
-        (Some(ip), Language::ZhCn) => format!("CDN 测速完成，已锁定节点 {ip}"),
-        (Some(ip), Language::ZhTw) => format!("CDN 測速完成，已鎖定節點 {ip}"),
-        (Some(ip), Language::EnUs) => format!("CDN speedtest finished, node {ip} locked"),
-        (None, Language::ZhCn) => "CDN 测速完成".to_string(),
-        (None, Language::ZhTw) => "CDN 測速完成".to_string(),
-        (None, Language::EnUs) => "CDN speedtest finished".to_string(),
+    match ip {
+        Some(ip) => tr_fmt("CDN speedtest finished, node {} locked", lang, &[&ip]),
+        None => tr("CDN speedtest finished", lang).to_string(),
     }
 }
 
 pub fn format_toast_cdn_test_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("CDN 测速失败: {err}"),
-        Language::ZhTw => format!("CDN 測速失敗: {err}"),
-        Language::EnUs => format!("CDN speedtest failed: {err}"),
-    }
+    tr_fmt("CDN speedtest failed: {}", lang, &[&err])
 }
 
 pub fn format_toast_aria2_rpc_started(port: u16, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("Aria2 RPC 已启动 (端口 {port})"),
-        Language::ZhTw => format!("Aria2 RPC 已啟動 (連接埠 {port})"),
-        Language::EnUs => format!("Aria2 RPC started (port {port})"),
-    }
+    tr_fmt("Aria2 RPC started (port {})", lang, &[&port])
 }
 
 pub fn format_toast_aria2_rpc_stopped(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "Aria2 RPC 已停止",
-        Language::ZhTw => "Aria2 RPC 已停止",
-        Language::EnUs => "Aria2 RPC stopped",
-    }
+    tr("Aria2 RPC stopped", lang)
 }
 
 pub fn format_toast_aria2_token_copied(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "令牌已复制",
-        Language::ZhTw => "權杖已複製",
-        Language::EnUs => "Token copied",
-    }
+    tr("Token copied", lang)
 }
 
 pub fn format_toast_aria2_token_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("生成令牌失败: {err}"),
-        Language::ZhTw => format!("產生權杖失敗: {err}"),
-        Language::EnUs => format!("Failed to generate token: {err}"),
-    }
+    tr_fmt("Failed to generate token: {}", lang, &[&err])
 }
 
 pub fn format_toast_autostart_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("自启动设置失败: {err}"),
-        Language::ZhTw => format!("自啟動設定失敗: {err}"),
-        Language::EnUs => format!("Autostart failed: {err}"),
-    }
+    tr_fmt("Autostart failed: {}", lang, &[&err])
 }
 /// Toast confirming a priority change (used by the priority popup menu).
 pub fn format_toast_priority_set(
@@ -187,211 +99,111 @@ pub fn format_toast_priority_set(
     lang: Language,
 ) -> String {
     let label = format_priority_label(priority, lang);
-    match lang {
-        Language::ZhCn => format!("已设置优先级: {label} — {file_name}"),
-        Language::ZhTw => format!("已設定優先級: {label} — {file_name}"),
-        Language::EnUs => format!("Priority set to {label} — {file_name}"),
-    }
+    tr_fmt("Priority set to {} — {}", lang, &[&label, &file_name])
 }
 
 /// Toast shown when changing the priority failed.
 pub fn format_toast_priority_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("设置优先级失败: {err}"),
-        Language::ZhTw => format!("設定優先級失敗: {err}"),
-        Language::EnUs => format!("Failed to set priority: {err}"),
-    }
+    tr_fmt("Failed to set priority: {}", lang, &[&err])
 }
 
 /// Toast shown when the user tries to deselect every BT file.
 pub fn format_toast_bt_files_keep_one(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "至少需要保留一个文件",
-        Language::ZhTw => "至少需要保留一個檔案",
-        Language::EnUs => "At least one file must stay selected",
-    }
+    tr("At least one file must stay selected", lang)
 }
 
 /// Toast shown when updating the BT file selection failed.
 pub fn format_toast_bt_files_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("更新 torrent 文件选择失败: {err}"),
-        Language::ZhTw => format!("更新 torrent 檔案選擇失敗: {err}"),
-        Language::EnUs => format!("Failed to update torrent file selection: {err}"),
-    }
+    tr_fmt("Failed to update torrent file selection: {}", lang, &[&err])
 }
 
 /// Toast shown after the "clear completed" action removed `count` records.
 pub fn format_toast_clear_completed(count: usize, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("已清除 {count} 条已完成记录"),
-        Language::ZhTw => format!("已清除 {count} 條已完成記錄"),
-        Language::EnUs => format!("Cleared {count} completed record(s)"),
-    }
+    tr_fmt("Cleared {} completed record(s)", lang, &[&count])
 }
 
 /// Toast shown when "clear completed" found nothing to remove.
 pub fn format_toast_clear_completed_none(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "没有已完成的记录需要清除",
-        Language::ZhTw => "沒有已完成的記錄需要清除",
-        Language::EnUs => "No completed records to clear",
-    }
+    tr("No completed records to clear", lang)
 }
 
 /// Toast shown when enumerating the task list failed.
 pub fn format_toast_clear_completed_failed(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "清除已完成记录失败",
-        Language::ZhTw => "清除已完成記錄失敗",
-        Language::EnUs => "Failed to clear completed records",
-    }
+    tr("Failed to clear completed records", lang)
 }
 
 /// Toast shown after a successful factory reset (the app then restarts).
 pub fn format_toast_factory_reset_done(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "已恢复出厂设置，正在重启...",
-        Language::ZhTw => "已恢復原廠設定，正在重啟...",
-        Language::EnUs => "Factory reset complete, restarting…",
-    }
+    tr("Factory reset complete, restarting…", lang)
 }
 
 /// Toast shown when the factory reset could not delete the data directory.
 pub fn format_toast_factory_reset_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("恢复出厂设置失败: {err}"),
-        Language::ZhTw => format!("恢復原廠設定失敗: {err}"),
-        Language::EnUs => format!("Factory reset failed: {err}"),
-    }
+    tr_fmt("Factory reset failed: {}", lang, &[&err])
 }
 
 pub fn format_toast_update_downloading(version: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("正在下载更新 v{version}..."),
-        Language::ZhTw => format!("正在下載更新 v{version}..."),
-        Language::EnUs => format!("Downloading update v{version}..."),
-    }
+    tr_fmt("Downloading update v{}...", lang, &[&version])
 }
 
 pub fn format_toast_update_ready(version: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("v{version} 已下载并验证完成，重启应用后生效。"),
-        Language::ZhTw => format!("v{version} 已下載並驗證完成，重啟應用程式後生效。"),
-        Language::EnUs => format!("v{version} downloaded and verified. Restart to apply."),
-    }
+    tr_fmt("v{} downloaded and verified. Restart to apply.", lang, &[&version])
 }
 
 pub fn format_toast_update_installer_launched(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "安装程序已启动，即将退出应用以完成更新。",
-        Language::ZhTw => "安裝程式已啟動，即將結束應用程式以完成更新。",
-        Language::EnUs => "Installer launched. Exiting to complete update.",
-    }
+    tr("Installer launched. Exiting to complete update.", lang)
 }
 
 pub fn format_toast_update_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("更新失败: {err}"),
-        Language::ZhTw => format!("更新失敗: {err}"),
-        Language::EnUs => format!("Update failed: {err}"),
-    }
+    tr_fmt("Update failed: {}", lang, &[&err])
 }
 
 pub fn format_toast_update_store_triggered(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "正在打开应用商店更新...",
-        Language::ZhTw => "正在開啟應用程式商店更新...",
-        Language::EnUs => "Opening Microsoft Store to update...",
-    }
+    tr("Opening Microsoft Store to update...", lang)
 }
 
 pub fn format_toast_update_not_found(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "未找到可用更新信息，请重新检查更新。",
-        Language::ZhTw => "未找到可用更新資訊，請重新檢查更新。",
-        Language::EnUs => "No update information found. Please check for updates again.",
-    }
+    tr("No update information found. Please check for updates again.", lang)
 }
 
 pub fn format_toast_update_up_to_date(lang: Language) -> &'static str {
-    match lang {
-        Language::ZhCn => "当前已是最新版本。",
-        Language::ZhTw => "目前已是最新版本。",
-        Language::EnUs => "You are already on the latest version.",
-    }
+    tr("You are already on the latest version.", lang)
 }
 
 pub fn format_toast_update_available(version: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("发现新版本 v{version}，可在关于页面下载更新。"),
-        Language::ZhTw => format!("發現新版本 v{version}，可在關於頁面下載更新。"),
-        Language::EnUs => format!("New version v{version} available. Go to About to update."),
-    }
+    tr_fmt("New version v{} available. Go to About to update.", lang, &[&version])
 }
 
 pub fn format_toast_update_check_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("检查更新失败: {err}"),
-        Language::ZhTw => format!("檢查更新失敗: {err}"),
-        Language::EnUs => format!("Failed to check for updates: {err}"),
-    }
+    tr_fmt("Failed to check for updates: {}", lang, &[&err])
 }
 
 pub fn format_toast_update_restart_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("重启失败: {err}"),
-        Language::ZhTw => format!("重啟失敗: {err}"),
-        Language::EnUs => format!("Failed to restart: {err}"),
-    }
+    tr_fmt("Failed to restart: {}", lang, &[&err])
 }
 
 pub fn format_toast_invalid_checksum(lang: Language) -> String {
-    match lang {
-        Language::ZhCn => "校验和格式无效（支持 SHA-256、SHA-512、BLAKE3）".to_string(),
-        Language::ZhTw => "校驗值格式無效（支援 SHA-256、SHA-512、BLAKE3）".to_string(),
-        Language::EnUs => "Invalid checksum format (supports SHA-256, SHA-512, BLAKE3)".to_string(),
-    }
+    tr("Invalid checksum format (supports SHA-256, SHA-512, BLAKE3)", lang).to_string()
 }
 
 pub fn format_toast_integrity_checking(file_name: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("正在校验完整性: {file_name}"),
-        Language::ZhTw => format!("正在驗證完整性: {file_name}"),
-        Language::EnUs => format!("Verifying integrity: {file_name}"),
-    }
+    tr_fmt("Verifying integrity: {}", lang, &[&file_name])
 }
 
 pub fn format_toast_integrity_passed(file_name: &str, mode: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("{file_name} 校验通过 ({mode} 一致)"),
-        Language::ZhTw => format!("{file_name} 驗證通過 ({mode} 一致)"),
-        Language::EnUs => format!("{file_name} verified successfully ({mode} match)"),
-    }
+    tr_fmt("{} verified successfully ({} match)", lang, &[&file_name, &mode])
 }
 
 pub fn format_toast_integrity_mismatch(file_name: &str, mode: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("{file_name} 校验失败: {mode} 不匹配！"),
-        Language::ZhTw => format!("{file_name} 驗證失敗: {mode} 不相符！"),
-        Language::EnUs => format!("{file_name} verification failed: {mode} mismatch!"),
-    }
+    tr_fmt("{} verification failed: {} mismatch!", lang, &[&file_name, &mode])
 }
 
 pub fn format_toast_integrity_computed(file_name: &str, mode: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("{file_name} 校验完成 ({mode})，已复制哈希到剪贴板"),
-        Language::ZhTw => format!("{file_name} 驗證完成 ({mode})，已複製雜湊到剪貼簿"),
-        Language::EnUs => format!("{file_name} integrity computed ({mode}), hash copied to clipboard"),
-    }
+    tr_fmt("{} integrity computed ({}), hash copied to clipboard", lang, &[&file_name, &mode])
 }
 
 pub fn format_toast_integrity_failed(err: &str, lang: Language) -> String {
-    match lang {
-        Language::ZhCn => format!("完整性校验失败: {err}"),
-        Language::ZhTw => format!("完整性驗證失敗: {err}"),
-        Language::EnUs => format!("Integrity verification failed: {err}"),
-    }
+    tr_fmt("Integrity verification failed: {}", lang, &[&err])
 }
 
 

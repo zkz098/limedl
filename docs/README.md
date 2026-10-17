@@ -16,5 +16,6 @@ refreshed by a scheduled workflow and must not be hand-edited).
 | [manual-smoke-testing.md](manual-smoke-testing.md) | Running the desktop app by hand or driving it with the MCP server |
 | [server-daemon.md](server-daemon.md) | Deploying the headless `limedl-server` daemon (NAS / 软路由), reverse-proxy TLS, systemd |
 | [engine-dev-notes.md](engine-dev-notes.md) | Adding a checksum algorithm, or touching async file I/O |
+| [i18n.md](i18n.md) | Adding or changing a user-visible string (Slint `@tr` or Rust `i18n::tr`), or regenerating the Rust translation catalog |
 | [aria2-interop-testing.md](aria2-interop-testing.md) | Changing the aria2 RPC surface, adding a client-shape fixture, or running the aria2 oracle |
 | [test-regression-notes.md](test-regression-notes.md) | Adding UI / BT / logging tests; looking for regressions the suite already caught |

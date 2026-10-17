@@ -2084,3 +2084,596 @@ msgstr "为避免集群惊群效应而在退避延迟中加入的随机扰动浮
 
 msgid "Custom"
 msgstr "自定义"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Rust-side messages
+#
+# Text composed in Rust — toasts and settings validation — resolves through the
+# same catalogs as the Slint `@tr` strings, so a translator edits one file per
+# locale. The msgid is the English source string; `{}` are positional arguments
+# substituted by `i18n::tr_fmt`. Regenerate `src/i18n/catalog.rs` with
+# `cargo xtask i18n generate`; `cargo xtask i18n check` is the gate.
+# ─────────────────────────────────────────────────────────────────────────────
+
+msgid "Download task added: {}"
+msgstr "已添加下载任务: {}"
+
+msgid "Failed to add task: {}"
+msgstr "添加下载任务失败: {}"
+
+msgid "Batch add finished: {}/{} succeeded"
+msgstr "批量添加完成: {}/{} 成功"
+
+msgid "Settings saved"
+msgstr "设置已保存"
+
+msgid "Failed to save settings: {}"
+msgstr "保存设置失败: {}"
+
+msgid "Invalid settings: {}"
+msgstr "设置校验失败: {}"
+
+msgid "Setup completed"
+msgstr "初始设置已保存完成"
+
+msgid "Tracker list synced: {} entries"
+msgstr "Tracker 列表同步成功: {} 个"
+
+msgid "Tracker sync failed: {}"
+msgstr "Tracker 同步失败: {}"
+
+msgid "Download link copied to clipboard"
+msgstr "下载链接已复制到剪贴板"
+
+msgid "File name copied to clipboard"
+msgstr "文件名已复制到剪贴板"
+
+msgid "Labs settings saved"
+msgstr "实验室设置已保存"
+
+msgid "Failed to save Labs settings: {}"
+msgstr "保存实验室设置失败: {}"
+
+msgid "CDN node applied: {}"
+msgstr "已应用 CDN 节点: {}"
+
+msgid "CDN acceleration cleared"
+msgstr "已清除 CDN 加速配置"
+
+msgid "CDN speedtest finished, node {} locked"
+msgstr "CDN 测速完成，已锁定节点 {}"
+
+msgid "CDN speedtest finished"
+msgstr "CDN 测速完成"
+
+msgid "CDN speedtest failed: {}"
+msgstr "CDN 测速失败: {}"
+
+msgid "Aria2 RPC started (port {})"
+msgstr "Aria2 RPC 已启动 (端口 {})"
+
+msgid "Aria2 RPC stopped"
+msgstr "Aria2 RPC 已停止"
+
+msgid "Token copied"
+msgstr "令牌已复制"
+
+msgid "Failed to generate token: {}"
+msgstr "生成令牌失败: {}"
+
+msgid "Autostart failed: {}"
+msgstr "自启动设置失败: {}"
+
+msgid "Priority set to {} — {}"
+msgstr "已设置优先级: {} — {}"
+
+msgid "Failed to set priority: {}"
+msgstr "设置优先级失败: {}"
+
+msgid "At least one file must stay selected"
+msgstr "至少需要保留一个文件"
+
+msgid "Failed to update torrent file selection: {}"
+msgstr "更新 torrent 文件选择失败: {}"
+
+msgid "Cleared {} completed record(s)"
+msgstr "已清除 {} 条已完成记录"
+
+msgid "No completed records to clear"
+msgstr "没有已完成的记录需要清除"
+
+msgid "Failed to clear completed records"
+msgstr "清除已完成记录失败"
+
+msgid "Factory reset complete, restarting…"
+msgstr "已恢复出厂设置，正在重启..."
+
+msgid "Factory reset failed: {}"
+msgstr "恢复出厂设置失败: {}"
+
+msgid "Downloading update v{}..."
+msgstr "正在下载更新 v{}..."
+
+msgid "Installer launched. Exiting to complete update."
+msgstr "安装程序已启动，即将退出应用以完成更新。"
+
+msgid "Update failed: {}"
+msgstr "更新失败: {}"
+
+msgid "Opening Microsoft Store to update..."
+msgstr "正在打开应用商店更新..."
+
+msgid "No update information found. Please check for updates again."
+msgstr "未找到可用更新信息，请重新检查更新。"
+
+msgid "You are already on the latest version."
+msgstr "当前已是最新版本。"
+
+msgid "New version v{} available. Go to About to update."
+msgstr "发现新版本 v{}，可在关于页面下载更新。"
+
+msgid "Failed to check for updates: {}"
+msgstr "检查更新失败: {}"
+
+msgid "Failed to restart: {}"
+msgstr "重启失败: {}"
+
+msgid "Invalid checksum format (supports SHA-256, SHA-512, BLAKE3)"
+msgstr "校验和格式无效（支持 SHA-256、SHA-512、BLAKE3）"
+
+msgid "Verifying integrity: {}"
+msgstr "正在校验完整性: {}"
+
+msgid "{} verified successfully ({} match)"
+msgstr "{} 校验通过 ({} 一致)"
+
+msgid "{} verification failed: {} mismatch!"
+msgstr "{} 校验失败: {} 不匹配！"
+
+msgid "{} integrity computed ({}), hash copied to clipboard"
+msgstr "{} 校验完成 ({})，已复制哈希到剪贴板"
+
+msgid "Integrity verification failed: {}"
+msgstr "完整性校验失败: {}"
+
+msgid "Max retries"
+msgstr "最大重试次数"
+
+msgid "Max parallel tasks"
+msgstr "最大并发任务数"
+
+msgid "Global speed limit"
+msgstr "全局限速"
+
+msgid "Scheduler max parallel threads"
+msgstr "自动调度-最大并行线程"
+
+msgid "Max threads per task"
+msgstr "单任务最大线程"
+
+msgid "Min threads per task"
+msgstr "单任务最小线程"
+
+msgid "BT listen port"
+msgstr "BT 监听端口"
+
+msgid "Max peers per torrent"
+msgstr "每 Torrent 最大 Peers"
+
+msgid "BT max downloads"
+msgstr "BT 最大下载数"
+
+msgid "BT max seeds"
+msgstr "BT 最大做种数"
+
+msgid "BT max torrents"
+msgstr "BT 最大 Torrent 数"
+
+msgid "BT active limit"
+msgstr "BT 活跃限制"
+
+msgid "BT global download limit"
+msgstr "BT 全局下载限速"
+
+msgid "BT global upload limit"
+msgstr "BT 全局上传限速"
+
+msgid "Seeding upload limit"
+msgstr "做种上传限制"
+
+msgid "Share ratio limit"
+msgstr "分享率限制"
+
+msgid "Anti-leech grace period"
+msgstr "反吸血宽限期"
+
+msgid "Anti-leech ratio threshold"
+msgstr "反吸血分享率阈值"
+
+msgid "Anti-leech ban duration"
+msgstr "反吸血封禁时长"
+
+msgid "Anti-leech upload slots"
+msgstr "反吸血限槽模式槽位"
+
+msgid "Max upload slots per torrent"
+msgstr "每 Torrent 最大上传槽"
+
+msgid "Smart ban threshold"
+msgstr "智能封禁阈值"
+
+msgid "Eviction ban duration"
+msgstr "驱逐封禁时长"
+
+msgid "No-contribution timeout"
+msgstr "无贡献超时"
+
+msgid "IO buffer limit"
+msgstr "IO 缓冲上限"
+
+msgid "Game mode buffer"
+msgstr "游戏模式缓冲"
+
+msgid "Max parallel HDD transfers"
+msgstr "HDD 最大并行"
+
+msgid "Game mode max parallel"
+msgstr "游戏模式最大并行"
+
+msgid "SSD write-combine buffer"
+msgstr "SSD 合并缓冲"
+
+msgid "Log retention count"
+msgstr "日志保留数量"
+
+msgid "Log retention days"
+msgstr "日志保留天数"
+
+msgid "Aria2 port"
+msgstr "Aria2 端口"
+
+msgid "In-memory record limit"
+msgstr "内存保留记录数"
+
+msgid "Speed limit schedule start hour"
+msgstr "限速计划-起始小时"
+
+msgid "Speed limit schedule end hour"
+msgstr "限速计划-结束小时"
+
+msgid "Speed limit schedule rate"
+msgstr "限速计划-限速值"
+
+msgid "Media override directory"
+msgstr "目录介质覆盖-路径"
+
+msgid "Scheduler tick duration"
+msgstr "调度器心跳周期"
+
+msgid "Max connections per host"
+msgstr "单域名最大连接数"
+
+msgid "AIMD degrade threshold"
+msgstr "AIMD 吞吐回落阈值"
+
+msgid "AIMD increase threshold"
+msgstr "AIMD 增容探测阈值"
+
+msgid "AIMD severe drop threshold"
+msgstr "AIMD 剧烈下跌阈值"
+
+msgid "AIMD cooldown duration"
+msgstr "AIMD 冷却时长"
+
+msgid "AIMD samples needed"
+msgstr "AIMD 所需样本数"
+
+msgid "AIMD probe stable cycles"
+msgstr "AIMD 探测稳定周期"
+
+msgid "AIMD decrease factor"
+msgstr "AIMD 乘法减速乘数"
+
+msgid "AIMD additive step ratio"
+msgstr "AIMD 加法探测步长比率"
+
+msgid "AIMD oscillation threshold"
+msgstr "AIMD 振荡抑制阈值"
+
+msgid "AIMD hysteresis multiplier"
+msgstr "AIMD 迟滞衰减倍数"
+
+msgid "Custom chunk size"
+msgstr "自定义分块大小"
+
+msgid "Tail sprint stall window"
+msgstr "尾部冲刺停滞判定窗口"
+
+msgid "Tail sprint min split size"
+msgstr "尾部冲刺最小切分大小"
+
+msgid "Work steal min split size"
+msgstr "工作窃取最小切分大小"
+
+msgid "Network connect timeout"
+msgstr "网络连接超时"
+
+msgid "Network read timeout"
+msgstr "网络读取超时"
+
+msgid "Connection pool max idle per host"
+msgstr "连接池每域名空闲上限"
+
+msgid "TCP keepalive duration"
+msgstr "TCP Keepalive 保活时长"
+
+msgid "Retry backoff base delay"
+msgstr "重试退避初始基数"
+
+msgid "Retry backoff max delay"
+msgstr "重试退避上限"
+
+msgid "Retry backoff jitter percent"
+msgstr "重试退避抖动比例"
+
+msgid "Invalid {}: '{}' — please enter a valid number"
+msgstr "{} 格式错误: '{}' 请输入有效数字"
+
+msgid "Invalid {}: '{}' — please enter a valid integer"
+msgstr "{} 格式错误: '{}' 请输入有效整数"
+
+msgid "Invalid {}: '{}' — please enter a port in 0-65535"
+msgstr "{} 格式错误: '{}' 请输入 0-65535 的端口号"
+
+msgid "{} must be between {} and {}"
+msgstr "{} 必须在 {}-{} 之间"
+
+msgid "{} cannot be 0"
+msgstr "{} 不能为 0"
+
+msgid "A proxy URL is required when the proxy mode is manual"
+msgstr "代理模式为 manual 时必须填写代理 URL"
+
+msgid "{} must be an absolute path: '{}' (e.g. D:\\Downloads or \\\\NAS\\share)"
+msgstr "{} 必须是绝对路径: '{}'（例如 D:\\Downloads 或 \\\\NAS\\share）"
+
+msgid "Duplicate path: '{}' — one entry per directory"
+msgstr "重复的路径: '{}' — 同一目录只能配置一次"
+
+msgid "Invalid IP address format"
+msgstr "无效的 IP 地址格式"
+
+msgid "Client name cannot be empty"
+msgstr "客户端名称不能为空"
+
+msgid "Duplicate client name: '{}'"
+msgstr "客户端名称重复: '{}'"
+
+msgid "Client '{}' has no token — regenerate it"
+msgstr "客户端 '{}' 缺少令牌，请重新生成"
+
+msgid "Client {}"
+msgstr "客户端 {}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Rust-side messages (tray, notifications, task status, dialogs)
+#
+# Same contract as the sections above: msgid is the English source, `{}` are the
+# positional arguments of `i18n::tr_fmt`.
+# ─────────────────────────────────────────────────────────────────────────────
+
+msgid "Testing"
+msgstr "测速中"
+
+msgid "Ready"
+msgstr "准备就绪"
+
+msgid "Measuring candidate edge nodes"
+msgstr "正在测量候选节点"
+
+msgid "Speedtest finished"
+msgstr "测速完成"
+
+msgid "Direct DNS (Benchmark)"
+msgstr "直连 DNS (基准)"
+
+msgid "Not Configured"
+msgstr "未配置"
+
+msgid "Speedtest failed"
+msgstr "测速失败"
+
+msgid "Fetching IP ranges"
+msgstr "获取网段"
+
+msgid "Screening latency"
+msgstr "延迟初筛"
+
+msgid "Measuring bandwidth"
+msgstr "带宽测速"
+
+msgid "Cancelled"
+msgstr "已取消"
+
+msgid "Detecting checksum..."
+msgstr "正在探测校验和..."
+
+msgid "No checksum file found"
+msgstr "未找到可用的校验和文件"
+
+msgid "Checksum detection is only available for HTTP links"
+msgstr "仅 HTTP 链接支持校验和探测"
+
+msgid "Parsing torrent..."
+msgstr "正在解析种子文件..."
+
+msgid "Preview failed: {}"
+msgstr "解析失败: {}"
+
+msgid "{} files · {}"
+msgstr "{} 个文件 · {}"
+
+msgid "Select at least one file"
+msgstr "请至少选择一个文件"
+
+msgid "Parsed aria2c command: {} link"
+msgstr "已解析 aria2c 命令：{} 个链接"
+
+msgid "Parsed aria2c command: {} links"
+msgstr "已解析 aria2c 命令：{} 个链接"
+
+msgid "{} · {} header"
+msgstr "{} · {} 个请求头"
+
+msgid "{} · {} headers"
+msgstr "{} · {} 个请求头"
+
+msgid "{} (ignored: {})"
+msgstr "{}（已忽略：{}）"
+
+msgid "No valid links detected"
+msgstr "未识别到有效链接"
+
+msgid "Will add {} tasks"
+msgstr "将添加 {} 个任务"
+
+msgid "Submitting... {}/{}"
+msgstr "正在提交... {}/{}"
+
+msgid "Batch submitted: {}/{} succeeded"
+msgstr "批量提交完成: {}/{} 成功"
+
+msgid "Download link detected: {}"
+msgstr "检测到下载链接: {}"
+
+msgid "Detected {} batch download links"
+msgstr "检测到 {} 个批量下载链接"
+
+msgid "Select Torrent File"
+msgstr "选择 Torrent 种子文件"
+
+msgid "Torrent Files (*.torrent)"
+msgstr "种子文件 (*.torrent)"
+
+msgid "Select Download Folder"
+msgstr "选择下载保存目录"
+
+msgid "Select Log Folder"
+msgstr "选择日志保存目录"
+
+msgid "limedl could not start"
+msgstr "limedl 无法启动"
+
+msgid "limedl failed to start:\n\n{}\n\nDetails were written to:\n{}"
+msgstr "启动时发生错误：\n\n{}\n\n详细信息已写入：\n{}"
+
+msgid "Detected: {}"
+msgstr "当前检测: {}"
+
+msgid "Enter an absolute path (e.g. D:\\Downloads or \\\\NAS\\share)"
+msgstr "请输入绝对路径（如 D:\\Downloads 或 \\\\NAS\\share）"
+
+msgid "Invalid directory media override: {}"
+msgstr "目录介质覆盖无效: {}"
+
+msgid "New Custom Rule"
+msgstr "新建自定义规则"
+
+msgid "GitHub Mirror Proxy"
+msgstr "GitHub 镜像代理"
+
+msgid "Hugging Face Mirror"
+msgstr "Hugging Face 镜像"
+
+msgid "Civitai Mirror"
+msgstr "Civitai 镜像"
+
+msgid "Invalid speed limit schedule: {}"
+msgstr "限速计划无效: {}"
+
+msgid "Global speed limit enabled (1 MB/s)"
+msgstr "已开启全局限速 (1 MB/s)"
+
+msgid "Global speed limit disabled"
+msgstr "已关闭全局限速"
+
+msgid "{}d {}h left"
+msgstr "剩余 {}天{}小时"
+
+msgid "{}h {}m left"
+msgstr "剩余 {}小时{}分"
+
+msgid "{}m {}s left"
+msgstr "剩余 {}分{}秒"
+
+msgid "{}s left"
+msgstr "剩余 {}秒"
+
+msgid "{} (Allocated: {} threads)"
+msgstr "{} (已分配: {} 线程)"
+
+msgid "Seeds: {} | Peers: {}"
+msgstr "做种: {} | 下载: {}"
+
+msgid "No piece data"
+msgstr "暂无分片数据"
+
+msgid "{} / {} pieces ({}%)"
+msgstr "{} / {} 分片 ({}%)"
+
+msgid "Smart buffer pool not ready"
+msgstr "智能缓冲池未就绪"
+
+msgid "No disk information detected"
+msgstr "未检测到磁盘信息"
+
+msgid "Buffer in use: {} / limit: {} ({} active slots)"
+msgstr "已用缓存: {} / 上限: {} (活跃缓冲槽: {} 个)"
+
+msgid "Download Task"
+msgstr "下载任务"
+
+msgid "Completed: {}"
+msgstr "下载完成: {}"
+
+msgid "Failed: {}"
+msgstr "下载失败: {}"
+
+msgid "Download Completed"
+msgstr "下载已完成"
+
+msgid "File saved: {}"
+msgstr "文件已保存: {}"
+
+msgid "Network error"
+msgstr "网络错误"
+
+msgid "Download Failed"
+msgstr "下载失败"
+
+msgid "Task failed: {} ({})"
+msgstr "任务失败: {} ({})"
+
+msgid "limedl v{} is available"
+msgstr "limedl 发现新版本 v{}"
+
+msgid "Open Settings → About to download and install the update."
+msgstr "打开 设置 → 关于 以下载并更新。"
+
+msgid "Show Main Window"
+msgstr "显示主窗口"
+
+msgid "Speed Limit (1 MB/s)"
+msgstr "限速模式 (1 MB/s)"
+
+msgid "Toggle Game Mode"
+msgstr "游戏模式开关"
+
+msgid "Exit limedl"
+msgstr "退出 limedl"
+
+msgid "limedl - Download Manager"
+msgstr "limedl - 下载管理器"
+
+msgid "Failed to save settings"
+msgstr "保存设置失败"
