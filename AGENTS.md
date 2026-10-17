@@ -61,6 +61,8 @@ release if a dependency raises it again.
 - Rust structs: `#[serde(rename_all = "camelCase")]`. Enums: `#[serde(rename_all = "snake_case")]`.
 - Native UI (Slint): use `Theme.c<hex>` tokens from `ui/theme.slint` (never hardcoded hex, except the literals `theme.rs` lists as identical in both schemes), `@tr(...)` for all user-visible strings in `.slint`, and `i18n::format_*` / `i18n::tr` helpers for Rust-side text. Both sides read the same `.po` catalogs; see `docs/i18n.md`.
 - Settings: a field lives in `SettingsFormData` (`ui/types.slint`) and one row of the table in `src/bridge/forms/fields.rs`. The table's completeness test fails when `AppSettings` gains a leaf that no dialog field writes.
+- Formatting: `cargo fmt --all` before committing — `check-rust` runs it as a gate, pinned to rustfmt 1.99.0 so a Rust release cannot reformat the tree unasked. `rustfmt.toml` is minimal on purpose (the options that would follow this repo's hand-laid tables are nightly-only and silently ignored on stable); where a table must stay hand-laid, use `#[rustfmt::skip]` with the reason next to it.
+- Line endings: every text file is LF, in the repository **and** in the working tree (`.gitattributes`). On Windows that means the editor must keep LF (VS Code, RustRover and `rust-analyzer` default to it); a checkout made before the switch keeps CRLF on disk — refresh it once with `git rm --cached -r . && git reset --hard`.
 - Build: `.cargo/config.toml` sets `target-cpu=x86-64-v3` and adds `--cfg reqwest_unstable` (required by reqwest's unstable `http3` feature) to every `[target.*]` rustflags — remember it when adding a new target.
 
 ## Documentation
@@ -85,6 +87,7 @@ them **after** changing the behavior they describe.
 | Headless server daemon (NAS / 软路由) | `docs/server-daemon.md` |
 | Aria2 RPC interop testing | `docs/aria2-interop-testing.md` |
 | Checksum algorithms, async file I/O | `docs/engine-dev-notes.md` |
+| Translations (Slint `@tr` + Rust `i18n::tr`, the generated catalog) | `docs/i18n.md` |
 | Regressions the test suite caught | `docs/test-regression-notes.md` |
 
 ## Pre-commit verification gate (MANDATORY)
@@ -101,6 +104,12 @@ Run the full gate locally (Windows: init MSVC first). The commands mirror
 cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
 $env:CARGO_BUILD_WARNINGS="deny"
 $env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
+
+# Formatting first: it is instant, and CI runs it before clippy. `cargo fmt`
+# locally; CI goes through a pinned rustfmt (1.99.0) so a Rust release cannot
+# reformat the tree unasked.
+cargo fmt --all -- --check
+
 cargo clippy --workspace --all-targets -- -D warnings
 
 cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
@@ -115,10 +124,6 @@ cargo machete --with-metadata
 # The theme-token scanner: no new hardcoded hex in `ui/*.slint` components
 # (alpha tints and scheme-identical colors are allowlisted in `xtask/src/theme.rs`).
 cargo xtask theme check
-
-# Formatting. `cargo fmt` locally; CI runs the same check through a pinned
-# rustfmt (1.99.0) so a Rust release cannot reformat the tree unasked.
-cargo fmt --all -- --check
 ```
 
 `cargo hack` walks every `limedl-core` feature combination — `--no-default-features`
