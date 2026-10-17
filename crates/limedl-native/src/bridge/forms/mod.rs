@@ -2,6 +2,8 @@
 //!
 //! - `combo.rs` — canonical option value lists shared with the Slint ComboBoxes
 //! - `enums.rs` — enum <-> persisted-string conversions
+//! - `fields.rs` — the `SettingsFormData` field table: numeric validation plus
+//!   the completeness test that keeps both directions honest
 //! - `to_form.rs` — `AppSettings` -> `SettingsFormData`
 //! - `from_form.rs` — `SettingsFormData` -> `AppSettings` (validation + one
 //!   applier per settings section)
@@ -13,6 +15,7 @@ pub mod combo;
 mod aria2_clients;
 mod disk_override;
 mod enums;
+mod fields;
 mod from_form;
 mod speed_limit;
 mod to_form;
@@ -20,6 +23,7 @@ mod to_form;
 pub(crate) use enums::*;
 pub use aria2_clients::*;
 pub use disk_override::*;
+pub(crate) use fields::FormFields;
 pub use from_form::*;
 pub use speed_limit::*;
 pub use to_form::*;
