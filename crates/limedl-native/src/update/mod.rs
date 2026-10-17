@@ -600,12 +600,17 @@ fn extract_executable(update: &AvailableUpdate, verified_file: &Path) -> Result<
         // Take the first *.exe member — portable zips ship exactly one.
         let exe_index = (0..zip.len())
             .find(|&i| {
-                zip.by_index(i)
-                    .map(|f| f.name().ends_with(".exe"))
+                zip.name_for_index(i)
+                    .and_then(|r| r.ok())
+                    .map(|n| n.ends_with(".exe"))
                     .unwrap_or(false)
             })
             .context("no .exe inside portable zip")?;
-        let member_name = zip.by_index(exe_index)?.name().to_string();
+        let member_name = zip
+            .name_for_index(exe_index)
+            .and_then(|r| r.ok())
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "limedl-native.exe".to_string());
         let out_path = staging.join(
             Path::new(&member_name)
                 .file_name()
