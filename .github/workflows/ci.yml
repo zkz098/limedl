@@ -491,6 +491,15 @@ jobs:
           # number has settled in CI.
           cargo llvm-cov nextest --cargo-profile dev --no-fail-fast --manifest-path crates/limedl-native/Cargo.toml --lcov --output-path crates/limedl-native/lcov-native.info --ignore-filename-regex 'crates.limedl-core' --no-cfg-coverage
       - run: cargo clippy --workspace --all-targets -- -D warnings
+      # The theme-token convention ("`Theme.c<hex>` tokens only, never new hardcoded
+      # hex in components") had a scanner but no caller: `cargo xtask theme check`
+      # was documented in AGENTS.md and never wired, so the file-type palette in
+      # `task_card`/`task_table` (3 opaque colors + 13 alpha tints) drifted in
+      # unnoticed. The xtask suite only pins `theme generate` against the
+      # checked-in `theme.slint`, so without this step nothing fails on a new
+      # literal. `xtask` is already built by the clippy step above, so this is a
+      # warm no-op build plus a regex scan of `ui/*.slint`.
+      - run: cargo xtask theme check
       # Every `limedl-core` feature combination, including ones no consumer
       # uses today. `--no-default-features` (BT engine absent) is a documented
       # configuration — the commit that added the `bt` feature promised it — but

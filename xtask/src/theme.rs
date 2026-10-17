@@ -40,8 +40,34 @@ pub enum ThemeCommand {
 pub const KEEP_LITERAL: &[&str] = &["6b7280"];
 
 /// Colors with identical values in both schemes stay as literals in the UI.
+///
+/// The 8-digit entries are the file-type palette's translucent background/border
+/// tints and the card drag-target overlay: each is an alpha value composed over
+/// whatever surface the card sits on, so the same literal reads correctly on the
+/// light and the dark surface and a per-scheme token would only add indirection.
+/// That is also why their opaque counterparts *are* in [`STATIC_MAP`].
 pub const UNCHANGED: &[&str] = &[
-    "ffffff", "dc2626", "b91c1c", "fecaca", "fef2f2", "0b1104", "6b7280",
+    "ffffff",
+    "dc2626",
+    "b91c1c",
+    "fecaca",
+    "fef2f2",
+    "0b1104",
+    "6b7280",
+    // file-type tints (bg / border) and the drag overlay
+    "ffffff55",
+    "3b076466",
+    "50072466",
+    "451a0366",
+    "082f4966",
+    "022c2266",
+    "08334466",
+    "7e22ce80",
+    "be185d80",
+    "b4530980",
+    "0284c780",
+    "05966980",
+    "0e749080",
 ];
 
 /// Static dark -> light mappings.
@@ -112,6 +138,8 @@ pub const STATIC_MAP: &[(&str, &str)] = &[
     ("ffffff", "1f2329"),
     // info / blue (semantic, not brand accent)
     ("38bdf8", "0284c7"),
+    // file-type palette: image (cyan)
+    ("22d3ee", "0891b2"),
     ("60a5fa", "2563eb"),
     ("112842", "dbeafe"),
     ("1d406b", "bfdbfe"),
@@ -120,6 +148,8 @@ pub const STATIC_MAP: &[(&str, &str)] = &[
     ("152c42", "e0f2fe"),
     // success / status green (semantic, not brand accent)
     ("4ade80", "16a34a"),
+    // file-type palette: installer (emerald)
+    ("34d399", "059669"),
     ("22c55e", "16a34a"),
     ("86efac", "15803d"),
     ("142e1b", "dcfce7"),
@@ -155,6 +185,8 @@ pub const STATIC_MAP: &[(&str, &str)] = &[
     ("31132b", "fce7f3"),
     // violet (semantic / swatch)
     ("8b5cf6", "7c3aed"),
+    // file-type palette: video (purple)
+    ("c084fc", "9333ea"),
     // overlays
     ("000000bb", "00000066"),
     ("000000cc", "00000066"),

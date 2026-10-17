@@ -48,12 +48,12 @@ export component TaskCard inherits Rectangle {
     }
 
     pure function file_type_color(t: string) -> color {
-        t == "video" ? #c084fc : (
+        t == "video" ? Theme.cc084fc : (
             t == "audio" ? Theme.cf472b6 : (
                 t == "archive" ? Theme.cfbbf24 : (
                     t == "document" ? Theme.c38bdf8 : (
-                        t == "installer" ? #34d399 : (
-                            t == "image" ? #22d3ee : Theme.c9ca3af
+                        t == "installer" ? Theme.c34d399 : (
+                            t == "image" ? Theme.c22d3ee : Theme.c9ca3af
                         )
                     )
                 )

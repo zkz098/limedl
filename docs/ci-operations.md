@@ -216,6 +216,21 @@ job was not already building).
   feature-unification-only dependencies are the two recurring classes — see
   `crates/limedl-native/Cargo.toml`). A new entry there means "verify by hand
   that the crate is still needed", not "silence the tool".
+- **Theme tokens (`check-rust`, `cargo xtask theme check`).**
+  `Theme.c<hex>` tokens from `ui/theme.slint` are the only colors allowed in
+  `ui/*.slint`; the scanner walks every component for hex literals and fails on
+  one that is neither in `STATIC_MAP` (dark→light) nor in `UNCHANGED` (identical
+  in both schemes, so a per-scheme token would only add indirection). Alpha tints
+  belong in `UNCHANGED`: they compose over whatever surface they sit on, which is
+  why the file-type palette's translucent backgrounds and borders are listed
+  there while its three opaque colors are mapped. Adding a token is
+  `cargo xtask theme generate` (emits `theme.slint`) then `cargo xtask theme
+  apply` (rewrites the literals at the call sites); `generate` alone would leave
+  the old hex in the components and `apply` alone would reference a token that
+  does not exist yet. The step exists because the scanner had no caller until
+  then — the xtask suite only pins `theme generate` against the checked-in
+  `theme.slint` — so the file-type palette drifted in with 3 unmapped colors and
+  13 unmapped tints.
 - **Not adopted: `cargo udeps`.** It needs a nightly toolchain plus a full
   build, and rust-cache keys include the toolchain version, so it would add a
   multi-GB cache generation against the 10 GB ceiling this repo already fights
@@ -251,7 +266,9 @@ features, same nextest version), so a green local run means a green CI run.
   clippy, or the feature-matrix step stops being fatal on warnings. The
   `--keep-going` flag makes it report *every* broken combination rather than
   stopping at the first, matching the gate's preference for complete failure
-  output.
+  output. `cargo xtask theme check` is a step in `check-rust`, and
+  `cargo xtask i18n check` rides in the xtask nextest run
+  (`i18n_catalog_matches_repo_catalogs`).
 - Windows: initialize MSVC first (`vcvarsall.bat x64`).
 
 ## macOS linker note (`-A linker_messages`)
