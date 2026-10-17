@@ -277,3 +277,11 @@ pub struct UrlRewriteRule {
     pub order: u32,
 }
 
+/// Default URL of the remote tracker list the BT engine fetches on first run.
+///
+/// Lives in `common` rather than in `settings`: `BtSettings` (in `bt`) needs it
+/// as a serde default, and defining it in `settings` made `bt` and `settings`
+/// depend on each other.
+pub fn default_tracker_list_url() -> String {
+    String::from("https://cf.trackerslist.com/best.txt")
+}

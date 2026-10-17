@@ -18,7 +18,7 @@
 //!   to fail mid-transfer.
 //!
 //! Fault injection is deterministic and targeted by file pointer
-//! (`crate::buffer_pool::fault`), so parallel tests writing to other files are
+//! (`crate::file_ops::fault`), so parallel tests writing to other files are
 //! never disturbed.
 
 use std::sync::Arc;
@@ -109,8 +109,8 @@ async fn ssd_pingpong_no_fault_byte_identical() -> TestResult {
 
     let dir = tempfile::tempdir()?;
     let file = preallocated_file(dir.path(), TOTAL)?;
-    let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(HALF, file.clone(), worker, None);
+    let worker = IoWorker::new(Arc::new(crate::io_scheduler::DiskDeviceManager::new()));
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(HALF, file.clone(), dir.path().join("test.bin"), worker, None);
 
     let mut offset = 0u64;
     while offset < TOTAL {
@@ -141,15 +141,15 @@ async fn ssd_pingpong_flush_failure_surfaces_error_without_corruption() -> TestR
 
     let dir = tempfile::tempdir()?;
     let file = preallocated_file(dir.path(), TOTAL)?;
-    let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_local_pingpong_with_worker(HALF, file.clone(), worker, None);
+    let worker = IoWorker::new(Arc::new(crate::io_scheduler::DiskDeviceManager::new()));
+    let buf = DownloadBuffer::new_local_pingpong_with_worker(HALF, file.clone(), dir.path().join("test.bin"), worker, None);
     let ptr = Arc::as_ptr(&file) as usize;
 
     // Fail the 3rd background batch — a middle flush, with correct data before
     // it and more data buffered after it.
     // Serialise with other fault-injecting tests (shared fault globals).
-    let _inj = crate::buffer_pool::fault::injection_lock().await;
-    let _guard = crate::buffer_pool::fault::arm(ptr, 2);
+    let _inj = crate::file_ops::fault::injection_lock().await;
+    let _guard = crate::file_ops::fault::arm(ptr, 2);
 
     let mut offset = 0u64;
     while offset < TOTAL / 2 {
@@ -204,8 +204,8 @@ async fn hdd_double_buffer_no_fault_byte_identical() -> TestResult {
     let file = preallocated_file(dir.path(), TOTAL)?;
     let pool = Arc::new(BufferPool::new(0, 0, 1, 1)); // min 64 KiB half
     let slot = pool.acquire_slot().await;
-    let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_with_worker(pool, slot, file.clone(), worker, None);
+    let worker = IoWorker::new(Arc::new(crate::io_scheduler::DiskDeviceManager::new()));
+    let buf = DownloadBuffer::new_with_worker(pool, slot, file.clone(), dir.path().join("test.bin"), worker, None);
 
     let mut offset = 0u64;
     while offset < TOTAL {
@@ -235,12 +235,12 @@ async fn hdd_double_buffer_flush_failure_surfaces_error_without_corruption() -> 
     let file = preallocated_file(dir.path(), TOTAL)?;
     let pool = Arc::new(BufferPool::new(0, 0, 1, 1)); // min 64 KiB half
     let slot = pool.acquire_slot().await;
-    let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_with_worker(pool, slot, file.clone(), worker, None);
+    let worker = IoWorker::new(Arc::new(crate::io_scheduler::DiskDeviceManager::new()));
+    let buf = DownloadBuffer::new_with_worker(pool, slot, file.clone(), dir.path().join("test.bin"), worker, None);
     let ptr = Arc::as_ptr(&file) as usize;
 
-    let _inj = crate::buffer_pool::fault::injection_lock().await;
-    let _guard = crate::buffer_pool::fault::arm(ptr, 2);
+    let _inj = crate::file_ops::fault::injection_lock().await;
+    let _guard = crate::file_ops::fault::arm(ptr, 2);
 
     let mut offset = 0u64;
     while offset < TOTAL / 2 {
@@ -327,7 +327,7 @@ async fn pipeline_ssd_buffer_flush_failure_ends_failed() -> TestResult {
     // Serialise with other fault-injecting tests (shared fault globals). Acquire
     // the lock BEFORE starting the download so the fault state can't be touched
     // while our download (and its buffer registration / batch writes) is live.
-    let _inj = crate::buffer_pool::fault::injection_lock().await;
+    let _inj = crate::file_ops::fault::injection_lock().await;
     let id = manager.start(request).await?;
     let id_str = id.to_string();
 
@@ -335,7 +335,7 @@ async fn pipeline_ssd_buffer_flush_failure_ends_failed() -> TestResult {
     // background batch once the buffer exists.
     let deadline = Instant::now() + Duration::from_secs(30);
     let ptr = loop {
-        if let Some(p) = crate::buffer_pool::fault::file_ptr_for(&id_str) {
+        if let Some(p) = crate::file_ops::fault::file_ptr_for(&id_str) {
             break p;
         }
         let st = manager.status(&id_str).await?;
@@ -351,7 +351,7 @@ async fn pipeline_ssd_buffer_flush_failure_ends_failed() -> TestResult {
         );
         sleep(Duration::from_millis(5)).await;
     };
-    let _guard = crate::buffer_pool::fault::arm(ptr, 3);
+    let _guard = crate::file_ops::fault::arm(ptr, 3);
 
     let snap = wait_for_terminal(&manager, &id_str).await;
     assert!(

@@ -1,5 +1,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+pub mod alt_svc;
+pub(crate) mod manager_state;
 pub mod backend_registry;
 pub mod bootstrap;
 #[cfg(feature = "bt")]

@@ -338,10 +338,6 @@ impl Default for SchedulerSettings {
     }
 }
 
-pub fn default_tracker_list_url() -> String {
-    String::from("https://cf.trackerslist.com/best.txt")
-}
-
 /// Built-in default User-Agent: a browser-shaped UA with a *recent* Chrome
 /// major version.
 ///

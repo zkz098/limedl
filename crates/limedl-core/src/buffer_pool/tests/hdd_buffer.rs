@@ -297,8 +297,8 @@ async fn test_hdd_with_worker_buffer_chunk_and_flush() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
     let slot = pool.acquire_slot().await;
-    let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file.clone(), worker, None);
+    let worker = test_io_worker();
+    let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file.clone(), temp_file_path(&_dir), worker, None);
 
     let data = Bytes::from("hello io worker");
     buf.buffer_chunk(0, data.clone()).await.unwrap();
@@ -316,8 +316,8 @@ async fn test_hdd_with_worker_multiple_chunks() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
     let slot = pool.acquire_slot().await;
-    let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file.clone(), worker, None);
+    let worker = test_io_worker();
+    let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file.clone(), temp_file_path(&_dir), worker, None);
 
     buf.buffer_chunk(0, Bytes::from("AAA")).await.unwrap();
     buf.buffer_chunk(3, Bytes::from("BBB")).await.unwrap();
@@ -424,8 +424,8 @@ async fn test_background_flush_failure_using_readonly_file_with_worker() {
     );
 
     let slot = pool.acquire_slot().await;
-    let worker = IoWorker::spawn();
-    let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file, worker, None);
+    let worker = test_io_worker();
+    let buf = DownloadBuffer::new_with_worker(pool.clone(), slot, file, path.clone(), worker, None);
 
     assert!(!buf.has_degraded());
     assert_eq!(buf.len(), 0);

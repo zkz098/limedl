@@ -1,4 +1,3 @@
-use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -71,13 +70,10 @@ impl SystemContext {
         // for a path the user pinned to HDD must not start out as a 4-channel
         // SSD queue just because no settings save happened yet.
         device_manager.set_overrides(&initial_settings.io_baseline.disk_type_overrides);
-        let io_worker = IoWorker::spawn_pool_with_device_manager(
-            std::thread::available_parallelism()
-                .map(NonZeroUsize::get)
-                .unwrap_or(4)
-                .min(4),
-            Some(device_manager.clone()),
-        );
+        // Thread count now comes from the device queue itself (1 serialised
+        // writer for HDD, 4 channels for SSD/network), so there is no pool-size
+        // knob here any more.
+        let io_worker = IoWorker::new(device_manager.clone());
 
         let concurrency = Arc::new(ConcurrencyManager::new(5, 3));
         let disk_io = Arc::new(DiskIoService::new_with_device_manager(

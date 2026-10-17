@@ -131,7 +131,7 @@ async fn find_active_by_url_dedup() {
     // Third check: terminal downloads should NOT be found
     assert!(dm.find_active_by_url(url).await.is_none());
 
-    dm.task_lifecycle.shutdown(&dm).await;
+    dm.task_lifecycle.shutdown(&*dm).await;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,5 +204,5 @@ async fn find_active_by_url_different_urls() {
     dm.cancel(&uuid1.to_string()).await.unwrap();
     dm.cancel(&uuid2.to_string()).await.unwrap();
 
-    dm.task_lifecycle.shutdown(&dm).await;
+    dm.task_lifecycle.shutdown(&*dm).await;
 }

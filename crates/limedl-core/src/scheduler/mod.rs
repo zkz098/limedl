@@ -4,9 +4,9 @@
 //! Contains the background scheduler loop and adaptive AIMD thread rebalancing.
 //!
 //! `Scheduler` is an independent actor type.  All its methods receive a
-//! `&DownloadManager` or `Arc<DownloadManager>` parameter to access shared
-//! state, avoiding any ownership cycle with `DownloadManager` (which holds
-//! `Arc<Scheduler>`).
+//! `&dyn ManagerState` or `Arc<dyn ManagerState>` parameter to access shared
+//! state, so this module does not depend on `manager` — which owns
+//! `Arc<Scheduler>` and implements that trait.
 
 use std::{
     path::Path,
@@ -26,7 +26,7 @@ use crate::{
         sync_snapshot_with_manifest,
     },
     error::Result,
-    manager::DownloadManager,
+    manager_state::ManagerState,
     manifest::Manifest,
     now_ms,
     persistence::persist_manifest_snapshots_batch,
@@ -69,8 +69,8 @@ struct AutomaticRebalanceState {
 
 /// Actor type for scheduler and rebalance logic.
 ///
-/// All methods receive `&DownloadManager` to access shared state.
-/// `DownloadManager` holds `Arc<Scheduler>` for delegation.
+/// Methods that need shared state receive `&dyn ManagerState`; `DownloadManager`
+/// implements that trait and holds `Arc<Scheduler>` for delegation.
 pub struct Scheduler {
     /// Persisted across passes so allocations stay sticky and starvation is
     /// detectable; see [`AutomaticRebalanceState`].
@@ -92,13 +92,13 @@ impl Scheduler {
 
     /// Start the background scheduler loop (750ms tick or rebalance_notify).
     /// Consumes `self: Arc<Self>` to keep the scheduler alive, and
-    /// `dm: Arc<DownloadManager>` for the spawned task.
-    pub fn start_scheduler_loop(self: Arc<Self>, dm: Arc<DownloadManager>) {
+    /// `dm: Arc<dyn ManagerState>` for the spawned task.
+    pub(crate) fn start_scheduler_loop(self: Arc<Self>, dm: Arc<dyn ManagerState>) {
         tokio::spawn(async move {
             let mut consecutive_rebalance_failures: u32 = 0;
             loop {
                 let tick = {
-                    let settings = dm.settings_service.get().await;
+                    let settings = dm.settings_service().get().await;
                     if settings.scheduler.expert_mode {
                         Duration::from_millis(settings.scheduler.expert.scheduler_tick_ms)
                     } else {
@@ -108,19 +108,19 @@ impl Scheduler {
 
                 tokio::select! {
                     _ = tokio::time::sleep(tick) => {}
-                    _ = dm.controls.rebalance_notify.notified() => {}
-                    _ = dm.controls.shutdown_token.cancelled() => {
+                    _ = dm.controls().rebalance_notify.notified() => {}
+                    _ = dm.controls().shutdown_token.cancelled() => {
                         tracing::info!("Scheduler loop shutting down");
                         break;
                     }
                 }
 
-                self.apply_speed_limit_schedule(&dm).await;
+                self.apply_speed_limit_schedule(dm.as_ref()).await;
 
-                if let Err(error) = self.update_adaptive_targets(&dm).await {
+                if let Err(error) = self.update_adaptive_targets(dm.as_ref()).await {
                     log_background_error("update adaptive targets", &error);
                 }
-                match self.rebalance_allocations(&dm).await {
+                match self.rebalance_allocations(dm.as_ref()).await {
                     Ok(()) => {
                         consecutive_rebalance_failures = 0;
                     }
@@ -150,8 +150,8 @@ impl Scheduler {
     /// Every target change is mirrored into the task snapshot, so the value the
     /// API exposes (the WebUI "target thread count") never lags behind the
     /// manifest.
-    pub async fn update_adaptive_targets(&self, dm: &DownloadManager) -> Result<()> {
-        let settings = dm.settings_service.get().await;
+    pub(crate) async fn update_adaptive_targets(&self, dm: &dyn ManagerState) -> Result<()> {
+        let settings = dm.settings_service().get().await;
         if settings.scheduler.mode != SchedulerMode::Automatic {
             return Ok(());
         }
@@ -159,10 +159,10 @@ impl Scheduler {
         let adaptive_cap = settings.scheduler.automatic.max_threads_per_task.max(1);
         let min_threads = settings.scheduler.automatic.min_threads_per_task.max(1);
 
-        let downloads = dm.downloads.read().await;
+        let downloads = dm.downloads().read().await;
 
         // ── Overclock mode: pin all adaptive tasks at max threads ──────────
-        if dm.concurrency.overclock_mode() {
+        if dm.concurrency().overclock_mode() {
             pin_overclock_targets(downloads.values(), adaptive_cap);
             return Ok(());
         }
@@ -175,13 +175,13 @@ impl Scheduler {
     }
 
     /// Rebalance thread allocations across all active downloads.
-    pub async fn rebalance_allocations(&self, dm: &DownloadManager) -> Result<()> {
-        let settings = dm.settings_service.get().await;
-        let max_parallel_hdd = dm.buffer_pool.effective_max_parallel() as usize;
+    pub(crate) async fn rebalance_allocations(&self, dm: &dyn ManagerState) -> Result<()> {
+        let settings = dm.settings_service().get().await;
+        let max_parallel_hdd = dm.buffer_pool().effective_max_parallel() as usize;
 
         // Phase 1: collect all Arc references under the read lock, then drop it
         let (mut entries, all_downloads) = {
-            let guard = dm.downloads.read().await;
+            let guard = dm.downloads().read().await;
             let entries: Vec<_> = guard.values().cloned().collect();
             let all_downloads = entries.clone();
             (entries, all_downloads)
@@ -227,17 +227,17 @@ impl Scheduler {
             .iter()
             .filter(|m| m.lock_core().manifest.state == DownloadState::Downloading)
             .count();
-        dm.concurrency
+        dm.concurrency()
             .active_http_count
             .store(downloading_count, Ordering::Release);
 
-        persist_rebalanced(&dm.db, &all_downloads).await;
+        persist_rebalanced(dm.db(), &all_downloads).await;
         Ok(())
     }
 
     /// Check the speed limit schedule and apply the matching limit (or revert to global default).
-    async fn apply_speed_limit_schedule(&self, dm: &DownloadManager) {
-        let settings = dm.settings_service.get().await;
+    async fn apply_speed_limit_schedule(&self, dm: &dyn ManagerState) {
+        let settings = dm.settings_service().get().await;
         let schedule = &settings.speed_limit_schedule;
         if schedule.is_empty() {
             return;
@@ -248,7 +248,7 @@ impl Scheduler {
             Ok(now) => now.hour(),
             Err(e) => {
                 tracing::warn!("Failed to determine local time, falling back to global speed limit: {e}");
-                dm.rate_limiter.set_rate(settings.global_speed_limit_bps);
+                dm.rate_limiter().set_rate(settings.global_speed_limit_bps);
                 return;
             }
         };
@@ -273,11 +273,11 @@ impl Scheduler {
         });
 
         match limit {
-            Some(bps) => dm.rate_limiter.set_rate(bps),
+            Some(bps) => dm.rate_limiter().set_rate(bps),
             None => {
                 // Re-read settings to get global_speed_limit_bps (schedule may have changed)
-                let settings = dm.settings_service.get().await;
-                dm.rate_limiter.set_rate(settings.global_speed_limit_bps);
+                let settings = dm.settings_service().get().await;
+                dm.rate_limiter().set_rate(settings.global_speed_limit_bps);
             }
         }
     }

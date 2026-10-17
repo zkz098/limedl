@@ -3,19 +3,38 @@
 use super::worker::{
     ChunkWorkerCtx, all_chunks_completed, current_allocation, download_chunk, shutdown_chunk_workers,
 };
+use crate::now_ms;
+use crate::buffer_pool::DownloadBuffer;
+use crate::download::{ChunkWorkerOutcome, ManagedDownload, RunOutcome, cancellation_outcome};
+use crate::error::{DownloadError, Result};
+use crate::file_ops::open_download_file;
+use crate::manager_state::ManagerState;
+use crate::metalink::{MirrorPool, MirrorScoringConfig};
+use crate::persistence::persist_manifest_snapshot;
+use crate::types::{DiskType, DownloadState, ThreadMode};
+use reqwest::Client;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 use super::{
-    Arc, CancellationToken, ChunkWorkerOutcome, Client, DiskType, DownloadBuffer, DownloadError,
-    DownloadManager, DownloadState, Duration, HttpExecutor, Instant, JoinSet, ManagedDownload,
-    MirrorPool, MirrorScoringConfig, Path, PathBuf, Result, RunOutcome, TAIL_SPRINT_MIN_SPLIT_SIZE,
-    TAIL_SPRINT_STALL_WINDOW_SECS, ThreadMode, WORK_STEAL_MIN_SPLIT_SIZE, build_write_buffer,
-    cancellation_outcome, check_disk_space_periodically, finish_buffer_flush, flush_write_buffer,
-    now_ms, open_download_file, persist_manifest_snapshot, sleep, wait_or_stop,
+    HttpExecutor,
+    TAIL_SPRINT_MIN_SPLIT_SIZE,
+    TAIL_SPRINT_STALL_WINDOW_SECS,
+    WORK_STEAL_MIN_SPLIT_SIZE,
+    build_write_buffer,
+    check_disk_space_periodically,
+    finish_buffer_flush,
+    flush_write_buffer,
+    wait_or_stop,
 };
+use tokio::task::JoinSet;
+use tokio::time::sleep;
+use tokio_util::sync::CancellationToken;
 
 impl HttpExecutor {
     pub(super) async fn download_chunked(
         &self,
-        dm: Arc<DownloadManager>,
+        dm: Arc<dyn ManagerState>,
         managed: Arc<ManagedDownload>,
         client: Client,
         token: CancellationToken,
@@ -25,7 +44,7 @@ impl HttpExecutor {
             open_chunked_target(&dm, &managed, &client).await?;
         let write_buffer = Some(write_buffer);
 
-        let settings = dm.settings_service.get().await;
+        let settings = dm.settings_service().get().await;
         let (work_steal_min_split, tail_sprint_stall_limit, tail_sprint_min_split) =
             if settings.scheduler.expert_mode {
                 let exp = &settings.scheduler.expert;
@@ -89,17 +108,17 @@ impl HttpExecutor {
                 return Ok(cancellation_outcome(&managed));
             }
 
-            check_disk_space_periodically(&dm, &managed, &mut last_disk_check).await?;
+            check_disk_space_periodically(dm.as_ref(), &managed, &mut last_disk_check).await?;
 
             if all_chunks_completed(&managed) {
                 shutdown_chunk_workers(&managed, &mut workers, &mut active_worker_ids).await;
-                finish_buffer_flush(&dm, &managed, &write_buffer).await?;
+                finish_buffer_flush(dm.as_ref(), &managed, &write_buffer).await?;
                 return Ok(RunOutcome::Finished);
             }
 
             if current_allocation(&managed) == 0
                 && workers.is_empty()
-                && let Some(outcome) = wait_or_stop(&dm, &managed, &token, &write_buffer).await
+                && let Some(outcome) = wait_or_stop(dm.as_ref(), &managed, &token, &write_buffer).await
             {
                 return Ok(outcome);
             }
@@ -155,7 +174,7 @@ impl HttpExecutor {
             if workers.is_empty() {
                 tokio::select! {
                     _ = token.cancelled() => return Ok(cancellation_outcome(&managed)),
-                    _ = dm.controls.rebalance_notify.notified() => {}
+                    _ = dm.controls().rebalance_notify.notified() => {}
                     _ = sleep(Duration::from_millis(120)) => {}
                 }
                 continue;
@@ -182,8 +201,8 @@ impl HttpExecutor {
                             // Data is deliberately discarded (fresh temp file),
                             // so release our file handle before recreating it.
                             drop(file);
-                            dm.task_lifecycle.prepare_fresh_temp_file(&dm, &managed)?;
-                            dm.task_lifecycle.reset_progress(&dm, &managed, true);
+                            dm.prepare_fresh_temp_file(&managed)?;
+                            dm.reset_progress(&managed, true);
                             return self
                                 .download_single(dm, managed, client, token, max_retries)
                                 .await;
@@ -199,7 +218,7 @@ impl HttpExecutor {
 ///
 /// Also publishes the detected disk type on the snapshot for the UI badge.
 async fn open_chunked_target(
-    dm: &Arc<DownloadManager>,
+    dm: &Arc<dyn ManagerState>,
     managed: &Arc<ManagedDownload>,
     _client: &Client,
 ) -> Result<(Arc<std::fs::File>, DiskType, Arc<DownloadBuffer>, bool)> {
@@ -214,7 +233,7 @@ async fn open_chunked_target(
     // Test-only: remember this download's temp file (by id) so a pipeline
     // fault-injection test can arm a targeted write-failure. Inert in prod.
     #[cfg(any(test, feature = "test-utils"))]
-    crate::buffer_pool::fault::register_file(&managed.lock_core().manifest.id, &file);
+    crate::file_ops::fault::register_file(&managed.lock_core().manifest.id, &file);
 
     // HDD/SSD optimization: set up buffered writing
     let settings = dm.settings().await?;
@@ -227,7 +246,7 @@ async fn open_chunked_target(
         dm.resolve_disk_type(Path::new(&destination_dir)).await
     };
     let write_buffer =
-        build_write_buffer(dm, managed, &file, disk_type, hdd_buffering, ssd_write_combine_mb)
+        build_write_buffer(dm.as_ref(), managed, &file, disk_type, hdd_buffering, ssd_write_combine_mb)
             .await;
 
     // Set disk_type on snapshot for frontend badge display
@@ -241,7 +260,7 @@ async fn open_chunked_target(
 
 /// Everything a spawned chunk worker needs, minus the claimed chunk itself.
 struct WorkerPool<'a> {
-    dm: &'a Arc<DownloadManager>,
+    dm: &'a Arc<dyn ManagerState>,
     managed: &'a Arc<ManagedDownload>,
     client: &'a Client,
     token: &'a CancellationToken,
@@ -291,8 +310,8 @@ fn grow_worker_pool(
             core.manifest.updated_at_ms = now_ms();
         }
 
-        let db = pool.dm.db.clone();
-        let rate_limiter = pool.dm.rate_limiter.clone();
+        let db = pool.dm.db().clone();
+        let rate_limiter = pool.dm.rate_limiter().clone();
         let manager_for_worker = pool.dm.clone();
         let managed = pool.managed.clone();
         let client = pool.client.clone();
@@ -509,7 +528,7 @@ enum SupervisorStep {
 
 /// Fold one worker outcome into the supervisor decision.
 async fn handle_worker_outcome(
-    dm: &Arc<DownloadManager>,
+    dm: &Arc<dyn ManagerState>,
     managed: &Arc<ManagedDownload>,
     token: &CancellationToken,
     workers: &mut JoinSet<(usize, Result<ChunkWorkerOutcome>)>,
@@ -537,9 +556,9 @@ async fn handle_worker_outcome(
                 core.manifest.updated_at_ms = now_ms();
                 core.sync_snapshot_from_manifest();
             }
-            dm.task_lifecycle.emit_progress(dm, managed);
-            persist_manifest_snapshot(&dm.db, managed).await?;
-            dm.controls.rebalance_notify.notify_waiters();
+            dm.emit_progress(managed);
+            persist_manifest_snapshot(dm.db(), managed).await?;
+            dm.controls().rebalance_notify.notify_waiters();
             tokio::select! {
                 _ = token.cancelled() => {
                     return Ok(SupervisorStep::Return(cancellation_outcome(managed)));

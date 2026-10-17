@@ -171,7 +171,7 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
     );
 
     // Gracefully stop background tasks, then drop the first manager
-    manager.task_lifecycle.shutdown(&manager).await;
+    manager.task_lifecycle.shutdown(&*manager).await;
     drop(manager);
 
     // ── Simulate restart ──────────────────────────────────────────
@@ -253,7 +253,7 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
     let before = manager.list().await?;
     assert!(!before.is_empty());
 
-    manager.task_lifecycle.shutdown(&manager).await;
+    manager.task_lifecycle.shutdown(&*manager).await;
     drop(manager);
 
     // ── Simulate restart ──────────────────────────────────────────

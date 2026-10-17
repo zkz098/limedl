@@ -7,7 +7,6 @@
 //! Uses a dual-connection architecture (dedicated write connection with WAL,
 //! read-only connection for queries).
 
-pub mod alt_svc_repo;
 pub mod bt_task_repo;
 pub mod chunk_repo;
 pub mod connection;

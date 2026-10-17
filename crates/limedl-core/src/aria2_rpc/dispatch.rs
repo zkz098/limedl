@@ -1,7 +1,46 @@
 //! Method dispatch table for JSON-RPC requests.
 
-use super::{ERR_METHOD_NOT_FOUND, JsonRpcError, RpcContext, Value, handle_add_metalink, handle_add_torrent, handle_add_uri, handle_change_global_option, handle_change_option, handle_change_position, handle_change_uri, handle_get_files, handle_get_global_option, handle_get_option, handle_get_peers, handle_get_servers, handle_get_session_info, handle_get_uris, handle_global_stat, handle_list_methods, handle_list_notifications, handle_multicall, handle_pause, handle_pause_all, handle_purge_download_result, handle_remove, handle_remove_download_result, handle_save_session, handle_shutdown, handle_tell_active, handle_tell_status, handle_tell_stopped, handle_tell_waiting, handle_unpause, handle_unpause_all, handle_version, make_error};
-use super::{check_token, strip_token};
+use serde_json::Value;
+use super::context::RpcContext;
+use super::download::{
+    handle_add_metalink,
+    handle_add_torrent,
+    handle_add_uri,
+    handle_change_position,
+    handle_change_uri,
+    handle_pause,
+    handle_pause_all,
+    handle_purge_download_result,
+    handle_remove,
+    handle_remove_download_result,
+    handle_unpause,
+    handle_unpause_all,
+};
+use super::options::{
+    handle_change_global_option,
+    handle_change_option,
+    handle_get_global_option,
+    handle_get_option,
+};
+use super::jsonrpc::{ERR_INVALID_PARAMS, ERR_METHOD_NOT_FOUND, JsonRpcError, make_error};
+use super::query::{
+    handle_get_files,
+    handle_get_peers,
+    handle_get_servers,
+    handle_get_session_info,
+    handle_get_uris,
+    handle_global_stat,
+    handle_list_methods,
+    handle_list_notifications,
+    handle_save_session,
+    handle_tell_active,
+    handle_tell_status,
+    handle_tell_stopped,
+    handle_tell_waiting,
+    handle_version,
+};
+use super::system::handle_shutdown;
+use super::context::{check_token, strip_token};
 
 /// Dispatch a JSON-RPC method, enforcing the secret token first.
 ///
@@ -84,4 +123,45 @@ pub(crate) async fn dispatch_authorized(
             format!("Method not found: {method}"),
         )),
     }
+}
+
+pub(crate) async fn handle_multicall(
+    ctx: &RpcContext,
+    params: Vec<Value>,
+) -> Result<Value, JsonRpcError> {
+    // `dispatch_method` already stripped any outer token (aria2's multicall
+    // carries none), so each nested call is authenticated on its own: it goes
+    // back through `dispatch_method`, which checks and strips the per-call
+    // `token:` element. An unauthenticated nested call fails with its own
+    // Unauthorized entry instead of executing.
+    let calls = params
+        .first()
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing methods array"))?;
+
+    let mut results = Vec::with_capacity(calls.len());
+    for call in calls {
+        let method = call
+            .get("methodName")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let call_params = call
+            .get("params")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        // aria2's response shape is a single-element array per call:
+        // `[value]` on success, `[{"code":…,"message":…}]` on failure.
+        // AriaNg/Motrix index into element 0, so a two-element
+        // `[null, value]` wrapper would read as a failed call.
+        match Box::pin(dispatch_method(ctx, method, call_params)).await {
+            Ok(result) => results.push(Value::Array(vec![result])),
+            Err(e) => results.push(Value::Array(vec![serde_json::json!({
+                "code": e.code,
+                "message": e.message,
+            })])),
+        }
+    }
+    Ok(Value::Array(results))
 }

@@ -11,8 +11,6 @@
 //! the double-buffer machinery.
 
 pub mod download_buffer;
-#[cfg(any(test, feature = "test-utils"))]
-pub mod fault;
 pub mod worker;
 
 #[cfg(test)]
@@ -24,7 +22,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 pub use download_buffer::{DownloadBuffer, FlushObserver};
 #[allow(unused_imports)]
-pub use worker::{IoWorker, SyncMode};
+pub use worker::IoWorker;
 
 // ---------------------------------------------------------------------------
 // SlotGuard — RAII guard for a semaphore permit

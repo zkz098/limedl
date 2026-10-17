@@ -6,7 +6,7 @@ use bytes::Bytes;
 use tempfile::tempdir;
 
 use super::*;
-use crate::buffer_pool::SyncMode;
+use crate::file_ops::SyncMode;
 
 fn override_map(entries: &[(&str, DiskType)]) -> HashMap<String, DiskType> {
     entries
@@ -105,7 +105,7 @@ async fn unchanged_overrides_keep_the_existing_device_queues() {
     let temp = tempdir().expect("tempdir");
     let dir = temp.path().to_string_lossy().to_string();
 
-    manager.record_write(1024);
+    manager.get_or_create_queue(std::path::Path::new("."));
     assert_eq!(manager.get_device_metrics().len(), 1);
 
     manager.set_overrides(&override_map(&[(&dir, DiskType::Hdd)]));
@@ -114,7 +114,7 @@ async fn unchanged_overrides_keep_the_existing_device_queues() {
         "a changed policy drops the queues, and with them their live metrics"
     );
 
-    manager.record_write(1);
+    manager.get_or_create_queue(std::path::Path::new("."));
     manager.set_overrides(&override_map(&[(&dir, DiskType::Hdd)]));
     assert_eq!(
         manager.get_device_metrics().len(),

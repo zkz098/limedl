@@ -35,6 +35,8 @@ use super::{
     },
 };
 
+use crate::manager_state::ManagerState;
+
 use super::http_client_factory::build_http_client;
 use super::now_ms;
 use super::settings::resolve_user_agent;
@@ -50,13 +52,10 @@ const MAX_CDN_CLIENT_CACHE_SIZE: usize = 50;
 
 // ── Sub-structures for field grouping ──────────────────────────────────
 
-/// Runtime control signals for shutdown and scheduler rebalance coordination.
-pub struct RuntimeControls {
-    /// Cancellation token for graceful shutdown of scheduler loop and workers.
-    pub shutdown_token: CancellationToken,
-    /// Notify mechanism for triggering scheduler rebalance events.
-    pub rebalance_notify: Arc<Notify>,
-}
+// `RuntimeControls` is declared in `manager_state` so the `ManagerState` trait
+// can name it without depending on the `manager` module (see the module docs
+// on `manager_state`).
+pub use crate::manager_state::RuntimeControls;
 
 /// HTTP client infrastructure including CDN accelerator reference and client cache.
 pub struct HttpClientInfra {
@@ -67,7 +66,7 @@ pub struct HttpClientInfra {
     /// Optional CDN accelerator for Cloudflare IP probing and DNS rewriting.
     cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
     /// Cross-task persistent Alt-Svc cache for HTTP/3 upgrades.
-    pub alt_svc: Arc<super::http::alt_svc::AltSvcManager>,
+    pub alt_svc: Arc<super::alt_svc::AltSvcManager>,
 }
 
 /// File system paths for download state persistence and settings storage.
@@ -152,7 +151,7 @@ impl DownloadManager {
         let settings = context.settings_service.get_blocking();
         let client = build_http_client(&settings)?;
 
-        let alt_svc = Arc::new(super::http::alt_svc::AltSvcManager::new(context.db.clone()));
+        let alt_svc = Arc::new(super::alt_svc::AltSvcManager::new(context.db.clone()));
         if let Err(e) = alt_svc.preload_from_db() {
             tracing::warn!("Failed to preload Alt-Svc cache from database: {e}");
         }
@@ -562,7 +561,7 @@ impl DownloadManager {
                 request.max_retries.unwrap_or(DEFAULT_RETRIES),
             )
             .await?;
-        self.scheduler.rebalance_allocations(self).await?;
+        self.scheduler.rebalance_allocations(&**self).await?;
         self.controls.rebalance_notify.notify_waiters();
 
         Ok(download_id)
@@ -601,11 +600,11 @@ impl DownloadManager {
             token.cancel();
         }
 
-        self.task_lifecycle.wait_until_stopped(self, &managed).await;
+        self.task_lifecycle.wait_until_stopped(&managed).await;
         self.persist(managed.clone()).await?;
         self.scheduler.rebalance_allocations(self).await?;
         self.controls.rebalance_notify.notify_waiters();
-        Ok(self.task_lifecycle.build_snapshot(self, managed))
+        Ok(self.task_lifecycle.build_snapshot(managed))
     }
 
     pub async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot> {
@@ -634,9 +633,9 @@ impl DownloadManager {
                 token.cancel();
             }
             if token.is_some() {
-                self.task_lifecycle.wait_until_stopped(self, &managed).await;
+                self.task_lifecycle.wait_until_stopped(&managed).await;
             }
-            self.task_lifecycle.cleanup_files(self, &managed)?;
+            self.task_lifecycle.cleanup_files(&managed)?;
         }
 
         // Remove from active list and trigger rebalance even when the
@@ -648,7 +647,7 @@ impl DownloadManager {
             .context("failed to delete canceled download from database")?;
         self.scheduler.rebalance_allocations(self).await?;
         self.controls.rebalance_notify.notify_waiters();
-        Ok(self.task_lifecycle.build_snapshot(self, managed))
+        Ok(self.task_lifecycle.build_snapshot(managed))
     }
 
     pub async fn remove(&self, download_id: &str) -> Result<DownloadSnapshot> {
@@ -716,7 +715,7 @@ impl DownloadManager {
     }
 
     pub async fn resume(self: &Arc<Self>, download_id: &str) -> Result<DownloadSnapshot> {
-        let managed = self.task_lifecycle.get(self, download_id).await?;
+        let managed = self.task_lifecycle.get(&**self, download_id).await?;
         // Phase 1: check state (read-only, drop lock before fallible ops)
         {
             let core = managed.lock_core();
@@ -785,14 +784,14 @@ impl DownloadManager {
         self.task_lifecycle
             .spawn_download(dm, managed.clone(), DEFAULT_RETRIES)
             .await?;
-        self.scheduler.rebalance_allocations(self).await?;
+        self.scheduler.rebalance_allocations(&**self).await?;
         self.controls.rebalance_notify.notify_waiters();
-        Ok(self.task_lifecycle.build_snapshot(self, managed))
+        Ok(self.task_lifecycle.build_snapshot(managed))
     }
 
     pub async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
         let managed = self.task_lifecycle.get(self, download_id).await?;
-        Ok(self.task_lifecycle.build_snapshot(self, managed))
+        Ok(self.task_lifecycle.build_snapshot(managed))
     }
 
     pub async fn list(&self) -> Result<Vec<DownloadSummary>> {
@@ -801,7 +800,7 @@ impl DownloadManager {
             .values()
             .cloned()
             .map(|managed| {
-                DownloadSummary::from(&self.task_lifecycle.build_snapshot(self, managed))
+                DownloadSummary::from(&self.task_lifecycle.build_snapshot(managed))
             })
             .collect::<Vec<_>>();
         items.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
@@ -812,7 +811,7 @@ impl DownloadManager {
     pub async fn get_summary(&self, download_id: &str) -> Option<DownloadSummary> {
         let downloads = self.downloads.read().await;
         downloads.get(download_id).map(|managed| {
-            DownloadSummary::from(&self.task_lifecycle.build_snapshot(self, managed.clone()))
+            DownloadSummary::from(&self.task_lifecycle.build_snapshot(managed.clone()))
         })
     }
 
@@ -1096,5 +1095,233 @@ impl DownloadBackend for DownloadManager {
         if let Err(e) = self.db.shutdown() {
             tracing::warn!("Failed to checkpoint database WAL on shutdown: {:#}", e);
         }
+    }
+}
+
+// ── Persistence (moved here from `persistence.rs`) ─────────────────────────
+//
+// These two methods are inherent on `DownloadManager`, so they belong with the
+// type.  Leaving them in `persistence.rs` forced that module to import
+// `manager::DownloadManager`, which — together with the actors' back-edges —
+// closed the `manager`/`http_executor`/`scheduler`/`task_lifecycle`/
+// `persistence` dependency cycle the module-boundary guard forbids.  That module
+// now holds only the free persistence helpers shared by the actors.
+
+impl DownloadManager {
+    /// Load all downloads from the SQLite database on startup.
+    ///
+    /// Called from `DownloadManager::new()`. Reconstructs `ManagedDownload`
+    /// entries from stored `Manifest` rows.
+    pub fn load_downloads_from_db(&self) -> Result<()> {
+        let manifests = self
+            .db
+            .list_download_headers()
+            .context("failed to load downloads from database")?;
+
+        for mut manifest in manifests {
+            let destination_exists = Path::new(&manifest.destination_path).exists();
+            let temp_exists = Path::new(&manifest.temp_path).exists();
+
+            if manifest.state == DownloadState::Verifying && destination_exists && !temp_exists {
+                manifest.state = DownloadState::Completed;
+                manifest.updated_at_ms = now_ms();
+            }
+
+            // Downloads that were actively downloading before crash: keep as Downloading.
+            // They will be picked up by the scheduler on the next rebalance cycle.
+            // Downloads in other non-terminal states become Paused.
+            match manifest.state {
+                DownloadState::Downloading => {
+                    // Was actively downloading; reset connection state but keep Downloading
+                    // so the scheduler will re-allocate threads on next rebalance.
+                    manifest.connection_count = 0;
+                    manifest.allocated_thread_count = Some(0);
+                    manifest.updated_at_ms = now_ms();
+                }
+                DownloadState::Retrying | DownloadState::Verifying | DownloadState::Queued => {
+                    manifest.state = DownloadState::Paused;
+                    manifest.connection_count = 0;
+                    manifest.allocated_thread_count = Some(0);
+                    manifest.updated_at_ms = now_ms();
+                }
+                _ => {} // Completed, Failed, Canceled, Paused — no change needed
+            }
+
+            // Lazy chunk loading: only load chunks for non-terminal downloads.
+            // Completed / Failed / Canceled downloads don't need chunks at startup;
+            // they'll be loaded on-demand if the user resumes or inspects them.
+            let needs_chunks = !matches!(
+                manifest.state,
+                DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
+            );
+            if needs_chunks {
+                manifest.chunks = self.db.load_chunks(&manifest.id).unwrap_or_default();
+                // A freshly loaded manager owns no chunk workers yet, so every
+                // persisted claim belongs to a process that is gone. A stale
+                // claim would make `claim_next_chunk` skip the chunk while
+                // `chunks` still reports work to do — the resumed run could
+                // stall on a range no worker is allowed to take. Only an
+                // actual shutdown releases claims before persisting; clearing
+                // them here is the crash-recovery equivalent.
+                for chunk in &mut manifest.chunks {
+                    chunk.claimed_by = None;
+                }
+            }
+
+            let snapshot = snapshot_from_manifest(&manifest);
+            let managed = Arc::new(ManagedDownload {
+                core: Mutex::new(DownloadCore::new(snapshot, manifest.clone())),
+                runtime: Mutex::new(None),
+                aimd: Mutex::new(AimdState::initial(
+                    manifest.adaptive_profile_snapshot,
+                    manifest.desired_thread_count,
+                )),
+                stop_notify: tokio::sync::Notify::new(),
+                pieces: Mutex::new(None),
+            });
+
+            tokio::task::block_in_place(|| {
+                self.downloads
+                    .blocking_write()
+                    .insert(manifest.id.clone(), managed);
+            });
+        }
+        Ok(())
+    }
+
+    /// Full persistence of a download manifest to the database.
+    ///
+    /// Called on state transitions (start, pause, resume, etc.) and
+    /// when a download finishes or fails.
+    pub async fn persist(&self, managed: Arc<ManagedDownload>) -> Result<()> {
+        // A full upsert writes the whole task row, so the received counter has to
+        // be replaced by the durable one here too. The chunks carry their own
+        // durable counter and are substituted inside `chunk_to_params`.
+        let manifest = {
+            let core = managed.lock_core();
+            let mut manifest = core.manifest.clone();
+            manifest.downloaded_bytes = core.durable_bytes.min(manifest.downloaded_bytes);
+            manifest
+        };
+        let db = self.db.clone();
+        tokio::task::spawn_blocking(move || db.insert_download(&manifest))
+            .await
+            .context("persist task panicked")?
+            .context("failed to persist download to database")?;
+        Ok(())
+    }
+}
+
+// ── `ManagerState` seam ────────────────────────────────────────────────────
+//
+// The actor modules (`http_executor`, `scheduler`, `task_lifecycle`) take
+// `&dyn ManagerState` instead of `&DownloadManager` so they do not depend on
+// this module.  The actor operations the HTTP executor needs are delegated here
+// rather than exposed as actor-typed accessors: naming `TaskLifecycle` or
+// `Scheduler` in `manager_state` would close the cycle again through the trait.
+
+#[async_trait]
+impl ManagerState for DownloadManager {
+    fn db(&self) -> &Arc<Database> {
+        &self.db
+    }
+
+    fn event_bus(&self) -> &Arc<EventBus> {
+        &self.event_bus
+    }
+
+    fn rate_limiter(&self) -> &Arc<RateLimiter> {
+        &self.rate_limiter
+    }
+
+    fn buffer_pool(&self) -> &Arc<BufferPool> {
+        &self.buffer_pool
+    }
+
+    fn io_worker(&self) -> &IoWorker {
+        &self.io_worker
+    }
+
+    fn settings_service(&self) -> &Arc<crate::services::SettingsService> {
+        &self.settings_service
+    }
+
+    fn concurrency(&self) -> &Arc<crate::services::ConcurrencyManager> {
+        &self.concurrency
+    }
+
+    fn downloads(&self) -> &Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>> {
+        &self.downloads
+    }
+
+    fn controls(&self) -> &RuntimeControls {
+        &self.controls
+    }
+
+    fn alt_svc(&self) -> &Arc<crate::alt_svc::AltSvcManager> {
+        &self.http.alt_svc
+    }
+
+    async fn settings(&self) -> Result<AppSettings> {
+        DownloadManager::settings(self).await
+    }
+
+    async fn persist(&self, managed: Arc<ManagedDownload>) -> Result<()> {
+        DownloadManager::persist(self, managed).await
+    }
+
+    async fn resolve_client(&self, url: &str) -> (Client, bool, Option<String>) {
+        DownloadManager::resolve_client(self, url).await
+    }
+
+    async fn resolve_disk_type(&self, dir: &Path) -> DiskType {
+        DownloadManager::resolve_disk_type(self, dir).await
+    }
+
+    fn prepare_fresh_temp_file(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
+        self.task_lifecycle.prepare_fresh_temp_file(managed)
+    }
+
+    fn reset_progress(&self, managed: &Arc<ManagedDownload>, force_single_stream: bool) {
+        self.task_lifecycle
+            .reset_progress(managed, force_single_stream)
+    }
+
+    fn emit_progress(&self, managed: &Arc<ManagedDownload>) {
+        self.task_lifecycle.emit_progress(self, managed)
+    }
+
+    fn emit_single_summary(&self, managed: &Arc<ManagedDownload>) {
+        self.task_lifecycle.emit_single_summary(self, managed)
+    }
+
+    fn cleanup_files(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
+        self.task_lifecycle.cleanup_files(managed)
+    }
+
+    fn record_progress(
+        &self,
+        managed: &Arc<ManagedDownload>,
+        chunk_index: Option<usize>,
+        bytes: u64,
+    ) {
+        self.task_lifecycle
+            .record_progress(managed, chunk_index, bytes)
+    }
+
+    async fn wait_until_active(
+        &self,
+        managed: &Arc<ManagedDownload>,
+        token: &CancellationToken,
+    ) -> crate::download::WaitState {
+        self.task_lifecycle.wait_until_active(self, managed, token).await
+    }
+
+    async fn evict_completed(&self) -> usize {
+        self.task_lifecycle.evict_completed(self).await
+    }
+
+    async fn rebalance_allocations(&self) -> Result<()> {
+        self.scheduler.rebalance_allocations(self).await
     }
 }

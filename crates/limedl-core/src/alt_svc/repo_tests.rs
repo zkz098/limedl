@@ -1,5 +1,5 @@
-use super::Database;
-use crate::http::AltSvcRecord;
+use super::AltSvcRecord;
+use crate::database::Database;
 
 #[test]
 fn test_alt_svc_repo_crud() {

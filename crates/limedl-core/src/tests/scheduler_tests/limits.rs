@@ -105,8 +105,8 @@ async fn multi_download_fairness_under_limited_threads() -> TestResult {
 
     // Wait for probes to finish, then rebalance so allocations are final.
     tokio::time::sleep(Duration::from_secs(2)).await;
-    manager.scheduler.update_adaptive_targets(&manager).await?;
-    manager.scheduler.rebalance_allocations(&manager).await?;
+    manager.scheduler.update_adaptive_targets(&*manager).await?;
+    manager.scheduler.rebalance_allocations(&*manager).await?;
 
     let s1 = manager.status(&id1.to_string()).await?;
     let s2 = manager.status(&id2.to_string()).await?;
@@ -216,7 +216,7 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
     // Trigger rebalances until the Fixed-mode download gets its 2 threads.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
     let fixed_snap = loop {
-        manager.scheduler.rebalance_allocations(&manager).await?;
+        manager.scheduler.rebalance_allocations(&*manager).await?;
         let s = manager.status(&fixed_id.to_string()).await?;
         if s.connection_count == 2 {
             break s;

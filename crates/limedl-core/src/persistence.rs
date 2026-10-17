@@ -1,131 +1,22 @@
-//! DB persistence and migration-related code — extracted from manager.rs
-//! (Phase 3 of the manager.rs split).
+//! DB persistence helpers shared by the download actors.
 //!
-//! Contains `impl DownloadManager` methods for loading/persisting downloads
-//! as well as the free function `persist_manifest_snapshot`.
+//! Holds the free persistence functions used by the HTTP executor's periodic
+//! 300 ms persist cycle and by the scheduler's rebalance cycle.  The
+//! `impl DownloadManager` methods that used to live here moved back into
+//! `manager.rs` with the type they belong to: keeping them here made this
+//! module import `manager::DownloadManager`, which closed the
+//! `manager`/`http_executor`/`scheduler`/`task_lifecycle`/`persistence`
+//! dependency cycle the module-boundary guard forbids.
 
-use std::{path::Path, sync::Arc};
-
-use parking_lot::Mutex;
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 
 use super::{
-    aimd::AimdState,
     database::{self, Database},
-    download::{DownloadCore, ManagedDownload},
-    manager::DownloadManager,
-    manifest::{ChunkManifest, snapshot_from_manifest},
-    now_ms,
-    types::DownloadState,
+    download::ManagedDownload,
+    manifest::ChunkManifest,
 };
-
-// ── DownloadManager persistence methods ─────────────────────────────────────
-
-impl DownloadManager {
-    /// Load all downloads from the SQLite database on startup.
-    ///
-    /// Called from `DownloadManager::new()`. Reconstructs `ManagedDownload`
-    /// entries from stored `Manifest` rows.
-    pub fn load_downloads_from_db(&self) -> Result<()> {
-        let manifests = self
-            .db
-            .list_download_headers()
-            .context("failed to load downloads from database")?;
-
-        for mut manifest in manifests {
-            let destination_exists = Path::new(&manifest.destination_path).exists();
-            let temp_exists = Path::new(&manifest.temp_path).exists();
-
-            if manifest.state == DownloadState::Verifying && destination_exists && !temp_exists {
-                manifest.state = DownloadState::Completed;
-                manifest.updated_at_ms = now_ms();
-            }
-
-            // Downloads that were actively downloading before crash: keep as Downloading.
-            // They will be picked up by the scheduler on the next rebalance cycle.
-            // Downloads in other non-terminal states become Paused.
-            match manifest.state {
-                DownloadState::Downloading => {
-                    // Was actively downloading; reset connection state but keep Downloading
-                    // so the scheduler will re-allocate threads on next rebalance.
-                    manifest.connection_count = 0;
-                    manifest.allocated_thread_count = Some(0);
-                    manifest.updated_at_ms = now_ms();
-                }
-                DownloadState::Retrying | DownloadState::Verifying | DownloadState::Queued => {
-                    manifest.state = DownloadState::Paused;
-                    manifest.connection_count = 0;
-                    manifest.allocated_thread_count = Some(0);
-                    manifest.updated_at_ms = now_ms();
-                }
-                _ => {} // Completed, Failed, Canceled, Paused — no change needed
-            }
-
-            // Lazy chunk loading: only load chunks for non-terminal downloads.
-            // Completed / Failed / Canceled downloads don't need chunks at startup;
-            // they'll be loaded on-demand if the user resumes or inspects them.
-            let needs_chunks = !matches!(
-                manifest.state,
-                DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
-            );
-            if needs_chunks {
-                manifest.chunks = self.db.load_chunks(&manifest.id).unwrap_or_default();
-                // A freshly loaded manager owns no chunk workers yet, so every
-                // persisted claim belongs to a process that is gone. A stale
-                // claim would make `claim_next_chunk` skip the chunk while
-                // `chunks` still reports work to do — the resumed run could
-                // stall on a range no worker is allowed to take. Only an
-                // actual shutdown releases claims before persisting; clearing
-                // them here is the crash-recovery equivalent.
-                for chunk in &mut manifest.chunks {
-                    chunk.claimed_by = None;
-                }
-            }
-
-            let snapshot = snapshot_from_manifest(&manifest);
-            let managed = Arc::new(ManagedDownload {
-                core: Mutex::new(DownloadCore::new(snapshot, manifest.clone())),
-                runtime: Mutex::new(None),
-                aimd: Mutex::new(AimdState::initial(
-                    manifest.adaptive_profile_snapshot,
-                    manifest.desired_thread_count,
-                )),
-                stop_notify: tokio::sync::Notify::new(),
-                pieces: Mutex::new(None),
-            });
-
-            tokio::task::block_in_place(|| {
-                self.downloads
-                    .blocking_write()
-                    .insert(manifest.id.clone(), managed);
-            });
-        }
-        Ok(())
-    }
-
-    /// Full persistence of a download manifest to the database.
-    ///
-    /// Called on state transitions (start, pause, resume, etc.) and
-    /// when a download finishes or fails.
-    pub async fn persist(&self, managed: Arc<ManagedDownload>) -> Result<()> {
-        // A full upsert writes the whole task row, so the received counter has to
-        // be replaced by the durable one here too. The chunks carry their own
-        // durable counter and are substituted inside `chunk_to_params`.
-        let manifest = {
-            let core = managed.lock_core();
-            let mut manifest = core.manifest.clone();
-            manifest.downloaded_bytes = core.durable_bytes.min(manifest.downloaded_bytes);
-            manifest
-        };
-        let db = self.db.clone();
-        tokio::task::spawn_blocking(move || db.insert_download(&manifest))
-            .await
-            .context("persist task panicked")?
-            .context("failed to persist download to database")?;
-        Ok(())
-    }
-}
 
 // ── Free persistence functions ──────────────────────────────────────────────
 

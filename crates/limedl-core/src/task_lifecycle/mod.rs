@@ -4,10 +4,11 @@
 //! internal helpers, file cleanup, wait coordination, progress recording, and
 //! event emission.
 //!
-//! `TaskLifecycle` is an independent actor type.  All its methods receive a
-//! `&DownloadManager` or `Arc<DownloadManager>` parameter to access shared
-//! state, avoiding any ownership cycle with `DownloadManager` (which holds
-//! `Arc<TaskLifecycle>`).
+//! `TaskLifecycle` is an independent actor type.  The methods that need shared
+//! state receive a `&dyn ManagerState` (or `Arc<dyn ManagerState>`) parameter,
+//! so this module does not depend on `manager` — which owns `Arc<TaskLifecycle>`
+//! and would otherwise form a dependency cycle.  Methods whose `dm` parameter
+//! was unused take no state at all.
 
 use std::{
     fs,
@@ -27,7 +28,7 @@ use crate::{
     download::{
         ManagedDownload, WaitState,
     },
-    manager::DownloadManager,
+    manager_state::ManagerState,
     now_ms,
     types::{ChunkInfo, DownloadProgress, DownloadSnapshot, DownloadState, DownloadSummary},
 };
@@ -38,8 +39,8 @@ use crate::{speed_tracker::SpeedTracker, types::Priority};
 
 /// Zero-sized actor type for download lifecycle operations.
 ///
-/// All methods receive `&DownloadManager` or `Arc<DownloadManager>` to access
-/// shared state.  `DownloadManager` holds `Arc<TaskLifecycle>` for delegation.
+/// Methods that need shared state receive `&dyn ManagerState`; `DownloadManager`
+/// holds `Arc<TaskLifecycle>` for delegation and implements that trait.
 pub struct TaskLifecycle;
 
 impl TaskLifecycle {
@@ -48,10 +49,10 @@ impl TaskLifecycle {
     /// Look up a managed download by ID.
     pub(crate) async fn get(
         &self,
-        dm: &DownloadManager,
+        dm: &dyn ManagerState,
         download_id: &str,
     ) -> Result<Arc<ManagedDownload>> {
-        dm.downloads
+        dm.downloads()
             .read()
             .await
             .get(download_id)
@@ -62,10 +63,10 @@ impl TaskLifecycle {
     // ── Shutdown ──────────────────────────────────────────────────────
 
     /// Signal the scheduler loop and all active chunk workers to stop gracefully.
-    pub(crate) async fn shutdown(&self, dm: &DownloadManager) {
-        dm.controls.shutdown_token.cancel();
+    pub(crate) async fn shutdown(&self, dm: &dyn ManagerState) {
+        dm.controls().shutdown_token.cancel();
 
-        let downloads = dm.downloads.read().await;
+        let downloads = dm.downloads().read().await;
         for managed in downloads.values() {
             if let Some(token) = managed.lock_runtime().take() {
                 token.cancel();
@@ -82,7 +83,7 @@ impl TaskLifecycle {
     /// This is the core orchestration point called by `start()` and `resume()`.
     pub(crate) async fn spawn_download(
         &self,
-        dm: Arc<DownloadManager>,
+        dm: Arc<dyn ManagerState>,
         managed: Arc<ManagedDownload>,
         max_retries: u32,
     ) -> Result<()> {
@@ -142,8 +143,9 @@ impl TaskLifecycle {
                     core.manifest.cdn_node_ip = cdn_node_ip;
                 }
 
-                let result = manager
-                    .http_executor
+                // `HttpExecutor` is a zero-sized actor; `task_lifecycle -> http_executor` is
+                // a one-way edge (the executor never names this module).
+                let result = crate::http_executor::HttpExecutor
                     .run_download(
                         manager.clone(),
                         managed.clone(),
@@ -187,14 +189,14 @@ impl TaskLifecycle {
                             core.manifest.allocated_thread_count = Some(0);
                             core.manifest.updated_at_ms = now_ms();
                         }
-                        manager.task_lifecycle.emit_single_summary(&manager, &managed);
+                        manager.emit_single_summary(&managed);
 
                         let download_id = managed.lock_core().snapshot.id.clone();
                         let gid = format!(
                             "{:016x}",
                             xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
                         );
-                        manager.event_bus.publish(DownloadEvent::Aria2Notification {
+                        manager.event_bus().publish(DownloadEvent::Aria2Notification {
                             event_name: "aria2.onDownloadError".into(),
                             gid,
                         });
@@ -213,13 +215,13 @@ impl TaskLifecycle {
             {
                 log_background_error("persist background download state", &error);
             }
-            manager.task_lifecycle.evict_completed(&manager).await;
+            manager.evict_completed().await;
             {
                 let mut runtime = managed.lock_runtime();
                 *runtime = None;
             }
             managed.stop_notify.notify_one();
-            manager.controls.rebalance_notify.notify_waiters();
+            manager.controls().rebalance_notify.notify_waiters();
         });
 
         Ok(())
@@ -229,12 +231,12 @@ impl TaskLifecycle {
 
     pub(crate) async fn remove_internal(
         &self,
-        dm: &DownloadManager,
+        dm: &dyn ManagerState,
         download_id: &str,
         purge_file: bool,
     ) -> Result<DownloadSnapshot> {
         let managed = self.get(dm, download_id).await?;
-        let snapshot_before = self.build_snapshot(dm, managed.clone());
+        let snapshot_before = self.build_snapshot(managed.clone());
         let needs_cancel_state = matches!(
             snapshot_before.state,
             DownloadState::Queued
@@ -259,20 +261,20 @@ impl TaskLifecycle {
         let token = { managed.lock_runtime().clone() };
         if let Some(token) = token {
             token.cancel();
-            self.wait_until_stopped(dm, &managed).await;
+            self.wait_until_stopped(&managed).await;
         }
 
-        self.cleanup_files(dm, &managed)?;
+        self.cleanup_files(&managed)?;
         if purge_file {
-            self.cleanup_destination_file(dm, &managed)?;
+            self.cleanup_destination_file(&managed)?;
         }
-        dm.downloads.write().await.remove(download_id);
-        dm.db
+        dm.downloads().write().await.remove(download_id);
+        dm.db()
             .delete_download(download_id)
             .context("failed to delete download from database")?;
-        dm.scheduler.rebalance_allocations(dm).await?;
-        dm.controls.rebalance_notify.notify_waiters();
-        Ok(self.build_snapshot(dm, managed))
+        dm.rebalance_allocations().await?;
+        dm.controls().rebalance_notify.notify_waiters();
+        Ok(self.build_snapshot(managed))
     }
 
     // ── Wait helpers ──────────────────────────────────────────────────
@@ -280,7 +282,6 @@ impl TaskLifecycle {
     /// Wait until a download's runtime token is dropped (worker exited).
     pub(crate) async fn wait_until_stopped(
         &self,
-        _dm: &DownloadManager,
         managed: &Arc<ManagedDownload>,
     ) {
         if managed.lock_runtime().is_none() {
@@ -297,7 +298,7 @@ impl TaskLifecycle {
     /// Returns the current wait state (Running, Paused, Canceled).
     pub(crate) async fn wait_until_active(
         &self,
-        dm: &DownloadManager,
+        dm: &dyn ManagerState,
         managed: &Arc<ManagedDownload>,
         token: &CancellationToken,
     ) -> WaitState {
@@ -320,7 +321,7 @@ impl TaskLifecycle {
                     DownloadState::Canceled => WaitState::Canceled,
                     _ => WaitState::Paused,
                 },
-                _ = dm.controls.rebalance_notify.notified() => {}
+                _ = dm.controls().rebalance_notify.notified() => {}
                 _ = sleep(Duration::from_millis(120)) => {}
             }
         }
@@ -331,7 +332,6 @@ impl TaskLifecycle {
     /// Delete the temp file (and any corrupt leftover file) for a download.
     pub(crate) fn cleanup_files(
         &self,
-        _dm: &DownloadManager,
         managed: &Arc<ManagedDownload>,
     ) -> Result<()> {
         let manifest = managed.lock_core().manifest.clone();
@@ -349,7 +349,6 @@ impl TaskLifecycle {
     /// Delete the destination file for a download (used by `purge`).
     fn cleanup_destination_file(
         &self,
-        _dm: &DownloadManager,
         managed: &Arc<ManagedDownload>,
     ) -> Result<()> {
         let manifest = managed.lock_core().manifest.clone();
@@ -368,7 +367,6 @@ impl TaskLifecycle {
     /// Prepare a fresh (empty) temp file for a download.
     pub(crate) fn prepare_fresh_temp_file(
         &self,
-        _dm: &DownloadManager,
         managed: &Arc<ManagedDownload>,
     ) -> Result<()> {
         let manifest = managed.lock_core().manifest.clone();
@@ -388,7 +386,6 @@ impl TaskLifecycle {
     /// Reset all progress counters for a download.
     pub(crate) fn reset_progress(
         &self,
-        _dm: &DownloadManager,
         managed: &Arc<ManagedDownload>,
         force_single_stream: bool,
     ) {
@@ -429,14 +426,14 @@ impl TaskLifecycle {
     /// Evict terminal-state downloads (Completed/Failed/Canceled) when the
     /// in-memory map exceeds `max_in_memory_downloads`.  Removes the oldest
     /// terminal entries first.  Returns the number of entries removed.
-    pub(crate) async fn evict_completed(&self, dm: &DownloadManager) -> usize {
-        let limit = dm.settings_service.get().await.max_in_memory_downloads;
+    pub(crate) async fn evict_completed(&self, dm: &dyn ManagerState) -> usize {
+        let limit = dm.settings_service().get().await.max_in_memory_downloads;
         if limit == 0 {
             return 0;
         }
 
         let mut evicted = 0;
-        let mut map = dm.downloads.write().await;
+        let mut map = dm.downloads().write().await;
         if map.len() <= limit {
             return 0;
         }
@@ -467,7 +464,6 @@ impl TaskLifecycle {
     /// and ETA from AIMD state.
     pub(crate) fn build_snapshot(
         &self,
-        _dm: &DownloadManager,
         managed: Arc<ManagedDownload>,
     ) -> DownloadSnapshot {
         let core = managed.lock_core();
@@ -531,12 +527,12 @@ impl TaskLifecycle {
     /// `download-updated` event to the frontend.
     pub(crate) fn emit_single_summary(
         &self,
-        dm: &DownloadManager,
+        dm: &dyn ManagerState,
         managed: &Arc<ManagedDownload>,
     ) {
-        let snapshot = self.build_snapshot(dm, managed.clone());
+        let snapshot = self.build_snapshot(managed.clone());
         let summary = DownloadSummary::from(&snapshot);
-        dm.event_bus.publish(DownloadEvent::Updated {
+        dm.event_bus().publish(DownloadEvent::Updated {
             summary: Box::new(summary),
         });
     }
@@ -544,12 +540,12 @@ impl TaskLifecycle {
     /// Emit a lightweight `download-progress` event for incremental UI updates.
     pub(crate) fn emit_progress(
         &self,
-        dm: &DownloadManager,
+        dm: &dyn ManagerState,
         managed: &Arc<ManagedDownload>,
     ) {
-        let snapshot = self.build_snapshot(dm, managed.clone());
+        let snapshot = self.build_snapshot(managed.clone());
         let progress = DownloadProgress::from(&snapshot);
-        dm.event_bus.publish(DownloadEvent::Progress { progress });
+        dm.event_bus().publish(DownloadEvent::Progress { progress });
     }
 
     /// Record downloaded bytes on a managed download (chunk index optional).
@@ -559,11 +555,10 @@ impl TaskLifecycle {
     /// The body is **identical** to the free function `record_progress_on_managed`
     /// in `manager.rs`. The free version exists because chunk workers in
     /// `http_executor` only hold an `&Arc<ManagedDownload>` and cannot call
-    /// through `TaskLifecycle` (which requires `&DownloadManager`).
+    /// through `TaskLifecycle` (which would require a handle to the actor).
     /// If you modify one, you **must** update the other.
     pub(crate) fn record_progress(
         &self,
-        _dm: &DownloadManager,
         managed: &Arc<ManagedDownload>,
         chunk_index: Option<usize>,
         bytes: u64,

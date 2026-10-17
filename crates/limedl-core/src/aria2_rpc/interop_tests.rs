@@ -633,7 +633,7 @@ async fn interop_get_global_option_covers_ariang_keys() {
         .as_object()
         .unwrap_or_else(|| panic!("getGlobalOption must return an object: {resp}"));
 
-    let missing: Vec<&str> = super::ARIA2NG_GLOBAL_OPTION_KEYS
+    let missing: Vec<&str> = super::options::ARIA2NG_GLOBAL_OPTION_KEYS
         .iter()
         .copied()
         .filter(|key| !result.contains_key(*key))
@@ -683,7 +683,7 @@ async fn interop_get_option_covers_ariang_task_keys() {
         .as_object()
         .unwrap_or_else(|| panic!("getOption must return an object: {resp}"));
 
-    let missing: Vec<&str> = super::ARIA2NG_TASK_OPTION_KEYS
+    let missing: Vec<&str> = super::options::ARIA2NG_TASK_OPTION_KEYS
         .iter()
         .copied()
         .filter(|key| !result.contains_key(*key))

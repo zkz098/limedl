@@ -134,6 +134,7 @@ async fn run_multi_stream_ssd(
         let buffer = Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
             4 * 1024 * 1024,
             file.clone(),
+            std::path::PathBuf::from(&file_path),
             worker.clone(),
             None,
         ));
@@ -237,7 +238,7 @@ fn bench_local_ssd(c: &mut Criterion) {
     group.throughput(Throughput::Bytes(TOTAL_DATA));
 
     // Dedicated I/O worker thread (production SSD ping-pong path).
-    let worker = IoWorker::spawn_pool(1);
+    let worker = limedl_core::test_harness::io_worker();
 
     group.bench_function("ssd_pingpong", |b| {
         b.iter_custom(|iters| {
@@ -249,6 +250,7 @@ fn bench_local_ssd(c: &mut Criterion) {
                     let buffer = DownloadBuffer::new_local_pingpong_with_worker(
                         4 * 1024 * 1024,
                         file.clone(),
+                        std::path::PathBuf::from(&file_path),
                         worker.clone(),
                         None,
                     );
@@ -354,7 +356,7 @@ fn bench_multi_stream_random(c: &mut Criterion) {
     });
 
     // Multi-stream through SSD ping-pong buffer.
-    let worker = IoWorker::spawn_pool(1);
+    let worker = limedl_core::test_harness::io_worker();
     group.bench_function("ssd_pingpong", |b| {
         b.iter_custom(|iters| {
             harness

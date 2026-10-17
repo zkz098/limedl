@@ -3,6 +3,12 @@
 //! Provides parsing for `Alt-Svc` response headers, an in-memory L1 cache with
 //! broken-service circuit breaking and exponential backoff, and backing SQLite
 //! persistence for cross-task, cross-session discovery.
+//!
+//! This is a top-level module rather than a child of `http` because it owns its
+//! own SQLite repository ([`repo`]): inside `http` the HTTP utility layer both
+//! depended on the database layer and was depended on *by* it (through
+//! `AltSvcRecord`), the `database <-> http` cycle the module-boundary guard
+//! rejects.
 
 use std::sync::Arc;
 
@@ -11,6 +17,12 @@ use tracing::{debug, info, warn};
 
 use crate::database::Database;
 use crate::error::Result;
+
+/// SQLite repository: `impl Database` for the `alt_svc_cache` table.
+pub mod repo;
+
+#[cfg(test)]
+mod repo_tests;
 
 /// A persisted or cached alternative service record.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

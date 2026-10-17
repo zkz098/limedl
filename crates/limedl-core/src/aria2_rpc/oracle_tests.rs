@@ -553,7 +553,7 @@ async fn oracle_get_option_keys() {
         "getOption",
         &limedl["result"],
         &aria2["result"],
-        super::ARIA2NG_TASK_OPTION_KEYS,
+        super::options::ARIA2NG_TASK_OPTION_KEYS,
     );
     report.finish();
 
@@ -581,7 +581,7 @@ async fn oracle_get_global_option_keys() {
         "getGlobalOption",
         &limedl["result"],
         &aria2["result"],
-        super::ARIA2NG_GLOBAL_OPTION_KEYS,
+        super::options::ARIA2NG_GLOBAL_OPTION_KEYS,
     );
     report.finish();
 

@@ -1,16 +1,24 @@
 //! Finalization: checksum verification, atomic rename and completion events.
 
 use super::worker::{finalize_was_canceled};
-use super::{
-    Arc, CancellationToken, ChecksumMode, DownloadEvent, DownloadManager, DownloadProgress,
-    DownloadState, HttpExecutor, Instant, ManagedDownload, PathBuf, Result, RunOutcome,
-    calculate_checksum_with_progress, finalize_temp_file, fs, io_error_with_path, now_ms,
-};
+use crate::{calculate_checksum_with_progress, now_ms};
+use crate::download::{ManagedDownload, RunOutcome};
+use crate::error::{Result, io_error_with_path};
+use crate::event_bus::DownloadEvent;
+use crate::file_ops::finalize_temp_file;
+use crate::manager_state::ManagerState;
+use crate::types::{ChecksumMode, DownloadProgress, DownloadState};
+use std::fs;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Instant;
+use super::HttpExecutor;
+use tokio_util::sync::CancellationToken;
 
 impl HttpExecutor {
     pub(super) async fn finalize_download(
         &self,
-        dm: Arc<DownloadManager>,
+        dm: Arc<dyn ManagerState>,
         managed: Arc<ManagedDownload>,
         token: CancellationToken,
     ) -> Result<RunOutcome> {
@@ -53,7 +61,7 @@ impl HttpExecutor {
             _ if precomputed.is_some() => precomputed,
             mode => {
                 let dl_id = managed.lock_core().snapshot.id.clone();
-                let eb = dm.event_bus.clone();
+                let eb = dm.event_bus().clone();
                 let (prog_tx, mut prog_rx) = tokio::sync::mpsc::unbounded_channel::<(u64, u64)>();
 
                 let progress_worker = tokio::spawn(async move {
@@ -211,7 +219,7 @@ impl HttpExecutor {
             "{:016x}",
             xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
         );
-        dm.event_bus.publish(DownloadEvent::Aria2Notification {
+        dm.event_bus().publish(DownloadEvent::Aria2Notification {
             event_name: "aria2.onDownloadComplete".into(),
             gid,
         });

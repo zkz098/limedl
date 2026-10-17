@@ -20,6 +20,16 @@ fn temp_file() -> (tempfile::TempDir, Arc<std::fs::File>) {
     (dir, Arc::new(file))
 }
 
+/// Path of the file [`temp_file`] created inside the temp dir it returns.
+fn temp_file_path(dir: &tempfile::TempDir) -> std::path::PathBuf {
+    dir.path().join("test.bin")
+}
+
+/// An `IoWorker` backed by a real device queue — the sink `io_scheduler` produces.
+fn test_io_worker() -> IoWorker {
+    IoWorker::new(Arc::new(crate::io_scheduler::DiskDeviceManager::new()))
+}
+
 // -----------------------------------------------------------------------
 // BufferPool construction & defaults
 // -----------------------------------------------------------------------

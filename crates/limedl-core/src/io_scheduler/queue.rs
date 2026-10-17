@@ -13,8 +13,8 @@ use bytes::Bytes;
 use tokio::sync::{mpsc, oneshot};
 
 use super::topology::DeviceId;
-use crate::buffer_pool::worker::write_coalesced_entries;
-use crate::buffer_pool::SyncMode;
+use crate::file_ops::write_coalesced_entries;
+use crate::file_ops::SyncMode;
 use crate::error::DownloadError;
 use crate::types::DiskType;
 
@@ -141,7 +141,7 @@ impl DeviceQueue {
             } => {
                 #[cfg(any(test, feature = "test-utils"))]
                 {
-                    if crate::buffer_pool::fault::consume_batch(Arc::as_ptr(&file) as usize) {
+                    if crate::file_ops::fault::consume_batch(Arc::as_ptr(&file) as usize) {
                         let e = DownloadError::Internal(
                             "injected write-batch failure (test fault)".into(),
                         );

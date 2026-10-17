@@ -8,7 +8,7 @@ use tempfile::tempdir;
 use super::{
     check_disk_space, cleanup_finalizing_paths, files_have_same_content, finalize_temp_file,
     open_download_file, preallocate_file, reservation_error, reset_download_file, set_sparse_file,
-    unique_finalizing_path, write_all_at, write_all_vectored_at,
+    unique_finalizing_path, write_all_at, write_all_vectored_at, write_coalesced_entries,
 };
 use crate::error::DownloadError;
 
@@ -649,4 +649,43 @@ fn set_sparse_file_on_regular_file() -> TestResult {
 
     assert!(set_sparse_file(&file).is_ok());
     Ok(())
+}
+
+#[test]
+#[timeout(10_000)]
+fn write_coalesced_entries_coalesces_contiguous_ranges() {
+    let dir = tempdir().expect("temp dir");
+    let path = dir.path().join("test.bin");
+    let file = fs::File::create(&path).expect("create test file");
+    let entries = vec![
+        (0u64, bytes::Bytes::from_static(b"Hello ")),
+        (6u64, bytes::Bytes::from_static(b"World ")),
+        (12u64, bytes::Bytes::from_static(b"from LimeDL!")),
+    ];
+
+    write_coalesced_entries(&file, &entries).expect("coalesced write succeeds");
+    drop(file);
+
+    let content = fs::read(&path).expect("read test file");
+    assert_eq!(content, b"Hello World from LimeDL!");
+}
+
+#[test]
+#[timeout(10_000)]
+fn write_coalesced_entries_keeps_disjoint_ranges_disjoint() {
+    let dir = tempdir().expect("temp dir");
+    let path = dir.path().join("test.bin");
+    let file = fs::File::create(&path).expect("create test file");
+    let entries = vec![
+        (0u64, bytes::Bytes::from_static(b"AAAA")),
+        (10u64, bytes::Bytes::from_static(b"BBBB")),
+        (14u64, bytes::Bytes::from_static(b"CCCC")),
+    ];
+
+    write_coalesced_entries(&file, &entries).expect("coalesced write succeeds");
+    drop(file);
+
+    let content = fs::read(&path).expect("read test file");
+    assert_eq!(&content[0..4], b"AAAA");
+    assert_eq!(&content[10..18], b"BBBBCCCC");
 }

@@ -1,6 +1,19 @@
 //! Read-only query methods: tellStatus/tellActive/getFiles/getPeers/session listing.
 
-use super::{BtPeerInfo, DownloadState, DownloadSummary, ERR_INTERNAL, ERR_INVALID_PARAMS, Id20, JsonRpcError, RpcContext, TaskId, TaskKind, Uuid, Value, bitfield_from_bits, bt_files_to_aria2, build_file_list, filter_status_keys, make_error, resolve_gid, summary_to_aria2_status};
+use crate::types::{BtPeerInfo, DownloadState, DownloadSummary, TaskId, TaskKind};
+use irontide::core::Id20;
+use serde_json::Value;
+use super::context::RpcContext;
+use super::jsonrpc::{ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, make_error};
+use super::protocol::{
+    bitfield_from_bits,
+    bt_files_to_aria2,
+    build_file_list,
+    filter_status_keys,
+    resolve_gid,
+    summary_to_aria2_status,
+};
+use uuid::Uuid;
 
 /// Effective candidate URIs for a task: the primary URL plus any mirrors, in
 /// order and de-duplicated, together with the URI currently in use. Reads the

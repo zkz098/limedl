@@ -4,7 +4,14 @@ use std::path::Path;
 
 use base64::Engine;
 
-use super::{ChecksumMode, ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, PathBuf, RpcContext, TaskId, Value, extract_gid, get_all_summaries, has_header, make_error, resolve_gid};
+use crate::http::has_header;
+use crate::types::{ChecksumMode, TaskId};
+use serde_json::Value;
+use std::path::PathBuf;
+use super::context::RpcContext;
+use super::jsonrpc::{ERR_INTERNAL, ERR_INVALID_PARAMS, JsonRpcError, make_error};
+use super::protocol::{resolve_gid};
+use super::query::{extract_gid, get_all_summaries};
 
 /// Global aria2 option keys AriaNg reads, taken from its
 /// `aria2GlobalAvailableOptions` (`src/scripts/config/aria2Options.js`) plus the

@@ -3,8 +3,8 @@
 use anyhow::{Context, Result};
 use rusqlite::params;
 
-use super::connection::Database;
-use crate::http::alt_svc::AltSvcRecord;
+use super::AltSvcRecord;
+use crate::database::Database;
 
 impl Database {
     /// Load all cached Alt-Svc records from SQLite.

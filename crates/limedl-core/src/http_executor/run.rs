@@ -1,13 +1,53 @@
 //! Remote probe and the top-level run loop (single-stream vs chunked).
 
-use super::{ANTI_ABUSE_SNIFF_LIMIT, AdaptiveProfile, AimdState, Arc, CancellationToken, ChecksumMode, Client, DownloadError, DownloadManager, DownloadState, HttpExecutor, ManagedDownload, Path, PathBuf, RemoteMetadata, Result, RunOutcome, StartDownloadRequest, StatusCode, TaskKind, ThreadMode, anti_abuse_forbidden_error, apply_extra_headers, check_disk_space, extract_total_bytes, has_header, has_partial_chunk_progress, header, header_string, identity_encoding, infer_candidate_referers, infer_file_name, looks_like_anti_abuse_page, now_ms, plan_chunks, read_body_prefix, resolve_chunk_size, supports_parallelism, supports_ranges, validate_probe_response, validators_changed};
+use crate::now_ms;
+use crate::aimd::AimdState;
+use crate::download::{ManagedDownload, RunOutcome, supports_parallelism};
+use crate::error::{DownloadError, Result};
+use crate::file_ops::check_disk_space;
+use crate::http::{
+    ANTI_ABUSE_SNIFF_LIMIT,
+    anti_abuse_forbidden_error,
+    apply_extra_headers,
+    extract_total_bytes,
+    has_header,
+    header_string,
+    identity_encoding,
+    infer_candidate_referers,
+    infer_file_name,
+    looks_like_anti_abuse_page,
+    read_body_prefix,
+    supports_ranges,
+    validate_probe_response,
+};
+use crate::manager_state::ManagerState;
+use crate::manifest::{
+    RemoteMetadata,
+    has_partial_chunk_progress,
+    plan_chunks,
+    resolve_chunk_size,
+    validators_changed,
+};
+use crate::types::{
+    AdaptiveProfile,
+    ChecksumMode,
+    DownloadState,
+    StartDownloadRequest,
+    TaskKind,
+    ThreadMode,
+};
+use reqwest::{Client, StatusCode, header};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use super::HttpExecutor;
+use tokio_util::sync::CancellationToken;
 
 impl HttpExecutor {
     /// Probe a remote URL to obtain file metadata (final URL, file name,
     /// content length, ETag, Last-Modified, range support).
     pub(crate) async fn probe(
         &self,
-        dm: &DownloadManager,
+        dm: &dyn ManagerState,
         url: &str,
         user_agent: &str,
         extra_headers: &[String],
@@ -107,7 +147,7 @@ impl HttpExecutor {
         let file_name =
             infer_file_name(&final_url, &headers).ok_or(DownloadError::MissingFileName)?;
 
-        dm.http.alt_svc.record_from_response(&final_url, &headers, now_ms());
+        dm.alt_svc().record_from_response(&final_url, &headers, now_ms());
 
         let headers_checksum = crate::checksum::detect_checksum_from_headers(&headers);
 
@@ -127,7 +167,7 @@ impl HttpExecutor {
     /// (parallel) download based on server capabilities.
     pub(crate) async fn run_download(
         &self,
-        dm: Arc<DownloadManager>,
+        dm: Arc<dyn ManagerState>,
         managed: Arc<ManagedDownload>,
         client: Client,
         token: CancellationToken,
@@ -136,7 +176,7 @@ impl HttpExecutor {
         let current_manifest = { managed.lock_core().manifest.clone() };
         let metadata = self
             .probe(
-                &dm,
+                dm.as_ref(),
                 &current_manifest.final_url,
                 &current_manifest.user_agent,
                 &current_manifest.extra_headers,
@@ -150,7 +190,7 @@ impl HttpExecutor {
             check_disk_space(Path::new(&current_manifest.destination_dir), needed)?;
         }
 
-        let settings = dm.settings_service.get().await;
+        let settings = dm.settings_service().get().await;
         let chunk_size = if let Some(ref pieces) = *managed.pieces.lock()
             && pieces.piece_length > 0
         {
@@ -215,12 +255,12 @@ impl HttpExecutor {
             let mut aimd = managed.lock_aimd();
             *aimd = AimdState::initial(threads.profile, threads.desired);
         }
-        dm.scheduler.rebalance_allocations(&dm).await?;
-        dm.controls.rebalance_notify.notify_waiters();
+        dm.rebalance_allocations().await?;
+        dm.controls().rebalance_notify.notify_waiters();
         if plan.reset_progress {
-            dm.task_lifecycle.prepare_fresh_temp_file(&dm, &managed)?;
+            dm.prepare_fresh_temp_file(&managed)?;
             if plan.force_single_stream_restart {
-                dm.task_lifecycle.reset_progress(&dm, &managed, true);
+                dm.reset_progress(&managed, true);
             }
         }
 
@@ -250,7 +290,7 @@ impl HttpExecutor {
     /// Finalize a finished run, or settle the paused/canceled bookkeeping.
     async fn post_process_run(
         &self,
-        dm: &Arc<DownloadManager>,
+        dm: &Arc<dyn ManagerState>,
         managed: &Arc<ManagedDownload>,
         token: &CancellationToken,
         outcome: RunOutcome,
@@ -260,7 +300,7 @@ impl HttpExecutor {
                 .finalize_download(dm.clone(), managed.clone(), token.clone())
                 .await?
             {
-                RunOutcome::Finished => dm.task_lifecycle.emit_single_summary(dm, managed),
+                RunOutcome::Finished => dm.emit_single_summary(managed),
                 RunOutcome::Canceled | RunOutcome::Paused => {}
             },
             RunOutcome::Paused => {
@@ -275,10 +315,10 @@ impl HttpExecutor {
                     core.manifest.allocated_thread_count = Some(0);
                     core.manifest.updated_at_ms = now_ms();
                 }
-                dm.task_lifecycle.emit_single_summary(dm, managed);
+                dm.emit_single_summary(managed);
             }
             RunOutcome::Canceled => {
-                dm.task_lifecycle.cleanup_files(dm, managed)?;
+                dm.cleanup_files(managed)?;
             }
         }
         Ok(())

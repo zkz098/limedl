@@ -13,6 +13,15 @@ use tracing;
 
 use super::error::{DownloadError, Result, io_error_with_path};
 
+pub(crate) mod batch;
+pub mod coalesce;
+/// Deterministic write-fault injection for the batch-flush path (tests only).
+#[cfg(any(test, feature = "test-utils"))]
+pub mod fault;
+
+pub(crate) use batch::BatchWriteSink;
+pub use coalesce::{SyncMode, write_coalesced_entries};
+
 pub fn open_download_file(path: &Path, total_size: Option<u64>) -> Result<File> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| io_error_with_path(e, parent.to_string_lossy()))?;

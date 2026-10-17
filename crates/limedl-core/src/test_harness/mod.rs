@@ -1049,3 +1049,14 @@ fn generate_content(size: u64) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests;
+
+/// An [`IoWorker`](crate::buffer_pool::IoWorker) backed by a real device queue.
+///
+/// Benches and tests that want the production flush path without building a
+/// whole `SystemContext` use this; `io_scheduler` is the only producer of
+/// sinks, and `buffer_pool` deliberately does not name it.
+pub fn io_worker() -> crate::buffer_pool::IoWorker {
+    crate::buffer_pool::IoWorker::new(std::sync::Arc::new(
+        crate::io_scheduler::DiskDeviceManager::new(),
+    ))
+}

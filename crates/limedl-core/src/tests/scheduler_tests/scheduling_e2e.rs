@@ -38,8 +38,8 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
     // Run the scheduler several times to stabilize allocations (in production
     // the scheduler ticks every 2s; running 3 times with delays simulates this).
     for _ in 0..3 {
-        manager.scheduler.update_adaptive_targets(&manager).await?;
-        manager.scheduler.rebalance_allocations(&manager).await?;
+        manager.scheduler.update_adaptive_targets(&*manager).await?;
+        manager.scheduler.rebalance_allocations(&*manager).await?;
         tokio::time::sleep(Duration::from_millis(300)).await;
     }
 
@@ -155,7 +155,7 @@ async fn adaptive_targets_apply_when_proxy_is_enabled() -> TestResult {
         aimd.hysteresis_lock_until = None;
     }
 
-    manager.scheduler.update_adaptive_targets(&manager).await?;
+    manager.scheduler.update_adaptive_targets(&*manager).await?;
 
     // The tuner must publish the new target itself — without waiting for the
     // `rebalance_allocations` call that follows it in the scheduler loop.
@@ -177,7 +177,7 @@ async fn adaptive_targets_apply_when_proxy_is_enabled() -> TestResult {
         tuned.desired_thread_count,
     );
 
-    manager.scheduler.rebalance_allocations(&manager).await?;
+    manager.scheduler.rebalance_allocations(&*manager).await?;
 
     let allocated = manager.status(&id.to_string()).await?;
     assert_eq!(
@@ -189,7 +189,7 @@ async fn adaptive_targets_apply_when_proxy_is_enabled() -> TestResult {
 
     // Overclock shares the same code path and used to be disabled with it.
     manager.set_overclock_mode(true);
-    manager.scheduler.update_adaptive_targets(&manager).await?;
+    manager.scheduler.update_adaptive_targets(&*manager).await?;
 
     let overclocked = manager.status(&id.to_string()).await?;
     assert_eq!(
@@ -261,7 +261,7 @@ async fn automatic_scheduler_respects_single_thread_cap_when_min_per_task_is_fou
         core.manifest.supports_ranges = true;
     }
 
-    manager.scheduler.rebalance_allocations(&manager).await?;
+    manager.scheduler.rebalance_allocations(&*manager).await?;
 
     let status = manager.status(&id.to_string()).await?;
     assert_eq!(
@@ -362,8 +362,8 @@ async fn automatic_active_set_stays_stable_with_many_queued_tasks() -> TestResul
 
     let mut first: Option<Vec<String>> = None;
     for pass in 0..8 {
-        manager.scheduler.update_adaptive_targets(&manager).await?;
-        manager.scheduler.rebalance_allocations(&manager).await?;
+        manager.scheduler.update_adaptive_targets(&*manager).await?;
+        manager.scheduler.rebalance_allocations(&*manager).await?;
         let current = allocated_ids(&manager, &ids).await;
         match &first {
             Some(previous) => assert_eq!(

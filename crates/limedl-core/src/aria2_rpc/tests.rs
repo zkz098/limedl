@@ -12,7 +12,41 @@
 //! What requires E2E (see `e2e_tests.rs`): dispatch over a live server, the
 //! handler matrix, `system.multicall` and secret-token auth.
 
-use super::*;
+use crate::backend_registry::{BackendRegistry};
+use crate::dispatcher::{Dispatcher};
+use crate::event_bus::{DownloadEvent, EventBus};
+use crate::types::{BtFileStatus, BtPeerInfo, ChecksumMode, DownloadState, StartDownloadRequest, TaskId, TaskKind};
+use foldhash::{HashMap};
+use std::sync::{Arc};
+use std::time::{Duration};
+use super::context::{AuthConfig, RpcContext, strip_token};
+use super::download::{classify_aria2_uri, handle_pause, handle_remove, handle_unpause};
+use super::options::{collect_request_headers, extract_option_headers, extract_option_str, extract_option_u32, extract_option_usize, find_header_value, handle_change_option, parse_checksum_option, parse_select_file, split_aria2_tail};
+use super::jsonrpc::{
+    ERR_INTERNAL,
+    ERR_INVALID_PARAMS,
+    ERR_INVALID_REQUEST,
+    ERR_METHOD_NOT_FOUND,
+    ERR_PARSE,
+    JsonRpcError,
+    JsonRpcRequest,
+    JsonRpcResponse,
+    error_response,
+    make_error,
+    success_response,
+};
+use super::protocol::{
+    bitfield_from_bits,
+    bt_files_to_aria2,
+    filter_status_keys,
+    internal_id_to_gid,
+    resolve_gid,
+    state_to_aria2,
+};
+use super::query::{handle_list_methods, handle_list_notifications, handle_version, parse_int_param, peer_info_to_aria2_peer};
+use super::system::{cleanup_old_aria2_temp_files, handle_shutdown};
+use super::transport::{process_jsonrpc_message};
+use tokio::sync::{Mutex, Notify};
 use ntest::timeout;
 use serde_json::{Value, json};
 
@@ -437,7 +471,7 @@ fn deserialize_missing_method_returns_error() {
 #[test]
 #[timeout(10_000)]
 fn state_to_aria2_maps_all_states() {
-    use super::DownloadState::*;
+    use crate::types::DownloadState::*;
     let cases = [
         (Queued, "waiting"),
         (Downloading, "active"),

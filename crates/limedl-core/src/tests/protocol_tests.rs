@@ -226,7 +226,7 @@ async fn http_contract_start_and_status() -> TestResult {
 
     contract_start_and_status(backend, http_request(server.file_url_bandwidth(10 * 1024), &dest_dir)).await;
 
-    dm.task_lifecycle.shutdown(&dm).await;
+    dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
 }
 
@@ -244,7 +244,7 @@ async fn http_contract_pause_resume() -> TestResult {
     // 1 KB/s — keeps the download in-flight throughout the pause/resume steps
     contract_pause_resume(backend, http_request(server.file_url_bandwidth(1024), &dest_dir)).await;
 
-    dm.task_lifecycle.shutdown(&dm).await;
+    dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
 }
 
@@ -261,7 +261,7 @@ async fn http_contract_cancel() -> TestResult {
 
     contract_cancel(backend, http_request(server.file_url_bandwidth(1024), &dest_dir)).await;
 
-    dm.task_lifecycle.shutdown(&dm).await;
+    dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
 }
 
@@ -283,7 +283,7 @@ async fn http_contract_list() -> TestResult {
     )
     .await;
 
-    dm.task_lifecycle.shutdown(&dm).await;
+    dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
 }
 
@@ -300,7 +300,7 @@ async fn http_contract_remove() -> TestResult {
 
     contract_remove(backend, http_request(server.file_url_bandwidth(1024), &dest_dir)).await;
 
-    dm.task_lifecycle.shutdown(&dm).await;
+    dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
 }
 
@@ -317,7 +317,7 @@ async fn http_contract_purge() -> TestResult {
 
     contract_purge(backend, http_request(server.file_url_bandwidth(1024), &dest_dir)).await;
 
-    dm.task_lifecycle.shutdown(&dm).await;
+    dm.task_lifecycle.shutdown(&*dm).await;
     Ok(())
 }
 

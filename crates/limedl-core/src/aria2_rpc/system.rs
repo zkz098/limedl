@@ -1,8 +1,15 @@
-//! Server-wide methods: shutdown, multicall, listMethods and temp-file cleanup.
+//! Server-wide methods: shutdown, listMethods and temp-file cleanup.
+//!
+//! `system.multicall` lives in `dispatch` instead: its handler has to re-enter
+//! `dispatch_method` for every nested call, so keeping it here made `system` and
+//! `dispatch` depend on each other.
 
 use std::ffi::OsStr;
 
-use super::{DownloadEvent, ERR_INVALID_PARAMS, JsonRpcError, RpcContext, Value, dispatch_method, make_error};
+use crate::event_bus::DownloadEvent;
+use serde_json::Value;
+use super::context::RpcContext;
+use super::jsonrpc::JsonRpcError;
 
 /// Removes `.torrent` files in the aria2 temp directory that are older than 1 hour.
 /// This is a best-effort cleanup — all errors are silently ignored.
@@ -53,45 +60,4 @@ pub(crate) async fn handle_shutdown(ctx: &RpcContext) -> Result<Value, JsonRpcEr
     Ok(Value::String(
         "Shutdown acknowledged. Use the application UI to exit.".to_string(),
     ))
-}
-
-pub(crate) async fn handle_multicall(
-    ctx: &RpcContext,
-    params: Vec<Value>,
-) -> Result<Value, JsonRpcError> {
-    // `dispatch_method` already stripped any outer token (aria2's multicall
-    // carries none), so each nested call is authenticated on its own: it goes
-    // back through `dispatch_method`, which checks and strips the per-call
-    // `token:` element. An unauthenticated nested call fails with its own
-    // Unauthorized entry instead of executing.
-    let calls = params
-        .first()
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing methods array"))?;
-
-    let mut results = Vec::with_capacity(calls.len());
-    for call in calls {
-        let method = call
-            .get("methodName")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        let call_params = call
-            .get("params")
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default();
-
-        // aria2's response shape is a single-element array per call:
-        // `[value]` on success, `[{"code":…,"message":…}]` on failure.
-        // AriaNg/Motrix index into element 0, so a two-element
-        // `[null, value]` wrapper would read as a failed call.
-        match Box::pin(dispatch_method(ctx, method, call_params)).await {
-            Ok(result) => results.push(Value::Array(vec![result])),
-            Err(e) => results.push(Value::Array(vec![serde_json::json!({
-                "code": e.code,
-                "message": e.message,
-            })])),
-        }
-    }
-    Ok(Value::Array(results))
 }

@@ -4,9 +4,9 @@
 //! parallel downloads, chunk worker, and finalization with checksum verification.
 //!
 //! `HttpExecutor` is an independent actor type.  All its methods receive a
-//! `&DownloadManager` or `Arc<DownloadManager>` parameter to access shared
-//! state, avoiding any ownership cycle with `DownloadManager` (which holds
-//! `Arc<HttpExecutor>`).
+//! `&dyn ManagerState` or `Arc<dyn ManagerState>` parameter to access shared
+//! state, so this module does not depend on `manager` — which owns
+//! `Arc<HttpExecutor>` and implements that trait.
 
 use std::{
     fs,
@@ -15,51 +15,30 @@ use std::{
     time::{Duration, Instant},
 };
 
-use reqwest::{Client, StatusCode, header};
-use tokio::{task::JoinSet, time::sleep};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    aimd::AimdState,
     buffer_pool::{DownloadBuffer, FlushObserver},
-    calculate_checksum_with_progress,
     database::Database,
-    error::{DownloadError, Result, io_error_with_path},
+    error::{DownloadError, Result},
     event_bus::DownloadEvent,
-    file_ops::{
-        check_disk_space, finalize_temp_file, open_download_file, read_all_at, reset_download_file,
-        write_all_at,
-    },
-    http::{
-        ANTI_ABUSE_SNIFF_LIMIT, anti_abuse_forbidden_error, apply_extra_headers,
-        build_segment_request, extract_total_bytes, has_header, header_string, identity_encoding,
-        if_range_header, infer_candidate_referers, infer_file_name, is_too_many_requests_error,
-        looks_like_anti_abuse_page, read_body_prefix, supports_ranges, validate_probe_response,
-        validate_segment_response,
-    },
+    file_ops::check_disk_space,
     download::{
-        ChunkWorkerOutcome, ManagedDownload, PERSIST_INTERVAL, RunOutcome,
-        cancellation_chunk_outcome, cancellation_outcome, record_durable_bytes,
-        record_progress_on_managed, supports_parallelism,
+        ManagedDownload, PERSIST_INTERVAL, RunOutcome,
     },
-    manager::DownloadManager,
-    checksum::hash_slices,
-    manifest::{
-        ChunkManifest, RemoteMetadata, contiguous_prefix_end, has_partial_chunk_progress,
-        plan_chunks, resolve_chunk_size, validators_changed,
-    },
-    metalink::{MirrorPool, MirrorScoringConfig},
+    manager_state::ManagerState,
+    manifest::Manifest,
     now_ms,
     persistence::persist_manifest_snapshot,
     rate_limiter::RateLimiter,
-    retry::{jittered_backoff_delay, register_retry_penalty, request_with_retry},
-    types::{AdaptiveProfile, ChecksumMode, DiskType, DownloadProgress, DownloadState, StartDownloadRequest, TaskKind, ThreadMode},
+    types::{DiskType, DownloadState},
 };
 
 /// Zero-sized actor type for HTTP download execution.
 ///
-/// All methods receive `&DownloadManager` or `Arc<DownloadManager>` to access
-/// shared state.  `DownloadManager` holds `Arc<HttpExecutor>` for delegation.
+/// Methods that need shared state receive `&dyn ManagerState` or
+/// `Arc<dyn ManagerState>`; `DownloadManager` implements that trait and holds
+/// `Arc<HttpExecutor>` for delegation.
 pub struct HttpExecutor;
 
 /// Tail Sprint: stall window for detecting a slow last-chunk connection.
@@ -69,10 +48,23 @@ const TAIL_SPRINT_MIN_SPLIT_SIZE: u64 = 1024 * 1024;
 /// Work Stealing: minimum remaining bytes of an active chunk to qualify for splitting (2 MiB).
 const WORK_STEAL_MIN_SPLIT_SIZE: u64 = 2 * 1024 * 1024;
 
+/// The path whose device the write buffer targets.
+///
+/// `temp_path` is the natural choice.  A manifest built by hand (tests, or a
+/// download whose temp path was never recorded) may leave it empty, in which
+/// case the destination path — same directory, same device — serves the same
+/// purpose: device resolution only needs *a* path on the target filesystem.
+fn device_path_for(manifest: &Manifest) -> PathBuf {
+    [&manifest.temp_path, &manifest.destination_path, &manifest.destination_dir]
+        .into_iter()
+        .find(|candidate| !candidate.is_empty())
+        .map_or_else(|| PathBuf::from("."), PathBuf::from)
+}
+
 /// Build the write buffer for a download: the shared HDD double-buffer pool,
 /// or the local SSD/Network ping-pong write-combining buffer.
 async fn build_write_buffer(
-    dm: &DownloadManager,
+    dm: &dyn ManagerState,
     managed: &Arc<ManagedDownload>,
     file: &Arc<fs::File>,
     disk_type: DiskType,
@@ -87,26 +79,22 @@ async fn build_write_buffer(
         crate::download::record_durable_bytes(&observer_managed, ranges);
     });
 
-    let (chunk_size, temp_path) = {
+    let (chunk_size, device_path) = {
         let core = managed.lock_core();
         (
             core.manifest.chunk_size,
-            if core.manifest.temp_path.is_empty() {
-                None
-            } else {
-                Some(PathBuf::from(&core.manifest.temp_path))
-            },
+            device_path_for(&core.manifest),
         )
     };
 
     if disk_type == DiskType::Hdd && hdd_buffering {
-        let slot = dm.buffer_pool.acquire_slot().await;
-        return Arc::new(DownloadBuffer::new_with_worker_path(
-            dm.buffer_pool.clone(),
+        let slot = dm.buffer_pool().acquire_slot().await;
+        return Arc::new(DownloadBuffer::new_with_worker(
+            dm.buffer_pool().clone(),
             slot,
             file.clone(),
-            temp_path,
-            dm.io_worker.clone(),
+            device_path,
+            dm.io_worker().clone(),
             Some(observer),
         ));
     }
@@ -121,11 +109,11 @@ async fn build_write_buffer(
     // this means at most 8 MiB per download — the ping-pong double-buffer
     // caps peak untracked memory at 16 MiB per download regardless of N.
     let ssd_half_size = (ssd_limit_bytes / 2).clamp(64 * 1024, 8 * 1024 * 1024);
-    Arc::new(DownloadBuffer::new_local_pingpong_with_worker_path(
+    Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
         ssd_half_size,
         file.clone(),
-        temp_path,
-        dm.io_worker.clone(),
+        device_path,
+        dm.io_worker().clone(),
         Some(observer),
     ))
 }
@@ -144,12 +132,12 @@ async fn flush_write_buffer(write_buffer: &Option<Arc<DownloadBuffer>>, reason: 
 
 /// Wait until the task is runnable; `Some(outcome)` means the caller must stop.
 async fn wait_or_stop(
-    dm: &DownloadManager,
+    dm: &dyn ManagerState,
     managed: &Arc<ManagedDownload>,
     token: &CancellationToken,
     write_buffer: &Option<Arc<DownloadBuffer>>,
 ) -> Option<RunOutcome> {
-    match dm.task_lifecycle.wait_until_active(dm, managed, token).await {
+    match dm.wait_until_active(managed, token).await {
         crate::download::WaitState::Running => None,
         crate::download::WaitState::Paused => {
             flush_write_buffer(write_buffer, "pause").await;
@@ -165,7 +153,7 @@ async fn wait_or_stop(
 /// Flush the write buffer after the download finished, keeping the UI
 /// "flushing" flag set around the flush.
 async fn finish_buffer_flush(
-    dm: &DownloadManager,
+    dm: &dyn ManagerState,
     managed: &Arc<ManagedDownload>,
     write_buffer: &Option<Arc<DownloadBuffer>>,
 ) -> Result<()> {
@@ -175,7 +163,7 @@ async fn finish_buffer_flush(
             let mut core = managed.lock_core();
             core.snapshot.flushing = true;
         }
-        dm.task_lifecycle.emit_progress(dm, managed);
+        dm.emit_progress(managed);
 
         let flush_result = buf.flush_all().await;
 
@@ -184,7 +172,7 @@ async fn finish_buffer_flush(
             let mut core = managed.lock_core();
             core.snapshot.flushing = false;
         }
-        dm.task_lifecycle.emit_progress(dm, managed);
+        dm.emit_progress(managed);
         flush_result?;
     }
     Ok(())
@@ -193,7 +181,7 @@ async fn finish_buffer_flush(
 /// Re-check free space every 30 s while downloading; fail the task when the
 /// remaining bytes no longer fit.
 async fn check_disk_space_periodically(
-    dm: &DownloadManager,
+    dm: &dyn ManagerState,
     managed: &Arc<ManagedDownload>,
     last_check: &mut Instant,
 ) -> Result<()> {
@@ -224,7 +212,7 @@ async fn check_disk_space_periodically(
                 core.manifest.connection_count = 0;
                 core.manifest.updated_at_ms = now_ms();
             }
-            dm.event_bus.publish(DownloadEvent::Warning {
+            dm.event_bus().publish(DownloadEvent::Warning {
                 id: managed.lock_core().manifest.id.clone(),
                 message: "disk full".into(),
             });
@@ -327,7 +315,7 @@ impl ProgressThrottle {
     async fn tick(
         &mut self,
         db: &Arc<Database>,
-        dm: &DownloadManager,
+        dm: &dyn ManagerState,
         managed: &Arc<ManagedDownload>,
     ) -> Result<()> {
         if self.last_persist.elapsed() < PERSIST_INTERVAL {
@@ -337,7 +325,7 @@ impl ProgressThrottle {
         self.last_persist = Instant::now();
         // Throttle progress events: at most once per 500ms
         if self.last_emit.elapsed() >= Duration::from_millis(500) {
-            dm.task_lifecycle.emit_progress(dm, managed);
+            dm.emit_progress(managed);
             self.last_emit = Instant::now();
         }
         Ok(())

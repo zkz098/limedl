@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -9,7 +9,8 @@ use parking_lot::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use super::worker::{IoWorker, SyncMode};
+use super::worker::IoWorker;
+use crate::file_ops::SyncMode;
 use super::{BufferPool, SlotGuard};
 use crate::error::DownloadError;
 use crate::file_ops::write_all_at;
@@ -89,35 +90,38 @@ pub(crate) enum BufferMode {
     },
 }
 
+/// Where a flush goes: the device sink plus the path that resolves which device
+/// queue the batch belongs to.
+///
+/// The two are one thing — a sink cannot route a batch without a path — so they
+/// are stored together instead of as two `Option`s that could disagree, which is
+/// how the deleted path-less fallback used to be reachable.
+struct FlushSink {
+    worker: IoWorker,
+    path: PathBuf,
+}
+
 /// A per-download buffer that accumulates chunks in memory and flushes them
 /// to disk via a background double-buffer ping-pong (HDD / SSD).
 pub struct DownloadBuffer {
     pub(crate) mode: BufferMode,
-    io_worker: Option<IoWorker>,
+    /// `Some` on every production path; `None` only for the test/bench-only
+    /// `new()`/`new_local_pingpong()` constructors, which write directly.
+    flush_sink: Option<FlushSink>,
     /// Durable-progress notification, shared with every flush path.
     flush_observer: Option<FlushObserver>,
-    file_path: Option<PathBuf>,
 }
 
 impl DownloadBuffer {
     /// Create a pool-backed double-buffer with a dedicated I/O worker.
-    #[allow(dead_code)]
+    ///
+    /// `file_path` is required: it selects the device queue the flushes are
+    /// routed to, so a buffer without one could not flush.
     pub fn new_with_worker(
         pool: Arc<BufferPool>,
         slot: SlotGuard,
         file: Arc<File>,
-        worker: IoWorker,
-        flush_observer: Option<FlushObserver>,
-    ) -> Self {
-        Self::new_with_worker_path(pool, slot, file, None, worker, flush_observer)
-    }
-
-    /// Create a pool-backed double-buffer with a dedicated I/O worker and target file path.
-    pub fn new_with_worker_path(
-        pool: Arc<BufferPool>,
-        slot: SlotGuard,
-        file: Arc<File>,
-        file_path: Option<PathBuf>,
+        file_path: PathBuf,
         worker: IoWorker,
         flush_observer: Option<FlushObserver>,
     ) -> Self {
@@ -138,9 +142,11 @@ impl DownloadBuffer {
                 slot,
                 file,
             },
-            io_worker: Some(worker),
+            flush_sink: Some(FlushSink {
+                worker,
+                path: file_path,
+            }),
             flush_observer,
-            file_path,
         }
     }
 
@@ -168,9 +174,8 @@ impl DownloadBuffer {
                 slot,
                 file,
             },
-            io_worker: None,
+            flush_sink: None,
             flush_observer: None,
-            file_path: None,
         }
     }
 
@@ -178,21 +183,11 @@ impl DownloadBuffer {
     ///
     /// Uses the same double-buffer flip logic as HDD but without global
     /// pool/slot management. `half_size` is the size of each ping-pong half.
-    #[allow(dead_code)]
+    /// `file_path` is required for the same reason as in [`Self::new_with_worker`].
     pub fn new_local_pingpong_with_worker(
         half_size: u64,
         file: Arc<File>,
-        worker: IoWorker,
-        flush_observer: Option<FlushObserver>,
-    ) -> Self {
-        Self::new_local_pingpong_with_worker_path(half_size, file, None, worker, flush_observer)
-    }
-
-    /// Create a local ping-pong buffer for SSD write combining with target file path.
-    pub fn new_local_pingpong_with_worker_path(
-        half_size: u64,
-        file: Arc<File>,
-        file_path: Option<PathBuf>,
+        file_path: PathBuf,
         worker: IoWorker,
         flush_observer: Option<FlushObserver>,
     ) -> Self {
@@ -210,9 +205,11 @@ impl DownloadBuffer {
                 flip_token: AtomicBool::new(false),
                 file,
             },
-            io_worker: Some(worker),
+            flush_sink: Some(FlushSink {
+                worker,
+                path: file_path,
+            }),
             flush_observer,
-            file_path,
         }
     }
 
@@ -378,8 +375,7 @@ impl DownloadBuffer {
 
             // Spawn background flush for the old active half's data.
             let bg_handle = spawn_background_flush(
-                self.io_worker.as_ref(),
-                self.file_path.as_deref(),
+                self.flush_sink.as_ref(),
                 &cfg,
                 halves.file,
                 halves.error_flag,
@@ -441,8 +437,7 @@ impl DownloadBuffer {
         half: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         usage: &AtomicU64,
         file: &Arc<File>,
-        file_path: Option<&Path>,
-        io_worker: Option<&IoWorker>,
+        sink: Option<&FlushSink>,
         observer: Option<&FlushObserver>,
     ) -> Result<(), DownloadError> {
         let entries: Vec<(u64, Bytes)> = {
@@ -454,9 +449,9 @@ impl DownloadBuffer {
         };
         let ranges = entry_ranges(&entries);
         usage.store(0, Ordering::Release);
-        if let Some(worker) = io_worker {
-            worker
-                .write_batch_for_path(file_path, file.clone(), entries, SyncMode::None)
+        if let Some(sink) = sink {
+            sink.worker
+                .write_batch(&sink.path, file.clone(), entries, SyncMode::None)
                 .await?;
         } else {
             let f = file.clone();
@@ -522,9 +517,8 @@ impl DownloadBuffer {
                     active,
                     active_usage,
                     file,
-                    self.file_path.as_deref(),
+                    self.flush_sink.as_ref(),
                     pool,
-                    self.io_worker.as_ref(),
                     self.flush_observer.as_ref(),
                 )
                 .await?;
@@ -534,9 +528,8 @@ impl DownloadBuffer {
                     inactive,
                     inactive_usage,
                     file,
-                    self.file_path.as_deref(),
+                    self.flush_sink.as_ref(),
                     pool,
-                    self.io_worker.as_ref(),
                     self.flush_observer.as_ref(),
                 )
                 .await?;
@@ -585,8 +578,7 @@ impl DownloadBuffer {
                     active,
                     active_usage,
                     file,
-                    self.file_path.as_deref(),
-                    self.io_worker.as_ref(),
+                    self.flush_sink.as_ref(),
                     self.flush_observer.as_ref(),
                 )
                 .await?;
@@ -596,8 +588,7 @@ impl DownloadBuffer {
                     inactive,
                     inactive_usage,
                     file,
-                    self.file_path.as_deref(),
-                    self.io_worker.as_ref(),
+                    self.flush_sink.as_ref(),
                     self.flush_observer.as_ref(),
                 )
                 .await?;
@@ -620,9 +611,8 @@ impl DownloadBuffer {
         half: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
         usage: &AtomicU64,
         file: &Arc<File>,
-        file_path: Option<&Path>,
+        sink: Option<&FlushSink>,
         pool: &Arc<BufferPool>,
-        io_worker: Option<&IoWorker>,
         observer: Option<&FlushObserver>,
     ) -> Result<(), DownloadError> {
         let entries: Vec<(u64, Bytes)> = {
@@ -637,9 +627,9 @@ impl DownloadBuffer {
         usage.store(0, Ordering::Release);
         pool.sub_usage(bytes);
 
-        if let Some(worker) = io_worker {
-            worker
-                .write_batch_for_path(file_path, file.clone(), entries, SyncMode::Force)
+        if let Some(sink) = sink {
+            sink.worker
+                .write_batch(&sink.path, file.clone(), entries, SyncMode::Force)
                 .await?;
         } else {
             let f = file.clone();
@@ -870,12 +860,12 @@ fn take_entries_with(
 
 /// Spawn the background flush for a half that was just rotated out.
 ///
-/// Prefers the dedicated `IoWorker`; otherwise falls back to `spawn_blocking`
-/// with a panic guard (unwind builds only — see the note in the body).
-/// Both paths set `error_flag` on failure and notify waiters when done.
+/// With a sink, the batch goes to the device queue; without one (the
+/// test/bench-only constructors) it is written inline on `spawn_blocking` with a
+/// panic guard (unwind builds only — see the note in the body).  Both paths set
+/// `error_flag` on failure and notify waiters when done.
 fn spawn_background_flush(
-    io_worker: Option<&IoWorker>,
-    file_path: Option<&Path>,
+    sink: Option<&FlushSink>,
     cfg: &PingPongCfg<'_>,
     file: &Arc<File>,
     error_flag: &Arc<AtomicBool>,
@@ -883,7 +873,6 @@ fn spawn_background_flush(
     entries: Vec<(u64, Bytes)>,
 ) -> JoinHandle<()> {
     let bg_file = file.clone();
-    let bg_path = file_path.map(|p| p.to_path_buf());
     let bg_error = Arc::clone(error_flag);
     let bg_notify = notify.clone();
     let bg_sync = cfg.bg_sync;
@@ -892,17 +881,18 @@ fn spawn_background_flush(
     let bg_observer = cfg.observer.cloned();
     let ranges = entry_ranges(&entries);
 
-    if let Some(worker) = io_worker {
-        let worker = worker.clone();
+    if let Some(sink) = sink {
+        let worker = sink.worker.clone();
+        let bg_path = sink.path.clone();
         tokio::spawn(async move {
             match worker
-                .write_batch_for_path(bg_path.as_deref(), bg_file, entries, bg_sync)
+                .write_batch(&bg_path, bg_file, entries, bg_sync)
                 .await
             {
                 Ok(()) => notify_flushed(bg_observer.as_ref(), &ranges),
                 Err(e) => {
                     bg_error.store(true, Ordering::Release);
-                    tracing::error!("background {label} buffer flush failed (IoWorker): {e}");
+                    tracing::error!("background {label} buffer flush failed (device queue): {e}");
                 }
             }
             bg_notify.notify_waiters();

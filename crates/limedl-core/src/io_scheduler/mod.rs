@@ -18,7 +18,7 @@ use bytes::Bytes;
 
 pub use queue::{DeviceMetric, DeviceQueue};
 pub use topology::{DeviceId, DeviceTopology};
-use crate::buffer_pool::SyncMode;
+use crate::file_ops::SyncMode;
 use crate::error::DownloadError;
 use crate::file_ops::MediaOverrides;
 use crate::types::{DiskType, FastDashMap};
@@ -91,14 +91,23 @@ impl DiskDeviceManager {
         queue.write_batch(file, entries, sync).await
     }
 
-    /// Record write activity (bytes and operation count) for global/device-level metrics.
-    pub fn record_write(&self, bytes: u64) {
-        let queue = self.get_or_create_queue(Path::new("."));
-        queue.record_direct_write(bytes);
-    }
-
     /// Collect live runtime metrics for all active physical/logical device queues.
     pub fn get_device_metrics(&self) -> Vec<DeviceMetric> {
         self.queues.iter().map(|entry| entry.value().metrics()).collect()
+    }
+}
+
+/// The capability `buffer_pool::IoWorker` needs, declared in `file_ops` so the
+/// buffering layer does not have to name this module.
+#[async_trait::async_trait]
+impl crate::file_ops::BatchWriteSink for DiskDeviceManager {
+    async fn write_batch(
+        &self,
+        path: &Path,
+        file: Arc<File>,
+        entries: Vec<(u64, Bytes)>,
+        sync: SyncMode,
+    ) -> Result<(), DownloadError> {
+        DiskDeviceManager::write_batch(self, path, file, entries, sync).await
     }
 }

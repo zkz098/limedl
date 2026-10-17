@@ -4,15 +4,37 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 use reqwest::Response;
 
-use super::{
-    Arc, BatchLimiter, CancellationToken, ChunkManifest, ChunkWorkerOutcome, Client, Database,
-    DiskType, DownloadBuffer, DownloadError, DownloadManager, DownloadState, JoinSet,
-    ManagedDownload, MirrorPool, ProgressThrottle, RateLimiter, RequestBudget, Result, StatusCode,
-    build_segment_request, cancellation_chunk_outcome, hash_slices, if_range_header,
-    is_too_many_requests_error, jittered_backoff_delay, now_ms, read_all_at, record_durable_bytes,
-    record_progress_on_managed, register_retry_penalty, request_with_retry, sleep,
-    validate_segment_response, write_all_at,
+use crate::now_ms;
+use crate::buffer_pool::DownloadBuffer;
+use crate::checksum::hash_slices;
+use crate::database::Database;
+use crate::download::{
+    ChunkWorkerOutcome,
+    ManagedDownload,
+    cancellation_chunk_outcome,
+    record_durable_bytes,
+    record_progress_on_managed,
 };
+use crate::error::{DownloadError, Result};
+use crate::file_ops::{read_all_at, write_all_at};
+use crate::http::{
+    build_segment_request,
+    if_range_header,
+    is_too_many_requests_error,
+    validate_segment_response,
+};
+use crate::manager_state::ManagerState;
+use crate::manifest::ChunkManifest;
+use crate::metalink::MirrorPool;
+use crate::rate_limiter::RateLimiter;
+use crate::retry::{jittered_backoff_delay, register_retry_penalty, request_with_retry};
+use crate::types::{DiskType, DownloadState};
+use reqwest::{Client, StatusCode};
+use std::sync::Arc;
+use super::{BatchLimiter, ProgressThrottle, RequestBudget};
+use tokio::task::JoinSet;
+use tokio::time::sleep;
+use tokio_util::sync::CancellationToken;
 #[cfg(test)]
 use super::WORK_STEAL_MIN_SPLIT_SIZE;
 
@@ -210,7 +232,7 @@ pub(super) struct ChunkWorkerCtx {
     pub(super) max_retries: u32,
     pub(super) db: Arc<Database>,
     pub(super) rate_limiter: Arc<RateLimiter>,
-    pub(super) manager: Arc<DownloadManager>,
+    pub(super) manager: Arc<dyn ManagerState>,
     pub(super) write_buffer: Option<Arc<DownloadBuffer>>,
     pub(super) disk_type: DiskType,
     pub(super) worker_id: usize,
@@ -469,10 +491,10 @@ impl ChunkWorkerCtx {
         };
 
         let (proxy_mode, alt_svc_enabled) = {
-            let settings = self.manager.settings_service.get_blocking();
+            let settings = self.manager.settings_service().get_blocking();
             (settings.proxy.mode, settings.scheduler.http3_alt_svc_enabled)
         };
-        let http3_target = self.manager.http.alt_svc.should_attempt_http3(
+        let http3_target = self.manager.alt_svc().should_attempt_http3(
             &url,
             proxy_mode,
             alt_svc_enabled,
@@ -495,20 +517,20 @@ impl ChunkWorkerCtx {
 
             match tokio::time::timeout(std::time::Duration::from_secs(5), req.send()).await {
                 Ok(Ok(res)) => {
-                    self.manager.http.alt_svc.mark_success(host, port);
+                    self.manager.alt_svc().mark_success(host, port);
                     response = Some(res);
                 }
                 Ok(Err(err)) => {
                     tracing::warn!(
                         "HTTP/3 request to {url} failed: {err}; tripping circuit breaker and falling back to TCP"
                     );
-                    self.manager.http.alt_svc.mark_broken(host, port, now_ms());
+                    self.manager.alt_svc().mark_broken(host, port, now_ms());
                 }
                 Err(_) => {
                     tracing::warn!(
                         "HTTP/3 request to {url} timed out; tripping circuit breaker and falling back to TCP"
                     );
-                    self.manager.http.alt_svc.mark_broken(host, port, now_ms());
+                    self.manager.alt_svc().mark_broken(host, port, now_ms());
                 }
             }
         }
@@ -547,7 +569,7 @@ impl ChunkWorkerCtx {
 
         match response {
             Ok(response) => {
-                self.manager.http.alt_svc.record_from_response(&url, response.headers(), now_ms());
+                self.manager.alt_svc().record_from_response(&url, response.headers(), now_ms());
                 Ok(response)
             }
             Err(error) => {
@@ -663,7 +685,7 @@ impl ChunkWorkerCtx {
                 batch.flush(&self.rate_limiter).await;
                 return Ok(SegmentBody::Stop(ChunkWorkerOutcome::Finished));
             }
-            throttle.tick(&self.db, &self.manager, &self.managed).await?;
+            throttle.tick(&self.db, self.manager.as_ref(), &self.managed).await?;
         }
 
         if !local_buf.is_empty() {

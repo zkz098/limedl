@@ -203,8 +203,8 @@ async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
     // progress data for the controller to decide to increase.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
     loop {
-        manager.scheduler.update_adaptive_targets(&manager).await?;
-        manager.scheduler.rebalance_allocations(&manager).await?;
+        manager.scheduler.update_adaptive_targets(&*manager).await?;
+        manager.scheduler.rebalance_allocations(&*manager).await?;
         let snapshot = manager.status(&id.to_string()).await?;
         if snapshot.desired_thread_count.unwrap_or(0) >= 3 {
             break;

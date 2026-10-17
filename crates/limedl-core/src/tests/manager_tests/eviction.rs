@@ -142,7 +142,7 @@ async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
 
     assert_eq!(manager.downloads.read().await.len(), 4);
 
-    let evicted = manager.task_lifecycle.evict_completed(&manager).await;
+    let evicted = manager.task_lifecycle.evict_completed(&*manager).await;
     // limit=2, excess=2, terminal=[completed-old, completed-new, failed]
     // Should evict the 2 oldest terminal entries: completed-old and completed-new
     assert_eq!(evicted, 2, "should have evicted 2 terminal entries");

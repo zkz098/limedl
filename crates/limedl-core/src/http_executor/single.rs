@@ -3,16 +3,34 @@
 use bytes::Bytes;
 use futures_util::StreamExt;
 
+use crate::now_ms;
+use crate::buffer_pool::DownloadBuffer;
+use crate::download::{ManagedDownload, RunOutcome, cancellation_outcome, record_durable_bytes};
+use crate::error::{DownloadError, Result, io_error_with_path};
+use crate::file_ops::{open_download_file, reset_download_file, write_all_at};
+use crate::http::{apply_extra_headers, identity_encoding, if_range_header};
+use crate::manager_state::ManagerState;
+use crate::manifest::contiguous_prefix_end;
+use crate::retry::{jittered_backoff_delay, register_retry_penalty, request_with_retry};
+use crate::types::{DiskType, DownloadState};
+use reqwest::{Client, StatusCode, header};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::Instant;
 use super::{
-    Arc, BatchLimiter, CancellationToken, Client, DiskType, DownloadBuffer, DownloadError,
-    DownloadManager, DownloadState, HttpExecutor, Instant, ManagedDownload, Path, PathBuf,
-    ProgressThrottle, RequestBudget, Result, RunOutcome, StatusCode, apply_extra_headers,
-    build_write_buffer, cancellation_outcome, check_disk_space_periodically, contiguous_prefix_end,
-    finish_buffer_flush, flush_write_buffer, fs, header, identity_encoding, if_range_header,
-    io_error_with_path, jittered_backoff_delay, now_ms, open_download_file, record_durable_bytes,
-    register_retry_penalty, request_with_retry, reset_download_file, sleep, wait_or_stop,
-    write_all_at,
+    BatchLimiter,
+    HttpExecutor,
+    ProgressThrottle,
+    RequestBudget,
+    build_write_buffer,
+    check_disk_space_periodically,
+    finish_buffer_flush,
+    flush_write_buffer,
+    wait_or_stop,
 };
+use tokio::time::sleep;
+use tokio_util::sync::CancellationToken;
 
 /// Upper bound on the number of responses one single-stream download may consume.
 ///
@@ -25,7 +43,7 @@ const MAX_SINGLE_STREAM_REQUESTS: u32 = 64;
 impl HttpExecutor {
     pub(super) async fn download_single(
         &self,
-        dm: Arc<DownloadManager>,
+        dm: Arc<dyn ManagerState>,
         managed: Arc<ManagedDownload>,
         client: Client,
         token: CancellationToken,
@@ -54,7 +72,7 @@ impl HttpExecutor {
         let mut last_progress_offset = 0;
 
         loop {
-            if let Some(outcome) = wait_or_stop(&dm, &managed, &token, &write_buffer).await {
+            if let Some(outcome) = wait_or_stop(dm.as_ref(), &managed, &token, &write_buffer).await {
                 return Ok(outcome);
             }
 
@@ -88,10 +106,10 @@ impl HttpExecutor {
             };
 
             let (proxy_mode, alt_svc_enabled) = {
-                let settings = dm.settings_service.get_blocking();
+                let settings = dm.settings_service().get_blocking();
                 (settings.proxy.mode, settings.scheduler.http3_alt_svc_enabled)
             };
-            let http3_target = dm.http.alt_svc.should_attempt_http3(
+            let http3_target = dm.alt_svc().should_attempt_http3(
                 &url,
                 proxy_mode,
                 alt_svc_enabled,
@@ -115,20 +133,20 @@ impl HttpExecutor {
                 .await
                 {
                     Ok(Ok(res)) => {
-                        dm.http.alt_svc.mark_success(host, port);
+                        dm.alt_svc().mark_success(host, port);
                         response = Some(res);
                     }
                     Ok(Err(err)) => {
                         tracing::warn!(
                             "HTTP/3 single request to {url} failed: {err}; tripping circuit breaker and falling back to TCP"
                         );
-                        dm.http.alt_svc.mark_broken(host, port, now_ms());
+                        dm.alt_svc().mark_broken(host, port, now_ms());
                     }
                     Err(_) => {
                         tracing::warn!(
                             "HTTP/3 single request to {url} timed out; tripping circuit breaker and falling back to TCP"
                         );
-                        dm.http.alt_svc.mark_broken(host, port, now_ms());
+                        dm.alt_svc().mark_broken(host, port, now_ms());
                     }
                 }
             }
@@ -156,7 +174,7 @@ impl HttpExecutor {
                 }
             };
 
-            dm.http.alt_svc.record_from_response(&url, response.headers(), now_ms());
+            dm.alt_svc().record_from_response(&url, response.headers(), now_ms());
 
             let status = response.status();
             let mut stream = response.bytes_stream();
@@ -194,11 +212,11 @@ impl HttpExecutor {
                             &bytes,
                         )
                         .await;
-                        dm.task_lifecycle
-                            .record_progress(&dm, &managed, None, bytes.len() as u64);
+                        dm
+                            .record_progress(&managed, None, bytes.len() as u64);
                     }
                     // Flush remaining rate limiter bytes before exiting
-                    batch.flush(&dm.rate_limiter).await;
+                    batch.flush(dm.rate_limiter()).await;
                     // Persist buffered data before exit: `downloaded_bytes` was
                     // already credited for these chunks, so discarding them here
                     // would leave a hole on resume and misfire the Drop canary.
@@ -214,7 +232,7 @@ impl HttpExecutor {
                         break;
                     }
                 };
-                batch.account(&dm.rate_limiter, chunk.len()).await;
+                batch.account(dm.rate_limiter(), chunk.len()).await;
                 guard_content_length(total_bytes, absolute_offset, chunk.len())?;
 
                 if let Some(ref mut hasher) = streaming_hasher {
@@ -243,11 +261,11 @@ impl HttpExecutor {
                         &bytes,
                     )
                     .await?;
-                    dm.task_lifecycle
-                        .record_progress(&dm, &managed, None, bytes.len() as u64);
+                    dm
+                        .record_progress(&managed, None, bytes.len() as u64);
                     batch_start_offset = absolute_offset;
-                    throttle.tick(&dm.db, &dm, &managed).await?;
-                    check_disk_space_periodically(&dm, &managed, &mut last_disk_check).await?;
+                    throttle.tick(dm.db(), dm.as_ref(), &managed).await?;
+                    check_disk_space_periodically(dm.as_ref(), &managed, &mut last_disk_check).await?;
                 }
             }
 
@@ -262,14 +280,14 @@ impl HttpExecutor {
                     &bytes,
                 )
                 .await?;
-                dm.task_lifecycle
-                    .record_progress(&dm, &managed, None, bytes.len() as u64);
-                throttle.tick(&dm.db, &dm, &managed).await?;
-                check_disk_space_periodically(&dm, &managed, &mut last_disk_check).await?;
+                dm
+                    .record_progress(&managed, None, bytes.len() as u64);
+                throttle.tick(dm.db(), dm.as_ref(), &managed).await?;
+                check_disk_space_periodically(dm.as_ref(), &managed, &mut last_disk_check).await?;
             }
 
             // Flush remaining rate limiter bytes after stream ends
-            batch.flush(&dm.rate_limiter).await;
+            batch.flush(dm.rate_limiter()).await;
 
             if let Some(err) = stream_error {
                 tracing::warn!(
@@ -297,7 +315,7 @@ impl HttpExecutor {
                 consecutive_stream_errors = 0;
                 last_progress_offset = absolute_offset;
                 if single_finished(&managed) {
-                    finish_buffer_flush(&dm, &managed, &write_buffer).await?;
+                    finish_buffer_flush(dm.as_ref(), &managed, &write_buffer).await?;
                     if let Some(hasher) = streaming_hasher {
                         let is_complete = match total_bytes {
                             Some(total) => hasher_expected_offset == total,
@@ -322,7 +340,7 @@ impl HttpExecutor {
 ///
 /// Also publishes the detected disk type on the snapshot for the UI badge.
 async fn open_single_target(
-    dm: &Arc<DownloadManager>,
+    dm: &Arc<dyn ManagerState>,
     managed: &Arc<ManagedDownload>,
 ) -> Result<(Arc<fs::File>, Option<u64>, DiskType, Arc<DownloadBuffer>)> {
     let (temp_path, total_bytes, destination_dir) = {
@@ -342,7 +360,7 @@ async fn open_single_target(
     // Test-only: remember this download's temp file (by id) so a pipeline
     // fault-injection test can arm a targeted write-failure. Inert in prod.
     #[cfg(any(test, feature = "test-utils"))]
-    crate::buffer_pool::fault::register_file(&managed.lock_core().manifest.id, &file);
+    crate::file_ops::fault::register_file(&managed.lock_core().manifest.id, &file);
 
     // HDD/SSD optimization: set up buffered writing
     let settings = dm.settings().await?;
@@ -351,7 +369,7 @@ async fn open_single_target(
     drop(settings);
     let disk_type = dm.resolve_disk_type(Path::new(&destination_dir)).await;
     let write_buffer =
-        build_write_buffer(dm, managed, &file, disk_type, hdd_buffering, ssd_write_combine_mb)
+        build_write_buffer(dm.as_ref(), managed, &file, disk_type, hdd_buffering, ssd_write_combine_mb)
             .await;
 
     // Set disk_type on snapshot for frontend badge display
@@ -395,7 +413,7 @@ async fn single_request(
 /// Decide the starting offset for this attempt; a non-range response to a
 /// resume request resets the file and progress.
 async fn single_start_offset(
-    dm: &Arc<DownloadManager>,
+    dm: &Arc<dyn ManagerState>,
     managed: &Arc<ManagedDownload>,
     file: &Arc<fs::File>,
     write_buffer: &Option<Arc<DownloadBuffer>>,
@@ -407,7 +425,7 @@ async fn single_start_offset(
     }
     if start_offset > 0 {
         reset_download_file(file, managed.lock_core().manifest.total_bytes)?;
-        dm.task_lifecycle.reset_progress(dm, managed, true);
+        dm.reset_progress(managed, true);
         if let Some(buf) = write_buffer {
             buf.clear();
         }

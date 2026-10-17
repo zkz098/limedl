@@ -9,9 +9,6 @@ use super::{
     manifest::Manifest,
 };
 
-pub mod alt_svc;
-pub use alt_svc::{AltSvcManager, AltSvcRecord};
-
 pub enum ResponseDisposition {
     Use(Response),
     Retryable(StatusCode),
