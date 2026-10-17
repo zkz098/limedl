@@ -9,6 +9,7 @@
 //! - [`IrontideBtBackend`] (BitTorrent) — offline smoke tests + #[ignore] network test
 
 use std::sync::Arc;
+#[cfg(feature = "bt")]
 use std::sync::atomic::AtomicUsize;
 use std::time::Duration;
 
@@ -17,10 +18,12 @@ use tempfile::TempDir;
 
 use crate::{
     DownloadBackend, DownloadManager, EventBus, RateLimiter,
-    types::{AppSettings, ChecksumMode, DownloadState, StartDownloadRequest, ThreadMode},
+    types::{ChecksumMode, DownloadState, StartDownloadRequest, ThreadMode},
 };
 #[cfg(feature = "bt")]
 use crate::IrontideBtBackend;
+#[cfg(feature = "bt")]
+use crate::types::AppSettings;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 

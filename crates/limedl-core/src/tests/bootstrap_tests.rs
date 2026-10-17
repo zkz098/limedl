@@ -195,12 +195,8 @@ async fn find_active_by_url_different_urls() {
     // Cleanup
     let tid1 = TaskId::from_wire_string(&id1.to_string()).unwrap();
     let tid2 = TaskId::from_wire_string(&id2.to_string()).unwrap();
-    let TaskId::Http(uuid1) = tid1 else {
-        unreachable!()
-    };
-    let TaskId::Http(uuid2) = tid2 else {
-        unreachable!()
-    };
+    let uuid1 = tid1.as_http().expect("http task id");
+    let uuid2 = tid2.as_http().expect("http task id");
     dm.cancel(&uuid1.to_string()).await.unwrap();
     dm.cancel(&uuid2.to_string()).await.unwrap();
 

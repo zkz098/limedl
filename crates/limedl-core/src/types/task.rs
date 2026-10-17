@@ -54,6 +54,21 @@ impl TaskId {
         }
     }
 
+    /// The HTTP id, or `None` for a BitTorrent task.
+    ///
+    /// Callers that only serve HTTP must use this instead of
+    /// `let TaskId::Http(id) = task_id else { … }`: with the `bt` feature off the
+    /// enum has a single variant, that destructuring becomes irrefutable, and
+    /// rustc's `irrefutable_let_patterns` lint fires (fatal under the CI gate).
+    /// Destructuring an `Option` stays refutable in every configuration.
+    pub fn as_http(&self) -> Option<Uuid> {
+        match self {
+            TaskId::Http(uuid) => Some(*uuid),
+            #[cfg(feature = "bt")]
+            TaskId::Bt(_) => None,
+        }
+    }
+
     /// Raw canonical string: UUID hyphenated for Http, lowercase hex for Bt.
     pub fn raw_id(&self) -> String {
         match self {

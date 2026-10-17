@@ -6,9 +6,10 @@ use uuid::Uuid;
 use crate::error::DownloadError;
 use crate::protocol::DownloadBackend;
 use crate::types::{
-    AppSettings, DownloadSnapshot, DownloadState, DownloadSummary, StartDownloadRequest, TaskId,
-    TaskKind, ThreadMode,
+    AppSettings, DownloadSnapshot, DownloadSummary, StartDownloadRequest, TaskId, TaskKind,
 };
+#[cfg(feature = "bt")]
+use crate::types::{DownloadState, ThreadMode};
 
 // ── Mocks ──────────────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ impl MockBackend {
         }
     }
 
+    #[cfg(feature = "bt")]
     fn with_summaries(summaries: Vec<DownloadSummary>) -> Self {
         Self {
             name: "mock",
@@ -45,6 +47,7 @@ impl MockBackend {
         }
     }
 
+    #[cfg(feature = "bt")]
     fn with_list_error(name: &'static str) -> Self {
         Self {
             name,
@@ -152,6 +155,7 @@ fn make_bt_task_id() -> TaskId {
     )
 }
 
+#[cfg(feature = "bt")]
 fn make_summary(created_at_ms: u64) -> DownloadSummary {
     DownloadSummary {
         id: String::new(),

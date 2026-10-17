@@ -96,6 +96,7 @@ fn apply_v3(conn: &Connection) {
     .unwrap();
 }
 
+#[cfg(feature = "bt")]
 mod bt_task_repo;
 mod chunks;
 mod concurrency;

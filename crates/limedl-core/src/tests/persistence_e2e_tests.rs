@@ -114,10 +114,7 @@ async fn download_survives_restart() {
                 let Ok(tid) = TaskId::from_wire_string(&s.id) else {
                     return false;
                 };
-                match tid {
-                    TaskId::Http(u) => u.to_string() == download_id,
-                    _ => false,
-                }
+                tid.as_http().is_some_and(|u| u.to_string() == download_id)
             })
             .expect("Download should survive restart and appear in list");
 

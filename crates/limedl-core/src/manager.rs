@@ -980,14 +980,14 @@ impl DownloadBackend for DownloadManager {
     }
 
     async fn pause(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let TaskId::Http(uuid) = task_id else {
+        let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
         DownloadManager::pause(self, &uuid.to_string()).await
     }
 
     async fn resume(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let TaskId::Http(uuid) = task_id else {
+        let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
         let arc_self = Arc::new(self.clone());
@@ -995,49 +995,49 @@ impl DownloadBackend for DownloadManager {
     }
 
     async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let TaskId::Http(uuid) = task_id else {
+        let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
         DownloadManager::cancel(self, &uuid.to_string()).await
     }
 
     async fn remove(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let TaskId::Http(uuid) = task_id else {
+        let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
         DownloadManager::remove(self, &uuid.to_string()).await
     }
 
     async fn purge(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let TaskId::Http(uuid) = task_id else {
+        let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
         DownloadManager::purge(self, &uuid.to_string()).await
     }
 
     async fn open_in_explorer(&self, task_id: &TaskId) -> Result<()> {
-        let TaskId::Http(uuid) = task_id else {
+        let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
         DownloadManager::open_in_explorer(self, &uuid.to_string()).await
     }
 
     async fn open_file(&self, task_id: &TaskId) -> Result<()> {
-        let TaskId::Http(uuid) = task_id else {
+        let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
         DownloadManager::open_file(self, &uuid.to_string()).await
     }
 
     async fn open_dir(&self, task_id: &TaskId) -> Result<()> {
-        let TaskId::Http(uuid) = task_id else {
+        let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
         DownloadManager::open_dir(self, &uuid.to_string()).await
     }
 
     async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
-        let TaskId::Http(uuid) = task_id else {
+        let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
         DownloadManager::status(self, &uuid.to_string()).await
@@ -1053,7 +1053,7 @@ impl DownloadBackend for DownloadManager {
     }
 
     async fn set_priority(&self, task_id: &TaskId, priority: Priority) -> Result<()> {
-        let TaskId::Http(uuid) = task_id else {
+        let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
         let download_id = uuid.to_string();

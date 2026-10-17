@@ -82,7 +82,7 @@ async fn scheduler_respects_max_parallel_tasks() {
     // Cleanup: cancel all downloads
     for id in &ids {
         let task_id = TaskId::from_wire_string(id).unwrap();
-        if let TaskId::Http(inner) = &task_id {
+        if let Some(inner) = task_id.as_http() {
             let _ = dm.cancel(&inner.to_string()).await;
         }
     }
