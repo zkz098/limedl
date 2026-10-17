@@ -107,3 +107,48 @@ The adaptive HTTP thread scheduling rework solved the 1-thread deadlock and comp
 - **Proactive probing breaks 1-thread deadlock**: Single connections in a stable bandwidth environment do not spontaneously accelerate, meaning passive AI (`throughput >= last * (1.0 + increase)`) never fired. The scheduler proactively probes upwards after `probe_stable_cycles` consecutive stable cycles. If the probe yields no throughput improvement, it rolls back to the pre-probe thread count and enters cooldown (`aimd_probe_rollback_when_no_gain`, `aimd_probe_success_retains_increase`).
 - **Settling period & baseline reset eliminate compounding decrease cascades**: Decreasing threads reduces immediate throughput by design. If `last_throughput` retained the pre-decrease high value, the next evaluation cycle misinterpreted the drop as fresh network congestion and halved threads again repeatedly down to 1. `apply_decrease` now clears `last_throughput` and sets `settling_until` to establish a clean baseline after connection allocation settles (`aimd_no_cascade_after_decrease`).
 - **Worker pool sizing in chunked executor**: `http_executor/chunked.rs` previously capped workers at `target.min((chunk_count / 2).max(1))`. With 2 or 3 chunks, worker concurrency was artificially clamped to 1, starving the scheduler's target. The worker limit is now `target.min(chunk_count)`.
+
+## Settings form completeness (`src/bridge/forms/fields.rs`, 2026-10)
+
+Adding a setting used to mean editing up to nine places by hand — the
+`AppSettings` struct and its serde defaults, `normalize_settings`, `to_form.rs`,
+`from_form.rs`, the `SettingsFormData` declaration in `ui/types.slint`, the
+settings tab, `aria2_global_options` and the validation labels — with nothing to
+catch a forgotten one. The table in `fields.rs` is now the single declaration of
+every `SettingsFormData` field, and two tests turn it into a guarantee:
+
+- `table_covers_every_settings_form_field` parses
+  `export struct SettingsFormData` out of `ui/types.slint` and fails when the
+  table and the declaration disagree in either direction.
+- `every_settings_leaf_round_trips_through_the_form` builds a form whose
+  round-trip fields all hold a sentinel, pushes it through
+  `update_app_settings_from_form` and back through `app_settings_to_form`, and
+  fails on (a) a field that does not come back with exactly the sentinel value,
+  or (b) an `AppSettings` JSON leaf that no form field moved. The second half is
+  why `NOT_ON_THE_FORM` exists: every leaf without a dialog field must be listed
+  there with a reason.
+
+Part (a) is exact equality, not "the field moved". The sentinels are chosen to
+survive the clamps and the rounding (`"5"` for `io_game_mode_max_parallel` is the
+one case where a wider value would be silently clamped to 8), so the test also
+fails on a clamp that swallows a value or a `{:.2}`-style reformat that drifts —
+which a difference-based assertion would not notice. Only the forced-on `file`
+column is excluded, and the table marks it `display` for that reason.
+
+## Translation catalogs (`src/i18n/`, 2026-10)
+
+The Slint strings (`@tr`) and the Rust strings (`i18n::format_*`) used to live in
+two places: `lang/*/LC_MESSAGES/limedl-native.po` for the UI and a hand-written
+three-language `match lang` in every `i18n/*.rs` function. A message needed in
+both places existed twice and had already diverged — the About tab's
+"v{} downloaded and verified. Restart to apply." said `重启后生效` in the catalog
+and `重启应用后生效` in the toast. Both sides now read the `.po` catalogs;
+`src/i18n/catalog.rs` is generated from them by `cargo xtask i18n generate`, and
+`i18n::tr`/`tr_fmt` look up the same msgids the Slint compiler bundles.
+
+The tests that keep it honest are listed in
+[`i18n.md`](i18n.md#what-the-tests-enforce). The scan in
+`every_rust_message_exists_in_the_catalogs` is deliberately textual and skips
+comments and string literals: a doc comment that mentions `tr("…")` as an example
+(and the `@tr("` needle inside the Slint scan) would otherwise be collected as a
+key.

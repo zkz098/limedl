@@ -20,6 +20,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Fetch UI font   | `cargo xtask fetch-font [--verify]` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                  |
 | Drive the UI    | `set "SLINT_EMIT_DEBUG_INFO=1" && set "SLINT_MCP_PORT=8080" && cargo run -p limedl-native --features slint/mcp` (see `docs/manual-smoke-testing.md`)              |
 | Theme / tokens  | `cargo xtask theme generate` · `cargo xtask theme apply` · `cargo xtask theme check`                                                                               |
+| Translations    | `cargo xtask i18n generate` · `cargo xtask i18n check` (see `docs/i18n.md`)                                                                                          |
 | Generate icons  | `cargo xtask gen-icons [msix\|hicolor\|macos-iconset] --out-dir <dir>`                                                                                             |
 | Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `docs/update-signing-key.md`)             |
 
@@ -57,7 +58,8 @@ release if a dependency raises it again.
 ## Conventions
 
 - Rust structs: `#[serde(rename_all = "camelCase")]`. Enums: `#[serde(rename_all = "snake_case")]`.
-- Native UI (Slint): use `Theme.c<hex>` tokens from `ui/theme.slint` (never hardcoded hex), `@tr(...)` for all user-visible strings in `.slint`, and `i18n::format_*` helpers for Rust-side text.
+- Native UI (Slint): use `Theme.c<hex>` tokens from `ui/theme.slint` (never hardcoded hex, except the literals `theme.rs` lists as identical in both schemes), `@tr(...)` for all user-visible strings in `.slint`, and `i18n::format_*` / `i18n::tr` helpers for Rust-side text. Both sides read the same `.po` catalogs; see `docs/i18n.md`.
+- Settings: a field lives in `SettingsFormData` (`ui/types.slint`) and one row of the table in `src/bridge/forms/fields.rs`. The table's completeness test fails when `AppSettings` gains a leaf that no dialog field writes.
 - Build: `.cargo/config.toml` sets `target-cpu=x86-64-v3` and adds `--cfg reqwest_unstable` (required by reqwest's unstable `http3` feature) to every `[target.*]` rustflags — remember it when adding a new target.
 
 ## Documentation
@@ -108,6 +110,10 @@ cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
 # CI pins cargo-hack 0.6.45 and cargo-machete 0.9.2 (install-action).
 cargo hack check --feature-powerset --all-targets --keep-going --manifest-path crates/limedl-core/Cargo.toml
 cargo machete --with-metadata
+
+# The theme-token scanner: no new hardcoded hex in `ui/*.slint` components
+# (alpha tints and scheme-identical colors are allowlisted in `xtask/src/theme.rs`).
+cargo xtask theme check
 ```
 
 `cargo hack` walks every `limedl-core` feature combination — `--no-default-features`
