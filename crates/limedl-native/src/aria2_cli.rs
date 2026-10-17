@@ -96,81 +96,126 @@ pub fn parse(text: &str) -> Option<Aria2Command> {
     let mut i = 1;
     while i < tokens.len() {
         let token = tokens[i].clone();
-        if token.starts_with('-') && token != "-" {
-            let (name, inline) = split_option(&token);
-
-            if let Some(label) = unsupported_value_label(&name) {
-                cmd.unsupported.push(label.to_string());
-                take_value(&tokens, &mut i, inline.as_deref());
-            } else if UNSUPPORTED_FLAG_OPTIONS.contains(&name.as_str()) {
-                cmd.unsupported.push(name);
-            } else if PROXY_VALUE_OPTIONS.contains(&name.as_str()) {
-                take_value(&tokens, &mut i, inline.as_deref());
-            } else {
-                match name.as_str() {
-                    "--out" | "-o" => {
-                        if let Some(value) = take_value(&tokens, &mut i, inline.as_deref()) {
-                            cmd.out = Some(value);
-                        }
-                    }
-                    "--dir" | "-d" => {
-                        if let Some(value) = take_value(&tokens, &mut i, inline.as_deref()) {
-                            cmd.dir = Some(value);
-                        }
-                    }
-                    "--header" | "-H" | "--http-header" => {
-                        if let Some(value) = take_value(&tokens, &mut i, inline.as_deref())
-                            && !value.trim().is_empty()
-                        {
-                            cmd.headers.push(value);
-                        }
-                    }
-                    "--user-agent" | "-U" => {
-                        if let Some(value) = take_value(&tokens, &mut i, inline.as_deref())
-                            && !value.trim().is_empty()
-                        {
-                            cmd.user_agent = Some(value);
-                        }
-                    }
-                    "--referer" | "--referrer" | "--http-referer" => {
-                        if let Some(value) = take_value(&tokens, &mut i, inline.as_deref())
-                            && !value.trim().is_empty()
-                        {
-                            cmd.headers.push(format!("Referer: {value}"));
-                        }
-                    }
-                    "--checksum" => {
-                        if let Some(value) = take_value(&tokens, &mut i, inline.as_deref()) {
-                            match parse_checksum_spec(&value) {
-                                Ok(Some(pair)) => cmd.checksum = Some(pair),
-                                Ok(None) => {}
-                                // Recognized but not a digest limedl verifies.
-                                Err(()) => cmd.unsupported.push("--checksum".to_string()),
-                            }
-                        }
-                    }
-                    "--force-sequential" | "-Z" => cmd.force_sequential = true,
-                    // Any other option: consume the next token as its value
-                    // unless it is another option or a URL (the latter covers
-                    // boolean flags such as `--continue` written without a
-                    // value directly before the target).
-                    _ => {
-                        if let Some(next) = tokens.get(i + 1)
-                            && !next.starts_with('-')
-                            && next != "-"
-                            && !looks_like_url(next)
-                        {
-                            i += 1;
-                        }
-                    }
-                }
-            }
+        if is_option_token(&token) {
+            apply_option(&mut cmd, &tokens, &mut i, &token);
         } else if looks_like_url(&token) {
             cmd.urls.push(token);
         }
         i += 1;
     }
 
+    finish(cmd)
+}
+
+/// `--flag`, `--flag=value`, or a bare `-` (stdin, which is not an option).
+fn is_option_token(token: &str) -> bool {
+    token.starts_with('-') && token != "-"
+}
+
+/// Fold one option token into `cmd`, consuming its value token when it has one.
+fn apply_option(cmd: &mut Aria2Command, tokens: &[String], i: &mut usize, token: &str) {
+    let (name, inline) = split_option(token);
+    let inline = inline.as_deref();
+
+    if let Some(label) = unsupported_value_label(&name) {
+        cmd.unsupported.push(label.to_string());
+        take_value(tokens, i, inline);
+    } else if UNSUPPORTED_FLAG_OPTIONS.contains(&name.as_str()) {
+        cmd.unsupported.push(name);
+    } else if PROXY_VALUE_OPTIONS.contains(&name.as_str()) {
+        take_value(tokens, i, inline);
+    } else {
+        apply_known_option(cmd, tokens, i, &name, inline);
+    }
+}
+
+/// The options limedl understands; everything else is skipped by
+/// [`skip_unknown_option`].
+fn apply_known_option(
+    cmd: &mut Aria2Command,
+    tokens: &[String],
+    i: &mut usize,
+    name: &str,
+    inline: Option<&str>,
+) {
+    match name {
+        "--out" | "-o" => set_value(cmd, tokens, i, inline, |cmd, value| cmd.out = Some(value)),
+        "--dir" | "-d" => set_value(cmd, tokens, i, inline, |cmd, value| cmd.dir = Some(value)),
+        "--header" | "-H" | "--http-header" => {
+            set_non_empty_value(cmd, tokens, i, inline, |cmd, value| cmd.headers.push(value));
+        }
+        "--user-agent" | "-U" => {
+            set_non_empty_value(cmd, tokens, i, inline, |cmd, value| {
+                cmd.user_agent = Some(value);
+            });
+        }
+        "--referer" | "--referrer" | "--http-referer" => {
+            set_non_empty_value(cmd, tokens, i, inline, |cmd, value| {
+                cmd.headers.push(format!("Referer: {value}"));
+            });
+        }
+        "--checksum" => apply_checksum(cmd, tokens, i, inline),
+        "--force-sequential" | "-Z" => cmd.force_sequential = true,
+        _ => skip_unknown_option(tokens, i),
+    }
+}
+
+/// Store an option's value, empty values included (`--out ""` is meaningful to
+/// aria2c).
+fn set_value(
+    cmd: &mut Aria2Command,
+    tokens: &[String],
+    i: &mut usize,
+    inline: Option<&str>,
+    set: impl FnOnce(&mut Aria2Command, String),
+) {
+    if let Some(value) = take_value(tokens, i, inline) {
+        set(cmd, value);
+    }
+}
+
+/// Store an option's value, ignoring blank input.
+fn set_non_empty_value(
+    cmd: &mut Aria2Command,
+    tokens: &[String],
+    i: &mut usize,
+    inline: Option<&str>,
+    set: impl FnOnce(&mut Aria2Command, String),
+) {
+    if let Some(value) = take_value(tokens, i, inline)
+        && !value.trim().is_empty()
+    {
+        set(cmd, value);
+    }
+}
+
+/// `--checksum` takes an optional `algo=digest`; an algorithm limedl cannot
+/// verify is reported instead of silently ignored.
+fn apply_checksum(cmd: &mut Aria2Command, tokens: &[String], i: &mut usize, inline: Option<&str>) {
+    let Some(value) = take_value(tokens, i, inline) else {
+        return;
+    };
+    match parse_checksum_spec(&value) {
+        Ok(Some(pair)) => cmd.checksum = Some(pair),
+        Ok(None) => {}
+        Err(()) => cmd.unsupported.push("--checksum".to_string()),
+    }
+}
+
+/// Any other option: consume the next token as its value unless it is another
+/// option or a URL (the latter covers boolean flags such as `--continue` written
+/// without a value directly before the target).
+fn skip_unknown_option(tokens: &[String], i: &mut usize) {
+    if let Some(next) = tokens.get(*i + 1)
+        && !is_option_token(next)
+        && !looks_like_url(next)
+    {
+        *i += 1;
+    }
+}
+
+/// Drop duplicate unsupported labels and reject a command with no target.
+fn finish(mut cmd: Aria2Command) -> Option<Aria2Command> {
     cmd.unsupported.dedup();
     if cmd.urls.is_empty() {
         return None;

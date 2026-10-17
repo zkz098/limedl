@@ -389,6 +389,14 @@ fn apply_proxy(settings: &mut AppSettings, form: &SettingsFormData) {
 }
 
 fn apply_schedule(settings: &mut AppSettings, form: &SettingsFormData) {
+    apply_scheduler_mode_and_strategy(settings, form);
+    apply_scheduler_timing(settings, form);
+    apply_scheduler_aimd(settings, form);
+}
+
+/// Scheduler mode, the per-mode thread counts, the strategy pickers and the
+/// expert toggle.
+fn apply_scheduler_mode_and_strategy(settings: &mut AppSettings, form: &SettingsFormData) {
     // ── 调度 ──
     if let Some(m) = match combo::value_at(combo::SCHEDULER_MODES, form.scheduler_mode_idx) {
         "traditional" => Some(SchedulerMode::Traditional),
@@ -397,17 +405,15 @@ fn apply_schedule(settings: &mut AppSettings, form: &SettingsFormData) {
     } {
         settings.scheduler.mode = m;
     }
-    if let Ok(v) = form.scheduler_max_parallel_threads.trim().parse::<usize>()
-        && v > 0
-    {
+    if let Some(v) = parse_positive_usize(&form.scheduler_max_parallel_threads) {
         settings.scheduler.automatic.max_parallel_threads = v.min(128);
     }
-    if let Ok(v) = form.scheduler_max_threads_per_task.trim().parse::<usize>()
-        && v > 0
-    {
+    if let Some(v) = parse_positive_usize(&form.scheduler_max_threads_per_task) {
         settings.scheduler.automatic.max_threads_per_task = v.min(64);
     }
-    if let Ok(v) = form.scheduler_min_threads_per_task.trim().parse::<usize>() {
+    // Not `parse_positive_usize`: an explicit 0 is meaningful here, and the value
+    // is clamped against the per-task maximum that was just written.
+    if let Some(v) = parse_usize(&form.scheduler_min_threads_per_task) {
         settings.scheduler.automatic.min_threads_per_task =
             v.min(settings.scheduler.automatic.max_threads_per_task);
     }
@@ -435,74 +441,84 @@ fn apply_schedule(settings: &mut AppSettings, form: &SettingsFormData) {
     )) {
         settings.scheduler.expert.queue_sort_strategy = strat;
     }
-    if let Ok(v) = form.scheduler_tick_ms.trim().parse::<u64>() {
-        settings.scheduler.expert.scheduler_tick_ms = v;
+}
+
+/// Expert-panel timing, connection and retry numerics.
+fn apply_scheduler_timing(settings: &mut AppSettings, form: &SettingsFormData) {
+    let expert = &mut settings.scheduler.expert;
+    if let Some(v) = parse_u64(&form.scheduler_tick_ms) {
+        expert.scheduler_tick_ms = v;
     }
-    if let Ok(v) = form.scheduler_max_connections_per_host.trim().parse::<usize>() {
-        settings.scheduler.expert.max_connections_per_host = v;
+    if let Some(v) = parse_usize(&form.scheduler_max_connections_per_host) {
+        expert.max_connections_per_host = v;
     }
-    if let Ok(v) = form.scheduler_aimd_degrade_threshold.trim().parse::<f64>() {
-        settings.scheduler.expert.aimd_degrade_threshold = v;
+    if let Some(v) = parse_u64(&form.scheduler_custom_chunk_size_mb) {
+        expert.custom_chunk_size_mb = v;
     }
-    if let Ok(v) = form.scheduler_aimd_increase_threshold.trim().parse::<f64>() {
-        settings.scheduler.expert.aimd_increase_threshold = v;
+    if let Some(v) = parse_u64(&form.scheduler_tail_sprint_stall_window_secs) {
+        expert.tail_sprint_stall_window_secs = v;
     }
-    if let Ok(v) = form.scheduler_aimd_severe_drop_threshold.trim().parse::<f64>() {
-        settings.scheduler.expert.aimd_severe_drop_threshold = v;
+    if let Some(v) = parse_u64(&form.scheduler_tail_sprint_min_split_size_mb) {
+        expert.tail_sprint_min_split_size_mb = v;
     }
-    if let Ok(v) = form.scheduler_aimd_cooldown_secs.trim().parse::<u64>() {
-        settings.scheduler.expert.aimd_cooldown_secs = v;
+    if let Some(v) = parse_u64(&form.scheduler_work_steal_min_split_size_mb) {
+        expert.work_steal_min_split_size_mb = v;
     }
-    if let Ok(v) = form.scheduler_aimd_samples_needed.trim().parse::<u32>() {
-        settings.scheduler.expert.aimd_samples_needed = v;
+    if let Some(v) = parse_u64(&form.scheduler_connect_timeout_secs) {
+        expert.connect_timeout_secs = v;
     }
-    if let Ok(v) = form.scheduler_aimd_probe_stable_cycles.trim().parse::<u32>() {
-        settings.scheduler.expert.aimd_probe_stable_cycles = v;
+    if let Some(v) = parse_u64(&form.scheduler_read_timeout_secs) {
+        expert.read_timeout_secs = v;
     }
-    if let Ok(v) = form.scheduler_aimd_decrease_factor.trim().parse::<f64>() {
-        settings.scheduler.expert.aimd_decrease_factor = v;
+    if let Some(v) = parse_usize(&form.scheduler_pool_max_idle_per_host) {
+        expert.pool_max_idle_per_host = v;
     }
-    if let Ok(v) = form.scheduler_aimd_step_ratio.trim().parse::<f64>() {
-        settings.scheduler.expert.aimd_step_ratio = v;
+    if let Some(v) = parse_u64(&form.scheduler_tcp_keepalive_secs) {
+        expert.tcp_keepalive_secs = v;
     }
-    if let Ok(v) = form.scheduler_aimd_oscillation_threshold.trim().parse::<u32>() {
-        settings.scheduler.expert.aimd_oscillation_threshold = v;
+    if let Some(v) = parse_u64(&form.scheduler_retry_backoff_base_ms) {
+        expert.retry_backoff_base_ms = v;
     }
-    if let Ok(v) = form.scheduler_aimd_hysteresis_multiplier.trim().parse::<u32>() {
-        settings.scheduler.expert.aimd_hysteresis_multiplier = v;
+    if let Some(v) = parse_u64(&form.scheduler_retry_backoff_max_ms) {
+        expert.retry_backoff_max_ms = v;
     }
-    if let Ok(v) = form.scheduler_custom_chunk_size_mb.trim().parse::<u64>() {
-        settings.scheduler.expert.custom_chunk_size_mb = v;
+    if let Some(v) = parse_u64(&form.scheduler_retry_backoff_jitter_percent) {
+        expert.retry_backoff_jitter_percent = v;
     }
-    if let Ok(v) = form.scheduler_tail_sprint_stall_window_secs.trim().parse::<u64>() {
-        settings.scheduler.expert.tail_sprint_stall_window_secs = v;
+}
+
+/// Expert-panel AIMD tuning numerics.
+fn apply_scheduler_aimd(settings: &mut AppSettings, form: &SettingsFormData) {
+    let expert = &mut settings.scheduler.expert;
+    if let Some(v) = parse_f64(&form.scheduler_aimd_degrade_threshold) {
+        expert.aimd_degrade_threshold = v;
     }
-    if let Ok(v) = form.scheduler_tail_sprint_min_split_size_mb.trim().parse::<u64>() {
-        settings.scheduler.expert.tail_sprint_min_split_size_mb = v;
+    if let Some(v) = parse_f64(&form.scheduler_aimd_increase_threshold) {
+        expert.aimd_increase_threshold = v;
     }
-    if let Ok(v) = form.scheduler_work_steal_min_split_size_mb.trim().parse::<u64>() {
-        settings.scheduler.expert.work_steal_min_split_size_mb = v;
+    if let Some(v) = parse_f64(&form.scheduler_aimd_severe_drop_threshold) {
+        expert.aimd_severe_drop_threshold = v;
     }
-    if let Ok(v) = form.scheduler_connect_timeout_secs.trim().parse::<u64>() {
-        settings.scheduler.expert.connect_timeout_secs = v;
+    if let Some(v) = parse_u64(&form.scheduler_aimd_cooldown_secs) {
+        expert.aimd_cooldown_secs = v;
     }
-    if let Ok(v) = form.scheduler_read_timeout_secs.trim().parse::<u64>() {
-        settings.scheduler.expert.read_timeout_secs = v;
+    if let Some(v) = parse_u32(&form.scheduler_aimd_samples_needed) {
+        expert.aimd_samples_needed = v;
     }
-    if let Ok(v) = form.scheduler_pool_max_idle_per_host.trim().parse::<usize>() {
-        settings.scheduler.expert.pool_max_idle_per_host = v;
+    if let Some(v) = parse_u32(&form.scheduler_aimd_probe_stable_cycles) {
+        expert.aimd_probe_stable_cycles = v;
     }
-    if let Ok(v) = form.scheduler_tcp_keepalive_secs.trim().parse::<u64>() {
-        settings.scheduler.expert.tcp_keepalive_secs = v;
+    if let Some(v) = parse_f64(&form.scheduler_aimd_decrease_factor) {
+        expert.aimd_decrease_factor = v;
     }
-    if let Ok(v) = form.scheduler_retry_backoff_base_ms.trim().parse::<u64>() {
-        settings.scheduler.expert.retry_backoff_base_ms = v;
+    if let Some(v) = parse_f64(&form.scheduler_aimd_step_ratio) {
+        expert.aimd_step_ratio = v;
     }
-    if let Ok(v) = form.scheduler_retry_backoff_max_ms.trim().parse::<u64>() {
-        settings.scheduler.expert.retry_backoff_max_ms = v;
+    if let Some(v) = parse_u32(&form.scheduler_aimd_oscillation_threshold) {
+        expert.aimd_oscillation_threshold = v;
     }
-    if let Ok(v) = form.scheduler_retry_backoff_jitter_percent.trim().parse::<u64>() {
-        settings.scheduler.expert.retry_backoff_jitter_percent = v;
+    if let Some(v) = parse_u32(&form.scheduler_aimd_hysteresis_multiplier) {
+        expert.aimd_hysteresis_multiplier = v;
     }
 }
 
@@ -636,6 +652,16 @@ fn parse_u32(raw: &str) -> Option<u32> {
 /// Parse a trimmed text field as `u32` and reject `0`.
 fn parse_positive_u32(raw: &str) -> Option<u32> {
     parse_u32(raw).filter(|v| *v > 0)
+}
+
+/// Parse a trimmed text field as `usize`, ignoring invalid input.
+fn parse_usize(raw: &str) -> Option<usize> {
+    raw.trim().parse().ok()
+}
+
+/// Parse a trimmed text field as `usize` and reject `0`.
+fn parse_positive_usize(raw: &str) -> Option<usize> {
+    parse_usize(raw).filter(|v| *v > 0)
 }
 
 /// Parse a trimmed text field as `u64`, ignoring invalid input.

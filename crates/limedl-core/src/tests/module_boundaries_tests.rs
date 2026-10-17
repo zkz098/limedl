@@ -16,6 +16,7 @@
 //! not.  Improving the graph never fails this test; only regressing it does.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 /// Non-trivial strongly connected components that are tolerated today.
@@ -49,7 +50,7 @@ fn collect_source_files(dir: &Path, module: &[String], out: &mut Vec<SourceFile>
             collect_source_files(&path, &child, out);
             continue;
         }
-        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+        if path.extension().and_then(OsStr::to_str) != Some("rs") {
             continue;
         }
         let file_name = entry.file_name().to_string_lossy().into_owned();
@@ -72,75 +73,88 @@ fn is_test_file(file_name: &str) -> bool {
     file_name == "tests.rs" || file_name.ends_with("_tests.rs")
 }
 
+/// Skip a `//` line comment. `i` points at its first `/`.
+fn skip_line_comment(chars: &[char], mut i: usize) -> usize {
+    while i < chars.len() && chars[i] != '\n' {
+        i += 1;
+    }
+    i
+}
+
+/// Skip a nesting-aware `/* … */` block comment. `i` points at its first `/`.
+fn skip_block_comment(chars: &[char], mut i: usize) -> usize {
+    let mut depth = 1;
+    i += 2;
+    while i < chars.len() && depth > 0 {
+        if chars[i] == '/' && chars.get(i + 1) == Some(&'*') {
+            depth += 1;
+            i += 2;
+        } else if chars[i] == '*' && chars.get(i + 1) == Some(&'/') {
+            depth -= 1;
+            i += 2;
+        } else {
+            i += 1;
+        }
+    }
+    i
+}
+
+/// Skip a string literal. `i` points at the opening `"`. Raw strings
+/// (`r"…"`, `r#"..."#` and their `b`-prefixed forms) are recognised from the
+/// character before it.
+fn skip_string_literal(chars: &[char], mut i: usize) -> usize {
+    if i > 0 && (chars[i - 1] == 'r' || chars[i - 1] == 'b') {
+        i += 1;
+        while i < chars.len() && chars[i] == '#' {
+            i += 1;
+        }
+    }
+    i += 1;
+    while i < chars.len() {
+        if chars[i] == '\\' {
+            i += 2;
+        } else if chars[i] == '"' {
+            return i + 1;
+        } else {
+            i += 1;
+        }
+    }
+    i
+}
+
+/// Length of the char literal starting at `i` (the apostrophe), or `None` when
+/// that apostrophe opens a lifetime — which must be kept, since a lifetime
+/// cannot contain `use`.
+fn char_literal_len(chars: &[char], i: usize) -> Option<usize> {
+    // Same shape as the original inline check: a backslash means the closing
+    // quote sits one character further out (and `Some('\\')` must not fall
+    // through to the `Some(_)` arm).
+    match chars.get(i + 1) {
+        Some('\\') => (chars.get(i + 3) == Some(&'\'')).then_some(4),
+        Some(_) => (chars.get(i + 2) == Some(&'\'')).then_some(3),
+        None => None,
+    }
+}
+
 /// Remove comments and string/char literals so a commented-out `use` or a URL
 /// inside a string cannot be mistaken for code.
 fn strip_noncode(src: &str) -> String {
-    let bytes: Vec<char> = src.chars().collect();
+    let chars: Vec<char> = src.chars().collect();
     let mut out = String::with_capacity(src.len());
     let mut i = 0;
-    while i < bytes.len() {
-        let c = bytes[i];
-        match c {
-            '/' if bytes.get(i + 1) == Some(&'/') => {
-                while i < bytes.len() && bytes[i] != '\n' {
-                    i += 1;
-                }
-            }
-            '/' if bytes.get(i + 1) == Some(&'*') => {
-                i += 2;
-                let mut depth = 1;
-                while i < bytes.len() && depth > 0 {
-                    if bytes[i] == '/' && bytes.get(i + 1) == Some(&'*') {
-                        depth += 1;
-                        i += 2;
-                    } else if bytes[i] == '*' && bytes.get(i + 1) == Some(&'/') {
-                        depth -= 1;
-                        i += 2;
-                    } else {
-                        i += 1;
-                    }
-                }
-            }
-            '"' => {
-                // Raw string: `r"…"` / `r#"…"#` / `r##"…"##`, possibly behind a
-                // `b` byte-string prefix.
-                if i > 0 && (bytes[i - 1] == 'r' || bytes[i - 1] == 'b') {
-                    i += 1;
-                    while i < bytes.len() && bytes[i] == '#' {
-                        i += 1;
-                    }
-                }
-                i += 1;
-                while i < bytes.len() {
-                    if bytes[i] == '\\' {
-                        i += 2;
-                    } else if bytes[i] == '"' {
-                        i += 1;
-                        break;
-                    } else {
-                        i += 1;
-                    }
-                }
-            }
-            // A char literal is `'x'` / `'\n'`; anything else starting with `'`
-            // is a lifetime and must be kept (it cannot contain `use`).
-            '\'' => {
-                let closing = match bytes.get(i + 1) {
-                    Some('\\') => bytes.get(i + 3) == Some(&'\''),
-                    Some(_) => bytes.get(i + 2) == Some(&'\''),
-                    None => false,
-                };
-                if closing {
-                    i += if bytes[i + 1] == '\\' { 4 } else { 3 };
-                } else {
-                    out.push(c);
-                    i += 1;
-                }
-            }
-            _ => {
-                out.push(c);
-                i += 1;
-            }
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '/' && chars.get(i + 1) == Some(&'/') {
+            i = skip_line_comment(&chars, i);
+        } else if c == '/' && chars.get(i + 1) == Some(&'*') {
+            i = skip_block_comment(&chars, i);
+        } else if c == '"' {
+            i = skip_string_literal(&chars, i);
+        } else if let Some(len) = char_literal_len(&chars, i) {
+            i += len;
+        } else {
+            out.push(c);
+            i += 1;
         }
     }
     out
@@ -300,45 +314,41 @@ fn inline_paths(clean: &str, out: &mut Vec<Vec<String>>) {
                 i += 1;
                 continue;
             }
-            let before_ok = i == 0 || !is_ident_byte(bytes[i - 1]);
-            let mut j = i + needle.len();
-            // Optional whitespace, then `::`.
-            let mut k = j;
-            while bytes.get(k).is_some_and(|b| b.is_ascii_whitespace()) {
-                k += 1;
+            let starts_word = i == 0 || !is_ident_byte(bytes[i - 1]);
+            // The `::` check allows whitespace, the parse below deliberately does
+            // not (matching the original scanner): `crate :: foo` yields no edge.
+            let after = skip_whitespace(bytes, i + needle.len());
+            if starts_word && bytes[after..].starts_with(b"::") {
+                let mut tokens = vec![keyword.to_string()];
+                parse_path_tail(clean, bytes, i + needle.len(), &mut tokens);
+                out.push(tokens);
             }
-            if !before_ok || !bytes[k..].starts_with(b"::") {
-                i += needle.len();
-                continue;
-            }
-            let mut tokens = vec![keyword.to_string()];
-            while bytes[j..].starts_with(b"::") {
-                j += 2;
-                while bytes.get(j).is_some_and(|b| b.is_ascii_whitespace()) {
-                    j += 1;
-                }
-                let start = j;
-                while bytes.get(j).is_some_and(|b| is_ident_byte(*b)) {
-                    j += 1;
-                }
-                if j == start {
-                    break;
-                }
-                tokens.push(clean[start..j].to_string());
-                let mut lookahead = j;
-                while bytes
-                    .get(lookahead)
-                    .is_some_and(|b| b.is_ascii_whitespace())
-                {
-                    lookahead += 1;
-                }
-                if lookahead != j {
-                    j = lookahead;
-                }
-            }
-            out.push(tokens);
             i += needle.len();
         }
+    }
+}
+
+/// Position of the first non-whitespace byte at or after `i`.
+fn skip_whitespace(bytes: &[u8], mut i: usize) -> usize {
+    while bytes.get(i).is_some_and(u8::is_ascii_whitespace) {
+        i += 1;
+    }
+    i
+}
+
+/// Push every name of the `::name` chain starting at `j`, whitespace-tolerant.
+fn parse_path_tail(clean: &str, bytes: &[u8], mut j: usize, tokens: &mut Vec<String>) {
+    while bytes[j..].starts_with(b"::") {
+        let name_start = skip_whitespace(bytes, j + 2);
+        let mut name_end = name_start;
+        while bytes.get(name_end).is_some_and(|b| is_ident_byte(*b)) {
+            name_end += 1;
+        }
+        if name_end == name_start {
+            break;
+        }
+        tokens.push(clean[name_start..name_end].to_string());
+        j = skip_whitespace(bytes, name_end);
     }
 }
 

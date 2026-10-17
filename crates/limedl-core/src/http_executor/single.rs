@@ -57,280 +57,441 @@ impl HttpExecutor {
             let core = managed.lock_core();
             contiguous_prefix_end(&core.manifest)
         };
-        let mut streaming_hasher = if initial_offset == 0 && checksum_mode != crate::types::ChecksumMode::None {
+        let mut hasher = if initial_offset == 0 && checksum_mode != crate::types::ChecksumMode::None {
             crate::checksum::ChecksumHasher::new(checksum_mode).ok()
         } else {
             None
         };
-        let mut hasher_expected_offset: u64 = 0;
 
-        let mut last_disk_check = Instant::now();
-        let mut throttle = ProgressThrottle::new();
-        let mut batch = BatchLimiter::new();
         let mut budget = RequestBudget::new(MAX_SINGLE_STREAM_REQUESTS);
+        let mut batch = BatchLimiter::new();
+        let mut throttle = ProgressThrottle::new();
+        let mut last_disk_check = Instant::now();
+        let mut hasher_expected_offset: u64 = 0;
         let mut consecutive_stream_errors: u32 = 0;
-        let mut last_progress_offset = 0;
+        let mut last_progress_offset: u64 = 0;
 
         loop {
-            if let Some(outcome) = wait_or_stop(dm.as_ref(), &managed, &token, &write_buffer).await {
+            let mut run = SingleRun {
+                dm: &dm,
+                managed: &managed,
+                file: &file,
+                write_buffer: &write_buffer,
+                disk_type,
+                token: &token,
+                client: &client,
+                max_retries,
+                budget: &mut budget,
+                batch: &mut batch,
+                throttle: &mut throttle,
+                last_disk_check: &mut last_disk_check,
+                hasher: &mut hasher,
+                hasher_expected_offset: &mut hasher_expected_offset,
+                consecutive_stream_errors: &mut consecutive_stream_errors,
+                last_progress_offset: &mut last_progress_offset,
+            };
+            if let Some(outcome) = run.attempt(total_bytes).await? {
                 return Ok(outcome);
             }
+        }
+    }
+}
 
-            // The stream ends without `single_finished` whenever the server cuts
-            // the body short, and the loop resumes from the new offset. A server
-            // that always ends it immediately (zero bytes, so the offset never
-            // moves) would otherwise spin here forever, one request at a time.
-            budget.charge("single-stream download")?;
+/// HTTP/3 is given this long before the request is abandoned and the circuit
+/// breaker trips in favour of TCP.
+const HTTP3_ATTEMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
-            let (url, user_agent, extra_headers, validator, state) = {
-                let core = managed.lock_core();
-                (
-                    core.manifest.final_url.clone(),
-                    core.manifest.user_agent.clone(),
-                    core.manifest.extra_headers.clone(),
-                    if_range_header(&core.manifest),
-                    core.manifest.state,
-                )
+/// The per-request inputs read from the manifest under one lock.
+struct RequestHead {
+    url: String,
+    user_agent: String,
+    extra_headers: Vec<String>,
+    validator: Option<(header::HeaderName, header::HeaderValue)>,
+    state: DownloadState,
+}
+
+/// How draining one response body ended.
+enum DrainEnd {
+    /// The body ended; `Some` carries the stream error that cut it short.
+    Ended(Option<reqwest::Error>),
+    /// The download was cancelled while draining.
+    Cancelled,
+}
+
+/// The state one single-stream download threads through every request cycle.
+///
+/// `download_single` is a chain of small steps over the same handful of
+/// mutable values; holding them here lets each step be its own function instead
+/// of one deeply nested loop.
+struct SingleRun<'a> {
+    dm: &'a Arc<dyn ManagerState>,
+    managed: &'a Arc<ManagedDownload>,
+    file: &'a Arc<fs::File>,
+    write_buffer: &'a Option<Arc<DownloadBuffer>>,
+    disk_type: DiskType,
+    token: &'a CancellationToken,
+    client: &'a Client,
+    max_retries: u32,
+    budget: &'a mut RequestBudget,
+    batch: &'a mut BatchLimiter,
+    throttle: &'a mut ProgressThrottle,
+    last_disk_check: &'a mut Instant,
+    hasher: &'a mut Option<crate::checksum::ChecksumHasher>,
+    hasher_expected_offset: &'a mut u64,
+    consecutive_stream_errors: &'a mut u32,
+    last_progress_offset: &'a mut u64,
+}
+
+impl SingleRun<'_> {
+    /// One request → drain → handle cycle. `Some(outcome)` means the caller must
+    /// return it; `None` means loop again.
+    async fn attempt(&mut self, total_bytes: Option<u64>) -> Result<Option<RunOutcome>> {
+        if let Some(outcome) =
+            wait_or_stop(self.dm.as_ref(), self.managed, self.token, self.write_buffer).await
+        {
+            return Ok(Some(outcome));
+        }
+
+        // The stream ends without `single_finished` whenever the server cuts the
+        // body short, and the loop resumes from the new offset. A server that
+        // always ends it immediately (zero bytes, so the offset never moves)
+        // would otherwise spin here forever, one request at a time.
+        self.budget.charge("single-stream download")?;
+
+        let head = self.read_request_head();
+        if head.state == DownloadState::Canceled {
+            flush_write_buffer(self.write_buffer, "cancel").await;
+            return Ok(Some(RunOutcome::Canceled));
+        }
+        if self.token.is_cancelled() {
+            return Ok(Some(cancellation_outcome(self.managed)));
+        }
+
+        let start_offset = self.contiguous_prefix();
+        let response = head.acquire_response(self, start_offset).await?;
+        self.dm
+            .alt_svc()
+            .record_from_response(&head.url, response.headers(), now_ms());
+
+        let status = response.status();
+        let mut absolute_offset = single_start_offset(
+            self.dm,
+            self.managed,
+            self.file,
+            self.write_buffer,
+            status,
+            start_offset,
+        )
+        .await?;
+        if absolute_offset < *self.last_progress_offset {
+            *self.last_progress_offset = absolute_offset;
+        }
+
+        self.mark_downloading();
+
+        match self
+            .drain_body(response, total_bytes, &mut absolute_offset)
+            .await?
+        {
+            DrainEnd::Cancelled => Ok(Some(cancellation_outcome(self.managed))),
+            DrainEnd::Ended(Some(err)) => self.handle_stream_error(err, absolute_offset).await,
+            DrainEnd::Ended(None) => self.finish_stream(total_bytes, absolute_offset).await,
+        }
+    }
+
+    /// The per-request inputs, taken under one lock.
+    fn read_request_head(&self) -> RequestHead {
+        let core = self.managed.lock_core();
+        RequestHead {
+            url: core.manifest.final_url.clone(),
+            user_agent: core.manifest.user_agent.clone(),
+            extra_headers: core.manifest.extra_headers.clone(),
+            validator: if_range_header(&core.manifest),
+            state: core.manifest.state,
+        }
+    }
+
+    /// Where the next request must resume from: the durable contiguous prefix.
+    fn contiguous_prefix(&self) -> u64 {
+        let core = self.managed.lock_core();
+        contiguous_prefix_end(&core.manifest)
+    }
+
+    fn plain_request(
+        &self,
+        head: &RequestHead,
+        start_offset: u64,
+        use_http3: bool,
+    ) -> impl std::future::Future<Output = std::result::Result<reqwest::Response, reqwest::Error>> {
+        single_request(
+            self.client.clone(),
+            head.url.clone(),
+            head.user_agent.clone(),
+            head.extra_headers.clone(),
+            start_offset,
+            head.validator.clone(),
+            use_http3,
+        )
+    }
+
+    /// This attempt is now downloading: clear whatever stale marker the previous
+    /// failure left on the task.
+    fn mark_downloading(&self) {
+        let mut core = self.managed.lock_core();
+        core.snapshot.state = DownloadState::Downloading;
+        core.snapshot.connection_count = 1;
+        core.snapshot.updated_at_ms = now_ms();
+        core.manifest.state = DownloadState::Downloading;
+        core.manifest.connection_count = 1;
+        core.manifest.updated_at_ms = now_ms();
+    }
+
+    /// Drain one response body into the write buffer.
+    async fn drain_body(
+        &mut self,
+        response: reqwest::Response,
+        total_bytes: Option<u64>,
+        absolute_offset: &mut u64,
+    ) -> Result<DrainEnd> {
+        const SINGLE_MICRO_BATCH_SIZE: usize = 128 * 1024;
+        let mut stream = response.bytes_stream();
+        let mut local_buf = Vec::with_capacity(SINGLE_MICRO_BATCH_SIZE);
+        let mut batch_start_offset = *absolute_offset;
+        let mut stream_error = None;
+        while let Some(chunk) = tokio::select! {
+            _ = self.token.cancelled() => {
+                if !local_buf.is_empty() {
+                    let bytes = Bytes::from(std::mem::take(&mut local_buf));
+                    self.write_run_lossy(batch_start_offset, &bytes).await;
+                }
+                // Flush remaining rate limiter bytes before exiting
+                self.batch.flush(self.dm.rate_limiter()).await;
+                // Persist buffered data before exit: `downloaded_bytes` was
+                // already credited for these chunks, so discarding them here
+                // would leave a hole on resume and misfire the Drop canary.
+                flush_write_buffer(self.write_buffer, "cancel").await;
+                return Ok(DrainEnd::Cancelled);
+            }
+            chunk = stream.next() => chunk,
+        } {
+            let chunk = match chunk {
+                Ok(chunk) => chunk,
+                Err(err) => {
+                    stream_error = Some(err);
+                    break;
+                }
             };
-            if state == DownloadState::Canceled {
-                flush_write_buffer(&write_buffer, "cancel").await;
-                return Ok(RunOutcome::Canceled);
+            self.batch
+                .account(self.dm.rate_limiter(), chunk.len())
+                .await;
+            guard_content_length(total_bytes, *absolute_offset, chunk.len())?;
+            self.note_hasher(*absolute_offset, &chunk);
+
+            local_buf.extend_from_slice(&chunk);
+            *absolute_offset += chunk.len() as u64;
+
+            if local_buf.len() >= SINGLE_MICRO_BATCH_SIZE {
+                let bytes = Bytes::from(std::mem::replace(
+                    &mut local_buf,
+                    Vec::with_capacity(SINGLE_MICRO_BATCH_SIZE),
+                ));
+                self.flush_run(batch_start_offset, &bytes).await?;
+                batch_start_offset = *absolute_offset;
             }
-            if token.is_cancelled() {
-                return Ok(cancellation_outcome(&managed));
+        }
+
+        if !local_buf.is_empty() {
+            let bytes = Bytes::from(std::mem::take(&mut local_buf));
+            self.flush_run(batch_start_offset, &bytes).await?;
+        }
+
+        // Flush remaining rate limiter bytes after stream ends
+        self.batch.flush(self.dm.rate_limiter()).await;
+
+        Ok(DrainEnd::Ended(stream_error))
+    }
+
+    /// Feed the streaming hasher. A gap makes it unusable, so it is dropped.
+    fn note_hasher(&mut self, offset: u64, chunk: &[u8]) {
+        if self.hasher.is_none() {
+            return;
+        }
+        if offset != *self.hasher_expected_offset {
+            *self.hasher = None;
+            return;
+        }
+        if let Some(hasher) = self.hasher.as_mut() {
+            hasher.update(chunk);
+            *self.hasher_expected_offset += chunk.len() as u64;
+        }
+    }
+
+    /// Write one buffered run and credit its bytes, then run the throttled
+    /// progress persist and free-space check.
+    async fn flush_run(&mut self, offset: u64, bytes: &Bytes) -> Result<()> {
+        write_chunk_bytes(
+            self.managed,
+            self.file,
+            self.write_buffer,
+            self.disk_type,
+            offset,
+            bytes,
+        )
+        .await?;
+        self.dm.record_progress(self.managed, None, bytes.len() as u64);
+        self.throttle
+            .tick(self.dm.db(), self.dm.as_ref(), self.managed)
+            .await?;
+        check_disk_space_periodically(self.dm.as_ref(), self.managed, self.last_disk_check).await?;
+        Ok(())
+    }
+
+    /// The cancellation path: a failed write is deliberately swallowed, but the
+    /// bytes are still credited — they were already counted as received.
+    async fn write_run_lossy(&self, offset: u64, bytes: &Bytes) {
+        let _ = write_chunk_bytes(
+            self.managed,
+            self.file,
+            self.write_buffer,
+            self.disk_type,
+            offset,
+            bytes,
+        )
+        .await;
+        self.dm.record_progress(self.managed, None, bytes.len() as u64);
+    }
+
+    /// A body the server cut short: back off and retry, or give up once the retry
+    /// budget is exhausted.
+    async fn handle_stream_error(
+        &mut self,
+        err: reqwest::Error,
+        absolute_offset: u64,
+    ) -> Result<Option<RunOutcome>> {
+        tracing::warn!("Single-stream download interrupted at offset {absolute_offset}: {err}");
+        register_retry_penalty(self.managed, err.to_string());
+        self.note_interrupted(absolute_offset);
+        if *self.consecutive_stream_errors > self.max_retries {
+            flush_write_buffer(self.write_buffer, "error").await;
+            return Err(DownloadError::from(err));
+        }
+        let cancelled = tokio::select! {
+            _ = self.token.cancelled() => true,
+            _ = sleep(jittered_backoff_delay(*self.consecutive_stream_errors)) => false,
+        };
+        if cancelled {
+            flush_write_buffer(self.write_buffer, "cancel").await;
+            return Ok(Some(cancellation_outcome(self.managed)));
+        }
+        Ok(None)
+    }
+
+    /// Stream-retry bookkeeping: forward progress restarts the streak at 1, a
+    /// stalled stream grows it.
+    fn note_interrupted(&mut self, absolute_offset: u64) {
+        if absolute_offset > *self.last_progress_offset {
+            *self.last_progress_offset = absolute_offset;
+            *self.consecutive_stream_errors = 1;
+        } else {
+            *self.consecutive_stream_errors = self.consecutive_stream_errors.saturating_add(1);
+        }
+    }
+
+    /// The body ended cleanly: finish when the download is complete, otherwise
+    /// loop for the next range.
+    async fn finish_stream(
+        &mut self,
+        total_bytes: Option<u64>,
+        absolute_offset: u64,
+    ) -> Result<Option<RunOutcome>> {
+        *self.consecutive_stream_errors = 0;
+        *self.last_progress_offset = absolute_offset;
+        if !single_finished(self.managed) {
+            return Ok(None);
+        }
+        finish_buffer_flush(self.dm.as_ref(), self.managed, self.write_buffer).await?;
+        self.finalize_checksum(total_bytes);
+        Ok(Some(RunOutcome::Finished))
+    }
+
+    /// Publish the on-the-fly checksum when the hasher saw every byte.
+    fn finalize_checksum(&mut self, total_bytes: Option<u64>) {
+        let Some(hasher) = self.hasher.take() else {
+            return;
+        };
+        let is_complete = match total_bytes {
+            Some(total) => *self.hasher_expected_offset == total,
+            None => true,
+        };
+        if !is_complete {
+            return;
+        }
+        let computed = hasher.finalize();
+        tracing::info!("Single-stream on-the-fly checksum computed: {computed}");
+        let mut core = self.managed.lock_core();
+        core.manifest.checksum = Some(computed.clone());
+        core.snapshot.checksum = Some(computed);
+    }
+}
+
+impl RequestHead {
+    /// Prefer HTTP/3 when the Alt-Svc cache says the origin supports it, then fall
+    /// back to the retrying TCP request.
+    async fn acquire_response(
+        &self,
+        run: &SingleRun<'_>,
+        start_offset: u64,
+    ) -> Result<reqwest::Response> {
+        if let Some(response) = self.try_http3(run, start_offset).await {
+            return Ok(response);
+        }
+        request_with_retry(
+            || run.plain_request(self, start_offset, false),
+            run.token.clone(),
+            run.max_retries,
+            run.managed.clone(),
+        )
+        .await
+    }
+
+    /// One attempt over HTTP/3. A failure trips the circuit breaker so a later
+    /// attempt uses TCP.
+    async fn try_http3(&self, run: &SingleRun<'_>, start_offset: u64) -> Option<reqwest::Response> {
+        let (proxy_mode, alt_svc_enabled) = {
+            let settings = run.dm.settings_service().get_blocking();
+            (settings.proxy.mode, settings.scheduler.http3_alt_svc_enabled)
+        };
+        let (host, port) = run.dm.alt_svc().should_attempt_http3(
+            &self.url,
+            proxy_mode,
+            alt_svc_enabled,
+            now_ms(),
+        )?;
+        match tokio::time::timeout(
+            HTTP3_ATTEMPT_TIMEOUT,
+            run.plain_request(self, start_offset, true),
+        )
+        .await
+        {
+            Ok(Ok(response)) => {
+                run.dm.alt_svc().mark_success(&host, port);
+                Some(response)
             }
-
-            let start_offset = {
-                let core = managed.lock_core();
-                contiguous_prefix_end(&core.manifest)
-            };
-
-            let (proxy_mode, alt_svc_enabled) = {
-                let settings = dm.settings_service().get_blocking();
-                (settings.proxy.mode, settings.scheduler.http3_alt_svc_enabled)
-            };
-            let http3_target = dm.alt_svc().should_attempt_http3(
-                &url,
-                proxy_mode,
-                alt_svc_enabled,
-                now_ms(),
-            );
-
-            let mut response = None;
-            if let Some((ref host, port)) = http3_target {
-                match tokio::time::timeout(
-                    std::time::Duration::from_secs(5),
-                    single_request(
-                        client.clone(),
-                        url.clone(),
-                        user_agent.clone(),
-                        extra_headers.clone(),
-                        start_offset,
-                        validator.clone(),
-                        true,
-                    ),
-                )
-                .await
-                {
-                    Ok(Ok(res)) => {
-                        dm.alt_svc().mark_success(host, port);
-                        response = Some(res);
-                    }
-                    Ok(Err(err)) => {
-                        tracing::warn!(
-                            "HTTP/3 single request to {url} failed: {err}; tripping circuit breaker and falling back to TCP"
-                        );
-                        dm.alt_svc().mark_broken(host, port, now_ms());
-                    }
-                    Err(_) => {
-                        tracing::warn!(
-                            "HTTP/3 single request to {url} timed out; tripping circuit breaker and falling back to TCP"
-                        );
-                        dm.alt_svc().mark_broken(host, port, now_ms());
-                    }
-                }
-            }
-
-            let response = match response {
-                Some(res) => res,
-                None => {
-                    request_with_retry(
-                        || {
-                            single_request(
-                                client.clone(),
-                                url.clone(),
-                                user_agent.clone(),
-                                extra_headers.clone(),
-                                start_offset,
-                                validator.clone(),
-                                false,
-                            )
-                        },
-                        token.clone(),
-                        max_retries,
-                        managed.clone(),
-                    )
-                    .await?
-                }
-            };
-
-            dm.alt_svc().record_from_response(&url, response.headers(), now_ms());
-
-            let status = response.status();
-            let mut stream = response.bytes_stream();
-            let mut absolute_offset =
-                single_start_offset(&dm, &managed, &file, &write_buffer, status, start_offset)
-                    .await?;
-            if absolute_offset < last_progress_offset {
-                last_progress_offset = absolute_offset;
-            }
-
-            {
-                let mut core = managed.lock_core();
-                core.snapshot.state = DownloadState::Downloading;
-                core.snapshot.connection_count = 1;
-                core.snapshot.updated_at_ms = now_ms();
-                core.manifest.state = DownloadState::Downloading;
-                core.manifest.connection_count = 1;
-                core.manifest.updated_at_ms = now_ms();
-            }
-
-            const SINGLE_MICRO_BATCH_SIZE: usize = 128 * 1024;
-            let mut local_buf = Vec::with_capacity(SINGLE_MICRO_BATCH_SIZE);
-            let mut batch_start_offset = absolute_offset;
-            let mut stream_error = None;
-            while let Some(chunk) = tokio::select! {
-                _ = token.cancelled() => {
-                    if !local_buf.is_empty() {
-                        let bytes = Bytes::from(std::mem::take(&mut local_buf));
-                        let _ = write_chunk_bytes(
-                            &managed,
-                            &file,
-                            &write_buffer,
-                            disk_type,
-                            batch_start_offset,
-                            &bytes,
-                        )
-                        .await;
-                        dm
-                            .record_progress(&managed, None, bytes.len() as u64);
-                    }
-                    // Flush remaining rate limiter bytes before exiting
-                    batch.flush(dm.rate_limiter()).await;
-                    // Persist buffered data before exit: `downloaded_bytes` was
-                    // already credited for these chunks, so discarding them here
-                    // would leave a hole on resume and misfire the Drop canary.
-                    flush_write_buffer(&write_buffer, "cancel").await;
-                    return Ok(cancellation_outcome(&managed));
-                }
-                chunk = stream.next() => chunk,
-            } {
-                let chunk = match chunk {
-                    Ok(chunk) => chunk,
-                    Err(err) => {
-                        stream_error = Some(err);
-                        break;
-                    }
-                };
-                batch.account(dm.rate_limiter(), chunk.len()).await;
-                guard_content_length(total_bytes, absolute_offset, chunk.len())?;
-
-                if let Some(ref mut hasher) = streaming_hasher {
-                    if absolute_offset == hasher_expected_offset {
-                        hasher.update(&chunk);
-                        hasher_expected_offset += chunk.len() as u64;
-                    } else {
-                        streaming_hasher = None;
-                    }
-                }
-
-                local_buf.extend_from_slice(&chunk);
-                absolute_offset += chunk.len() as u64;
-
-                if local_buf.len() >= SINGLE_MICRO_BATCH_SIZE {
-                    let bytes = Bytes::from(std::mem::replace(
-                        &mut local_buf,
-                        Vec::with_capacity(SINGLE_MICRO_BATCH_SIZE),
-                    ));
-                    write_chunk_bytes(
-                        &managed,
-                        &file,
-                        &write_buffer,
-                        disk_type,
-                        batch_start_offset,
-                        &bytes,
-                    )
-                    .await?;
-                    dm
-                        .record_progress(&managed, None, bytes.len() as u64);
-                    batch_start_offset = absolute_offset;
-                    throttle.tick(dm.db(), dm.as_ref(), &managed).await?;
-                    check_disk_space_periodically(dm.as_ref(), &managed, &mut last_disk_check).await?;
-                }
-            }
-
-            if !local_buf.is_empty() {
-                let bytes = Bytes::from(std::mem::take(&mut local_buf));
-                write_chunk_bytes(
-                    &managed,
-                    &file,
-                    &write_buffer,
-                    disk_type,
-                    batch_start_offset,
-                    &bytes,
-                )
-                .await?;
-                dm
-                    .record_progress(&managed, None, bytes.len() as u64);
-                throttle.tick(dm.db(), dm.as_ref(), &managed).await?;
-                check_disk_space_periodically(dm.as_ref(), &managed, &mut last_disk_check).await?;
-            }
-
-            // Flush remaining rate limiter bytes after stream ends
-            batch.flush(dm.rate_limiter()).await;
-
-            if let Some(err) = stream_error {
+            Ok(Err(err)) => {
                 tracing::warn!(
-                    "Single-stream download interrupted at offset {absolute_offset}: {err}"
+                    "HTTP/3 single request to {} failed: {err}; tripping circuit breaker and falling back to TCP",
+                    self.url
                 );
-                register_retry_penalty(&managed, err.to_string());
-                if absolute_offset > last_progress_offset {
-                    consecutive_stream_errors = 1;
-                    last_progress_offset = absolute_offset;
-                } else {
-                    consecutive_stream_errors = consecutive_stream_errors.saturating_add(1);
-                }
-                if consecutive_stream_errors > max_retries {
-                    flush_write_buffer(&write_buffer, "error").await;
-                    return Err(DownloadError::from(err));
-                }
-                tokio::select! {
-                    _ = token.cancelled() => {
-                        flush_write_buffer(&write_buffer, "cancel").await;
-                        return Ok(cancellation_outcome(&managed));
-                    }
-                    _ = sleep(jittered_backoff_delay(consecutive_stream_errors)) => {}
-                }
-            } else {
-                consecutive_stream_errors = 0;
-                last_progress_offset = absolute_offset;
-                if single_finished(&managed) {
-                    finish_buffer_flush(dm.as_ref(), &managed, &write_buffer).await?;
-                    if let Some(hasher) = streaming_hasher {
-                        let is_complete = match total_bytes {
-                            Some(total) => hasher_expected_offset == total,
-                            None => true,
-                        };
-                        if is_complete {
-                            let computed = hasher.finalize();
-                            tracing::info!("Single-stream on-the-fly checksum computed: {computed}");
-                            let mut core = managed.lock_core();
-                            core.manifest.checksum = Some(computed.clone());
-                            core.snapshot.checksum = Some(computed);
-                        }
-                    }
-                    return Ok(RunOutcome::Finished);
-                }
+                run.dm.alt_svc().mark_broken(&host, port, now_ms());
+                None
+            }
+            Err(_) => {
+                tracing::warn!(
+                    "HTTP/3 single request to {} timed out; tripping circuit breaker and falling back to TCP",
+                    self.url
+                );
+                run.dm.alt_svc().mark_broken(&host, port, now_ms());
+                None
             }
         }
     }
@@ -353,7 +514,8 @@ async fn open_single_target(
     };
     let file_path = PathBuf::from(temp_path);
     if let Some(parent) = file_path.parent() {
-        fs::create_dir_all(parent)
+        tokio::fs::create_dir_all(parent)
+            .await
             .map_err(|e| io_error_with_path(e, parent.to_string_lossy()))?;
     }
     let file = Arc::new(open_download_file(&file_path, total_bytes)?);

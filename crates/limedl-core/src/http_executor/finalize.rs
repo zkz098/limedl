@@ -8,7 +8,6 @@ use crate::event_bus::DownloadEvent;
 use crate::file_ops::finalize_temp_file;
 use crate::manager_state::ManagerState;
 use crate::types::{ChecksumMode, DownloadProgress, DownloadState};
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -165,7 +164,8 @@ impl HttpExecutor {
         }
 
         if let Some(parent) = destination_path.parent() {
-            fs::create_dir_all(parent)
+            tokio::fs::create_dir_all(parent)
+                .await
                 .map_err(|e| io_error_with_path(e, parent.to_string_lossy()))?;
         }
 

@@ -2,6 +2,7 @@
 //! `magnet:` link, dropped `.torrent` file or a pasted list of URLs.
 
 use std::ffi::OsStr;
+use std::path::Path;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -31,42 +32,14 @@ pub fn open_new_task_with_payload(
         return;
     }
 
-    // Check limedl:// deep link scheme
-    let normalized = if let Some(stripped) = payload.strip_prefix("limedl://") {
-        let after = stripped.trim_start_matches('/');
-        if let Some(url_part) = after.strip_prefix("download?url=") {
-            percent_encoding::percent_decode_str(url_part)
-                .decode_utf8_lossy()
-                .to_string()
-        } else if let Some(magnet_part) = after.strip_prefix("magnet:") {
-            format!("magnet:{magnet_part}")
-        } else {
-            after.to_string()
-        }
-    } else {
-        payload.to_string()
-    };
+    let normalized = normalize_deep_link(payload);
+    let normalized = normalized.trim();
 
-    let normalized = normalized.trim().to_string();
+    // A local path payload may arrive as a `file://` URL.
+    let path_candidate = strip_file_url(normalized);
+    let path = Path::new(&path_candidate);
 
-    // Check if it's a local .torrent file
-    let path_candidate = if let Some(file_url) = normalized.strip_prefix("file:///") {
-        file_url.to_string()
-    } else if let Some(file_url) = normalized.strip_prefix("file://") {
-        file_url.to_string()
-    } else {
-        normalized.clone()
-    };
-
-    let path = std::path::Path::new(&path_candidate);
-    let is_torrent_file = path.is_file()
-        && path
-            .extension()
-            .and_then(OsStr::to_str)
-            .map(|ext| ext.eq_ignore_ascii_case("torrent"))
-            .unwrap_or(false);
-
-    if is_torrent_file {
+    if has_extension(path, &["torrent"]) {
         open_torrent_file_payload(
             ui_weak,
             dispatcher,
@@ -78,122 +51,202 @@ pub fn open_new_task_with_payload(
         return;
     }
 
-    let is_metalink_file = path.is_file()
+    // A metalink that fails to parse is not handled, so keep looking for another
+    // interpretation of the payload.
+    if has_extension(path, &["metalink", "meta4"]) && try_open_metalink(path, ui_weak, store) {
+        return;
+    }
+
+    if normalized.starts_with("magnet:?") {
+        open_magnet_dialog(normalized, ui_weak, store);
+        return;
+    }
+
+    match bridge::parse_clipboard_download_text(normalized) {
+        ClipboardPayload::BatchUrls(urls) => open_batch_dialog(&urls, ui_weak, store),
+        ClipboardPayload::SingleUrl(url) => open_single_dialog(&url, ui_weak, dispatcher, store),
+        ClipboardPayload::Empty => open_unnamed_dialog(normalized, ui_weak),
+    }
+}
+
+/// Resolve the `limedl://` deep-link wrapper around a payload.
+fn normalize_deep_link(payload: &str) -> String {
+    let Some(stripped) = payload.strip_prefix("limedl://") else {
+        return payload.to_string();
+    };
+    let after = stripped.trim_start_matches('/');
+    if let Some(url_part) = after.strip_prefix("download?url=") {
+        percent_encoding::percent_decode_str(url_part)
+            .decode_utf8_lossy()
+            .to_string()
+    } else if let Some(magnet_part) = after.strip_prefix("magnet:") {
+        format!("magnet:{magnet_part}")
+    } else {
+        after.to_string()
+    }
+}
+
+/// Strip a `file://` / `file:///` prefix, leaving other payloads untouched.
+fn strip_file_url(payload: &str) -> String {
+    match payload
+        .strip_prefix("file:///")
+        .or_else(|| payload.strip_prefix("file://"))
+    {
+        Some(rest) => rest.to_string(),
+        None => payload.to_string(),
+    }
+}
+
+/// True when `path` is an existing file whose extension is one of `extensions`
+/// (compared ASCII-case-insensitively).
+fn has_extension(path: &Path, extensions: &[&str]) -> bool {
+    path.is_file()
         && path
             .extension()
             .and_then(OsStr::to_str)
-            .map(|ext| ext.eq_ignore_ascii_case("metalink") || ext.eq_ignore_ascii_case("meta4"))
-            .unwrap_or(false);
-
-    if is_metalink_file
-        && let Ok(content) = std::fs::read_to_string(path)
-        && let Ok(doc) = limedl_core::metalink::parse_metalink_xml(&content)
-        && let Some(file) = doc.files.into_iter().next()
-    {
-        let sorted_urls = file.sorted_mirror_urls();
-        if let Some(primary_url) = sorted_urls.first() {
-            let primary_url = primary_url.clone();
-            let file_name = file.name;
-            let ui_weak = ui_weak.clone();
-            let store = store.clone();
-            let _ = slint::invoke_from_event_loop(move || {
-                with_ui(&ui_weak, |ui| {
-                    restore_and_show_window(&ui, Some(&store.lock()));
-                    ui.set_new_task_url(SharedString::from(&primary_url));
-                    ui.set_new_task_filename(SharedString::from(&file_name));
-                    ui.set_new_task_batch_mode(false);
-                    reset_transient_state(&ui);
-                    ui.set_show_new_task_dialog(true);
-                });
-            });
-            return;
-        }
-    }
-
-    // Check magnet link
-    if normalized.starts_with("magnet:?") {
-        let magnet_url = normalized.clone();
-        let display_name = magnet_url
-            .find("dn=")
-            .map(|start| {
-                let raw = magnet_url[start + 3..].split('&').next().unwrap_or("");
-                percent_encoding::percent_decode_str(raw)
-                    .decode_utf8_lossy()
-                    .to_string()
+            .is_some_and(|ext| {
+                extensions
+                    .iter()
+                    .any(|wanted| ext.eq_ignore_ascii_case(wanted))
             })
-            .unwrap_or_default();
+}
 
+/// Pre-fill the dialog from the first mirror list of a `.metalink`/`.meta4` file.
+/// Returns `false` when the payload was not handled.
+fn try_open_metalink(
+    path: &Path,
+    ui_weak: &slint::Weak<MainWindow>,
+    store: &Arc<Mutex<TaskStore>>,
+) -> bool {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    let Ok(doc) = limedl_core::metalink::parse_metalink_xml(&content) else {
+        return false;
+    };
+    let Some(file) = doc.files.into_iter().next() else {
+        return false;
+    };
+    let Some(primary_url) = file.sorted_mirror_urls().first().cloned() else {
+        return false;
+    };
+    let file_name = file.name;
+    let ui_weak = ui_weak.clone();
+    let store = store.clone();
+    let _ = slint::invoke_from_event_loop(move || {
+        with_ui(&ui_weak, |ui| {
+            restore_and_show_window(&ui, Some(&store.lock()));
+            ui.set_new_task_url(SharedString::from(&primary_url));
+            ui.set_new_task_filename(SharedString::from(&file_name));
+            ui.set_new_task_batch_mode(false);
+            reset_transient_state(&ui);
+            ui.set_show_new_task_dialog(true);
+        });
+    });
+    true
+}
+
+/// Pre-fill the dialog for a magnet link, taking the display name from `dn=`.
+fn open_magnet_dialog(
+    normalized: &str,
+    ui_weak: &slint::Weak<MainWindow>,
+    store: &Arc<Mutex<TaskStore>>,
+) {
+    let magnet_url = normalized.to_string();
+    let display_name = magnet_url
+        .find("dn=")
+        .map(|start| {
+            let raw = magnet_url[start + 3..].split('&').next().unwrap_or("");
+            percent_encoding::percent_decode_str(raw)
+                .decode_utf8_lossy()
+                .to_string()
+        })
+        .unwrap_or_default();
+
+    let ui_weak = ui_weak.clone();
+    let store = store.clone();
+    let _ = slint::invoke_from_event_loop(move || {
+        with_ui(&ui_weak, |ui| {
+            restore_and_show_window(&ui, Some(&store.lock()));
+            ui.set_new_task_url(SharedString::from(&magnet_url));
+            if !display_name.is_empty() {
+                ui.set_new_task_filename(SharedString::from(&display_name));
+            }
+            ui.set_new_task_batch_mode(false);
+            reset_transient_state(&ui);
+            ui.set_show_new_task_dialog(true);
+        });
+    });
+}
+
+/// Fill the dialog with a pasted batch of URLs.
+fn open_batch_dialog(
+    urls: &[String],
+    ui_weak: &slint::Weak<MainWindow>,
+    store: &Arc<Mutex<TaskStore>>,
+) {
+    let ui_weak = ui_weak.clone();
+    let store = store.clone();
+    let urls = urls.to_vec();
+    let _ = slint::invoke_from_event_loop(move || {
+        with_ui(&ui_weak, |ui| {
+            restore_and_show_window(&ui, Some(&store.lock()));
+            let lang = store.lock().language();
+            fill_batch(&ui, &urls, lang);
+            ui.set_new_task_batch_submitting(false);
+            ui.set_new_task_batch_status_text(SharedString::default());
+            ui.set_show_new_task_dialog(true);
+        });
+    });
+}
+
+/// Fill the dialog with a single pasted URL — unpacking an `aria2c` command line
+/// into URL plus `--out` / `--dir` / `--header` rather than showing it verbatim —
+/// and probe HTTP links for a checksum.
+fn open_single_dialog(
+    url: &str,
+    ui_weak: &slint::Weak<MainWindow>,
+    dispatcher: &Arc<Dispatcher>,
+    store: &Arc<Mutex<TaskStore>>,
+) {
+    {
         let ui_weak = ui_weak.clone();
+        let url = url.to_string();
         let store = store.clone();
         let _ = slint::invoke_from_event_loop(move || {
             with_ui(&ui_weak, |ui| {
                 restore_and_show_window(&ui, Some(&store.lock()));
-                ui.set_new_task_url(SharedString::from(&magnet_url));
-                if !display_name.is_empty() {
-                    ui.set_new_task_filename(SharedString::from(&display_name));
-                }
                 ui.set_new_task_batch_mode(false);
                 reset_transient_state(&ui);
+                // A pasted aria2c command is unpacked into URL plus
+                // `--out` / `--dir` / `--header` instead of being shown
+                // verbatim as an unusable URL.
+                let lang = store.lock().language();
+                if !apply_aria2_input(&ui, &url, lang) {
+                    ui.set_new_task_url(SharedString::from(&url));
+                }
                 ui.set_show_new_task_dialog(true);
             });
         });
-        return;
     }
 
-    // Check multiple lines or URLs via clipboard parser
-    match bridge::parse_clipboard_download_text(&normalized) {
-        ClipboardPayload::BatchUrls(urls) => {
-            let ui_weak = ui_weak.clone();
-            let store = store.clone();
-            let _ = slint::invoke_from_event_loop(move || {
-                with_ui(&ui_weak, |ui| {
-                    restore_and_show_window(&ui, Some(&store.lock()));
-                    let lang = store.lock().language();
-                    fill_batch(&ui, &urls, lang);
-                    ui.set_new_task_batch_submitting(false);
-                    ui.set_new_task_batch_status_text(SharedString::default());
-                    ui.set_show_new_task_dialog(true);
-                });
-            });
-        }
-        ClipboardPayload::SingleUrl(url) => {
-            {
-                let ui_weak = ui_weak.clone();
-                let url = url.clone();
-                let store = store.clone();
-                let _ = slint::invoke_from_event_loop(move || {
-                    with_ui(&ui_weak, |ui| {
-                        restore_and_show_window(&ui, Some(&store.lock()));
-                        ui.set_new_task_batch_mode(false);
-                        reset_transient_state(&ui);
-                        // A pasted aria2c command is unpacked into URL plus
-                        // `--out` / `--dir` / `--header` instead of being shown
-                        // verbatim as an unusable URL.
-                        let lang = store.lock().language();
-                        if !apply_aria2_input(&ui, &url, lang) {
-                            ui.set_new_task_url(SharedString::from(&url));
-                        }
-                        ui.set_show_new_task_dialog(true);
-                    });
-                });
-            }
-
-            // HTTP links get their checksum probed automatically.
-            if url.starts_with("http://") || url.starts_with("https://") {
-                spawn_probe(ui_weak, dispatcher, store, url, None);
-            }
-        }
-        ClipboardPayload::Empty => {
-            let ui_weak = ui_weak.clone();
-            let _ = slint::invoke_from_event_loop(move || {
-                with_ui(&ui_weak, |ui| {
-                    ui.set_new_task_url(SharedString::from(&normalized));
-                    ui.set_new_task_batch_mode(false);
-                    ui.set_show_new_task_dialog(true);
-                });
-            });
-        }
+    // HTTP links get their checksum probed automatically.
+    if url.starts_with("http://") || url.starts_with("https://") {
+        spawn_probe(ui_weak, dispatcher, store, url.to_string(), None);
     }
+}
+
+/// Show the empty dialog with the raw payload as the URL field.
+fn open_unnamed_dialog(normalized: &str, ui_weak: &slint::Weak<MainWindow>) {
+    let payload = normalized.to_string();
+    let ui_weak = ui_weak.clone();
+    let _ = slint::invoke_from_event_loop(move || {
+        with_ui(&ui_weak, |ui| {
+            ui.set_new_task_url(SharedString::from(&payload));
+            ui.set_new_task_batch_mode(false);
+            ui.set_show_new_task_dialog(true);
+        });
+    });
 }
 
 /// Open the new-task dialog for a local `.torrent` payload and kick off the

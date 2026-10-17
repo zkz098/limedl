@@ -291,87 +291,110 @@ impl AltSvcManager {
         header_value: &str,
         now_ms: u64,
     ) {
-        let action = parse_alt_svc_header(header_value);
         let key = (origin_host.to_string(), origin_port);
-
-        match action {
-            AltSvcAction::Clear => {
-                debug!("Clearing Alt-Svc entries for {origin_host}:{origin_port}");
-                self.cache.remove(&key);
-                let db = self.db.clone();
-                let host = origin_host.to_string();
-                tokio::spawn(async move {
-                    if let Err(e) = db.clear_alt_svc_for_origin(&host, origin_port) {
-                        warn!("Failed to clear Alt-Svc in db for {host}:{origin_port}: {e}");
-                    }
-                });
-            }
+        match parse_alt_svc_header(header_value) {
+            AltSvcAction::Clear => self.clear_origin(&key, origin_host, origin_port),
             AltSvcAction::Entries(entries) => {
-                let mut updated_records = Vec::new();
-                for entry in entries {
-                    // Only cache HTTP/3 protocols
-                    if !entry.protocol.starts_with("h3") {
-                        continue;
-                    }
-
-                    let alt_host = entry.host.unwrap_or_else(|| origin_host.to_string());
-                    let alt_port = entry.port;
-                    let expires_at_ms = now_ms.saturating_add(entry.max_age_secs.saturating_mul(1000));
-
-                    let mut existing_fail_count = 0;
-                    let mut existing_broken_until = 0;
-
-                    // Preserve existing failure/broken state if present
-                    if let Some(existing_list) = self.cache.get(&key)
-                        && let Some(existing) = existing_list
-                            .iter()
-                            .find(|r| r.protocol == entry.protocol && r.alt_port == alt_port)
-                    {
-                        existing_fail_count = existing.fail_count;
-                        existing_broken_until = existing.broken_until_ms;
-                    }
-
-                    let record = AltSvcRecord {
-                        origin_host: origin_host.to_string(),
-                        origin_port,
-                        protocol: entry.protocol,
-                        alt_host,
-                        alt_port,
-                        expires_at_ms,
-                        persist: entry.persist,
-                        fail_count: existing_fail_count,
-                        broken_until_ms: existing_broken_until,
-                    };
-                    updated_records.push(record);
-                }
-
-                if !updated_records.is_empty() {
-                    let mut list = self.cache.entry(key).or_default();
-                    for rec in &updated_records {
-                        if let Some(pos) = list
-                            .iter()
-                            .position(|r| r.protocol == rec.protocol && r.alt_port == rec.alt_port)
-                        {
-                            list[pos] = rec.clone();
-                        } else {
-                            list.push(rec.clone());
-                        }
-                    }
-
-                    let db = self.db.clone();
-                    tokio::spawn(async move {
-                        for rec in updated_records {
-                            if let Err(e) = db.upsert_alt_svc(&rec) {
-                                warn!(
-                                    "Failed to persist Alt-Svc {}:{} -> {}:{}: {e}",
-                                    rec.origin_host, rec.origin_port, rec.alt_host, rec.alt_port
-                                );
-                            }
-                        }
-                    });
+                let records = self.collect_records(&key, origin_host, origin_port, entries, now_ms);
+                if !records.is_empty() {
+                    self.store_records(key, records);
                 }
             }
         }
+    }
+
+    /// Drop every Alt-Svc entry for one origin, in memory and in SQLite.
+    fn clear_origin(&self, key: &(String, u16), origin_host: &str, origin_port: u16) {
+        debug!("Clearing Alt-Svc entries for {origin_host}:{origin_port}");
+        self.cache.remove(key);
+        let db = self.db.clone();
+        let host = origin_host.to_string();
+        tokio::spawn(async move {
+            if let Err(e) = db.clear_alt_svc_for_origin(&host, origin_port) {
+                warn!("Failed to clear Alt-Svc in db for {host}:{origin_port}: {e}");
+            }
+        });
+    }
+
+    /// Build the records worth caching from a parsed header. HTTP/3-only, and
+    /// each record carries over the failure/broken state of the entry we already
+    /// track for the same protocol and port.
+    fn collect_records(
+        &self,
+        key: &(String, u16),
+        origin_host: &str,
+        origin_port: u16,
+        entries: Vec<ParsedAltSvcEntry>,
+        now_ms: u64,
+    ) -> Vec<AltSvcRecord> {
+        let mut records = Vec::new();
+        for entry in entries {
+            if !entry.protocol.starts_with("h3") {
+                continue;
+            }
+            let (fail_count, broken_until_ms) =
+                self.existing_failure_state(key, &entry.protocol, entry.port);
+            records.push(AltSvcRecord {
+                origin_host: origin_host.to_string(),
+                origin_port,
+                protocol: entry.protocol,
+                alt_host: entry.host.unwrap_or_else(|| origin_host.to_string()),
+                alt_port: entry.port,
+                expires_at_ms: now_ms.saturating_add(entry.max_age_secs.saturating_mul(1000)),
+                persist: entry.persist,
+                fail_count,
+                broken_until_ms,
+            });
+        }
+        records
+    }
+
+    /// `fail_count`/`broken_until_ms` of an already-tracked entry for the same
+    /// protocol and port, so a re-advertised service does not lose its backoff.
+    fn existing_failure_state(
+        &self,
+        key: &(String, u16),
+        protocol: &str,
+        alt_port: u16,
+    ) -> (u32, u64) {
+        let Some(list) = self.cache.get(key) else {
+            return (0, 0);
+        };
+        let Some(existing) = list
+            .iter()
+            .find(|r| r.protocol == protocol && r.alt_port == alt_port)
+        else {
+            return (0, 0);
+        };
+        (existing.fail_count, existing.broken_until_ms)
+    }
+
+    /// Merge `records` into the in-memory list (replacing same protocol+port)
+    /// and persist them in the background.
+    fn store_records(&self, key: (String, u16), records: Vec<AltSvcRecord>) {
+        let mut list = self.cache.entry(key).or_default();
+        for rec in &records {
+            if let Some(pos) = list
+                .iter()
+                .position(|r| r.protocol == rec.protocol && r.alt_port == rec.alt_port)
+            {
+                list[pos] = rec.clone();
+            } else {
+                list.push(rec.clone());
+            }
+        }
+
+        let db = self.db.clone();
+        tokio::spawn(async move {
+            for rec in records {
+                if let Err(e) = db.upsert_alt_svc(&rec) {
+                    warn!(
+                        "Failed to persist Alt-Svc {}:{} -> {}:{}: {e}",
+                        rec.origin_host, rec.origin_port, rec.alt_host, rec.alt_port
+                    );
+                }
+            }
+        });
     }
 
     /// Mark an alternative service as broken when an HTTP/3 connection/stream fails.

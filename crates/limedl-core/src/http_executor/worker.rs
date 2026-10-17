@@ -25,7 +25,7 @@ use crate::http::{
 };
 use crate::manager_state::ManagerState;
 use crate::manifest::ChunkManifest;
-use crate::metalink::MirrorPool;
+use crate::metalink::{MirrorLease, MirrorPool};
 use crate::rate_limiter::RateLimiter;
 use crate::retry::{jittered_backoff_delay, register_retry_penalty, request_with_retry};
 use crate::types::{DiskType, DownloadState};
@@ -241,6 +241,21 @@ pub(super) struct ChunkWorkerCtx {
     pub(super) claim_times: Arc<parking_lot::Mutex<std::collections::HashMap<usize, std::time::Instant>>>,
 }
 
+/// Report a failed segment to the mirror it was leased from, if any. The lease
+/// already carries its pool, so there is no second `Option` to check.
+fn note_mirror_failure(lease: Option<&MirrorLease>) {
+    if let Some(lease) = lease {
+        lease.report_failure();
+    }
+}
+
+/// Report how many bytes a mirror delivered.
+fn note_mirror_success(lease: Option<&MirrorLease>, bytes: u64) {
+    if let Some(lease) = lease {
+        lease.report_success(bytes);
+    }
+}
+
 /// Why a segment fetch did not produce a usable response.
 enum FetchSegmentError {
     /// 429 while multiple threads are allocated — the supervisor downgrades.
@@ -257,6 +272,58 @@ enum SegmentBody {
     Stop(ChunkWorkerOutcome),
     /// The body stream was interrupted before reaching the requested end.
     StreamInterrupted(reqwest::Error),
+}
+
+/// How one pass of the chunk loop ended.
+enum SegmentStep {
+    /// Loop again.
+    Continue,
+    /// Leave `process_chunk` with this outcome.
+    Done(ChunkWorkerOutcome),
+}
+
+/// Stream-level retry bookkeeping for one chunk's attempt loop.
+struct StreamRetry {
+    consecutive_errors: u32,
+    last_progress: u64,
+}
+
+impl StreamRetry {
+    fn new(last_progress: u64) -> Self {
+        Self {
+            consecutive_errors: 0,
+            last_progress,
+        }
+    }
+
+    /// A fully drained segment resets the streak when it made forward progress.
+    fn note_drained(&mut self, current: u64) {
+        if current > self.last_progress {
+            self.last_progress = current;
+            self.consecutive_errors = 0;
+        }
+    }
+
+    /// An interrupted segment restarts the streak at 1 after progress, and
+    /// otherwise grows it.
+    fn note_interrupted(&mut self, current: u64) {
+        if current > self.last_progress {
+            self.last_progress = current;
+            self.consecutive_errors = 1;
+        } else {
+            self.consecutive_errors = self.consecutive_errors.saturating_add(1);
+        }
+    }
+}
+
+/// The mutable state one chunk's attempt loop threads through every segment.
+struct ChunkAttempt<'a> {
+    current: u64,
+    original_end: u64,
+    budget: RequestBudget,
+    retry: StreamRetry,
+    batch: &'a mut BatchLimiter,
+    throttle: &'a mut ProgressThrottle,
 }
 
 /// Upper bound on the number of separate segment requests one chunk may issue.
@@ -322,143 +389,161 @@ impl ChunkWorkerCtx {
         batch: &mut BatchLimiter,
         throttle: &mut ProgressThrottle,
     ) -> Result<ChunkWorkerOutcome> {
-        let mut current = chunk.start + chunk.downloaded;
-        let original_end = chunk.end;
+        let start = chunk.start + chunk.downloaded;
+        let mut state = ChunkAttempt {
+            current: start,
+            original_end: chunk.end,
+            budget: RequestBudget::new(MAX_SEGMENT_FETCHES_PER_CHUNK),
+            retry: StreamRetry::new(start),
+            batch,
+            throttle,
+        };
 
-        if current > self.dynamic_end(chunk.index, original_end) {
+        if state.current > self.dynamic_end(chunk.index, state.original_end) {
             self.release(chunk.index);
             return Ok(ChunkWorkerOutcome::Finished);
         }
 
-        let mut budget = RequestBudget::new(MAX_SEGMENT_FETCHES_PER_CHUNK);
-        let mut consecutive_stream_errors: u32 = 0;
-        let mut last_progress_offset = current;
-
-        while current <= self.dynamic_end(chunk.index, original_end) {
-            let dynamic_end = self.dynamic_end(chunk.index, original_end);
-
-            if self.token.is_cancelled() {
-                return Ok(self.pause_or_cancel(Some(chunk.index)));
-            }
-
-            // Check if tail sprint released our chunk claim
-            if self.claim_released(chunk.index) {
-                return Ok(ChunkWorkerOutcome::Finished);
-            }
-
-            if let Err(error) = budget.charge(format_args!("chunk {}", chunk.index)) {
-                self.release(chunk.index);
-                return Err(error);
-            }
-
-            let mirror_lease = self.mirror_pool.as_ref().and_then(|p| p.lease_best_mirror());
-            let target_url = mirror_lease.as_ref().map(|l| l.url.clone());
-
-            let response = match self.fetch_segment(current, dynamic_end, target_url.as_deref()).await {
-                Ok(response) => response,
-                Err(FetchSegmentError::DowngradeSingleThread) => {
-                    if let Some(ref l) = mirror_lease
-                        && let Some(ref p) = self.mirror_pool
-                    {
-                        p.report_failure(&l.url);
-                    }
-                    self.release(chunk.index);
-                    return Ok(ChunkWorkerOutcome::DowngradeSingleThread);
-                }
-                Err(FetchSegmentError::Fatal(error)) => {
-                    if let Some(ref l) = mirror_lease
-                        && let Some(ref p) = self.mirror_pool
-                    {
-                        p.report_failure(&l.url);
-                    }
-                    self.release(chunk.index);
-                    return Err(error);
-                }
-            };
-
-            if !self.owns_claim(chunk.index) {
-                return Ok(ChunkWorkerOutcome::Finished);
-            }
-
-            if response.status() == StatusCode::OK {
-                self.release(chunk.index);
-                return Ok(ChunkWorkerOutcome::RestartSingle);
-            }
-
-            validate_segment_response(&response, current, dynamic_end)?;
-
-            {
-                let mut core = self.managed.lock_core();
-                if core.snapshot.state == DownloadState::Retrying {
-                    core.snapshot.state = DownloadState::Downloading;
-                    core.manifest.state = DownloadState::Downloading;
-                    core.snapshot.updated_at_ms = now_ms();
-                    core.manifest.updated_at_ms = now_ms();
-                }
-            }
-
-            let seg_start = current;
-            match self
-                .consume_segment(response, &mut current, chunk.index, original_end, batch, throttle)
-                .await?
-            {
-                SegmentBody::Exhausted => {
-                    let drained = current.saturating_sub(seg_start);
-                    if let Some(ref l) = mirror_lease
-                        && let Some(ref p) = self.mirror_pool
-                    {
-                        p.report_success(&l.url, drained);
-                    }
-                    if current > last_progress_offset {
-                        consecutive_stream_errors = 0;
-                        last_progress_offset = current;
-                    }
-                }
-                SegmentBody::Stop(outcome) => return Ok(outcome),
-                SegmentBody::StreamInterrupted(err) => {
-                    tracing::warn!(
-                        "Worker {} chunk {} stream interrupted at offset {current}/{dynamic_end}: {err}",
-                        self.worker_id,
-                        chunk.index
-                    );
-                    register_retry_penalty(&self.managed, err.to_string());
-                    if let Some(ref l) = mirror_lease
-                        && let Some(ref p) = self.mirror_pool
-                    {
-                        p.report_failure(&l.url);
-                    }
-                    if current > last_progress_offset {
-                        consecutive_stream_errors = 1;
-                        last_progress_offset = current;
-                    } else {
-                        consecutive_stream_errors = consecutive_stream_errors.saturating_add(1);
-                    }
-                    if consecutive_stream_errors > self.max_retries {
-                        self.release(chunk.index);
-                        return Err(DownloadError::from(err));
-                    }
-                    tokio::select! {
-                        _ = self.token.cancelled() => return Ok(self.pause_or_cancel(Some(chunk.index))),
-                        _ = sleep(jittered_backoff_delay(consecutive_stream_errors)) => {}
-                    }
-                }
+        while state.current <= self.dynamic_end(chunk.index, state.original_end) {
+            if let SegmentStep::Done(outcome) = self.fetch_segment_once(chunk, &mut state).await? {
+                return Ok(outcome);
             }
         }
 
-        // Verify piece hash if metalink pieces are configured
+        self.verify_piece_and_mark_complete(chunk).await
+    }
+
+    /// One pass of the chunk loop: fetch a segment, drain it, and fold the result
+    /// into the attempt state. `SegmentStep::Done` means the caller must return
+    /// that outcome now; `Err` aborts the chunk.
+    async fn fetch_segment_once(
+        &self,
+        chunk: &ChunkManifest,
+        state: &mut ChunkAttempt<'_>,
+    ) -> Result<SegmentStep> {
+        let dynamic_end = self.dynamic_end(chunk.index, state.original_end);
+
+        if self.token.is_cancelled() {
+            return Ok(SegmentStep::Done(self.pause_or_cancel(Some(chunk.index))));
+        }
+
+        // Check if tail sprint released our chunk claim
+        if self.claim_released(chunk.index) {
+            return Ok(SegmentStep::Done(ChunkWorkerOutcome::Finished));
+        }
+
+        if let Err(error) = state.budget.charge(format_args!("chunk {}", chunk.index)) {
+            self.release(chunk.index);
+            return Err(error);
+        }
+
+        let mirror_lease = self.mirror_pool.as_ref().and_then(|p| p.lease_best_mirror());
+        let target_url = mirror_lease.as_ref().map(|l| l.url.clone());
+
+        let response = match self
+            .fetch_segment(state.current, dynamic_end, target_url.as_deref())
+            .await
+        {
+            Ok(response) => response,
+            Err(FetchSegmentError::DowngradeSingleThread) => {
+                note_mirror_failure(mirror_lease.as_ref());
+                self.release(chunk.index);
+                return Ok(SegmentStep::Done(ChunkWorkerOutcome::DowngradeSingleThread));
+            }
+            Err(FetchSegmentError::Fatal(error)) => {
+                note_mirror_failure(mirror_lease.as_ref());
+                self.release(chunk.index);
+                return Err(error);
+            }
+        };
+
+        if !self.owns_claim(chunk.index) {
+            return Ok(SegmentStep::Done(ChunkWorkerOutcome::Finished));
+        }
+
+        if response.status() == StatusCode::OK {
+            self.release(chunk.index);
+            return Ok(SegmentStep::Done(ChunkWorkerOutcome::RestartSingle));
+        }
+
+        validate_segment_response(&response, state.current, dynamic_end)?;
+
+        self.mark_retrying_as_downloading();
+
+        let seg_start = state.current;
+        match self
+            .consume_segment(
+                response,
+                &mut state.current,
+                chunk.index,
+                state.original_end,
+                state.batch,
+                state.throttle,
+            )
+            .await?
+        {
+            SegmentBody::Exhausted => {
+                note_mirror_success(mirror_lease.as_ref(), state.current.saturating_sub(seg_start));
+                state.retry.note_drained(state.current);
+            }
+            SegmentBody::Stop(outcome) => return Ok(SegmentStep::Done(outcome)),
+            SegmentBody::StreamInterrupted(err) => {
+                tracing::warn!(
+                    "Worker {} chunk {} stream interrupted at offset {}/{dynamic_end}: {err}",
+                    self.worker_id,
+                    chunk.index,
+                    state.current
+                );
+                register_retry_penalty(&self.managed, err.to_string());
+                note_mirror_failure(mirror_lease.as_ref());
+                state.retry.note_interrupted(state.current);
+                if state.retry.consecutive_errors > self.max_retries {
+                    self.release(chunk.index);
+                    return Err(DownloadError::from(err));
+                }
+                if let Some(outcome) = self
+                    .backoff_or_cancel(chunk.index, state.retry.consecutive_errors)
+                    .await
+                {
+                    return Ok(SegmentStep::Done(outcome));
+                }
+            }
+        }
+        Ok(SegmentStep::Continue)
+    }
+
+    /// Wait out the retry backoff unless the download is cancelled first.
+    async fn backoff_or_cancel(&self, chunk_idx: usize, attempt: u32) -> Option<ChunkWorkerOutcome> {
+        tokio::select! {
+            _ = self.token.cancelled() => Some(self.pause_or_cancel(Some(chunk_idx))),
+            _ = sleep(jittered_backoff_delay(attempt)) => None,
+        }
+    }
+
+    /// Clear the "Retrying" marker a previous failure left on the task.
+    fn mark_retrying_as_downloading(&self) {
+        let mut core = self.managed.lock_core();
+        if core.snapshot.state == DownloadState::Retrying {
+            core.snapshot.state = DownloadState::Downloading;
+            core.manifest.state = DownloadState::Downloading;
+            core.snapshot.updated_at_ms = now_ms();
+            core.manifest.updated_at_ms = now_ms();
+        }
+    }
+
+    /// Verify the chunk's piece hash when metalink pieces are configured, then
+    /// mark it complete. A mismatch resets the chunk so it is re-downloaded.
+    async fn verify_piece_and_mark_complete(
+        &self,
+        chunk: &ChunkManifest,
+    ) -> Result<ChunkWorkerOutcome> {
         if !self.verify_chunk_piece(chunk).await? {
             tracing::warn!(
                 "Worker {} chunk {} failed piece checksum verification",
                 self.worker_id,
                 chunk.index
             );
-            {
-                let mut core = self.managed.lock_core();
-                if let Some(c) = core.manifest.chunks.get_mut(chunk.index) {
-                    c.downloaded = 0;
-                    c.dirty = true;
-                }
-            }
+            self.reset_chunk_for_retry(chunk.index);
             self.release(chunk.index);
             return Err(DownloadError::InvalidResponse(format!(
                 "piece checksum mismatch for chunk {}",
@@ -468,6 +553,15 @@ impl ChunkWorkerCtx {
 
         self.mark_complete(chunk.index);
         Ok(ChunkWorkerOutcome::Finished)
+    }
+
+    /// Zero a chunk's progress so the next attempt re-downloads it.
+    fn reset_chunk_for_retry(&self, chunk_idx: usize) {
+        let mut core = self.managed.lock_core();
+        if let Some(c) = core.manifest.chunks.get_mut(chunk_idx) {
+            c.downloaded = 0;
+            c.dirty = true;
+        }
     }
 
     /// Fetch the next segment, mapping the downgrade-triggering 429 to its own
