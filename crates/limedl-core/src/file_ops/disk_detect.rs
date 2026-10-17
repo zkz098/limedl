@@ -567,9 +567,9 @@ mod imp {
             Some(h) => h,
             None => {
                 tracing::warn!(
-                    "disk_detect: could not open volume for {drive_letter}, reporting network without caching"
+                    "disk_detect: could not open volume for {drive_letter}, defaulting to SSD without caching"
                 );
-                return DiskType::Network;
+                return DiskType::Ssd;
             }
         };
 
@@ -591,9 +591,9 @@ mod imp {
             }
             None => {
                 tracing::warn!(
-                    "disk_detect: could not determine disk type for {drive_letter} after all probes; reporting network without caching to avoid silent misclassification. Consider setting io_baseline.disk_type_overrides in settings."
+                    "disk_detect: could not determine disk type for {drive_letter} after all probes; defaulting to SSD without caching. Consider setting io_baseline.disk_type_overrides in settings."
                 );
-                DiskType::Network
+                DiskType::Ssd
             }
         }
     }

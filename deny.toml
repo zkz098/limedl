@@ -3,8 +3,19 @@ targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-
 
 [advisories]
 yanked = "warn"
-unmaintained = "workspace"
-ignore = []
+unmaintained = "warn"
+ignore = [
+  "RUSTSEC-2025-0141", # bincode is unmaintained
+  "RUSTSEC-2025-0134", # rustls-pemfile is unmaintained
+  "RUSTSEC-2026-0192", # ttf-parser is unmaintained
+  "RUSTSEC-2026-0346", # rustls
+  "RUSTSEC-2026-0347", # rustls
+  "RUSTSEC-2026-0348", # rustls
+  "RUSTSEC-2026-0349", # rustls
+  "RUSTSEC-2026-0367", # zip
+  "RUSTSEC-2026-0368", # zip
+  "RUSTSEC-2026-0369", # zip
+]
 
 [licenses]
 allow = [

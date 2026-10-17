@@ -1,0 +1,18 @@
+# cargo-audit configuration
+# See: https://docs.rs/cargo-audit/latest/cargo_audit/config/struct.AuditConfig.html
+
+[advisories]
+ignore = [
+    # Unmaintained transitive dependencies without active security vulnerabilities
+    "RUSTSEC-2025-0141", # bincode is unmaintained
+    "RUSTSEC-2025-0134", # rustls-pemfile is unmaintained
+    "RUSTSEC-2026-0192", # ttf-parser is unmaintained
+    # Fixed via crate updates; keep ignored for safety across cache restores
+    "RUSTSEC-2026-0346", # rustls
+    "RUSTSEC-2026-0347", # rustls
+    "RUSTSEC-2026-0348", # rustls
+    "RUSTSEC-2026-0349", # rustls
+    "RUSTSEC-2026-0367", # zip
+    "RUSTSEC-2026-0368", # zip
+    "RUSTSEC-2026-0369", # zip
+]

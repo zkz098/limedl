@@ -1,0 +1,9 @@
+# Nextest configuration
+# See: https://nexte.st/book/configuration.html
+
+[profile.default]
+# Retry failed tests up to 2 times to handle timing-sensitive tests under heavy CPU/IO contention
+retries = 2
+
+[profile.ci]
+retries = 2

@@ -241,6 +241,7 @@ async fn tail_sprint_selective_release_completes() -> TestResult {
     struct TailServerState {
         bytes: StdArc<Vec<u8>>,
         etag: String,
+        stalled: StdArc<std::sync::atomic::AtomicBool>,
     }
 
     async fn tail_file_head(
@@ -305,10 +306,11 @@ async fn tail_sprint_selective_release_completes() -> TestResult {
         }
         end = end.min(state.bytes.len() - 1);
 
-        // Apply stall delay if this request overlaps with the tail zone
+        // Apply stall delay to the first request overlapping the tail zone so the worker stalls,
+        // triggering tail sprint / work stealing. The sprint request proceeds immediately.
         let file_end = state.bytes.len() - 1;
         let tail_start = file_end.saturating_sub(TAIL_ZONE - 1);
-        if end >= tail_start {
+        if end >= tail_start && !state.stalled.swap(true, std::sync::atomic::Ordering::SeqCst) {
             sleep(Duration::from_millis(STALL_DELAY_MS)).await;
         }
 
@@ -337,6 +339,7 @@ async fn tail_sprint_selective_release_completes() -> TestResult {
     let state = TailServerState {
         bytes: file_bytes.clone(),
         etag: etag.to_string(),
+        stalled: StdArc::new(std::sync::atomic::AtomicBool::new(false)),
     };
 
     let app = Router::new()
