@@ -1,7 +1,11 @@
 //! Finalization: checksum verification, atomic rename and completion events.
 
 use super::worker::{finalize_was_canceled};
-use super::{Arc, CancellationToken, ChecksumMode, DownloadEvent, DownloadManager, DownloadState, HttpExecutor, ManagedDownload, PathBuf, Result, RunOutcome, calculate_checksum, finalize_temp_file, fs, io_error_with_path, now_ms};
+use super::{
+    Arc, CancellationToken, ChecksumMode, DownloadEvent, DownloadManager, DownloadProgress,
+    DownloadState, HttpExecutor, Instant, ManagedDownload, PathBuf, Result, RunOutcome,
+    calculate_checksum_with_progress, finalize_temp_file, fs, io_error_with_path, now_ms,
+};
 
 impl HttpExecutor {
     pub(super) async fn finalize_download(
@@ -47,7 +51,62 @@ impl HttpExecutor {
         let checksum = match checksum_mode {
             ChecksumMode::None => None,
             _ if precomputed.is_some() => precomputed,
-            mode => Some(calculate_checksum(temp_path.clone(), mode).await?),
+            mode => {
+                let dl_id = managed.lock_core().snapshot.id.clone();
+                let eb = dm.event_bus.clone();
+                let (prog_tx, mut prog_rx) = tokio::sync::mpsc::unbounded_channel::<(u64, u64)>();
+
+                let progress_worker = tokio::spawn(async move {
+                    let start = Instant::now();
+                    while let Some((processed, total)) = prog_rx.recv().await {
+                        let elapsed = start.elapsed().as_secs_f64();
+                        let speed = if elapsed > 0.05 {
+                            Some(processed as f64 / elapsed)
+                        } else {
+                            None
+                        };
+                        let eta = speed.and_then(|s| {
+                            if s > 0.0 {
+                                Some(((total.saturating_sub(processed)) as f64 / s) as u64)
+                            } else {
+                                None
+                            }
+                        });
+                        eb.publish(DownloadEvent::Progress {
+                            progress: DownloadProgress {
+                                id: dl_id.clone(),
+                                state: DownloadState::Verifying,
+                                downloaded_bytes: processed,
+                                total_bytes: Some(total),
+                                speed_bytes_per_second: speed,
+                                eta_seconds: eta,
+                                connection_count: 0,
+                                allocated_thread_count: Some(0),
+                                error: None,
+                                uploaded_bytes: None,
+                                upload_speed_bytes_per_second: None,
+                                peer_count: None,
+                                upload_status: None,
+                                degraded: false,
+                                disk_type: None,
+                                flushing: false,
+                            },
+                        });
+                    }
+                });
+
+                let hash_res = calculate_checksum_with_progress(
+                    temp_path.clone(),
+                    mode,
+                    move |done, total| {
+                        let _ = prog_tx.send((done, total));
+                    },
+                )
+                .await;
+
+                let _ = progress_worker.await;
+                Some(hash_res?)
+            }
         };
 
         // Verify expected checksum if one was provided

@@ -1,7 +1,12 @@
 use std::ffi::OsStr;
 use std::path::Path;
+
+use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 use reqwest::header::{self, HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client, Url};
+
+use crate::types::ChecksumMode;
 
 const MAX_CHECKSUM_FILE_SIZE: usize = 512 * 1024; // 512 KiB limit
 
@@ -334,6 +339,112 @@ pub async fn detect_sha256(
         } else if let Some(hash) = parse_sha256_file(&text, Some(file_name)) {
             return Some(hash);
         }
+    }
+
+    None
+}
+
+/// Parse a checksum declared directly in HTTP response headers.
+///
+/// Supported headers:
+/// - `Digest` (RFC 3230 & RFC 5843): `SHA-256=<base64>`, `SHA-512=<base64>`, etc.
+/// - `Repr-Digest` (RFC 9530): `sha-256=:<base64>:`, `sha-512=:<base64>:`, etc.
+/// - `x-amz-checksum-sha256` / `x-amz-checksum-sha512` (AWS S3)
+/// - `x-checksum-sha256` / `x-checksum-sha512` / `x-checksum-blake3`
+/// - `x-goog-hash`: `sha256=<base64>` (Google Cloud Storage)
+pub fn detect_checksum_from_headers(headers: &HeaderMap) -> Option<(ChecksumMode, String)> {
+    let mut candidates: Vec<(ChecksumMode, String)> = Vec::new();
+
+    // 1. Digest & Repr-Digest (RFC 3230, RFC 5843, RFC 9530)
+    for header_name in ["digest", "repr-digest"] {
+        for header_val in headers.get_all(header_name) {
+            let Ok(header_str) = header_val.to_str() else {
+                continue;
+            };
+            for part in header_str.split(',') {
+                if let Some(entry) = parse_digest_item(part.trim()) {
+                    candidates.push(entry);
+                }
+            }
+        }
+    }
+
+    // 2. AWS S3 headers (base64 encoded)
+    if let Some(v) = headers.get("x-amz-checksum-sha512").and_then(|h| h.to_str().ok())
+        && let Some(hex) = decode_b64_to_hex(v, 64)
+    {
+        candidates.push((ChecksumMode::Sha512, hex));
+    }
+    if let Some(v) = headers.get("x-amz-checksum-sha256").and_then(|h| h.to_str().ok())
+        && let Some(hex) = decode_b64_to_hex(v, 32)
+    {
+        candidates.push((ChecksumMode::Sha256, hex));
+    }
+
+    // 3. Google Cloud Storage x-goog-hash header (can be multiple entries, comma or separate headers)
+    for header_val in headers.get_all("x-goog-hash") {
+        let Ok(header_str) = header_val.to_str() else {
+            continue;
+        };
+        for part in header_str.split(',') {
+            let part = part.trim();
+            if let Some((k, v)) = part.split_once('=')
+                && k.trim().eq_ignore_ascii_case("sha256")
+                && let Some(hex) = decode_b64_to_hex(v.trim(), 32)
+            {
+                candidates.push((ChecksumMode::Sha256, hex));
+            }
+        }
+    }
+
+    // Priority order: SHA-256 > SHA-512 > BLAKE3
+    candidates.sort_by_key(|(mode, _)| match mode {
+        ChecksumMode::Sha256 => 0,
+        ChecksumMode::Sha512 => 1,
+        ChecksumMode::Blake3 => 2,
+        ChecksumMode::None => 3,
+    });
+
+    candidates.into_iter().next()
+}
+
+fn decode_b64_to_hex(b64_str: &str, expected_bytes: usize) -> Option<String> {
+    let clean = b64_str.trim().trim_matches('"').trim_matches(':');
+    let decoded = BASE64_STANDARD.decode(clean).ok()?;
+    if decoded.len() == expected_bytes {
+        Some(decoded.iter().map(|b| format!("{:02x}", b)).collect())
+    } else {
+        None
+    }
+}
+
+fn normalize_hex_hash(s: &str, expected_hex_len: usize) -> Option<String> {
+    let clean = s.trim().trim_matches('"').to_ascii_lowercase();
+    if clean.len() == expected_hex_len && clean.chars().all(|c| c.is_ascii_hexdigit()) {
+        Some(clean)
+    } else {
+        None
+    }
+}
+
+fn parse_digest_item(item: &str) -> Option<(ChecksumMode, String)> {
+    let (algo_str, raw_val) = item.split_once('=')?;
+    let algo_raw = algo_str.trim().to_ascii_lowercase();
+    let (algo, expected_bytes) = match algo_raw.as_str() {
+        "sha-256" | "sha256" => (ChecksumMode::Sha256, 32),
+        "sha-512" | "sha512" => (ChecksumMode::Sha512, 64),
+        "blake3" | "b3" => (ChecksumMode::Blake3, 32),
+        _ => return None,
+    };
+
+    let clean = raw_val.trim().trim_matches('"').trim_matches(':');
+    // First try base64
+    if let Some(hex) = decode_b64_to_hex(clean, expected_bytes) {
+        return Some((algo, hex));
+    }
+    // Fallback: server may pass raw hex string
+    if let Some(hex) = normalize_hex_hash(clean, expected_bytes * 2) {
+        return Some((algo, hex));
     }
 
     None
@@ -674,5 +785,101 @@ mod tests {
         )
         .await;
         assert_eq!(detected.as_deref(), Some(SAMPLE_HASH));
+    }
+
+    #[test]
+    fn test_detect_checksum_from_headers_rfc3230_digest() {
+        use reqwest::header::HeaderValue;
+
+        // Base64 of ABC_SHA256: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+        // echo -n "abc" | sha256sum | xxd -r -p | base64 => unhWv48Bz+pBQUDeXa4iI7ADY6OWF3qctBD/YfIAFa0=
+        let b64 = "unhWv48Bz+pBQUDeXa4iI7ADY6OWF3qctBD/YfIAFa0=";
+        let mut headers = HeaderMap::new();
+        headers.insert("Digest", HeaderValue::from_str(&format!("SHA-256={b64}")).unwrap());
+
+        let res = detect_checksum_from_headers(&headers);
+        assert_eq!(
+            res,
+            Some((
+                ChecksumMode::Sha256,
+                "ba7856bf8f01cfea414140de5dae2223b00363a396177a9cb410ff61f20015ad".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn test_detect_checksum_from_headers_repr_digest_rfc9530() {
+        use reqwest::header::HeaderValue;
+
+        let b64 = "unhWv48Bz+pBQUDeXa4iI7ADY6OWF3qctBD/YfIAFa0=";
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Repr-Digest",
+            HeaderValue::from_str(&format!("sha-256=:{b64}:")).unwrap(),
+        );
+
+        let res = detect_checksum_from_headers(&headers);
+        assert_eq!(
+            res,
+            Some((
+                ChecksumMode::Sha256,
+                "ba7856bf8f01cfea414140de5dae2223b00363a396177a9cb410ff61f20015ad".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn test_detect_checksum_from_headers_s3_and_gcs() {
+        use reqwest::header::HeaderValue;
+
+        let b64 = "unhWv48Bz+pBQUDeXa4iI7ADY6OWF3qctBD/YfIAFa0=";
+        let mut headers = HeaderMap::new();
+        headers.insert("x-amz-checksum-sha256", HeaderValue::from_str(b64).unwrap());
+
+        let res = detect_checksum_from_headers(&headers);
+        assert_eq!(
+            res,
+            Some((
+                ChecksumMode::Sha256,
+                "ba7856bf8f01cfea414140de5dae2223b00363a396177a9cb410ff61f20015ad".to_string()
+            ))
+        );
+
+        let mut gcs_headers = HeaderMap::new();
+        gcs_headers.insert(
+            "x-goog-hash",
+            HeaderValue::from_str(&format!("crc32c=xyz, sha256={b64}")).unwrap(),
+        );
+        let gcs_res = detect_checksum_from_headers(&gcs_headers);
+        assert_eq!(
+            gcs_res,
+            Some((
+                ChecksumMode::Sha256,
+                "ba7856bf8f01cfea414140de5dae2223b00363a396177a9cb410ff61f20015ad".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn test_detect_checksum_from_headers_hex_headers() {
+        use reqwest::header::HeaderValue;
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Digest",
+            HeaderValue::from_str(
+                "BLAKE3=\"6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85\"",
+            )
+            .unwrap(),
+        );
+
+        let res = detect_checksum_from_headers(&headers);
+        assert_eq!(
+            res,
+            Some((
+                ChecksumMode::Blake3,
+                "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85".to_string()
+            ))
+        );
     }
 }

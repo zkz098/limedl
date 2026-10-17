@@ -38,6 +38,9 @@ msgstr "Resume Task"
 msgid "Open Containing Folder"
 msgstr "Open Containing Folder"
 
+msgid "Verify Integrity"
+msgstr "Verify Integrity"
+
 msgid "Copy Download Link"
 msgstr "Copy Download Link"
 

@@ -4,7 +4,7 @@ use super::error::{DownloadError, Result};
 use super::types::ChecksumMode;
 
 pub mod detect;
-pub use detect::{detect_sha256, parse_sha256_file, parse_sha256sums};
+pub use detect::{detect_checksum_from_headers, detect_sha256, parse_sha256_file, parse_sha256sums};
 
 pub enum ChecksumHasher {
     Blake3(Box<blake3::Hasher>),
@@ -99,19 +99,47 @@ pub fn hash_slices(mode: ChecksumMode, slices: &[&[u8]]) -> String {
 }
 
 pub async fn calculate_checksum(path: PathBuf, mode: ChecksumMode) -> Result<String> {
+    calculate_checksum_with_progress(path, mode, |_, _| {}).await
+}
+
+pub async fn calculate_checksum_with_progress<F>(
+    path: PathBuf,
+    mode: ChecksumMode,
+    on_progress: F,
+) -> Result<String>
+where
+    F: Fn(u64, u64) + Send + Sync + 'static,
+{
     tokio::task::spawn_blocking(move || -> Result<String> {
         use std::io::Read;
 
-        let mut file = std::fs::File::open(path)?;
+        let mut file = std::fs::File::open(&path)?;
+        let total_bytes = file.metadata().map(|m| m.len()).unwrap_or(0);
         let mut hasher = ChecksumHasher::new(mode)?;
-        let mut buffer = vec![0_u8; 1024 * 1024];
+        let mut buffer = vec![0_u8; 2 * 1024 * 1024];
+        let mut processed = 0u64;
+        let mut last_reported = 0u64;
+
         loop {
             let read = file.read(&mut buffer)?;
             if read == 0 {
                 break;
             }
             hasher.update(&buffer[..read]);
+            processed += read as u64;
+
+            if processed.saturating_sub(last_reported) >= 4 * 1024 * 1024
+                || (total_bytes > 0 && processed >= total_bytes)
+            {
+                on_progress(processed, total_bytes);
+                last_reported = processed;
+            }
         }
+
+        if total_bytes > 0 && last_reported < total_bytes {
+            on_progress(processed, total_bytes);
+        }
+
         Ok(hasher.finalize())
     })
     .await

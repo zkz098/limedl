@@ -433,3 +433,15 @@ impl From<&DownloadSnapshot> for DownloadProgress {
         }
     }
 }
+
+/// Result of an on-demand integrity verification check.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntegrityVerificationResult {
+    pub task_id: String,
+    pub mode: ChecksumMode,
+    pub computed: String,
+    pub expected: Option<String>,
+    pub matches: Option<bool>,
+    pub target_path: String,
+}

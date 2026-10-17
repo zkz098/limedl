@@ -38,6 +38,9 @@ msgstr "继续下载任务"
 msgid "Open Containing Folder"
 msgstr "打开所在文件夹"
 
+msgid "Verify Integrity"
+msgstr "校验文件完整性"
+
 msgid "Copy Download Link"
 msgstr "复制下载链接"
 

@@ -132,6 +132,7 @@ pub struct RemoteMetadata {
     pub last_modified: Option<String>,
     pub supports_ranges: bool,
     pub extra_headers: Vec<String>,
+    pub headers_checksum: Option<(crate::types::ChecksumMode, String)>,
 }
 
 pub fn plan_chunks(

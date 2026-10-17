@@ -29,8 +29,8 @@ use crate::error::{DownloadError, Result};
 use crate::event_bus::{DownloadEvent, EventBus};
 use crate::services::{ConcurrencyManager, DiskIoService, SettingsService};
 use crate::types::{
-    AppSettings, DiskType, DownloadSnapshot, DownloadState, DownloadSummary, Priority,
-    StartDownloadRequest, TaskId,
+    AppSettings, ChecksumMode, DiskType, DownloadProgress, DownloadSnapshot, DownloadState,
+    DownloadSummary, IntegrityVerificationResult, Priority, StartDownloadRequest, TaskId,
 };
 #[cfg(feature = "bt")]
 use crate::types::{
@@ -580,5 +580,177 @@ impl Dispatcher {
             &[],
         )
         .await)
+    }
+
+    /// On-demand integrity verification for a task.
+    /// Checks the destination file (or temp / corrupt file if incomplete),
+    /// calculates checksum with fine-grained progress, updates task metadata,
+    /// and returns the comparison result.
+    pub async fn verify_task_integrity(&self, task_id: &TaskId) -> Result<IntegrityVerificationResult> {
+        let dm = self
+            .registry
+            .get_typed::<crate::manager::DownloadManager>()
+            .ok_or(DownloadError::NotFound)?;
+        let id_str = task_id.to_string();
+
+        // 1. Fetch manifest from memory or database
+        let (manifest, has_managed) = {
+            let downloads = dm.downloads.read().await;
+            if let Some(managed) = downloads.get(&id_str) {
+                let m = managed.lock_core().manifest.clone();
+                (m, true)
+            } else {
+                drop(downloads);
+                if let Some(m) = dm.db.get_download_header(&id_str)? {
+                    (m, false)
+                } else {
+                    return Err(DownloadError::NotFound);
+                }
+            }
+        };
+
+        // 2. Locate target file on disk
+        let dest_path = std::path::PathBuf::from(&manifest.destination_path);
+        let temp_path = std::path::PathBuf::from(&manifest.temp_path);
+        let corrupt_path = temp_path.with_extension("part.corrupt");
+
+        let target_file = if dest_path.exists() {
+            dest_path
+        } else if temp_path.exists() {
+            temp_path
+        } else if corrupt_path.exists() {
+            corrupt_path
+        } else {
+            return Err(DownloadError::NotFound);
+        };
+
+        // 3. Determine checksum mode
+        let settings = self.get_settings().await.unwrap_or_default();
+        let mode = match manifest.checksum_mode {
+            ChecksumMode::None => settings.download.default_checksum,
+            m => m,
+        };
+        let effective_mode = match mode {
+            ChecksumMode::None => ChecksumMode::Sha256,
+            m => m,
+        };
+
+        // 4. Calculate checksum with progress events
+        let dl_id = id_str.clone();
+        let eb = dm.event_bus.clone();
+        let eb_prog = eb.clone();
+        let (prog_tx, mut prog_rx) = tokio::sync::mpsc::unbounded_channel::<(u64, u64)>();
+
+        let progress_task = tokio::spawn(async move {
+            let start = std::time::Instant::now();
+            while let Some((done, total)) = prog_rx.recv().await {
+                let elapsed = start.elapsed().as_secs_f64();
+                let speed = if elapsed > 0.05 {
+                    Some(done as f64 / elapsed)
+                } else {
+                    None
+                };
+                let eta = speed.and_then(|s| {
+                    if s > 0.0 {
+                        Some(((total.saturating_sub(done)) as f64 / s) as u64)
+                    } else {
+                        None
+                    }
+                });
+                eb_prog.publish(DownloadEvent::Progress {
+                    progress: DownloadProgress {
+                        id: dl_id.clone(),
+                        state: DownloadState::Verifying,
+                        downloaded_bytes: done,
+                        total_bytes: Some(total),
+                        speed_bytes_per_second: speed,
+                        eta_seconds: eta,
+                        connection_count: 0,
+                        allocated_thread_count: Some(0),
+                        error: None,
+                        uploaded_bytes: None,
+                        upload_speed_bytes_per_second: None,
+                        peer_count: None,
+                        upload_status: None,
+                        degraded: false,
+                        disk_type: None,
+                        flushing: false,
+                    },
+                });
+            }
+        });
+
+        let computed = crate::checksum::calculate_checksum_with_progress(
+            target_file.clone(),
+            effective_mode,
+            move |done, total| {
+                let _ = prog_tx.send((done, total));
+            },
+        )
+        .await?;
+
+        let _ = progress_task.await;
+
+        // 5. Compare with expected checksum if available
+        let expected = manifest.expected_checksum.clone();
+        let matches = expected.as_ref().map(|exp| exp.eq_ignore_ascii_case(&computed));
+
+        // 6. Persist computed checksum
+        if has_managed {
+            let managed_opt = dm.downloads.read().await.get(&id_str).cloned();
+            if let Some(managed) = managed_opt {
+                {
+                    let mut core = managed.lock_core();
+                    core.manifest.checksum = Some(computed.clone());
+                    core.snapshot.checksum = Some(computed.clone());
+                }
+                let _ = dm.persist(managed.clone()).await;
+                let summary = {
+                    let core = managed.lock_core();
+                    DownloadSummary::from(&core.snapshot)
+                };
+                eb.publish(DownloadEvent::Updated {
+                    summary: Box::new(summary),
+                });
+            }
+        } else {
+            let mut updated_manifest = manifest;
+            updated_manifest.checksum = Some(computed.clone());
+            let _ = dm.db.insert_download(&updated_manifest);
+        }
+
+        Ok(IntegrityVerificationResult {
+            task_id: id_str,
+            mode: effective_mode,
+            computed,
+            expected,
+            matches,
+            target_path: target_file.to_string_lossy().to_string(),
+        })
+    }
+
+    /// Clean up any preserved `.part.corrupt` file for a task.
+    pub async fn cleanup_corrupt_file(&self, task_id: &TaskId) -> Result<bool> {
+        let dm = self
+            .registry
+            .get_typed::<crate::manager::DownloadManager>()
+            .ok_or(DownloadError::NotFound)?;
+        let id_str = task_id.to_string();
+        let temp_path = if let Some(managed) = dm.downloads.read().await.get(&id_str) {
+            std::path::PathBuf::from(managed.lock_core().manifest.temp_path.clone())
+        } else if let Some(manifest) = dm.db.get_download_header(&id_str)? {
+            std::path::PathBuf::from(manifest.temp_path)
+        } else {
+            return Err(DownloadError::NotFound);
+        };
+        let corrupt_path = temp_path.with_extension("part.corrupt");
+        if corrupt_path.exists() {
+            tokio::fs::remove_file(&corrupt_path)
+                .await
+                .map_err(|e| crate::error::io_error_with_path(e, corrupt_path.to_string_lossy()))?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }

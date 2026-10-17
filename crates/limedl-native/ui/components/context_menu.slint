@@ -69,6 +69,7 @@ export component ContextMenu inherits Rectangle {
     callback copy_name(string);
     callback open_speed_limit(string);
     callback set_priority(string); // task_id — opens the priority popup
+    callback verify_integrity(string);
     callback remove_task(string);
     callback purge_task(string);
 
@@ -129,6 +130,12 @@ export component ContextMenu inherits Rectangle {
                 text: @tr("Open Containing Folder");
                 icon: @image-url("../assets/icons/folder-open-line.svg");
                 clicked => { root.open_explorer(root.menu_state.task_id); root.close(); }
+            }
+
+            mi_verify := MenuItem {
+                text: @tr("Verify Integrity");
+                icon: @image-url("../assets/icons/checkbox-circle-line.svg");
+                clicked => { root.verify_integrity(root.menu_state.task_id); root.close(); }
             }
 
             mi_copy_url := MenuItem {

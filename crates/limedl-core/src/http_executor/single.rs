@@ -34,6 +34,18 @@ impl HttpExecutor {
         let (file, total_bytes, disk_type, write_buffer) = open_single_target(&dm, &managed).await?;
         let write_buffer = Some(write_buffer);
 
+        let checksum_mode = managed.lock_core().manifest.checksum_mode;
+        let initial_offset = {
+            let core = managed.lock_core();
+            contiguous_prefix_end(&core.manifest)
+        };
+        let mut streaming_hasher = if initial_offset == 0 && checksum_mode != crate::types::ChecksumMode::None {
+            crate::checksum::ChecksumHasher::new(checksum_mode).ok()
+        } else {
+            None
+        };
+        let mut hasher_expected_offset: u64 = 0;
+
         let mut last_disk_check = Instant::now();
         let mut throttle = ProgressThrottle::new();
         let mut batch = BatchLimiter::new();
@@ -204,6 +216,16 @@ impl HttpExecutor {
                 };
                 batch.account(&dm.rate_limiter, chunk.len()).await;
                 guard_content_length(total_bytes, absolute_offset, chunk.len())?;
+
+                if let Some(ref mut hasher) = streaming_hasher {
+                    if absolute_offset == hasher_expected_offset {
+                        hasher.update(&chunk);
+                        hasher_expected_offset += chunk.len() as u64;
+                    } else {
+                        streaming_hasher = None;
+                    }
+                }
+
                 local_buf.extend_from_slice(&chunk);
                 absolute_offset += chunk.len() as u64;
 
@@ -276,6 +298,19 @@ impl HttpExecutor {
                 last_progress_offset = absolute_offset;
                 if single_finished(&managed) {
                     finish_buffer_flush(&dm, &managed, &write_buffer).await?;
+                    if let Some(hasher) = streaming_hasher {
+                        let is_complete = match total_bytes {
+                            Some(total) => hasher_expected_offset == total,
+                            None => true,
+                        };
+                        if is_complete {
+                            let computed = hasher.finalize();
+                            tracing::info!("Single-stream on-the-fly checksum computed: {computed}");
+                            let mut core = managed.lock_core();
+                            core.manifest.checksum = Some(computed.clone());
+                            core.snapshot.checksum = Some(computed);
+                        }
+                    }
                     return Ok(RunOutcome::Finished);
                 }
             }

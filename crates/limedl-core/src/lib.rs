@@ -57,7 +57,7 @@ pub use backend_registry::BackendRegistry;
 #[cfg(feature = "bt")]
 pub use bt_backend::{IrontideBtBackend, LazyBtBackend};
 pub use cdn::{CdnAccelerator, CdnService, CdnTestOutcome};
-pub use checksum::calculate_checksum;
+pub use checksum::{calculate_checksum, calculate_checksum_with_progress};
 pub use context::SystemContext;
 pub use dispatcher::Dispatcher;
 pub use error::DownloadError;

@@ -109,6 +109,8 @@ impl HttpExecutor {
 
         dm.http.alt_svc.record_from_response(&final_url, &headers, now_ms());
 
+        let headers_checksum = crate::checksum::detect_checksum_from_headers(&headers);
+
         Ok(RemoteMetadata {
             final_url,
             file_name,
@@ -117,6 +119,7 @@ impl HttpExecutor {
             last_modified: header_string(&headers, header::LAST_MODIFIED),
             supports_ranges,
             extra_headers: effective_extra_headers,
+            headers_checksum,
         })
     }
 
@@ -187,9 +190,25 @@ impl HttpExecutor {
         let plan =
             apply_probe_to_manifest(&managed, &metadata, supports_parallel, chunk_size, &threads);
 
-        // Auto-detect SHA-256 if not provided and setting is enabled
-        if current_manifest.expected_checksum.is_none() && settings.download.auto_detect_sha256 {
-            detect_and_store_sha256(&client, &managed).await;
+        // Auto-detect checksum if not provided, not explicitly disabled, and auto-detect is enabled
+        if current_manifest.expected_checksum.is_none()
+            && current_manifest.checksum_mode != ChecksumMode::None
+            && settings.download.auto_detect_sha256
+        {
+            // Priority 1: Check response headers (RFC 3230 / RFC 9530 / S3 / GCS)
+            if let Some((mode, hash)) = metadata.headers_checksum.clone() {
+                tracing::info!("Auto-detected expected checksum from HTTP headers: {mode:?} {hash}");
+                let mut core = managed.lock_core();
+                if core.manifest.expected_checksum.is_none() {
+                    core.manifest.expected_checksum = Some(hash.clone());
+                    core.manifest.checksum_mode = mode;
+                    core.snapshot.expected_checksum = Some(hash);
+                    core.snapshot.checksum_mode = mode;
+                }
+            } else {
+                // Priority 2: Probe external candidates (.sha256, SHA256SUMS)
+                detect_and_store_sha256(&client, &managed).await;
+            }
         }
 
         if plan.refresh_aimd {

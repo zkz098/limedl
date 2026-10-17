@@ -22,7 +22,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     aimd::AimdState,
     buffer_pool::{DownloadBuffer, FlushObserver},
-    calculate_checksum,
+    calculate_checksum_with_progress,
     database::Database,
     error::{DownloadError, Result, io_error_with_path},
     event_bus::DownloadEvent,
@@ -53,7 +53,7 @@ use crate::{
     persistence::persist_manifest_snapshot,
     rate_limiter::RateLimiter,
     retry::{jittered_backoff_delay, register_retry_penalty, request_with_retry},
-    types::{AdaptiveProfile, ChecksumMode, DiskType, DownloadState, StartDownloadRequest, TaskKind, ThreadMode},
+    types::{AdaptiveProfile, ChecksumMode, DiskType, DownloadProgress, DownloadState, StartDownloadRequest, TaskKind, ThreadMode},
 };
 
 /// Zero-sized actor type for HTTP download execution.

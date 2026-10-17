@@ -354,3 +354,44 @@ pub fn format_toast_invalid_checksum(lang: Language) -> String {
     }
 }
 
+pub fn format_toast_integrity_checking(file_name: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("正在校验完整性: {file_name}"),
+        Language::ZhTw => format!("正在驗證完整性: {file_name}"),
+        Language::EnUs => format!("Verifying integrity: {file_name}"),
+    }
+}
+
+pub fn format_toast_integrity_passed(file_name: &str, mode: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("{file_name} 校验通过 ({mode} 一致)"),
+        Language::ZhTw => format!("{file_name} 驗證通過 ({mode} 一致)"),
+        Language::EnUs => format!("{file_name} verified successfully ({mode} match)"),
+    }
+}
+
+pub fn format_toast_integrity_mismatch(file_name: &str, mode: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("{file_name} 校验失败: {mode} 不匹配！"),
+        Language::ZhTw => format!("{file_name} 驗證失敗: {mode} 不相符！"),
+        Language::EnUs => format!("{file_name} verification failed: {mode} mismatch!"),
+    }
+}
+
+pub fn format_toast_integrity_computed(file_name: &str, mode: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("{file_name} 校验完成 ({mode})，已复制哈希到剪贴板"),
+        Language::ZhTw => format!("{file_name} 驗證完成 ({mode})，已複製雜湊到剪貼簿"),
+        Language::EnUs => format!("{file_name} integrity computed ({mode}), hash copied to clipboard"),
+    }
+}
+
+pub fn format_toast_integrity_failed(err: &str, lang: Language) -> String {
+    match lang {
+        Language::ZhCn => format!("完整性校验失败: {err}"),
+        Language::ZhTw => format!("完整性驗證失敗: {err}"),
+        Language::EnUs => format!("Integrity verification failed: {err}"),
+    }
+}
+
+

@@ -328,7 +328,7 @@ impl TaskLifecycle {
 
     // ── File operations ───────────────────────────────────────────────
 
-    /// Delete the temp file for a download.
+    /// Delete the temp file (and any corrupt leftover file) for a download.
     pub(crate) fn cleanup_files(
         &self,
         _dm: &DownloadManager,
@@ -338,6 +338,10 @@ impl TaskLifecycle {
         let temp_path = PathBuf::from(manifest.temp_path);
         if temp_path.exists() {
             remove_file_if_exists(&temp_path)?;
+        }
+        let corrupt_path = temp_path.with_extension("part.corrupt");
+        if corrupt_path.exists() {
+            remove_file_if_exists(&corrupt_path)?;
         }
         Ok(())
     }
@@ -349,10 +353,14 @@ impl TaskLifecycle {
         managed: &Arc<ManagedDownload>,
     ) -> Result<()> {
         let manifest = managed.lock_core().manifest.clone();
-        let destination_path = PathBuf::from(manifest.destination_path);
+        let destination_path = PathBuf::from(&manifest.destination_path);
         if destination_path.exists() {
             fs::remove_file(&destination_path)
                 .map_err(|e| io_error_with_path(e, destination_path.to_string_lossy()))?;
+        }
+        let corrupt_path = PathBuf::from(&manifest.temp_path).with_extension("part.corrupt");
+        if corrupt_path.exists() {
+            remove_file_if_exists(&corrupt_path)?;
         }
         Ok(())
     }
@@ -368,6 +376,10 @@ impl TaskLifecycle {
         if temp_path.exists() {
             fs::remove_file(&temp_path)
                 .map_err(|e| io_error_with_path(e, temp_path.to_string_lossy()))?;
+        }
+        let corrupt_path = temp_path.with_extension("part.corrupt");
+        if corrupt_path.exists() {
+            remove_file_if_exists(&corrupt_path)?;
         }
         let _file = open_download_file(&temp_path, manifest.total_bytes)?;
         Ok(())

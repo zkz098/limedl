@@ -136,6 +136,111 @@ pub fn register(ctx: &AppContext) {
             );
         });
     }
+
+    // Manual integrity verification from context menu
+    {
+        let ui_weak = ctx.ui_weak.clone();
+        let store = ctx.store.clone();
+        let dispatcher = ctx.dispatcher.clone();
+        let toast_queue = ctx.toast_queue.clone();
+        ui.on_verify_task_integrity(move |id_str| {
+            verify_task_integrity(
+                ui_weak.clone(),
+                store.clone(),
+                dispatcher.clone(),
+                toast_queue.clone(),
+                id_str,
+            );
+        });
+    }
+}
+
+/// Trigger manual integrity verification for a task and toast the outcome.
+fn verify_task_integrity(
+    ui_weak: slint::Weak<MainWindow>,
+    store: Arc<Mutex<TaskStore>>,
+    dispatcher: Arc<Dispatcher>,
+    toast_queue: ToastQueue,
+    id_str: SharedString,
+) {
+    let id_str = id_str.to_string();
+    let ui_weak = ui_weak.clone();
+    let store = store.clone();
+    let dispatcher = dispatcher.clone();
+    let toast_queue = toast_queue.clone();
+    tokio::spawn(async move {
+        let lang = store.lock().language();
+        let file_name = store
+            .lock()
+            .get_summary(&id_str)
+            .map(|summary| summary.file_name)
+            .unwrap_or_else(|| id_str.clone());
+        let Ok(task_id) = TaskId::from_wire_string(&id_str) else {
+            tracing::warn!("完整性校验失败: 无法解析任务 ID {id_str}");
+            return;
+        };
+
+        // Notify user verification started
+        push_toast(
+            &ui_weak,
+            &toast_queue,
+            i18n::format_toast_integrity_checking(&file_name, lang),
+            "info",
+            Duration::from_secs(3),
+        );
+
+        match dispatcher.verify_task_integrity(&task_id).await {
+            Ok(result) => {
+                let mode_str = match result.mode {
+                    limedl_core::types::ChecksumMode::Sha256 => "SHA-256",
+                    limedl_core::types::ChecksumMode::Sha512 => "SHA-512",
+                    limedl_core::types::ChecksumMode::Blake3 => "BLAKE3",
+                    limedl_core::types::ChecksumMode::None => "None",
+                };
+                if let Some(matches) = result.matches {
+                    if matches {
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_integrity_passed(&file_name, mode_str, lang),
+                            "success",
+                            Duration::from_secs(4),
+                        );
+                    } else {
+                        push_toast(
+                            &ui_weak,
+                            &toast_queue,
+                            i18n::format_toast_integrity_mismatch(&file_name, mode_str, lang),
+                            "error",
+                            Duration::from_secs(6),
+                        );
+                    }
+                } else {
+                    // No expected hash was configured; copy computed hash to clipboard
+                    if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                        let _ = clipboard.set_text(&result.computed);
+                    }
+                    push_toast(
+                        &ui_weak,
+                        &toast_queue,
+                        i18n::format_toast_integrity_computed(&file_name, mode_str, lang),
+                        "success",
+                        Duration::from_secs(5),
+                    );
+                }
+            }
+            Err(err) => {
+                tracing::error!("完整性校验失败: {err:#}");
+                push_toast(
+                    &ui_weak,
+                    &toast_queue,
+                    i18n::format_toast_integrity_failed(&format!("{err:#}"), lang),
+                    "error",
+                    Duration::from_secs(6),
+                );
+            }
+        }
+    });
 }
 
 /// Change one task's priority and toast the result.

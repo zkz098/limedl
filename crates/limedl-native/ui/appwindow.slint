@@ -307,6 +307,7 @@ export component MainWindow inherits Window {
     callback pause_task(string);
     callback resume_task(string);
     callback open_task_explorer(string);
+    callback verify_task_integrity(string);
     callback remove_task(string);
     callback task_double_clicked(string);
 
@@ -1300,6 +1301,7 @@ export component MainWindow inherits Window {
         pause_task(id) => { root.pause_task(id); }
         resume_task(id) => { root.resume_task(id); }
         open_explorer(id) => { root.open_task_explorer(id); }
+        verify_integrity(id) => { root.verify_task_integrity(id); }
         copy_url(url) => { root.copy_task_url(url); }
         copy_name(name) => { root.copy_task_name(name); }
         open_speed_limit(id) => { root.open_inspector(id); root.open_speed_limit_dialog(); }
