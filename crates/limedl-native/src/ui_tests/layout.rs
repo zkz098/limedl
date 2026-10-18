@@ -25,7 +25,9 @@ const CHROME: &[&str] = &[
 ];
 
 /// The declared `min-width`/`min-height` from `appwindow.slint`. The toolbar used
-/// to clip its last button at 1000px, which is why the minimum is 1100px now.
+/// to clip its last button at 1000px, which is why the minimum is 1100px now —
+/// but that floor is only safe while the BT status pills are collapsed (see
+/// [`bt_status_pills_collapse_before_they_clip_the_toolbar`]).
 const MIN_SIZE: (f32, f32) = (1100.0, 660.0);
 
 /// The `preferred-width`/`preferred-height` from `appwindow.slint`.
@@ -63,6 +65,49 @@ fn the_chrome_fits_the_window_at_the_default_and_the_minimum_size() {
             }
         }
         ui.set_scale_factor(1.0);
+    });
+}
+
+/// The BT runtime pills are the toolbar's widest optional group (~107px), and the
+/// runtime BT poller turns them on whenever a BT session is connected. They must
+/// collapse *before* they push the right-hand actions — including `New Task` —
+/// past the window edge, because a maximized window is sized from the monitor
+/// work area and there is no horizontal scroll to reach a clipped control.
+///
+/// The regression: the pills used to be shown unconditionally and the in-process
+/// fixture never set `bt_status_visible`, so the 1100px minimum was validated
+/// against a toolbar ~107px narrower than the one users get. On a small or
+/// HiDPI screen (maximized work area < ~1160 logical px) `ta_new_task` was then
+/// clipped no matter how the window was sized.
+///
+/// English is the wider locale, so the breakpoint is pinned there as well.
+#[test]
+fn bt_status_pills_collapse_before_they_clip_the_toolbar() {
+    with_language(Language::EnUs, |ui| {
+        ui.window.set_bt_status_visible(true);
+
+        // Narrow: the pills give way and every chrome control still fits.
+        ui.set_window_size(MIN_SIZE.0, MIN_SIZE.1);
+        assert!(
+            !ui.has("MainWindow::bt-status-pills"),
+            "the BT pills must be collapsed at the minimum width"
+        );
+        for id in CHROME {
+            ui.assert_inside_window(id);
+        }
+
+        // Wide: the pills are back, and the toolbar is still entirely inside.
+        ui.set_window_size(PREFERRED_SIZE.0, PREFERRED_SIZE.1);
+        assert!(
+            ui.has("MainWindow::bt-status-pills"),
+            "the BT pills must be shown once the toolbar has room"
+        );
+        ui.assert_min_size(&["MainWindow::bt-status-pills"], 16.0);
+        for id in CHROME {
+            ui.assert_inside_window(id);
+        }
+
+        crate::i18n::apply_translation(Language::ZhCn);
     });
 }
 

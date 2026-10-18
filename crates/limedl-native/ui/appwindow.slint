@@ -109,6 +109,11 @@ component BtStatPill inherits Rectangle {
 export component MainWindow inherits Window {
     title: "limedl - Native";
     icon: @image-url("assets/icon.png");
+    // The window floor is only valid because the toolbar's BT runtime pills
+    // auto-hide below `bt_pills_min_width` (they add ~107px). Without that
+    // collapse the toolbar's real minimum exceeds this floor, and a maximized
+    // window cannot grow past the monitor work area, so the right-hand actions
+    // clip with no horizontal scroll to reach them.
     min-width: 1100px;
     min-height: 660px;
     preferred-width: 1280px;
@@ -157,6 +162,10 @@ export component MainWindow inherits Window {
     in property <string> global_speed_text: "0 B/s";
     // BT runtime status pills (hidden while the BT backend is unavailable).
     in property <bool> bt_status_visible: false;
+    // Window width below which the BT status pills are collapsed. Chosen so the
+    // toolbar still fits with the pills plus the English button labels (the
+    // widest ones) and the `>= 1360px` view-mode label.
+    property <length> bt_pills_min_width: 1280px;
     in property <string> bt_dht_text: "0";
     in property <string> bt_upload_speed_text: "0 B/s";
     in property <string> bt_peers_text: "0";
@@ -845,8 +854,21 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        // BT runtime status pills (DHT nodes / upload speed / peers)
-                        if root.bt_status_visible : VerticalLayout {
+                        // BT runtime status pills (DHT nodes / upload speed / peers).
+                        //
+                        // The three pills add ~107px, so the toolbar only has room
+                        // for them at/above `bt_pills_min_width`; keeping the
+                        // declared `min-width` honest is what this breakpoint is
+                        // for. `root.width` is the monitor work area on a maximized
+                        // window, and maximizing cannot widen a window past it, so
+                        // below the breakpoint the right-hand actions would otherwise
+                        // clip with no way to scroll to them.
+                        //
+                        // `src/ui_tests/layout.rs` drives `bt_status_visible` (only
+                        // the runtime BT poller otherwise sets it), so the fixture
+                        // lays this out instead of validating a toolbar ~107px
+                        // narrower than the one users get.
+                        if root.bt_status_visible && root.width >= root.bt_pills_min_width : bt_status_pills := VerticalLayout {
                             alignment: center;
                             HorizontalLayout {
                                 spacing: 4px;

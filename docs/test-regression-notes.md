@@ -19,6 +19,14 @@ When adding UI test cases, aim at these directions:
 - At `min-width` (1000 px) the toolbar overflowed the right edge and `ta_new_task`
   was clipped by ~18 px. Fixed by raising `min-width` to 1100 px; `layout.rs` pins
   it under English labels too.
+- The toolbar's BT runtime pills are only turned on by the runtime poller
+  (`bt_status_visible`), which the in-process fixture never set — so the 1100 px
+  `min-width` was validated against a toolbar ~107 px narrower than the one users
+  get. With BT connected, a small or HiDPI maximized window (work area < ~1160
+  logical px) clipped the right-hand actions, `New Task` included, with no
+  horizontal scroll to reach them. Fixed by collapsing the pills below
+  `bt_pills_min_width` (1280 px) in `appwindow.slint`; `layout.rs` now drives
+  `bt_status_visible` and pins the breakpoint in both locales.
 - The new-task dialog modal had a fixed height (600 px when
   `preview_state == "ready"`), while an expanded torrent file list is taller.
   Fixed by putting the dialog body in a `ScrollView` so the footer
