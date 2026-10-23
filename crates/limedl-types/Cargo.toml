@@ -1,0 +1,58 @@
+[package]
+name = "limedl-types"
+version.workspace = true
+description = "Foundation layer for limedl — domain types, settings, errors, events, manifests and the contracts every other limedl crate shares"
+license.workspace = true
+edition = "2024"
+# Workspace-internal, like every other limedl crate: the split exists to give the
+# compiler the layering that `module_boundaries_tests` used to police by hand,
+# not to publish. `publish = false` is what makes `pub(crate)` -> `pub`
+# promotions a non-event for semver.
+publish = false
+
+[lib]
+name = "limedl_types"
+
+[dependencies]
+# Nothing in this crate may depend on another `limedl-*` crate: it is the bottom
+# of the graph. Everything here is either data (serde), a contract (async-trait,
+# thiserror) or the transport types the contract is expressed in (reqwest::Url,
+# reqwest::Error). `irontide` is the one exception and it is a leak, not a
+# design — see the `bt` feature below.
+tokio = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+uuid = { workspace = true }
+percent-encoding = { workspace = true }
+regex = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+parking_lot = { workspace = true }
+blake3 = { workspace = true }
+sha2 = { workspace = true }
+base64 = { workspace = true }
+dashmap = { workspace = true }
+foldhash = { workspace = true }
+# `TaskId::Bt` carries `irontide::core::Id20` (types/task.rs), so the BitTorrent
+# info hash is part of the *foundation* type layer. Keeping the dependency here
+# instead of in a `limedl-bt` crate is the known cost of that decision: with
+# `bt` on, `limedl-types` pulls the BT engine's identity type and everything
+# underneath it. Replacing `Id20` with a crate-local `InfoHash([u8; 20])`
+# newtype is what would actually let the BT engine leave this crate's graph.
+irontide = { workspace = true, optional = true }
+
+[features]
+# Deliberately no default: `bt` is what pulls `irontide` into the graph, and a
+# crate-level default would silently re-enable it for every consumer that asked
+# for `limedl-core --no-default-features` (the documented "BT engine absent"
+# build). The engine's own `default = ["bt"]` forwards to this feature.
+default = []
+bt = ["dep:irontide"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+ntest = { workspace = true }
+axum = { workspace = true }

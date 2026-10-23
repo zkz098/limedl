@@ -8,7 +8,7 @@ use crate::types::{
 
 impl super::IrontideBtBackend {
     /// Build a `DownloadSnapshot` from irontide stats.
-    pub(crate) fn stats_to_snapshot(
+    pub fn stats_to_snapshot(
         &self,
         info_hash: &Id20,
         stats: &irontide::session::TorrentStats,
@@ -110,7 +110,7 @@ impl super::IrontideBtBackend {
 // ---------------------------------------------------------------------------
 
 /// Map an irontide `TorrentState` to our `DownloadState`.
-pub(crate) fn map_state(state: &irontide::session::TorrentState) -> DownloadState {
+pub fn map_state(state: &irontide::session::TorrentState) -> DownloadState {
     use irontide::session::TorrentState;
     match state {
         TorrentState::Downloading => DownloadState::Downloading,
@@ -124,7 +124,7 @@ pub(crate) fn map_state(state: &irontide::session::TorrentState) -> DownloadStat
 }
 
 /// Build a human-readable flags string from irontide peer info.
-pub(crate) fn build_peer_flags(peer: &irontide::session::PeerInfo) -> String {
+pub fn build_peer_flags(peer: &irontide::session::PeerInfo) -> String {
     let mut flags = String::with_capacity(8);
     if peer.is_encrypted {
         flags.push('E');
@@ -151,9 +151,7 @@ pub(crate) fn build_peer_flags(peer: &irontide::session::PeerInfo) -> String {
 }
 
 /// Extract file entries from parsed torrent metadata for preview.
-pub(crate) fn preview_entries_from_meta(
-    meta: &irontide::core::TorrentMeta,
-) -> Vec<TorrentFileEntry> {
+pub fn preview_entries_from_meta(meta: &irontide::core::TorrentMeta) -> Vec<TorrentFileEntry> {
     match meta {
         irontide::core::TorrentMeta::V1(v1) => v1_file_entries(v1),
         irontide::core::TorrentMeta::Hybrid(v1, _) => v1_file_entries(v1),
@@ -165,7 +163,7 @@ pub(crate) fn preview_entries_from_meta(
     }
 }
 
-pub(crate) fn v1_file_entries(v1: &irontide::core::TorrentMetaV1) -> Vec<TorrentFileEntry> {
+pub fn v1_file_entries(v1: &irontide::core::TorrentMetaV1) -> Vec<TorrentFileEntry> {
     if let Some(ref file_list) = v1.info.files {
         file_list
             .iter()
@@ -186,7 +184,7 @@ pub(crate) fn v1_file_entries(v1: &irontide::core::TorrentMetaV1) -> Vec<Torrent
 }
 
 /// Estimate remaining time from total, downloaded, and speed.
-pub(crate) fn estimate_eta(total: u64, downloaded: u64, speed: Option<f64>) -> Option<u64> {
+pub fn estimate_eta(total: u64, downloaded: u64, speed: Option<f64>) -> Option<u64> {
     let speed = speed?;
     if total <= downloaded || speed <= 0.0 {
         return None;
@@ -198,7 +196,7 @@ pub(crate) fn estimate_eta(total: u64, downloaded: u64, speed: Option<f64>) -> O
 //  StateHelpers trait
 // ---------------------------------------------------------------------------
 
-pub(crate) trait StateHelpers {
+pub trait StateHelpers {
     fn is_terminal(&self) -> bool;
 }
 

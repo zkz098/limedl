@@ -9,6 +9,6 @@
 mod managed;
 mod shared;
 
-pub(crate) use managed::*;
+pub use managed::*;
 pub use managed::{DownloadCore, ManagedDownload};
-pub(crate) use shared::*;
+pub use shared::*;

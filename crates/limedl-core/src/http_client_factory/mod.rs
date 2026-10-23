@@ -1,28 +1,12 @@
 use std::time::Duration;
 
-use reqwest::{Client, ClientBuilder, Proxy, header, redirect::Policy};
+use reqwest::{Client, ClientBuilder, Proxy, redirect::Policy};
 
 use super::{
     error::{DownloadError, Result},
-    types::{AppSettings, ProxyMode, default_http_user_agent},
+    settings::normalize_user_agent,
+    types::{AppSettings, ProxyMode},
 };
-
-/// Normalize and validate a user-agent string.
-/// Returns the default Chrome user-agent if the input is empty,
-/// or an error if the value is too long or contains invalid characters.
-pub fn normalize_user_agent(user_agent: &str) -> Result<String> {
-    let normalized = user_agent.trim();
-    if normalized.is_empty() {
-        return Ok(default_http_user_agent());
-    }
-    if normalized.len() > 512 || header::HeaderValue::from_str(normalized).is_err() {
-        return Err(DownloadError::InvalidResponse(String::from(
-            "invalid user-agent value",
-        )));
-    }
-
-    Ok(normalized.to_string())
-}
 
 /// Build a fully-configured `reqwest::Client` from application settings.
 /// Used by DownloadManager and BT Backend for standard HTTP(S) downloads.

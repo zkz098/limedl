@@ -4,6 +4,10 @@ version.workspace = true
 description = "Headless limedl daemon exposing the Aria2 JSON-RPC API (NAS / server builds)"
 license.workspace = true
 edition = "2024"
+# Workspace-internal: limedl ships binaries and a container image, never
+# crates.io packages. Keeping this explicit is what makes `pub(crate)` -> `pub`
+# promotions across the crate split a non-event for semver.
+publish = false
 
 [lib]
 name = "limedl_server"

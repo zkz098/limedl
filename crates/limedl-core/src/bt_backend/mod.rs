@@ -2,16 +2,16 @@
 //!
 //! This backend uses the `irontide` crate as the underlying BT engine,
 
-pub(crate) mod alerts;
-pub(crate) mod anti_leech;
-pub(crate) mod lazy;
-pub(crate) mod lifecycle;
-pub(crate) mod queries;
-pub(crate) mod session;
-pub(crate) mod snapshot;
+pub mod alerts;
+pub mod anti_leech;
+pub mod lazy;
+pub mod lifecycle;
+pub mod queries;
+pub mod session;
+pub mod snapshot;
 #[cfg(test)]
-pub(crate) mod tests;
-pub(crate) mod uploads;
+pub mod tests;
+pub mod uploads;
 
 pub use lazy::LazyBtBackend;
 
@@ -34,7 +34,7 @@ use crate::types::{
 };
 
 /// Compute an Aria2-compatible GID from an info hash.
-pub(crate) fn internal_id_to_gid(info_hash: &Id20) -> String {
+pub fn internal_id_to_gid(info_hash: &Id20) -> String {
     let hex = info_hash.to_hex();
     let hash = xxhash_rust::xxh3::xxh3_64(hex.as_bytes());
     format!("{:016x}", hash)

@@ -18,14 +18,14 @@ use tokio::sync::{Mutex, Notify};
 ///
 /// `Disabled` accepts every request; `Shared` is the legacy single-secret mode;
 /// `PerClient` matches an Argon2-hashed token against the configured clients.
-pub(crate) enum AuthConfig {
+pub enum AuthConfig {
     Disabled,
     Shared { secret: String },
     PerClient(PerClientAuth),
 }
 
 impl AuthConfig {
-    pub(crate) fn from_settings(settings: &Aria2RpcSettings) -> Self {
+    pub fn from_settings(settings: &Aria2RpcSettings) -> Self {
         match settings.auth_mode {
             Aria2AuthMode::Single => match settings.secret.clone().filter(|s| !s.is_empty()) {
                 Some(secret) => AuthConfig::Shared { secret },
@@ -48,12 +48,12 @@ impl AuthConfig {
         }
     }
 
-    pub(crate) fn is_enabled(&self) -> bool {
+    pub fn is_enabled(&self) -> bool {
         !matches!(self, AuthConfig::Disabled)
     }
 }
 
-pub(crate) struct RpcContext {
+pub struct RpcContext {
     pub(crate) registry: Arc<BackendRegistry>,
     pub(crate) dispatcher: Dispatcher,
     pub(crate) auth: AuthConfig,
@@ -76,16 +76,16 @@ impl RpcContext {
     /// protocol-specific (`getOption` reads the HTTP manifest, `tellStatus.files`
     /// asks the BT engine), so the downcasts are centralized here instead of
     /// being scattered across the handlers.
-    pub(crate) fn http(&self) -> Option<&DownloadManager> {
+    pub fn http(&self) -> Option<&DownloadManager> {
         self.registry.get_typed::<DownloadManager>()
     }
 
     /// The BT backend, if registered. See [`RpcContext::http`].
-    pub(crate) fn bt(&self) -> Option<&LazyBtBackend> {
+    pub fn bt(&self) -> Option<&LazyBtBackend> {
         self.registry.get_typed::<LazyBtBackend>()
     }
 
-    pub(crate) fn settings_default_download_dir(&self) -> String {
+    pub fn settings_default_download_dir(&self) -> String {
         self.http()
             .and_then(|dm| dm.settings_default_download_dir())
             .unwrap_or_else(|| dirs_next().unwrap_or_else(default_downloads_dir))
@@ -98,7 +98,7 @@ impl RpcContext {
 /// exemptions (`system.listMethods`, `system.listNotifications`, and the outer
 /// `multicall` call), so a new handler is protected automatically. Only the
 /// `token:`-prefixed first parameter is accepted, matching aria2's wire format.
-pub(crate) fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), JsonRpcError> {
+pub fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), JsonRpcError> {
     if !ctx.auth.is_enabled() {
         return Ok(());
     }
@@ -131,7 +131,7 @@ fn unauthorized() -> JsonRpcError {
     make_error(1, "Unauthorized")
 }
 
-pub(crate) fn strip_token(params: Vec<Value>) -> Vec<Value> {
+pub fn strip_token(params: Vec<Value>) -> Vec<Value> {
     if params
         .first()
         .and_then(|v| v.as_str())
@@ -142,13 +142,13 @@ pub(crate) fn strip_token(params: Vec<Value>) -> Vec<Value> {
         params
     }
 }
-pub(crate) fn broadcast_event(ctx: &RpcContext, method: &str, gid: &str) {
+pub fn broadcast_event(ctx: &RpcContext, method: &str, gid: &str) {
     ctx.event_bus.publish(DownloadEvent::Aria2Notification {
         event_name: method.to_string(),
         gid: gid.to_string(),
     });
 }
-pub(crate) fn dirs_next() -> Option<String> {
+pub fn dirs_next() -> Option<String> {
     let home = if cfg!(target_os = "windows") {
         std::env::var("USERPROFILE").ok()
     } else {
@@ -162,6 +162,6 @@ pub(crate) fn dirs_next() -> Option<String> {
     })
 }
 
-pub(crate) fn default_downloads_dir() -> String {
+pub fn default_downloads_dir() -> String {
     dirs_next().unwrap_or_else(|| String::from("."))
 }

@@ -50,7 +50,7 @@ pub struct RuntimeControls {
 /// Crate-private: it exists so the engine's own modules can cooperate, not as
 /// part of the published `limedl_core` API.
 #[async_trait]
-pub(crate) trait ManagerState: Send + Sync {
+pub trait ManagerState: Send + Sync {
     // ── Shared infrastructure ─────────────────────────────────────────
     /// SQLite database (manifests, chunk progress, Alt-Svc cache).
     fn db(&self) -> &Arc<Database>;

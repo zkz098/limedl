@@ -62,7 +62,7 @@ async fn bind_with_retry(addr: &str, window: Duration) -> std::io::Result<tokio:
 ///
 /// Kept separate from [`Aria2RpcServer::serve`] so all four
 /// loopback × auth combinations are unit-tested without opening a socket.
-pub(crate) fn public_bind_rejection(bind_host: &str, auth: &AuthConfig) -> Option<String> {
+pub fn public_bind_rejection(bind_host: &str, auth: &AuthConfig) -> Option<String> {
     if is_loopback_bind_address(bind_host) || auth.is_enabled() {
         return None;
     }

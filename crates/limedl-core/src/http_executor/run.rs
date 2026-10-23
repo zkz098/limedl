@@ -26,7 +26,7 @@ use tokio_util::sync::CancellationToken;
 impl HttpExecutor {
     /// Probe a remote URL to obtain file metadata (final URL, file name,
     /// content length, ETag, Last-Modified, range support).
-    pub(crate) async fn probe(
+    pub async fn probe(
         &self,
         dm: &dyn ManagerState,
         url: &str,
@@ -147,7 +147,7 @@ impl HttpExecutor {
 
     /// Main download run loop.  Decides between single-stream and chunked
     /// (parallel) download based on server capabilities.
-    pub(crate) async fn run_download(
+    pub async fn run_download(
         &self,
         dm: Arc<dyn ManagerState>,
         managed: Arc<ManagedDownload>,

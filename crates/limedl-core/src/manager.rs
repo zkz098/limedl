@@ -250,7 +250,7 @@ impl DownloadManager {
     /// If CDN acceleration is enabled and an accelerated IP is available, this builds
     /// a domain-specific client that resolves the URL's hostname to the best Cloudflare IP.
     /// Otherwise falls back to the standard client.
-    pub(crate) async fn resolve_client(&self, url: &str) -> (Client, bool, Option<String>) {
+    pub async fn resolve_client(&self, url: &str) -> (Client, bool, Option<String>) {
         // Clone CDN settings under the read lock, then drop it immediately.
         // This prevents blocking update_settings() during the DNS lookup below.
         let (cdn_enabled, cdn_active_ip) = {

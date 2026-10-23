@@ -1,63 +1,6 @@
 use super::*;
+use crate::error::DownloadError;
 use crate::types::{DownloadDefaultsSettings, ProxySettings};
-
-// -----------------------------------------------------------------------
-// normalize_user_agent
-// -----------------------------------------------------------------------
-#[test]
-fn normalize_user_agent_empty_returns_default() {
-    let ua = normalize_user_agent("").unwrap();
-    assert_eq!(ua, default_http_user_agent());
-}
-
-#[test]
-fn normalize_user_agent_whitespace_only_returns_default() {
-    let ua = normalize_user_agent("   \t  \n  ").unwrap();
-    assert_eq!(ua, default_http_user_agent());
-}
-
-#[test]
-fn normalize_user_agent_valid_short_returns_trimmed() {
-    let ua = normalize_user_agent("MyAgent/1.0").unwrap();
-    assert_eq!(ua, "MyAgent/1.0");
-}
-
-#[test]
-fn normalize_user_agent_leading_trailing_whitespace_trimmed() {
-    let ua = normalize_user_agent("  CustomAgent/2.0  ").unwrap();
-    assert_eq!(ua, "CustomAgent/2.0");
-}
-
-#[test]
-fn normalize_user_agent_exactly_512_chars_ok() {
-    let input = "A".repeat(512);
-    let ua = normalize_user_agent(&input).unwrap();
-    assert_eq!(ua.len(), 512);
-    assert_eq!(ua, input);
-}
-
-#[test]
-fn normalize_user_agent_over_512_chars_err() {
-    let input = "A".repeat(513);
-    let err = normalize_user_agent(&input).unwrap_err();
-    assert!(matches!(err, DownloadError::InvalidResponse(_)));
-}
-
-#[test]
-fn normalize_user_agent_invalid_header_chars_err() {
-    // Null byte is not valid in an HTTP header value
-    let input = "MyAgent\0/1.0";
-    let err = normalize_user_agent(input).unwrap_err();
-    assert!(matches!(err, DownloadError::InvalidResponse(_)));
-}
-
-#[test]
-fn normalize_user_agent_newline_in_value_err() {
-    // Newline is not valid in an HTTP header value
-    let input = "MyAgent\n/1.0";
-    let err = normalize_user_agent(input).unwrap_err();
-    assert!(matches!(err, DownloadError::InvalidResponse(_)));
-}
 
 // -----------------------------------------------------------------------
 // configure_client_builder — proxy modes

@@ -4,6 +4,9 @@ version.workspace = true
 description = "Lightweight native desktop UI for limedl based on Slint"
 license.workspace = true
 edition = "2024"
+# Workspace-internal: limedl ships binaries, a container image and signed
+# self-update manifests, never crates.io packages.
+publish = false
 build = "build.rs"
 
 [[bin]]

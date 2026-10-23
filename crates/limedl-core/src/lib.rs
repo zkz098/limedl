@@ -1,4 +1,11 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+//! # Crate layout after the split
+//!
+//! The foundation layer — domain types, settings, errors, events, the download
+//! manifest and the `DownloadBackend` contract — moved to the `limedl-types`
+//! crate. The module re-exports below keep every historical path
+//! (`limedl_core::types::TaskId`, `crate::error::DownloadError`, …) resolving,
+//! so the ~25 000 lines of tests in this crate and the two consumers did not
+//! have to be touched.
 
 pub mod alt_svc;
 pub mod backend_registry;
@@ -6,13 +13,10 @@ pub mod bootstrap;
 #[cfg(feature = "bt")]
 pub mod bt_backend;
 pub mod cdn;
-pub mod checksum;
 pub mod context;
 pub mod database;
 pub mod dispatcher;
 pub mod download;
-pub mod error;
-pub mod event_bus;
 pub mod file_ops;
 pub mod http;
 pub mod http_client_factory;
@@ -20,22 +24,24 @@ pub mod http_executor;
 pub mod io_scheduler;
 pub mod logging;
 pub mod manager;
-pub(crate) mod manager_state;
-pub mod manifest;
+pub mod manager_state;
 pub mod metalink;
 pub mod persistence;
-pub mod platform;
-pub mod protocol;
 pub mod rate_limiter;
 pub mod retry;
 pub mod scheduler;
 pub mod services;
-pub mod settings;
-pub mod slot_guard;
 pub mod speed_tracker;
 pub mod task_lifecycle;
-pub mod types;
-pub mod url_rewrite;
+
+// Foundation modules, re-exported as modules (not as a glob of items): the
+// re-export has to preserve the *module* path, because the engine and the test
+// tree reach for `crate::<module>::Item` and not `crate::Item`.
+pub use limedl_types::{
+    checksum, error, event_bus, manifest, platform, protocol, settings, slot_guard, types,
+    url_rewrite,
+};
+pub use limedl_types::{lock, now_ms};
 
 #[cfg(any(test, feature = "test-utils"))]
 #[cfg_attr(not(test), allow(dead_code))]
@@ -80,17 +86,6 @@ pub use types::CloseBehavior;
 pub mod aria2_rpc;
 #[cfg(feature = "aria2-rpc")]
 pub use aria2_rpc::{Aria2RpcServer, cleanup_old_aria2_temp_files};
-
-pub fn lock<T>(mutex: &parking_lot::Mutex<T>) -> parking_lot::MutexGuard<'_, T> {
-    mutex.lock()
-}
-
-pub fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|_| Duration::from_secs(0))
-        .as_millis() as u64
-}
 
 #[cfg(test)]
 mod tests;

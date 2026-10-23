@@ -30,7 +30,7 @@ pub struct IoWorker {
 impl IoWorker {
     /// Wrap a batch-write sink.  Production wires `io_scheduler::DiskDeviceManager`
     /// in `context.rs`; tests may pass a fake.
-    pub(crate) fn new(sink: Arc<dyn BatchWriteSink>) -> Self {
+    pub fn new(sink: Arc<dyn BatchWriteSink>) -> Self {
         Self { sink }
     }
 

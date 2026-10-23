@@ -93,7 +93,7 @@ impl Scheduler {
     /// Start the background scheduler loop (750ms tick or rebalance_notify).
     /// Consumes `self: Arc<Self>` to keep the scheduler alive, and
     /// `dm: Arc<dyn ManagerState>` for the spawned task.
-    pub(crate) fn start_scheduler_loop(self: Arc<Self>, dm: Arc<dyn ManagerState>) {
+    pub fn start_scheduler_loop(self: Arc<Self>, dm: Arc<dyn ManagerState>) {
         tokio::spawn(async move {
             let mut consecutive_rebalance_failures: u32 = 0;
             loop {
@@ -150,7 +150,7 @@ impl Scheduler {
     /// Every target change is mirrored into the task snapshot, so the value the
     /// API exposes (the WebUI "target thread count") never lags behind the
     /// manifest.
-    pub(crate) async fn update_adaptive_targets(&self, dm: &dyn ManagerState) -> Result<()> {
+    pub async fn update_adaptive_targets(&self, dm: &dyn ManagerState) -> Result<()> {
         let settings = dm.settings_service().get().await;
         if settings.scheduler.mode != SchedulerMode::Automatic {
             return Ok(());
@@ -175,7 +175,7 @@ impl Scheduler {
     }
 
     /// Rebalance thread allocations across all active downloads.
-    pub(crate) async fn rebalance_allocations(&self, dm: &dyn ManagerState) -> Result<()> {
+    pub async fn rebalance_allocations(&self, dm: &dyn ManagerState) -> Result<()> {
         let settings = dm.settings_service().get().await;
         let max_parallel_hdd = dm.buffer_pool().effective_max_parallel() as usize;
 

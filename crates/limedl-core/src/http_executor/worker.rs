@@ -174,11 +174,7 @@ pub(super) fn claim_or_steal_chunk(
     )
 }
 
-pub(crate) fn mark_chunk_released(
-    managed: &Arc<ManagedDownload>,
-    chunk_index: usize,
-    worker_id: usize,
-) {
+pub fn mark_chunk_released(managed: &Arc<ManagedDownload>, chunk_index: usize, worker_id: usize) {
     let mut core = managed.lock_core();
     if let Some(chunk) = core.manifest.chunks.get_mut(chunk_index) {
         // Only clear the claim if it still belongs to this worker.

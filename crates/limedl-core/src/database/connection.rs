@@ -187,11 +187,11 @@ impl Database {
         })
     }
 
-    pub(crate) fn lock_write(&self) -> parking_lot::MutexGuard<'_, Connection> {
+    pub fn lock_write(&self) -> parking_lot::MutexGuard<'_, Connection> {
         self.write_conn.lock()
     }
 
-    pub(crate) fn lock_read(&self) -> parking_lot::MutexGuard<'_, Connection> {
+    pub fn lock_read(&self) -> parking_lot::MutexGuard<'_, Connection> {
         self.read_conn.lock()
     }
 
@@ -205,7 +205,7 @@ impl Database {
     }
 
     /// Run incremental vacuum if the freelist page count exceeds `threshold`.
-    pub(crate) fn vacuum_if_needed(&self, conn: &Connection, threshold: u32) -> Result<()> {
+    pub fn vacuum_if_needed(&self, conn: &Connection, threshold: u32) -> Result<()> {
         let freelist: u32 = conn
             .pragma_query_value(None, "freelist_count", |row| row.get(0))
             .context("failed to query freelist_count")?;
@@ -264,14 +264,14 @@ fn quarantine_database(path: &Path) -> Result<std::path::PathBuf> {
 
 /// `true` when an error message means "someone else is using it" rather than "it
 /// is broken". Contention must never be treated as corruption.
-pub(crate) fn is_lock_contention(message: &str) -> bool {
+pub fn is_lock_contention(message: &str) -> bool {
     let lowered = message.to_ascii_lowercase();
     lowered.contains("locked") || lowered.contains("busy")
 }
 
 /// `true` when SQLite itself says the bytes are not a database, or that its
 /// pages are damaged — as opposed to a transient or environmental failure.
-pub(crate) fn is_unusable_database(error: &rusqlite::Error) -> bool {
+pub fn is_unusable_database(error: &rusqlite::Error) -> bool {
     matches!(
         error,
         rusqlite::Error::SqliteFailure(code, _)

@@ -13,13 +13,13 @@ use tracing;
 
 use super::error::{DownloadError, Result, io_error_with_path};
 
-pub(crate) mod batch;
+pub mod batch;
 pub mod coalesce;
 /// Deterministic write-fault injection for the batch-flush path (tests only).
 #[cfg(any(test, feature = "test-utils"))]
 pub mod fault;
 
-pub(crate) use batch::BatchWriteSink;
+pub use batch::BatchWriteSink;
 pub use coalesce::{SyncMode, write_coalesced_entries};
 
 pub fn open_download_file(path: &Path, total_size: Option<u64>) -> Result<File> {

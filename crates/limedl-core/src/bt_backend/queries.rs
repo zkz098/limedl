@@ -341,7 +341,7 @@ impl IrontideBtBackend {
 }
 
 /// Strip control characters and whitespace from peer client strings.
-pub(crate) fn sanitize_peer_client(client: &str) -> String {
+pub fn sanitize_peer_client(client: &str) -> String {
     client
         .chars()
         .filter(|c| !c.is_control())

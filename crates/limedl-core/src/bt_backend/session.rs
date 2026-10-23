@@ -236,7 +236,7 @@ impl IrontideBtBackend {
 
     /// Load the configured peer IP blocklist (if any) and set it on the session,
     /// replacing the previous filter. Re-applies only when the config changes.
-    pub(crate) async fn apply_blocklist(&self) {
+    pub async fn apply_blocklist(&self) {
         apply_blocklist_impl(
             &self.session,
             &self.bt_settings,

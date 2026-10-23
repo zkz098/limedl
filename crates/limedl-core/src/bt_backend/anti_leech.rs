@@ -23,7 +23,7 @@ const DEFAULT_UPLOAD_SLOTS: usize = 8;
 /// Kept as a small standalone struct so the detection logic is unit-testable
 /// without constructing a full settings object.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct AntiLeechConfig {
+pub struct AntiLeechConfig {
     pub grace_secs: u64,
     pub ratio: f64,
     pub ban_secs: u64,
@@ -83,7 +83,7 @@ impl IrontideBtBackend {
 /// (`peer_unchoke_durations`); `grace_secs` is the warm-up period before a peer
 /// can be flagged. `ratio` is the minimum give-back share (0 disables the
 /// rate-ratio check).
-pub(crate) fn peer_is_leecher(
+pub fn peer_is_leecher(
     peer: &irontide::session::PeerInfo,
     unchoked_for: Option<Duration>,
     grace_secs: u64,

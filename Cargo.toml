@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/limedl-core", "crates/limedl-native", "crates/limedl-server", "xtask"]
+members = [
+    "crates/limedl-core",
+    "crates/limedl-native",
+    "crates/limedl-server",
+    "crates/limedl-types",
+    "xtask",
+]
 
 [workspace.package]
 version = "0.5.5"

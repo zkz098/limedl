@@ -6,16 +6,38 @@ use std::{
 use reqwest::Url;
 use tokio::io::AsyncWriteExt as _;
 
+use reqwest::header;
+
 use super::{
     error::{DownloadError, Result},
-    http_client_factory::normalize_user_agent,
     types::{
         AppSettings, Aria2RpcSettings, AutomaticSchedulerSettings, BtSettings,
         DownloadDefaultsSettings, ExpertSchedulerSettings, IoBaselineSettings, LogSettings,
         ProxyMode, ProxySettings, RewriteTarget, SchedulerSettings, TraditionalSchedulerSettings,
-        UrlRewriteRule, UrlRewriteSettings, default_tracker_list_url,
+        UrlRewriteRule, UrlRewriteSettings, default_http_user_agent, default_tracker_list_url,
     },
 };
+
+/// Normalize and validate a user-agent string.
+/// Returns the default Chrome user-agent if the input is empty,
+/// or an error if the value is too long or contains invalid characters.
+///
+/// Lives here rather than with the `reqwest` client builder in `limedl-core`:
+/// settings validation is part of the foundation layer, and the client builder
+/// is not the only caller.
+pub fn normalize_user_agent(user_agent: &str) -> Result<String> {
+    let normalized = user_agent.trim();
+    if normalized.is_empty() {
+        return Ok(default_http_user_agent());
+    }
+    if normalized.len() > 512 || header::HeaderValue::from_str(normalized).is_err() {
+        return Err(DownloadError::InvalidResponse(String::from(
+            "invalid user-agent value",
+        )));
+    }
+
+    Ok(normalized.to_string())
+}
 
 pub fn normalize_expert_settings(expert: ExpertSchedulerSettings) -> ExpertSchedulerSettings {
     ExpertSchedulerSettings {

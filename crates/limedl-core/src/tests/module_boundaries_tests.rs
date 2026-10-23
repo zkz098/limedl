@@ -1,4 +1,5 @@
-//! Module-boundary guard: the engine's top-level modules must form a DAG.
+//! Module-boundary guard: the engine's top-level modules must form a DAG *and*
+//! must respect the layering they will be split along.
 //!
 //! `limedl-core` is deliberately one crate, so nothing but this test stops a
 //! module from reaching into a higher layer.  The failure mode is quiet: a
@@ -8,12 +9,21 @@
 //!
 //! This test parses `src/**/*.rs` (production code only: `tests/`, `tests.rs`
 //! and `*_tests.rs` are skipped), builds the module dependency graph at
-//! top-level-module granularity, and fails if a new cycle appears.  Cycles that
-//! exist today are listed in [`ALLOWED_CYCLES`] with the reason they are
-//! tolerated; removing one is a deliberate act that must also delete its entry.
+//! top-level-module granularity, and fails when:
+//!
+//! 1. a new cycle appears.  Cycles that exist today are listed in
+//!    [`ALLOWED_CYCLES`] with the reason they are tolerated; removing one is a
+//!    deliberate act that must also delete its entry.
+//! 2. an edge points upward in [`LAYERS`] — the crate split's own contract.
 //!
 //! The intent is *direction*, not beauty: `a -> b -> c` is fine, `a <-> b` is
-//! not.  Improving the graph never fails this test; only regressing it does.
+//! not, and `b -> a` is not either.  Improving the graph never fails this test;
+//! only regressing it does.
+//!
+//! The first crate extraction (`limedl-types`: `types`, `error`, `event_bus`,
+//! `manifest`, `protocol`, `settings`, `url_rewrite`, `checksum`, `slot_guard`,
+//! `platform`) has already happened, so those modules are no longer in this
+//! graph: an upward edge to them is now a compile error instead.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
@@ -26,6 +36,83 @@ use std::path::{Path, PathBuf};
 /// module, as `file_ops` now does for the write-coalescing primitives and the
 /// fault hooks, or invert the dependency), not whitelisted.
 const ALLOWED_CYCLES: &[&[&str]] = &[];
+
+/// The layering the crate split follows, bottom-up.
+///
+/// Each entry names the crate a group of top-level modules is meant to become.
+/// A module may depend on a module in its own layer or any layer *below* it,
+/// and on nothing above — which is exactly the relation Cargo enforces the day
+/// those modules become separate crates.  Keeping the table honest here is what
+/// makes that split a mechanical step instead of a re-design.
+///
+/// Two entries are intentionally coarse:
+///
+/// * `test_harness` sits with `limedl-store` only because both are pure
+///   *consumers* of the disk layer; the crate it becomes (`limedl-testkit`) has
+///   no production dependents at all.
+/// * `bootstrap` gets its own top layer rather than joining `limedl-core`: it is
+///   the one module allowed to touch every backend, and after the split it is
+///   the only file in the facade crate that names `limedl-rpc`.
+///
+/// When a module moves to another crate, delete its name from here in the same
+/// commit — the stale-entry check below fails otherwise.
+const LAYERS: &[(&str, &[&str])] = &[
+    (
+        "limedl-disk / limedl-http",
+        &[
+            "file_ops",
+            "io_scheduler",
+            "buffer_pool",
+            "services",
+            "http",
+            "http_client_factory",
+            "rate_limiter",
+        ],
+    ),
+    (
+        "limedl-store / limedl-testkit",
+        &["database", "alt_svc", "test_harness"],
+    ),
+    (
+        "limedl-engine",
+        &[
+            "aimd",
+            "speed_tracker",
+            "retry",
+            "download",
+            "metalink",
+            "manager_state",
+            "persistence",
+            "scheduler",
+            "http_executor",
+            "cdn",
+            "task_lifecycle",
+        ],
+    ),
+    ("limedl-bt", &["bt_backend"]),
+    (
+        "limedl-core",
+        &[
+            "manager",
+            "context",
+            "dispatcher",
+            "backend_registry",
+            "logging",
+        ],
+    ),
+    ("limedl-rpc", &["aria2_rpc"]),
+    ("limedl-core (bootstrap only)", &["bootstrap"]),
+];
+
+/// Layer index and crate name of a top-level module, if it is in [`LAYERS`].
+fn layer_of(module: &str) -> Option<(usize, &'static str)> {
+    LAYERS
+        .iter()
+        .enumerate()
+        .find_map(|(index, (crate_name, members))| {
+            members.contains(&module).then_some((index, *crate_name))
+        })
+}
 
 /// One source file together with the module path it defines.
 struct SourceFile {
@@ -517,6 +604,101 @@ fn modules_form_a_dag_outside_the_allowed_cycles() {
         stale
             .iter()
             .map(|c| format!("  {}\n", c.join(" <-> ")))
+            .collect::<String>(),
+        render_edges(&edges),
+    );
+}
+
+#[test]
+fn modules_only_depend_on_their_own_or_a_lower_layer() {
+    let src_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let (nodes, edges) = module_graph(&src_root);
+    assert!(
+        nodes.len() > 10,
+        "module discovery found only {} modules under {} — the parser is broken, \
+         not the dependency graph",
+        nodes.len(),
+        src_root.display()
+    );
+
+    // A module that is in the graph but not in the table escapes the guard
+    // silently, so a new top-level module has to declare its layer.
+    let unclassified: Vec<&str> = nodes
+        .iter()
+        .map(String::as_str)
+        .filter(|module| layer_of(module).is_none())
+        .collect();
+    assert!(
+        unclassified.is_empty(),
+        "top-level modules missing from LAYERS:\n{}\n\
+         \n\
+         Add each one to the layer it belongs to, or to the layer of the crate it \
+         is going to become.\n\
+         \n\
+         current top-level module edges:\n{}",
+        unclassified
+            .iter()
+            .map(|module| format!("  {module}\n"))
+            .collect::<String>(),
+        render_edges(&edges),
+    );
+
+    // The reverse direction: an entry whose module no longer exists means a
+    // module was moved to another crate (or renamed) without updating the
+    // contract.
+    let stale: Vec<&str> = LAYERS
+        .iter()
+        .flat_map(|(_, members)| members.iter().copied())
+        .filter(|module| !nodes.contains(*module))
+        .collect();
+    assert!(
+        stale.is_empty(),
+        "LAYERS names modules that no longer exist:\n{}\n\
+         \n\
+         Delete each entry in the same commit that moves the module out of this \
+         crate.\n",
+        stale
+            .iter()
+            .map(|module| format!("  {module}\n"))
+            .collect::<String>(),
+    );
+
+    let mut upward: Vec<String> = Vec::new();
+    for (from, targets) in &edges {
+        let (from_layer, from_crate) = layer_of(from).expect("classified above");
+        for to in targets {
+            let (to_layer, to_crate) = layer_of(to).expect("classified above");
+            if to_layer > from_layer {
+                upward.push(format!(
+                    "  {from} ({from_crate}, layer {from_layer}) \
+                     -> {to} ({to_crate}, layer {to_layer})\n"
+                ));
+            }
+        }
+    }
+    upward.sort();
+    assert!(
+        upward.is_empty(),
+        "module dependency direction regressed: the following edges point at a \
+         higher layer.\n\
+         \n\
+         Once these modules are separate crates, each of these is a Cargo cycle — \
+         invert the dependency (pass the value down instead of reaching up, or \
+         move the shared piece into the lower layer) instead of relaxing LAYERS.\n\
+         \n\
+         upward edges:\n{}\
+         \n\
+         layer table (bottom-up, from LAYERS):\n{}\
+         \n\
+         current top-level module edges:\n{}",
+        upward.concat(),
+        LAYERS
+            .iter()
+            .enumerate()
+            .map(|(index, (crate_name, members))| format!(
+                "  layer {index} ({crate_name}): {}\n",
+                members.join(", ")
+            ))
             .collect::<String>(),
         render_edges(&edges),
     );

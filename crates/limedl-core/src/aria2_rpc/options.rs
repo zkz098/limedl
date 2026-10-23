@@ -19,7 +19,7 @@ use std::path::PathBuf;
 /// Tier 1 and Tier 2 tests assert exactly this set, so a client-facing key is
 /// never dropped silently.
 #[cfg(test)]
-pub(crate) const ARIA2NG_GLOBAL_OPTION_KEYS: &[&str] = &[
+pub const ARIA2NG_GLOBAL_OPTION_KEYS: &[&str] = &[
     // basic
     "dir",
     "log",
@@ -190,7 +190,7 @@ pub(crate) const ARIA2NG_GLOBAL_OPTION_KEYS: &[&str] = &[
 
 /// Per-task aria2 option keys AriaNg reads (its `aria2TaskAvailableOptions`).
 #[cfg(test)]
-pub(crate) const ARIA2NG_TASK_OPTION_KEYS: &[&str] = &[
+pub const ARIA2NG_TASK_OPTION_KEYS: &[&str] = &[
     "dir",
     "out",
     "allow-overwrite",
@@ -225,7 +225,7 @@ pub(crate) const ARIA2NG_TASK_OPTION_KEYS: &[&str] = &[
     "force-save",
 ];
 
-pub(crate) fn extract_option_str(
+pub fn extract_option_str(
     options: Option<&serde_json::Map<String, Value>>,
     key: &str,
 ) -> Option<String> {
@@ -235,7 +235,7 @@ pub(crate) fn extract_option_str(
         .map(String::from)
 }
 
-pub(crate) fn extract_option_usize(
+pub fn extract_option_usize(
     options: Option<&serde_json::Map<String, Value>>,
     key: &str,
 ) -> Option<usize> {
@@ -244,7 +244,7 @@ pub(crate) fn extract_option_usize(
         .and_then(|v| v.as_str().and_then(|s| s.parse::<usize>().ok()))
 }
 
-pub(crate) fn extract_option_u32(
+pub fn extract_option_u32(
     options: Option<&serde_json::Map<String, Value>>,
     key: &str,
 ) -> Option<u32> {
@@ -258,7 +258,7 @@ pub(crate) fn extract_option_u32(
 /// aria2 documents `header` as a repeatable option; over JSON-RPC it is an
 /// array of strings (AriaNg, Motrix), but some clients send a single string.
 /// Malformed entries without a colon are dropped.
-pub(crate) fn extract_option_headers(
+pub fn extract_option_headers(
     options: Option<&serde_json::Map<String, Value>>,
     key: &str,
 ) -> Vec<String> {
@@ -277,7 +277,7 @@ pub(crate) fn extract_option_headers(
     headers
 }
 
-pub(crate) fn push_header(headers: &mut Vec<String>, raw: &str) {
+pub fn push_header(headers: &mut Vec<String>, raw: &str) {
     let trimmed = raw.trim();
     if !trimmed.is_empty() && trimmed.contains(':') {
         headers.push(trimmed.to_string());
@@ -286,7 +286,7 @@ pub(crate) fn push_header(headers: &mut Vec<String>, raw: &str) {
 
 /// aria2 serialises every boolean option as a string over JSON-RPC
 /// (`"pause": "true"`); accept raw booleans too.
-pub(crate) fn aria2_bool(value: &Value) -> bool {
+pub fn aria2_bool(value: &Value) -> bool {
     value.as_bool().unwrap_or_else(|| {
         value
             .as_str()
@@ -295,7 +295,7 @@ pub(crate) fn aria2_bool(value: &Value) -> bool {
 }
 
 /// Read a boolean option from an aria2 options object.
-pub(crate) fn option_is_true(options: Option<&serde_json::Map<String, Value>>, key: &str) -> bool {
+pub fn option_is_true(options: Option<&serde_json::Map<String, Value>>, key: &str) -> bool {
     options.and_then(|o| o.get(key)).is_some_and(aria2_bool)
 }
 
@@ -321,7 +321,7 @@ type Aria2Tail = (
 /// and `addTorrent`, whose first element is the URI list / torrent payload).
 /// Returns the first URI array, the first options object and the first
 /// integer position, each optional.
-pub(crate) fn split_aria2_tail(params: &[Value], from: usize) -> Aria2Tail {
+pub fn split_aria2_tail(params: &[Value], from: usize) -> Aria2Tail {
     let mut uris = None;
     let mut options = None;
     let mut position = None;
@@ -345,7 +345,7 @@ pub(crate) fn split_aria2_tail(params: &[Value], from: usize) -> Aria2Tail {
 
 /// Parse aria2's `select-file`: a 1-based comma-separated index list, into the
 /// engine's 0-based file indices.
-pub(crate) fn parse_select_file(value: &Value) -> std::result::Result<Vec<usize>, JsonRpcError> {
+pub fn parse_select_file(value: &Value) -> std::result::Result<Vec<usize>, JsonRpcError> {
     let raw = value.as_str().ok_or_else(|| {
         make_error(
             ERR_INVALID_PARAMS,
@@ -401,7 +401,7 @@ fn parse_aria2_limit(value: &Value) -> std::result::Result<Option<u64>, JsonRpcE
 /// Maps `header` (array/string), `referer` (`*` means the download URL
 /// itself) and `http-user`/`http-passwd` (Basic auth) onto the header list
 /// consumed by `StartDownloadRequest::headers`.
-pub(crate) fn collect_request_headers(
+pub fn collect_request_headers(
     options: Option<&serde_json::Map<String, Value>>,
     url: &str,
 ) -> Vec<String> {
@@ -435,7 +435,7 @@ pub(crate) fn collect_request_headers(
 /// ignored, matching aria2's own tolerant behaviour for optional metadata.
 /// sha-512 is accepted because it is part of limedl's supported set, even
 /// though aria2 itself only knows sha-1/md5/sha-256.
-pub(crate) fn parse_checksum_option(
+pub fn parse_checksum_option(
     options: Option<&serde_json::Map<String, Value>>,
 ) -> (Option<ChecksumMode>, Option<String>) {
     let Some(raw) = extract_option_str(options, "checksum") else {
@@ -458,7 +458,7 @@ pub(crate) fn parse_checksum_option(
 }
 
 /// Case-insensitive lookup of a `"Name: value"` entry's value.
-pub(crate) fn find_header_value(headers: &[String], name: &str) -> Option<String> {
+pub fn find_header_value(headers: &[String], name: &str) -> Option<String> {
     headers.iter().find_map(|header| {
         let (header_name, value) = header.split_once(':')?;
         header_name
@@ -470,7 +470,7 @@ pub(crate) fn find_header_value(headers: &[String], name: &str) -> Option<String
 
 /// Read a task's effective User-Agent and extra headers from the in-memory
 /// download map (all persisted downloads are loaded there at startup).
-pub(crate) async fn task_request_headers(ctx: &RpcContext, id: &str) -> (String, Vec<String>) {
+pub async fn task_request_headers(ctx: &RpcContext, id: &str) -> (String, Vec<String>) {
     let Some(dm) = ctx.http() else {
         return (String::new(), Vec::new());
     };
@@ -729,7 +729,7 @@ fn aria2_global_options(settings: &crate::types::AppSettings) -> serde_json::Map
     options
 }
 
-pub(crate) async fn handle_get_global_option(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
+pub async fn handle_get_global_option(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
     let dm = ctx
         .http()
         .ok_or_else(|| make_error(ERR_INTERNAL, "HTTP backend not available"))?;
@@ -741,7 +741,7 @@ pub(crate) async fn handle_get_global_option(ctx: &RpcContext) -> Result<Value, 
     Ok(Value::Object(aria2_global_options(&settings)))
 }
 
-pub(crate) async fn handle_change_global_option(
+pub async fn handle_change_global_option(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -868,7 +868,7 @@ pub(crate) async fn handle_change_global_option(
 /// - `select-file` (BitTorrent, 1-based aria2 indices)
 /// - `max-download-limit` / `max-upload-limit` (BitTorrent)
 ///
-pub(crate) async fn handle_change_option(
+pub async fn handle_change_option(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -944,7 +944,7 @@ pub(crate) async fn handle_change_option(
     Ok(Value::String("OK".to_string()))
 }
 
-pub(crate) async fn handle_get_option(
+pub async fn handle_get_option(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {

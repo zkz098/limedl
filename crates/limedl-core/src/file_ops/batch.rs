@@ -23,7 +23,7 @@ use crate::error::DownloadError;
 /// Implementors account for the bytes themselves (the device queue updates its
 /// own metrics), so there is no separate `record_write`.
 #[async_trait]
-pub(crate) trait BatchWriteSink: Send + Sync {
+pub trait BatchWriteSink: Send + Sync {
     /// Submit a batch of offset-sorted `(offset, bytes)` entries for `path`.
     async fn write_batch(
         &self,

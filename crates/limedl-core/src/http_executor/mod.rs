@@ -341,7 +341,7 @@ mod single;
 mod worker;
 
 #[cfg(test)]
-pub(crate) use worker::mark_chunk_released;
+pub use worker::mark_chunk_released;
 
 #[cfg(test)]
 mod tests;

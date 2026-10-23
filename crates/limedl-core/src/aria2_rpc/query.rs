@@ -228,7 +228,7 @@ async fn summary_for_raw_id(ctx: &RpcContext, raw_id: &str) -> Option<DownloadSu
         .find(|s| s.id == raw_id)
 }
 
-pub(crate) async fn handle_tell_status(
+pub async fn handle_tell_status(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -252,7 +252,7 @@ pub(crate) async fn handle_tell_status(
     })
 }
 
-pub(crate) async fn handle_tell_active(
+pub async fn handle_tell_active(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -287,7 +287,7 @@ pub(crate) async fn handle_tell_active(
 /// The waiting-queue order shared with the scheduler and `changePosition`:
 /// priority first, then creation time, then id for determinism. Used by
 /// `tellWaiting` so a client sees the same order the queue will run in.
-pub(crate) async fn waiting_order(ctx: &RpcContext) -> Result<Vec<DownloadSummary>, JsonRpcError> {
+pub async fn waiting_order(ctx: &RpcContext) -> Result<Vec<DownloadSummary>, JsonRpcError> {
     let mut waiting: Vec<DownloadSummary> = get_all_summaries(ctx)
         .await?
         .into_iter()
@@ -302,7 +302,7 @@ pub(crate) async fn waiting_order(ctx: &RpcContext) -> Result<Vec<DownloadSummar
     Ok(waiting)
 }
 
-pub(crate) async fn handle_tell_waiting(
+pub async fn handle_tell_waiting(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -324,7 +324,7 @@ pub(crate) async fn handle_tell_waiting(
     Ok(Value::Array(waiting))
 }
 
-pub(crate) async fn handle_tell_stopped(
+pub async fn handle_tell_stopped(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -376,7 +376,7 @@ pub(crate) async fn handle_tell_stopped(
     Ok(Value::Array(page))
 }
 
-pub(crate) async fn handle_global_stat(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
+pub async fn handle_global_stat(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
     let all = get_all_summaries(ctx).await?;
     let num_active = all
         .iter()
@@ -424,7 +424,7 @@ pub(crate) async fn handle_global_stat(ctx: &RpcContext) -> Result<Value, JsonRp
     }))
 }
 
-pub(crate) fn handle_version() -> Value {
+pub fn handle_version() -> Value {
     // Advertise only what limedl actually does. The old list was copied from
     // aria2 and claimed GZip, XML-RPC and Firefox3 Cookie support that does not
     // exist; clients (and users) read this to decide what they can use.
@@ -438,10 +438,7 @@ pub(crate) fn handle_version() -> Value {
     })
 }
 
-pub(crate) async fn handle_get_files(
-    ctx: &RpcContext,
-    params: Vec<Value>,
-) -> Result<Value, JsonRpcError> {
+pub async fn handle_get_files(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -455,10 +452,7 @@ pub(crate) async fn handle_get_files(
     Ok(file_list_for(ctx, &task_id, &summary))
 }
 
-pub(crate) async fn handle_get_uris(
-    ctx: &RpcContext,
-    params: Vec<Value>,
-) -> Result<Value, JsonRpcError> {
+pub async fn handle_get_uris(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -486,7 +480,7 @@ pub(crate) async fn handle_get_uris(
 /// `aria2.getServers` — the HTTP(S)/FTP servers backing a download, or the
 /// tracker servers of a BitTorrent download. The response is one struct per
 /// file index; limedl's HTTP downloads are single-file, so there is one entry.
-pub(crate) async fn handle_get_servers(
+pub async fn handle_get_servers(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -524,10 +518,7 @@ pub(crate) async fn handle_get_servers(
     Ok(build_http_server_list(&summary, &candidates, &current))
 }
 
-pub(crate) async fn handle_get_peers(
-    ctx: &RpcContext,
-    params: Vec<Value>,
-) -> Result<Value, JsonRpcError> {
+pub async fn handle_get_peers(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -549,7 +540,7 @@ pub(crate) async fn handle_get_peers(
     Ok(Value::Array(aria2_peers))
 }
 
-pub(crate) fn peer_info_to_aria2_peer(p: &BtPeerInfo) -> Value {
+pub fn peer_info_to_aria2_peer(p: &BtPeerInfo) -> Value {
     let (ip, port) = match p.address.rsplit_once(':') {
         Some((ip, port_str)) => (ip.to_string(), port_str.parse::<u16>().unwrap_or(0)),
         None => (p.address.clone(), 0),
@@ -572,16 +563,16 @@ pub(crate) fn peer_info_to_aria2_peer(p: &BtPeerInfo) -> Value {
         "seeder": if seeder { "true" } else { "false" },
     })
 }
-pub(crate) fn handle_get_session_info(ctx: &RpcContext) -> Value {
+pub fn handle_get_session_info(ctx: &RpcContext) -> Value {
     serde_json::json!({ "sessionId": ctx.session_id })
 }
 
-pub(crate) fn handle_save_session() -> Value {
+pub fn handle_save_session() -> Value {
     // limedl auto-persists to SQLite on every state change; no explicit save needed
     Value::String("OK".to_string())
 }
 
-pub(crate) fn handle_list_notifications() -> Value {
+pub fn handle_list_notifications() -> Value {
     Value::Array(
         [
             "aria2.onDownloadStart",
@@ -597,7 +588,7 @@ pub(crate) fn handle_list_notifications() -> Value {
     )
 }
 
-pub(crate) fn handle_list_methods() -> Value {
+pub fn handle_list_methods() -> Value {
     Value::Array(
         [
             "aria2.addMetalink",
@@ -644,7 +635,7 @@ pub(crate) fn handle_list_methods() -> Value {
     )
 }
 
-pub(crate) fn extract_gid(params: &[Value]) -> Result<String, JsonRpcError> {
+pub fn extract_gid(params: &[Value]) -> Result<String, JsonRpcError> {
     params
         .first()
         .and_then(|v| v.as_str())
@@ -652,7 +643,7 @@ pub(crate) fn extract_gid(params: &[Value]) -> Result<String, JsonRpcError> {
         .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing GID parameter"))
 }
 
-pub(crate) fn parse_int_param(params: &[Value], index: usize) -> Option<usize> {
+pub fn parse_int_param(params: &[Value], index: usize) -> Option<usize> {
     params.get(index).and_then(|v| {
         v.as_str()
             .and_then(|s| s.parse::<usize>().ok())
@@ -660,9 +651,7 @@ pub(crate) fn parse_int_param(params: &[Value], index: usize) -> Option<usize> {
     })
 }
 
-pub(crate) async fn get_all_summaries(
-    ctx: &RpcContext,
-) -> Result<Vec<DownloadSummary>, JsonRpcError> {
+pub async fn get_all_summaries(ctx: &RpcContext) -> Result<Vec<DownloadSummary>, JsonRpcError> {
     let mut all = Vec::new();
     for backend in ctx.registry.iter() {
         match backend.list().await {

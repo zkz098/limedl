@@ -42,7 +42,7 @@ pub fn cleanup_old_aria2_temp_files() {
         tracing::debug!("Cleaned up {removed} old aria2 torrent temp file(s)");
     }
 }
-pub(crate) async fn handle_shutdown(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
+pub async fn handle_shutdown(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
     if ctx.exit_on_shutdown {
         tracing::info!(
             "aria2.shutdown requested — exit_on_shutdown is set, signalling the daemon to stop"

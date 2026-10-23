@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Check whether a table has a given column by querying PRAGMA table_info.
-pub(crate) fn table_has_column(conn: &Connection, table: &str, column: &str) -> Result<bool> {
+pub fn table_has_column(conn: &Connection, table: &str, column: &str) -> Result<bool> {
     debug_assert!(
         table == "downloads",
         "table_has_column: unknown table '{table}' — add it to the whitelist"
@@ -30,7 +30,7 @@ pub(crate) fn table_has_column(conn: &Connection, table: &str, column: &str) -> 
 /// "duplicate column name" on every subsequent start, permanently bricking the
 /// database, so every `ADD COLUMN` goes through this helper.
 ///
-pub(crate) fn add_column_if_missing(
+pub fn add_column_if_missing(
     conn: &Connection,
     table: &str,
     column: &str,
@@ -48,7 +48,7 @@ pub(crate) fn add_column_if_missing(
     Ok(())
 }
 
-pub(crate) const CREATE_TABLES_SQL: &str = "
+pub const CREATE_TABLES_SQL: &str = "
 CREATE TABLE IF NOT EXISTS downloads (
     id TEXT PRIMARY KEY,
     url TEXT NOT NULL,
@@ -106,13 +106,13 @@ CREATE TABLE IF NOT EXISTS alt_svc_cache (
 CREATE INDEX IF NOT EXISTS idx_alt_svc_expires ON alt_svc_cache(expires_at_ms);
 ";
 
-pub(crate) struct Migration {
+pub struct Migration {
     pub(crate) version: u32,
     pub(crate) name: &'static str,
     pub(crate) up: fn(&Connection) -> Result<()>,
 }
 
-pub(crate) const MIGRATIONS: &[Migration] = &[
+pub const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
         name: "initial_schema",

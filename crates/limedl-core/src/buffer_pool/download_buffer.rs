@@ -17,7 +17,7 @@ use crate::file_ops::write_all_at;
 
 /// RAII guard that releases the flip token and notifies waiters on drop.
 /// Prevents deadlock if the flip section panics.
-pub(crate) struct FlipTokenGuard<'a> {
+pub struct FlipTokenGuard<'a> {
     pub(crate) token: &'a AtomicBool,
     pub(crate) notify: &'a Notify,
 }
@@ -55,7 +55,7 @@ struct PingPongCfg<'a> {
 }
 
 /// Internal mode for `DownloadBuffer`.
-pub(crate) enum BufferMode {
+pub enum BufferMode {
     /// Double-buffer mode used for HDD downloads.
     Double {
         half_a: Arc<Mutex<BTreeMap<u64, Bytes>>>,

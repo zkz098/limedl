@@ -23,7 +23,7 @@ pub fn internal_id_to_gid(internal_id: &str) -> String {
 /// refused rather than resolved to an arbitrary one, so a client can never
 /// silently control the wrong download. Only full GIDs are cached, because a
 /// prefix mapping could go stale when a new task appears.
-pub(crate) async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<TaskId> {
+pub async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<TaskId> {
     // Exact cache hit first (the common case).
     {
         let cache = ctx.gid_cache.lock().await;
@@ -71,7 +71,7 @@ pub(crate) async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<TaskId> {
     Some(task_id)
 }
 
-pub(crate) fn state_to_aria2(state: &DownloadState) -> &'static str {
+pub fn state_to_aria2(state: &DownloadState) -> &'static str {
     match state {
         DownloadState::Queued => "waiting",
         DownloadState::Downloading => "active",
@@ -109,7 +109,7 @@ fn bool_str(value: bool) -> String {
 /// end are zero, so bits are packed MSB-first and the trailing nibble is
 /// left-aligned. An empty slice yields an empty string (aria2 omits the key
 /// for a download that has not started).
-pub(crate) fn bitfield_from_bits(bits: &[bool]) -> String {
+pub fn bitfield_from_bits(bits: &[bool]) -> String {
     let mut out = String::with_capacity(bits.len().div_ceil(4));
     let mut nibble = 0u8;
     for (index, &bit) in bits.iter().enumerate() {
@@ -126,7 +126,7 @@ pub(crate) fn bitfield_from_bits(bits: &[bool]) -> String {
     out
 }
 
-pub(crate) fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
+pub fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
     let gid = internal_id_to_gid(&summary.id);
     let is_bt = matches!(summary.kind, TaskKind::Bt);
 
@@ -213,7 +213,7 @@ pub(crate) fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
     Value::Object(map)
 }
 
-pub(crate) fn build_file_list(summary: &DownloadSummary) -> Value {
+pub fn build_file_list(summary: &DownloadSummary) -> Value {
     Value::Array(vec![serde_json::json!({
         "index": "1",
         // aria2 reports the absolute save path, not just the file name.
@@ -231,7 +231,7 @@ pub(crate) fn build_file_list(summary: &DownloadSummary) -> Value {
 /// [`BtFileStatus::index`] is 0-based. A magnet whose metadata has not arrived
 /// has no files yet — callers pass an empty slice and get an empty array
 /// instead of a synthetic entry.
-pub(crate) fn bt_files_to_aria2(files: &[BtFileStatus]) -> Value {
+pub fn bt_files_to_aria2(files: &[BtFileStatus]) -> Value {
     Value::Array(
         files
             .iter()
@@ -250,7 +250,7 @@ pub(crate) fn bt_files_to_aria2(files: &[BtFileStatus]) -> Value {
 }
 
 /// Keep only the requested status fields, matching aria2's `keys` parameter.
-pub(crate) fn filter_status_keys(value: Value, keys: &[String]) -> Value {
+pub fn filter_status_keys(value: Value, keys: &[String]) -> Value {
     match value {
         Value::Object(mut map) => {
             map.retain(|key, _| keys.iter().any(|wanted| wanted == key));

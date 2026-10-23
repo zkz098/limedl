@@ -121,13 +121,13 @@ impl ManagedDownload {
     }
 }
 #[derive(Debug)]
-pub(crate) enum RunOutcome {
+pub enum RunOutcome {
     Finished,
     Paused,
     Canceled,
 }
 #[derive(Debug)]
-pub(crate) enum ChunkWorkerOutcome {
+pub enum ChunkWorkerOutcome {
     Finished,
     RestartSingle,
     DowngradeSingleThread,
@@ -136,12 +136,12 @@ pub(crate) enum ChunkWorkerOutcome {
 }
 /// Result of `wait_until_active()` — used by HttpExecutor.
 #[derive(Debug)]
-pub(crate) enum WaitState {
+pub enum WaitState {
     Running,
     Paused,
     Canceled,
 }
-pub(crate) fn sync_snapshot_with_manifest(core: &mut DownloadCore) {
+pub fn sync_snapshot_with_manifest(core: &mut DownloadCore) {
     core.sync_snapshot_from_manifest();
 }
 /// Records download progress directly on a [`ManagedDownload`].
@@ -153,7 +153,7 @@ pub(crate) fn sync_snapshot_with_manifest(core: &mut DownloadCore) {
 ///
 /// The body is **identical** to [`TaskLifecycle::record_progress`] in
 /// `task_lifecycle.rs`. If you modify one, you **must** update the other.
-pub(crate) fn record_progress_on_managed(
+pub fn record_progress_on_managed(
     managed: &Arc<ManagedDownload>,
     chunk_index: Option<usize>,
     bytes: u64,
@@ -194,7 +194,7 @@ pub(crate) fn record_progress_on_managed(
 /// fsync per flush would be needed to survive a power loss, and that is a
 /// deliberate trade-off (see `docs/` troubleshooting); the HDD path already
 /// syncs periodically through `SyncMode::Adaptive`.
-pub(crate) fn record_durable_bytes(managed: &Arc<ManagedDownload>, entries: &[(u64, u64)]) {
+pub fn record_durable_bytes(managed: &Arc<ManagedDownload>, entries: &[(u64, u64)]) {
     if entries.is_empty() {
         return;
     }
@@ -219,13 +219,13 @@ pub(crate) fn record_durable_bytes(managed: &Arc<ManagedDownload>, entries: &[(u
         }
     }
 }
-pub(crate) fn cancellation_outcome(managed: &Arc<ManagedDownload>) -> RunOutcome {
+pub fn cancellation_outcome(managed: &Arc<ManagedDownload>) -> RunOutcome {
     match managed.lock_core().snapshot.state {
         DownloadState::Canceled => RunOutcome::Canceled,
         _ => RunOutcome::Paused,
     }
 }
-pub(crate) fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> ChunkWorkerOutcome {
+pub fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> ChunkWorkerOutcome {
     match managed.lock_core().snapshot.state {
         DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
         _ => ChunkWorkerOutcome::Paused,
@@ -236,7 +236,7 @@ pub(crate) fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> Chun
 impl ManagedDownload {
     /// Test helper: wrap a manifest in a managed download with a matching
     /// snapshot, as `DownloadManager` does when it creates or loads a task.
-    pub(crate) fn from_manifest(manifest: Manifest) -> Arc<Self> {
+    pub fn from_manifest(manifest: Manifest) -> Arc<Self> {
         let snapshot = crate::manifest::snapshot_from_manifest(&manifest);
         Arc::new(Self {
             core: Mutex::new(DownloadCore::new(snapshot, manifest)),

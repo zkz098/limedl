@@ -14,17 +14,13 @@ use crate::aimd;
 use crate::types::{AdaptiveProfile, AppSettings, SchedulerMode, StartDownloadRequest, ThreadMode};
 
 pub const DEFAULT_FIXED_THREADS: usize = 8;
-pub(crate) const DEFAULT_RETRIES: u32 = 4;
-pub(crate) const PERSIST_INTERVAL: Duration = Duration::from_millis(300);
+pub const DEFAULT_RETRIES: u32 = 4;
+pub const PERSIST_INTERVAL: Duration = Duration::from_millis(300);
 pub const MAX_TRADITIONAL_THREADS: usize = 32;
-pub(crate) fn supports_parallelism(
-    total: Option<u64>,
-    supports_ranges: bool,
-    chunk_size: u64,
-) -> bool {
+pub fn supports_parallelism(total: Option<u64>, supports_ranges: bool, chunk_size: u64) -> bool {
     supports_ranges && total.map(|value| value >= chunk_size * 2).unwrap_or(false)
 }
-pub(crate) fn resolve_thread_settings(
+pub fn resolve_thread_settings(
     settings: &AppSettings,
     request: &StartDownloadRequest,
     supports_parallel: bool,
@@ -68,7 +64,7 @@ pub(crate) fn resolve_thread_settings(
         },
     }
 }
-pub(crate) fn thread_note(
+pub fn thread_note(
     supports_parallel: bool,
     thread_mode: ThreadMode,
     adaptive_profile: Option<AdaptiveProfile>,
@@ -86,7 +82,7 @@ pub(crate) fn thread_note(
         }),
     }
 }
-pub(crate) fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
+pub fn unique_destination_path(destination_dir: &Path, file_name: &str) -> PathBuf {
     let base = destination_dir.join(file_name);
     if !base.exists() {
         return base;
@@ -111,7 +107,7 @@ pub(crate) fn unique_destination_path(destination_dir: &Path, file_name: &str) -
 
     destination_dir.join(format!("{}-{}{}", stem, Uuid::new_v4(), extension))
 }
-pub(crate) fn initial_file_name_from_url(url: &str) -> String {
+pub fn initial_file_name_from_url(url: &str) -> String {
     Url::parse(url)
         .ok()
         .and_then(|url| {
@@ -122,6 +118,6 @@ pub(crate) fn initial_file_name_from_url(url: &str) -> String {
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| String::from("download"))
 }
-pub(crate) fn log_background_error(context: &str, error: impl std::fmt::Display) {
+pub fn log_background_error(context: &str, error: impl std::fmt::Display) {
     tracing::warn!(context, %error, "background error");
 }

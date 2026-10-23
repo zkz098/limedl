@@ -28,7 +28,7 @@ use serde_json::Value;
 /// ran on parameters the token had already been removed from, so a configured
 /// secret rejected every request that carried it. `strip_token` then removes
 /// the `"token:<secret>"` element so handlers see only their real arguments.
-pub(crate) async fn dispatch_method(
+pub async fn dispatch_method(
     ctx: &RpcContext,
     method: &str,
     params: Vec<Value>,
@@ -55,7 +55,7 @@ pub(crate) async fn dispatch_method(
 /// `handle_multicall` calls [`dispatch_method`] for each nested call (not this
 /// function), so every nested call is authenticated and stripped on its own;
 /// this function is the raw routing table and performs no token work itself.
-pub(crate) async fn dispatch_authorized(
+pub async fn dispatch_authorized(
     ctx: &RpcContext,
     method: &str,
     params: Vec<Value>,
@@ -100,10 +100,7 @@ pub(crate) async fn dispatch_authorized(
     }
 }
 
-pub(crate) async fn handle_multicall(
-    ctx: &RpcContext,
-    params: Vec<Value>,
-) -> Result<Value, JsonRpcError> {
+pub async fn handle_multicall(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
     // `dispatch_method` already stripped any outer token (aria2's multicall
     // carries none), so each nested call is authenticated on its own: it goes
     // back through `dispatch_method`, which checks and strips the per-call

@@ -16,7 +16,7 @@ use axum::response::{IntoResponse, Response};
 use serde_json::Value;
 use std::sync::Arc;
 
-pub(crate) async fn handle_jsonrpc_http(
+pub async fn handle_jsonrpc_http(
     axum::extract::State(ctx): axum::extract::State<Arc<RpcContext>>,
     body: String,
 ) -> Response {
@@ -27,14 +27,14 @@ pub(crate) async fn handle_jsonrpc_http(
     }
 }
 
-pub(crate) async fn handle_websocket_upgrade(
+pub async fn handle_websocket_upgrade(
     ws: WebSocketUpgrade,
     axum::extract::State(ctx): axum::extract::State<Arc<RpcContext>>,
 ) -> impl IntoResponse {
     ws.on_upgrade(move |socket| websocket_loop(socket, ctx))
 }
 
-pub(crate) async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
+pub async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
     let (sender, mut receiver) = socket.split();
     let sender = Arc::new(tokio::sync::Mutex::new(sender));
     let mut event_rx = ctx.event_bus.subscribe();
@@ -108,7 +108,7 @@ pub(crate) async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
 /// Returns `None` only when the body was a batch containing **only**
 /// notifications: the spec forbids answering those, so the caller must send
 /// nothing (aria2 accepts batch requests the same way).
-pub(crate) async fn process_jsonrpc_payload(ctx: &RpcContext, body: &str) -> Option<String> {
+pub async fn process_jsonrpc_payload(ctx: &RpcContext, body: &str) -> Option<String> {
     let value: Value = match serde_json::from_str(body) {
         Ok(value) => value,
         Err(_) => {
@@ -160,7 +160,7 @@ pub(crate) async fn process_jsonrpc_payload(ctx: &RpcContext, body: &str) -> Opt
 /// for an all-notification batch. The live transports use
 /// [`process_jsonrpc_payload`] so they can skip sending nothing.
 #[cfg(test)]
-pub(crate) async fn process_jsonrpc_message(ctx: &RpcContext, body: &str) -> String {
+pub async fn process_jsonrpc_message(ctx: &RpcContext, body: &str) -> String {
     process_jsonrpc_payload(ctx, body).await.unwrap_or_default()
 }
 

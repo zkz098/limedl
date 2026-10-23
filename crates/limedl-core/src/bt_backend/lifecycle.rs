@@ -17,7 +17,7 @@ impl IrontideBtBackend {
     // ── Private helpers ────────────────────────────────────────────────
 
     /// Fetch bytes from a URL using the configured HTTP client (with proxy support).
-    pub(crate) async fn fetch_url_bytes(&self, url: &str) -> Result<Vec<u8>> {
+    pub async fn fetch_url_bytes(&self, url: &str) -> Result<Vec<u8>> {
         // Clone the client out of the lock before awaiting: `parking_lot`'s guard
         // is not `Send` and must not be held across the request.
         let client = { self.http_client.read().clone() };

@@ -22,7 +22,7 @@ use uuid::Uuid;
 /// deliberately downloaded as a plain file (clients use `addTorrent` for the
 /// parsed form), so it stays HTTP here even though the deeper
 /// [`StartDownloadRequest::classify_kind`] heuristic maps that extension to BT.
-pub(crate) fn classify_aria2_uri(url: &str) -> TaskKind {
+pub fn classify_aria2_uri(url: &str) -> TaskKind {
     if url.trim().to_ascii_lowercase().starts_with("magnet:") {
         TaskKind::Bt
     } else {
@@ -30,10 +30,7 @@ pub(crate) fn classify_aria2_uri(url: &str) -> TaskKind {
     }
 }
 
-pub(crate) async fn handle_add_uri(
-    ctx: &RpcContext,
-    params: Vec<Value>,
-) -> Result<Value, JsonRpcError> {
+pub async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
     let uris: Vec<String> = params
         .first()
         .and_then(|v| v.as_array())
@@ -147,7 +144,7 @@ pub(crate) async fn handle_add_uri(
     }
     Ok(Value::String(gid))
 }
-pub(crate) async fn handle_add_torrent(
+pub async fn handle_add_torrent(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -229,7 +226,7 @@ pub(crate) async fn handle_add_torrent(
     Ok(Value::String(gid))
 }
 
-pub(crate) async fn handle_add_metalink(
+pub async fn handle_add_metalink(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -344,10 +341,7 @@ pub(crate) async fn handle_add_metalink(
 
     Ok(Value::Array(gids))
 }
-pub(crate) async fn handle_pause(
-    ctx: &RpcContext,
-    params: Vec<Value>,
-) -> Result<Value, JsonRpcError> {
+pub async fn handle_pause(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -364,10 +358,7 @@ pub(crate) async fn handle_pause(
     Ok(Value::String(gid))
 }
 
-pub(crate) async fn handle_unpause(
-    ctx: &RpcContext,
-    params: Vec<Value>,
-) -> Result<Value, JsonRpcError> {
+pub async fn handle_unpause(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -384,7 +375,7 @@ pub(crate) async fn handle_unpause(
     Ok(Value::String(gid))
 }
 
-pub(crate) async fn handle_pause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
+pub async fn handle_pause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
     let all = get_all_summaries(ctx).await?;
     for s in &all {
         let task_id = match s.kind {
@@ -404,7 +395,7 @@ pub(crate) async fn handle_pause_all(ctx: &RpcContext) -> Result<Value, JsonRpcE
     Ok(Value::String("OK".to_string()))
 }
 
-pub(crate) async fn handle_unpause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
+pub async fn handle_unpause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
     let all = get_all_summaries(ctx).await?;
     for s in &all {
         let task_id = match s.kind {
@@ -424,10 +415,7 @@ pub(crate) async fn handle_unpause_all(ctx: &RpcContext) -> Result<Value, JsonRp
     Ok(Value::String("OK".to_string()))
 }
 
-pub(crate) async fn handle_remove(
-    ctx: &RpcContext,
-    params: Vec<Value>,
-) -> Result<Value, JsonRpcError> {
+pub async fn handle_remove(ctx: &RpcContext, params: Vec<Value>) -> Result<Value, JsonRpcError> {
     let gid = extract_gid(&params)?;
     let task_id = resolve_gid(ctx, &gid)
         .await
@@ -450,7 +438,7 @@ pub(crate) async fn handle_remove(
 /// aria2 keeps completed/error/removed entries until they are individually
 /// removed or purged; AriaNg uses this for the per-row delete button on the
 /// stopped list.
-pub(crate) async fn handle_remove_download_result(
+pub async fn handle_remove_download_result(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -519,7 +507,7 @@ pub(crate) async fn handle_remove_download_result(
     Ok(Value::String("OK".to_string()))
 }
 
-pub(crate) async fn handle_purge_download_result(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
+pub async fn handle_purge_download_result(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
     let all = get_all_summaries(ctx).await?;
 
     // Collect TaskIds for terminal downloads
@@ -604,7 +592,7 @@ fn string_list(value: Option<&Value>) -> Option<Vec<String>> {
 /// single-file, so `fileIndex` must be 1. BitTorrent tasks are rejected, as in
 /// aria2: a torrent's sources come from trackers and DHT, not a URI list. The
 /// reply is aria2's two-integer `[deleted, added]` array.
-pub(crate) async fn handle_change_uri(
+pub async fn handle_change_uri(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {
@@ -656,7 +644,7 @@ pub(crate) async fn handle_change_uri(
 /// otherwise Normal for `POS_SET`; one level up/down for `POS_CUR`) and the
 /// **actual** resulting index is returned, so a client is never told a position
 /// that was not applied. `tellWaiting` uses the same order.
-pub(crate) async fn handle_change_position(
+pub async fn handle_change_position(
     ctx: &RpcContext,
     params: Vec<Value>,
 ) -> Result<Value, JsonRpcError> {

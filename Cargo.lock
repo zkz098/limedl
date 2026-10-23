@@ -3985,22 +3985,20 @@ dependencies = [
  "futures-util",
  "irontide",
  "libc",
+ "limedl-types",
  "ntest",
  "open",
  "parking_lot",
  "percent-encoding",
  "quick-xml 0.42.0",
  "rand 0.10.3",
- "regex",
  "reqwest 0.13.5",
  "rusqlite",
  "sanitize-filename",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "subtle",
  "tempfile",
- "thiserror 2.0.21",
  "time",
  "tokio",
  "tokio-tungstenite 0.30.0",
@@ -4073,6 +4071,33 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "limedl-types"
+version = "0.5.5"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.23.1",
+ "blake3",
+ "dashmap",
+ "foldhash 0.2.0",
+ "irontide",
+ "ntest",
+ "parking_lot",
+ "percent-encoding",
+ "regex",
+ "reqwest 0.13.5",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
