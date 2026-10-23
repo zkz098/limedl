@@ -30,8 +30,28 @@ use crate::event_bus::EventBus;
 use crate::protocol::DownloadBackend;
 use crate::slot_guard::DownloadSlotGuard;
 use crate::types::{
-    AppSettings, DownloadSnapshot, DownloadSummary, FastDashMap, StartDownloadRequest, TaskId,
+    AppSettings, DownloadSnapshot, DownloadSummary, FastDashMap, InfoHash, StartDownloadRequest,
+    TaskId,
 };
+
+/// Translate an irontide info-hash into the foundation layer's [`InfoHash`].
+///
+/// `TaskId::Bt` carries `limedl_types::types::InfoHash`, not `Id20`, so that the
+/// BitTorrent engine is not a dependency of `limedl-types` (and therefore of
+/// every limedl crate). These two functions are the *only* place the two id
+/// types meet; everywhere else the engine speaks `Id20` and the rest of the
+/// engine speaks `InfoHash`.
+///
+/// They cannot be `impl From<Id20> for InfoHash`: both types are foreign here,
+/// so the orphan rule rejects it.
+pub fn info_hash_from_engine(id: Id20) -> InfoHash {
+    InfoHash::from(*id.as_bytes())
+}
+
+/// Translate a foundation-layer [`InfoHash`] back into the engine's `Id20`.
+pub fn info_hash_to_engine(hash: &InfoHash) -> Id20 {
+    Id20::from(*hash.as_bytes())
+}
 
 /// Compute an Aria2-compatible GID from an info hash.
 pub fn internal_id_to_gid(info_hash: &Id20) -> String {
@@ -133,70 +153,70 @@ impl Clone for IrontideBtBackend {
 impl DownloadBackend for IrontideBtBackend {
     async fn start(&self, request: StartDownloadRequest) -> Result<TaskId> {
         let info_hash = self.start(request).await?;
-        Ok(TaskId::Bt(info_hash))
+        Ok(TaskId::Bt(info_hash_from_engine(info_hash)))
     }
 
     async fn pause(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.pause(info_hash).await
+        self.pause(info_hash_to_engine(&info_hash)).await
     }
 
     async fn resume(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.resume(info_hash).await
+        self.resume(info_hash_to_engine(&info_hash)).await
     }
 
     async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.cancel(info_hash).await
+        self.cancel(info_hash_to_engine(&info_hash)).await
     }
 
     async fn remove(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.remove(info_hash).await
+        self.remove(info_hash_to_engine(&info_hash)).await
     }
 
     async fn purge(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.purge(info_hash).await
+        self.purge(info_hash_to_engine(&info_hash)).await
     }
 
     async fn open_in_explorer(&self, task_id: &TaskId) -> Result<()> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.open_in_explorer(info_hash).await
+        self.open_in_explorer(info_hash_to_engine(&info_hash)).await
     }
 
     async fn open_file(&self, task_id: &TaskId) -> Result<()> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.open_file(info_hash).await
+        self.open_file(info_hash_to_engine(&info_hash)).await
     }
 
     async fn open_dir(&self, task_id: &TaskId) -> Result<()> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.open_dir(info_hash).await
+        self.open_dir(info_hash_to_engine(&info_hash)).await
     }
 
     async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.status(info_hash).await
+        self.status(info_hash_to_engine(&info_hash)).await
     }
 
     async fn list(&self) -> Result<Vec<DownloadSummary>> {

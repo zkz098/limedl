@@ -1,8 +1,6 @@
 #[cfg(feature = "bt")]
 use std::path::Path;
 
-#[cfg(feature = "bt")]
-use irontide::core::Id20;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -41,7 +39,105 @@ pub enum DownloadState {
 pub enum TaskId {
     Http(Uuid),
     #[cfg(feature = "bt")]
-    Bt(Id20),
+    Bt(InfoHash),
+}
+
+/// A 20-byte BitTorrent v1 info-hash (SHA-1 of the bencoded `info` dictionary).
+///
+/// This is the foundation layer's own type on purpose. The BitTorrent engine's
+/// equivalent (`irontide::core::Id20`) used to be named here directly, which put
+/// the whole BT engine — 100+ crates of DHT/peer-wire/`aws-lc` — underneath
+/// `limedl-types`, i.e. underneath *every* limedl crate. The REST of the engine
+/// only ever needs the 20 bytes and the hex spelling, so that is all this type
+/// keeps; `bt_backend` converts at the one boundary that actually talks to the
+/// engine (see `bt_backend::info_hash` / `bt_backend::irontide_id`).
+///
+/// The orphan rule is why the conversion cannot be `impl From<Id20> for InfoHash`
+/// here: this crate must not name `Id20` at all.
+#[cfg(feature = "bt")]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct InfoHash([u8; 20]);
+
+#[cfg(feature = "bt")]
+impl InfoHash {
+    /// All zeros.
+    pub const ZERO: Self = Self([0u8; 20]);
+
+    pub const fn from_bytes(bytes: [u8; 20]) -> Self {
+        Self(bytes)
+    }
+
+    pub const fn as_bytes(&self) -> &[u8; 20] {
+        &self.0
+    }
+
+    /// Parse the 40-character lowercase-or-uppercase hex form used on the wire
+    /// (`"bt:<hex>"`) and in every user-facing id.
+    pub fn from_hex(s: &str) -> Result<Self, DownloadError> {
+        let raw = s.as_bytes();
+        if raw.len() != 40 {
+            return Err(invalid_info_hash(s));
+        }
+        let mut bytes = [0u8; 20];
+        // `raw.len()` is 40, so `as_chunks` has no remainder to handle.
+        let pairs = raw.as_chunks::<2>().0;
+        for (slot, [hi_digit, lo_digit]) in bytes.iter_mut().zip(pairs) {
+            let hi = hex_digit(*hi_digit).ok_or_else(|| invalid_info_hash(s))?;
+            let lo = hex_digit(*lo_digit).ok_or_else(|| invalid_info_hash(s))?;
+            *slot = (hi << 4) | lo;
+        }
+        Ok(Self(bytes))
+    }
+
+    /// Lowercase hex, 40 characters — the canonical spelling (`Id20::to_hex`
+    /// produced the same string, so persisted ids keep working).
+    pub fn to_hex(&self) -> String {
+        const DIGITS: &[u8; 16] = b"0123456789abcdef";
+        let mut out = String::with_capacity(40);
+        for byte in self.0 {
+            out.push(DIGITS[usize::from(byte >> 4)] as char);
+            out.push(DIGITS[usize::from(byte & 0x0f)] as char);
+        }
+        out
+    }
+}
+
+#[cfg(feature = "bt")]
+fn hex_digit(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "bt")]
+fn invalid_info_hash(input: &str) -> DownloadError {
+    DownloadError::InvalidRequest(format!(
+        "invalid bt info-hash: {input:?} is not 40 hex characters"
+    ))
+}
+
+#[cfg(feature = "bt")]
+impl From<[u8; 20]> for InfoHash {
+    fn from(bytes: [u8; 20]) -> Self {
+        Self(bytes)
+    }
+}
+
+#[cfg(feature = "bt")]
+impl std::fmt::Debug for InfoHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "InfoHash({})", self.to_hex())
+    }
+}
+
+#[cfg(feature = "bt")]
+impl std::fmt::Display for InfoHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.to_hex())
+    }
 }
 
 impl TaskId {
@@ -83,9 +179,7 @@ impl TaskId {
         #[cfg(feature = "bt")]
         {
             if let Some(hex) = s.strip_prefix("bt:") {
-                return Id20::from_hex(hex)
-                    .map(TaskId::Bt)
-                    .map_err(|e| DownloadError::InvalidRequest(format!("invalid bt id: {e}")));
+                return InfoHash::from_hex(hex).map(TaskId::Bt);
             }
         }
         let raw = s.strip_prefix("http:").unwrap_or(s);
@@ -94,7 +188,7 @@ impl TaskId {
         }
         #[cfg(feature = "bt")]
         {
-            if let Ok(info_hash) = Id20::from_hex(raw) {
+            if let Ok(info_hash) = InfoHash::from_hex(raw) {
                 return Ok(TaskId::Bt(info_hash));
             }
         }
@@ -111,8 +205,8 @@ impl From<Uuid> for TaskId {
 }
 
 #[cfg(feature = "bt")]
-impl From<Id20> for TaskId {
-    fn from(i: Id20) -> Self {
+impl From<InfoHash> for TaskId {
+    fn from(i: InfoHash) -> Self {
         TaskId::Bt(i)
     }
 }

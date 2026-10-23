@@ -11,8 +11,8 @@ use super::options::{
 use super::protocol::{internal_id_to_gid, resolve_gid};
 use super::query::{extract_gid, get_all_summaries, waiting_order};
 use super::system::cleanup_old_aria2_temp_files;
+use crate::types::InfoHash;
 use crate::types::{DownloadState, Priority, StartDownloadRequest, TaskId, TaskKind};
-use irontide::core::Id20;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -383,7 +383,7 @@ pub async fn handle_pause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError> {
                 Ok(uuid) => TaskId::Http(uuid),
                 Err(_) => continue,
             },
-            TaskKind::Bt => match Id20::from_hex(&s.id) {
+            TaskKind::Bt => match InfoHash::from_hex(&s.id) {
                 Ok(ih) => TaskId::Bt(ih),
                 Err(_) => continue,
             },
@@ -403,7 +403,7 @@ pub async fn handle_unpause_all(ctx: &RpcContext) -> Result<Value, JsonRpcError>
                 Ok(uuid) => TaskId::Http(uuid),
                 Err(_) => continue,
             },
-            TaskKind::Bt => match Id20::from_hex(&s.id) {
+            TaskKind::Bt => match InfoHash::from_hex(&s.id) {
                 Ok(ih) => TaskId::Bt(ih),
                 Err(_) => continue,
             },
@@ -522,7 +522,7 @@ pub async fn handle_purge_download_result(ctx: &RpcContext) -> Result<Value, Jso
         .filter_map(|s| {
             let task_id = match s.kind {
                 TaskKind::Http => Uuid::parse_str(&s.id).ok().map(TaskId::Http),
-                TaskKind::Bt => Id20::from_hex(&s.id).ok().map(TaskId::Bt),
+                TaskKind::Bt => InfoHash::from_hex(&s.id).ok().map(TaskId::Bt),
             };
             task_id.map(|tid| (tid, s.id.clone()))
         })

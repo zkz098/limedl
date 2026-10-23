@@ -54,7 +54,7 @@ use async_trait::async_trait;
 use irontide::core::Id20;
 use parking_lot::{Mutex, RwLock};
 
-use super::IrontideBtBackend;
+use super::{IrontideBtBackend, info_hash_from_engine, info_hash_to_engine};
 use crate::database::Database;
 use crate::error::{DownloadError, Result};
 use crate::event_bus::{DownloadEvent, EventBus};
@@ -721,28 +721,38 @@ impl LazyBtBackend {
 impl DownloadBackend for LazyBtBackend {
     async fn start(&self, request: StartDownloadRequest) -> Result<TaskId> {
         let info_hash = self.engine().await?.start(request).await?;
-        Ok(TaskId::Bt(info_hash))
+        Ok(TaskId::Bt(info_hash_from_engine(info_hash)))
     }
 
     async fn pause(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.engine().await?.pause(info_hash).await
+        self.engine()
+            .await?
+            .pause(info_hash_to_engine(&info_hash))
+            .await
     }
 
     async fn resume(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.engine().await?.resume(info_hash).await
+        self.engine()
+            .await?
+            .resume(info_hash_to_engine(&info_hash))
+            .await
     }
 
     async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        let snapshot = self.engine().await?.cancel(info_hash).await?;
+        let snapshot = self
+            .engine()
+            .await?
+            .cancel(info_hash_to_engine(&info_hash))
+            .await?;
         self.db
             .delete_bt_task(&info_hash.to_hex())
             .unwrap_or_else(|e| tracing::warn!("failed to drop the BT index row: {e}"));
@@ -753,7 +763,11 @@ impl DownloadBackend for LazyBtBackend {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        let snapshot = self.engine().await?.remove(info_hash).await?;
+        let snapshot = self
+            .engine()
+            .await?
+            .remove(info_hash_to_engine(&info_hash))
+            .await?;
         self.db
             .delete_bt_task(&info_hash.to_hex())
             .unwrap_or_else(|e| tracing::warn!("failed to drop the BT index row: {e}"));
@@ -764,7 +778,11 @@ impl DownloadBackend for LazyBtBackend {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        let snapshot = self.engine().await?.purge(info_hash).await?;
+        let snapshot = self
+            .engine()
+            .await?
+            .purge(info_hash_to_engine(&info_hash))
+            .await?;
         self.db
             .delete_bt_task(&info_hash.to_hex())
             .unwrap_or_else(|e| tracing::warn!("failed to drop the BT index row: {e}"));
@@ -775,28 +793,40 @@ impl DownloadBackend for LazyBtBackend {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.engine().await?.open_in_explorer(info_hash).await
+        self.engine()
+            .await?
+            .open_in_explorer(info_hash_to_engine(&info_hash))
+            .await
     }
 
     async fn open_file(&self, task_id: &TaskId) -> Result<()> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.engine().await?.open_file(info_hash).await
+        self.engine()
+            .await?
+            .open_file(info_hash_to_engine(&info_hash))
+            .await
     }
 
     async fn open_dir(&self, task_id: &TaskId) -> Result<()> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.engine().await?.open_dir(info_hash).await
+        self.engine()
+            .await?
+            .open_dir(info_hash_to_engine(&info_hash))
+            .await
     }
 
     async fn status(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
         let TaskId::Bt(info_hash) = *task_id else {
             return Err(DownloadError::NotFound);
         };
-        self.engine().await?.status(info_hash).await
+        self.engine()
+            .await?
+            .status(info_hash_to_engine(&info_hash))
+            .await
     }
 
     /// List running torrents from the engine, or the persisted index while the

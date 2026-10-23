@@ -866,7 +866,7 @@ async fn dispatcher_bt_facade_reaches_a_registered_backend() -> TestResult {
     let status = dispatcher.bt_runtime_status()?;
     assert!(!status.connected, "engine is not started in this fixture");
 
-    let info_hash = irontide::core::Id20::from_hex(&"11".repeat(20)).expect("valid info hash");
+    let info_hash = crate::types::InfoHash::from_hex(&"11".repeat(20)).expect("valid info hash");
     let task_id = TaskId::Bt(info_hash);
 
     assert!(dispatcher.bt_get_peers(&task_id)?.is_empty());

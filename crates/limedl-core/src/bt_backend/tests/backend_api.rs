@@ -40,7 +40,7 @@ async fn backend_start_returns_error_for_empty_url() {
 #[tokio::test]
 async fn backend_status_returns_not_found_for_unknown_id() {
     let (_tmp, backend) = make_backend().await;
-    let fake_id = TaskId::Bt(Id20::from([0u8; 20]));
+    let fake_id = TaskId::Bt(crate::types::InfoHash::from([0u8; 20]));
     let result = DownloadBackend::status(&backend, &fake_id).await;
     assert!(result.is_err(), "expected error for unknown info hash");
     backend.shutdown().await;
@@ -58,7 +58,7 @@ async fn backend_status_returns_not_found_for_wrong_variant() {
 #[tokio::test]
 async fn backend_pause_returns_not_found_for_unknown_id() {
     let (_tmp, backend) = make_backend().await;
-    let fake_id = TaskId::Bt(Id20::from([0u8; 20]));
+    let fake_id = TaskId::Bt(crate::types::InfoHash::from([0u8; 20]));
     let result = DownloadBackend::pause(&backend, &fake_id).await;
     assert!(result.is_err(), "expected error for unknown info hash");
     backend.shutdown().await;
@@ -76,7 +76,7 @@ async fn backend_pause_returns_not_found_for_wrong_variant() {
 #[tokio::test]
 async fn backend_resume_returns_not_found_for_unknown_id() {
     let (_tmp, backend) = make_backend().await;
-    let fake_id = TaskId::Bt(Id20::from([0u8; 20]));
+    let fake_id = TaskId::Bt(crate::types::InfoHash::from([0u8; 20]));
     let result = DownloadBackend::resume(&backend, &fake_id).await;
     assert!(result.is_err(), "expected error for unknown info hash");
     backend.shutdown().await;
@@ -96,7 +96,7 @@ async fn backend_cancel_returns_ok_for_unknown_id() {
     // Cancel is tolerant: always succeeds even for unknown info hashes,
     // returning a fallback snapshot with Canceled state.
     let (_tmp, backend) = make_backend().await;
-    let fake_id = TaskId::Bt(Id20::from([0u8; 20]));
+    let fake_id = TaskId::Bt(crate::types::InfoHash::from([0u8; 20]));
     let result = DownloadBackend::cancel(&backend, &fake_id).await;
     assert!(
         result.is_ok(),
@@ -123,7 +123,7 @@ async fn backend_cancel_returns_not_found_for_wrong_variant() {
 #[tokio::test]
 async fn backend_remove_returns_not_found_for_unknown_id() {
     let (_tmp, backend) = make_backend().await;
-    let fake_id = TaskId::Bt(Id20::from([0u8; 20]));
+    let fake_id = TaskId::Bt(crate::types::InfoHash::from([0u8; 20]));
     let result = DownloadBackend::remove(&backend, &fake_id).await;
     assert!(result.is_err(), "expected error for unknown info hash");
     backend.shutdown().await;
@@ -141,7 +141,7 @@ async fn backend_remove_returns_not_found_for_wrong_variant() {
 #[tokio::test]
 async fn backend_purge_returns_not_found_for_unknown_id() {
     let (_tmp, backend) = make_backend().await;
-    let fake_id = TaskId::Bt(Id20::from([0u8; 20]));
+    let fake_id = TaskId::Bt(crate::types::InfoHash::from([0u8; 20]));
     let result = DownloadBackend::purge(&backend, &fake_id).await;
     assert!(result.is_err(), "expected error for unknown info hash");
     backend.shutdown().await;
@@ -280,7 +280,7 @@ async fn backend_open_in_explorer_returns_not_found_for_wrong_variant() {
 #[tokio::test]
 async fn backend_open_in_explorer_returns_error_for_unknown_id() {
     let (_tmp, backend) = make_backend().await;
-    let fake_id = TaskId::Bt(Id20::from([0u8; 20]));
+    let fake_id = TaskId::Bt(crate::types::InfoHash::from([0u8; 20]));
     let result = DownloadBackend::open_in_explorer(&backend, &fake_id).await;
     assert!(result.is_err(), "expected error for unknown info hash");
     backend.shutdown().await;

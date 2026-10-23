@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 use crate::backend_registry::BackendRegistry;
 #[cfg(feature = "bt")]
-use crate::bt_backend::LazyBtBackend;
+use crate::bt_backend::{LazyBtBackend, info_hash_to_engine};
 use crate::cdn::CdnService;
 use crate::error::{DownloadError, Result};
 use crate::event_bus::{DownloadEvent, EventBus};
@@ -501,8 +501,11 @@ impl Dispatcher {
                 "speed limit only supported for BT tasks".into(),
             ));
         };
-        self.bt_backend()?
-            .set_speed_limit(*info_hash, download_limit_bps, upload_limit_bps);
+        self.bt_backend()?.set_speed_limit(
+            info_hash_to_engine(info_hash),
+            download_limit_bps,
+            upload_limit_bps,
+        );
         Ok(())
     }
 
@@ -518,7 +521,7 @@ impl Dispatcher {
         let TaskId::Bt(info_hash) = task_id else {
             return Err(DownloadError::InvalidRequest("Not a BT task".into()));
         };
-        self.bt_backend()?.get_peers(*info_hash)
+        self.bt_backend()?.get_peers(info_hash_to_engine(info_hash))
     }
 
     /// Get tracker list for a BT task.
@@ -527,7 +530,8 @@ impl Dispatcher {
         let TaskId::Bt(info_hash) = task_id else {
             return Err(DownloadError::InvalidRequest("Not a BT task".into()));
         };
-        self.bt_backend()?.get_trackers(*info_hash)
+        self.bt_backend()?
+            .get_trackers(info_hash_to_engine(info_hash))
     }
 
     /// Get piece info for a BT task.
@@ -536,7 +540,8 @@ impl Dispatcher {
         let TaskId::Bt(info_hash) = task_id else {
             return Err(DownloadError::InvalidRequest("Not a BT task".into()));
         };
-        self.bt_backend()?.get_pieces(*info_hash)
+        self.bt_backend()?
+            .get_pieces(info_hash_to_engine(info_hash))
     }
 
     /// Get file status for a BT task.
@@ -545,7 +550,8 @@ impl Dispatcher {
         let TaskId::Bt(info_hash) = task_id else {
             return Err(DownloadError::InvalidRequest("Not a BT task".into()));
         };
-        self.bt_backend()?.get_torrent_files(*info_hash)
+        self.bt_backend()?
+            .get_torrent_files(info_hash_to_engine(info_hash))
     }
 
     /// Update which files are included in a BT download.
@@ -559,7 +565,7 @@ impl Dispatcher {
             return Err(DownloadError::InvalidRequest("Not a BT task".into()));
         };
         self.bt_backend()?
-            .update_torrent_files(*info_hash, included_indices)
+            .update_torrent_files(info_hash_to_engine(info_hash), included_indices)
             .await
     }
 

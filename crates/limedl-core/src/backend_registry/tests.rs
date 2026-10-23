@@ -150,8 +150,8 @@ fn make_http_task_id() -> TaskId {
 #[cfg(feature = "bt")]
 fn make_bt_task_id() -> TaskId {
     TaskId::Bt(
-        irontide::core::Id20::from_hex("0000000000000000000000000000000000000000")
-            .expect("valid 40-char hex for Id20"),
+        crate::types::InfoHash::from_hex("0000000000000000000000000000000000000000")
+            .expect("valid 40-char hex for InfoHash"),
     )
 }
 

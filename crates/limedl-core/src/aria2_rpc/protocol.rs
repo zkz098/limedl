@@ -4,8 +4,8 @@
 //! codes) lives in [`super::jsonrpc`] so this module can depend on
 //! `RpcContext` without `context` having to depend on it back.
 
+use crate::types::InfoHash;
 use crate::types::{BtFileStatus, DownloadState, DownloadSummary, TaskId, TaskKind};
-use irontide::core::Id20;
 
 use super::context::RpcContext;
 use serde_json::Value;
@@ -43,7 +43,7 @@ pub async fn resolve_gid(ctx: &RpcContext, gid: &str) -> Option<TaskId> {
             let candidate = internal_id_to_gid(&s.id);
             let task_id = match s.kind {
                 TaskKind::Http => Uuid::parse_str(&s.id).ok().map(TaskId::Http),
-                TaskKind::Bt => Id20::from_hex(&s.id).ok().map(TaskId::Bt),
+                TaskKind::Bt => InfoHash::from_hex(&s.id).ok().map(TaskId::Bt),
             };
             // Skip a summary whose internal id cannot be parsed instead of
             // aborting the whole lookup.

@@ -4084,7 +4084,6 @@ dependencies = [
  "blake3",
  "dashmap",
  "foldhash 0.2.0",
- "irontide",
  "ntest",
  "parking_lot",
  "percent-encoding",

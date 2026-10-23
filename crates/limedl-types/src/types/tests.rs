@@ -130,7 +130,7 @@ fn task_id_http_wire_round_trip() {
 #[cfg(feature = "bt")]
 #[test]
 fn task_id_bt_wire_round_trip() {
-    let hash = irontide::core::Id20::from([0xab; 20]);
+    let hash = super::InfoHash::from([0xab; 20]);
     let original = TaskId::Bt(hash);
     let prefixed = format!("bt:{}", original.raw_id());
     assert_eq!(TaskId::from_wire_string(&prefixed).unwrap(), original);
@@ -138,6 +138,72 @@ fn task_id_bt_wire_round_trip() {
         original.raw_id(),
         "abababababababababababababababababababab"
     );
+}
+
+#[cfg(feature = "bt")]
+#[test]
+fn info_hash_hex_round_trips_through_from_hex() {
+    let hex = "0123456789abcdef0123456789abcdef01234567";
+    let hash = super::InfoHash::from_hex(hex).expect("valid hex");
+    assert_eq!(hash.to_hex(), hex);
+    assert_eq!(hash.to_string(), hex);
+    assert_eq!(format!("{hash:?}"), format!("InfoHash({hex})"));
+    assert_eq!(hash.as_bytes().len(), 20);
+}
+
+#[cfg(feature = "bt")]
+#[test]
+fn info_hash_from_hex_accepts_uppercase_and_rejects_malformed() {
+    // `Id20::from_hex` accepted uppercase through `hex::decode`; the ids users
+    // paste out of a browser or a .torrent name must keep working.
+    let upper = "0123456789ABCDEF0123456789ABCDEF01234567";
+    assert_eq!(
+        super::InfoHash::from_hex(upper).expect("uppercase hex"),
+        super::InfoHash::from_hex(&upper.to_lowercase()).expect("lowercase hex")
+    );
+
+    for bad in [
+        "",
+        "0123",
+        // 39 and 41 characters
+        "0123456789abcdef0123456789abcdef0123456",
+        "0123456789abcdef0123456789abcdef012345678",
+        // 40 characters but not hex
+        "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        // 40 hex characters with an inner space
+        "0123456789abcdef0123456789abcdef01234 67",
+    ] {
+        assert!(
+            super::InfoHash::from_hex(bad).is_err(),
+            "expected {bad:?} to be rejected"
+        );
+    }
+}
+
+#[cfg(feature = "bt")]
+#[test]
+fn info_hash_zero_is_all_zeros_and_body_bytes_are_preserved() {
+    assert_eq!(super::InfoHash::ZERO.to_hex(), "0".repeat(40));
+    let bytes: [u8; 20] = std::array::from_fn(|i| i as u8);
+    let hash = super::InfoHash::from(bytes);
+    assert_eq!(*hash.as_bytes(), bytes);
+    assert_eq!(super::InfoHash::from_bytes(bytes), hash);
+    // The wire id is the hex of the same bytes, so a round trip through the
+    // string form must not permute anything.
+    assert_eq!(
+        super::InfoHash::from_hex(&hash.to_hex())
+            .unwrap()
+            .as_bytes(),
+        &bytes
+    );
+}
+
+#[cfg(feature = "bt")]
+#[test]
+fn task_id_bt_rejects_non_hex_suffix() {
+    assert!(TaskId::from_wire_string("bt:not-a-hash").is_err());
+    // A 40-character non-hex string is not a BT id and not a UUID.
+    assert!(TaskId::from_wire_string("bt:zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz").is_err());
 }
 
 #[test]

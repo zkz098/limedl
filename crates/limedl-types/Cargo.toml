@@ -14,11 +14,10 @@ publish = false
 name = "limedl_types"
 
 [dependencies]
-# Nothing in this crate may depend on another `limedl-*` crate: it is the bottom
-# of the graph. Everything here is either data (serde), a contract (async-trait,
-# thiserror) or the transport types the contract is expressed in (reqwest::Url,
-# reqwest::Error). `irontide` is the one exception and it is a leak, not a
-# design — see the `bt` feature below.
+# Nothing in this crate may depend on another `limedl-*` crate, and nothing may
+# depend on a protocol engine: it is the bottom of the graph. Everything here is
+# either data (serde), a contract (async-trait, thiserror) or the transport types
+# the contract is expressed in (reqwest::Url, reqwest::Error).
 tokio = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
@@ -36,21 +35,23 @@ sha2 = { workspace = true }
 base64 = { workspace = true }
 dashmap = { workspace = true }
 foldhash = { workspace = true }
-# `TaskId::Bt` carries `irontide::core::Id20` (types/task.rs), so the BitTorrent
-# info hash is part of the *foundation* type layer. Keeping the dependency here
-# instead of in a `limedl-bt` crate is the known cost of that decision: with
-# `bt` on, `limedl-types` pulls the BT engine's identity type and everything
-# underneath it. Replacing `Id20` with a crate-local `InfoHash([u8; 20])`
-# newtype is what would actually let the BT engine leave this crate's graph.
-irontide = { workspace = true, optional = true }
+# No BitTorrent engine here on purpose: `TaskId::Bt` carries this crate's own
+# `InfoHash([u8; 20])`, and `bt_backend` converts to/from `irontide::core::Id20`
+# at the one boundary that talks to the engine. Adding `irontide` back would put
+# 100+ crates of DHT/peer-wire/`aws-lc` under every limedl crate.
 
 [features]
-# Deliberately no default: `bt` is what pulls `irontide` into the graph, and a
-# crate-level default would silently re-enable it for every consumer that asked
-# for `limedl-core --no-default-features` (the documented "BT engine absent"
-# build). The engine's own `default = ["bt"]` forwards to this feature.
+# `bt` no longer selects a dependency — it only decides whether `TaskKind::Bt` /
+# `TaskId::Bt` exist. The gate stays because the engine builds a documented
+# "BitTorrent absent" configuration (`limedl-core --no-default-features`) in
+# which those variants must not exist at all: keeping them would make every
+# `#[cfg(feature = "bt")]` match arm in the engine non-exhaustive.
+#
+# Deliberately no default: a crate-level default would silently re-enable the
+# variants for a consumer that asked for `limedl-core --no-default-features`.
+# The engine's own `default = ["bt"]` forwards to this feature.
 default = []
-bt = ["dep:irontide"]
+bt = []
 
 [dev-dependencies]
 tempfile = { workspace = true }

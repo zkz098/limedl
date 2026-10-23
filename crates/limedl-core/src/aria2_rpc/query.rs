@@ -6,8 +6,9 @@ use super::protocol::{
     bitfield_from_bits, bt_files_to_aria2, build_file_list, filter_status_keys, resolve_gid,
     summary_to_aria2_status,
 };
+use crate::bt_backend::info_hash_to_engine;
+use crate::types::InfoHash;
 use crate::types::{BtPeerInfo, DownloadState, DownloadSummary, TaskId, TaskKind};
-use irontide::core::Id20;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -111,7 +112,7 @@ async fn enrich_status(
                 serde_json::json!({ "name": summary.file_name }),
             );
             if let Some(backend) = ctx.bt() {
-                if let Ok(trackers) = backend.get_trackers(*info_hash) {
+                if let Ok(trackers) = backend.get_trackers(info_hash_to_engine(info_hash)) {
                     let announce: Vec<Value> = trackers
                         .iter()
                         .map(|tracker| Value::String(tracker.url.clone()))
@@ -125,7 +126,7 @@ async fn enrich_status(
                         );
                     }
                 }
-                if let Ok(pieces) = backend.get_pieces(*info_hash) {
+                if let Ok(pieces) = backend.get_pieces(info_hash_to_engine(info_hash)) {
                     let mut ordered = pieces;
                     ordered.sort_by_key(|piece| piece.index);
                     let bits: Vec<bool> = ordered.iter().map(|piece| piece.completed).collect();
@@ -193,7 +194,7 @@ fn file_list_for(ctx: &RpcContext, task_id: &TaskId, summary: &DownloadSummary) 
         return build_file_list(summary);
     };
     match ctx.bt() {
-        Some(backend) => match backend.get_torrent_files(*info_hash) {
+        Some(backend) => match backend.get_torrent_files(info_hash_to_engine(info_hash)) {
             Ok(files) if !files.is_empty() => bt_files_to_aria2(&files),
             Ok(_) => Value::Array(Vec::new()),
             Err(_) => build_file_list(summary),
@@ -269,7 +270,7 @@ pub async fn handle_tell_active(
         // metadata) is affordable here; tellWaiting/tellStopped stay cheap.
         let task_id = match summary.kind {
             TaskKind::Http => Uuid::parse_str(&summary.id).ok().map(TaskId::Http),
-            TaskKind::Bt => Id20::from_hex(&summary.id).ok().map(TaskId::Bt),
+            TaskKind::Bt => InfoHash::from_hex(&summary.id).ok().map(TaskId::Bt),
         };
         let Some(task_id) = task_id else {
             continue;
@@ -494,7 +495,7 @@ pub async fn handle_get_servers(
         let trackers = ctx
             .bt()
             .ok_or_else(|| make_error(ERR_INTERNAL, "BT backend not available"))?
-            .get_trackers(*info_hash)
+            .get_trackers(info_hash_to_engine(info_hash))
             .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
         let servers: Vec<Value> = trackers
             .iter()
@@ -532,7 +533,7 @@ pub async fn handle_get_peers(ctx: &RpcContext, params: Vec<Value>) -> Result<Va
     let peers = ctx
         .bt()
         .ok_or_else(|| make_error(ERR_INTERNAL, "BT backend not available"))?
-        .get_peers(*info_hash)
+        .get_peers(info_hash_to_engine(info_hash))
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
 
     let aria2_peers: Vec<Value> = peers.iter().map(peer_info_to_aria2_peer).collect();
