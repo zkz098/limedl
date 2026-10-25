@@ -4024,6 +4024,7 @@ version = "0.5.5"
 dependencies = [
  "async-trait",
  "bytes",
+ "criterion",
  "foldhash 0.2.0",
  "fs4",
  "libc",
@@ -4046,11 +4047,13 @@ dependencies = [
  "axum",
  "base64 0.23.1",
  "bytes",
+ "criterion",
  "foldhash 0.2.0",
  "futures-util",
  "limedl-disk",
  "limedl-http",
  "limedl-store",
+ "limedl-testkit",
  "limedl-types",
  "ntest",
  "parking_lot",
@@ -4073,6 +4076,7 @@ name = "limedl-http"
 version = "0.5.5"
 dependencies = [
  "axum",
+ "criterion",
  "futures-util",
  "limedl-types",
  "ntest",
@@ -4184,16 +4188,17 @@ dependencies = [
  "anyhow",
  "dashmap",
  "foldhash 0.2.0",
+ "http",
  "limedl-types",
  "ntest",
  "parking_lot",
- "reqwest 0.13.5",
  "rusqlite",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -4225,6 +4230,7 @@ dependencies = [
  "blake3",
  "dashmap",
  "foldhash 0.2.0",
+ "http",
  "ntest",
  "parking_lot",
  "percent-encoding",
@@ -4237,6 +4243,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tracing",
+ "url",
  "uuid",
 ]
 

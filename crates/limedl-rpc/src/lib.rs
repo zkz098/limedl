@@ -1,11 +1,19 @@
 use foldhash::HashMap;
 
-// The engine facade, re-exported as modules so the moved files kept their
-// `crate::dispatcher::…` / `crate::types::…` spellings.
-pub use limedl_core::{
-    backend_registry, bootstrap, bt_backend, dispatcher, event_bus, http, manager, manifest,
-    metalink, types,
+// The engine modules this crate reads, imported at its root so the moved files
+// kept their `crate::dispatcher::…` / `crate::types::…` spellings.
+//
+// Private, deliberately: these are the engine modules this crate *reads*, not
+// part of its API. Re-exporting them made `limedl-rpc` a second facade over
+// `limedl-core` — `limedl_rpc::types` and `limedl_core::types` both resolved,
+// and nothing told you which one a consumer had picked.
+use limedl_core::{
+    backend_registry, bt_backend, dispatcher, event_bus, http, manager, manifest, metalink, types,
 };
+// Only the e2e suite drives a real boot; nothing in this crate's product code
+// calls it, which is why it is not in the list above (a `pub use` hid that).
+#[cfg(test)]
+use limedl_core::bootstrap;
 // Test-only, like the modules that use it.
 #[cfg(test)]
 pub use limedl_core::test_harness;

@@ -90,21 +90,6 @@ criterion = { workspace = true }
 # the optional normal deps above are not enabled. See the `test-utils` feature.
 
 [[bench]]
-name = "aimd"
-harness = false
-required-features = ["test-utils"]
-
-[[bench]]
-name = "rate_limiter"
-harness = false
-required-features = ["test-utils"]
-
-[[bench]]
 name = "download_e2e"
-harness = false
-required-features = ["test-utils"]
-
-[[bench]]
-name = "buffer_pool"
 harness = false
 required-features = ["test-utils"]

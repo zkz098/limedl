@@ -48,8 +48,12 @@ test-utils = [
 ]
 
 [dev-dependencies]
+criterion = { workspace = true }
 axum = { workspace = true }
 ntest = { workspace = true }
+# The retry suite drives real HTTP responses through the shared harness; the
+# crate has no production dependency on it (and must not grow one).
+limedl-testkit = { path = "../limedl-testkit" }
 # The engine's tests drive the disk layer's deterministic write-fault hooks and
 # the store's in-memory constructors, both of which are `test-utils` seams now.
 limedl-disk = { path = "../limedl-disk", default-features = false, features = [
@@ -61,3 +65,8 @@ limedl-store = { path = "../limedl-store", default-features = false, features = 
 limedl-http = { path = "../limedl-http", default-features = false, features = [
   "test-utils",
 ] }
+
+# Pure AIMD arithmetic: no runtime, no server, no seams.
+[[bench]]
+name = "aimd"
+harness = false

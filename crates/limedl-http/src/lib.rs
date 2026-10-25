@@ -9,10 +9,10 @@
 //! * `rate_limiter` is the token bucket every download and the global cap draw
 //!   from.
 //!
-//! `limedl-types` is re-exported at this crate root so the moved modules kept
-//! their `crate::types::…` spellings.
+//! `limedl-types` is imported at this crate root (privately) so the moved
+//! modules kept their `crate::types::…` spellings.
 
-pub use limedl_types::{error, manifest, settings, types};
+use limedl_types::{error, manifest, settings, types};
 
 pub mod http;
 pub mod http_client_factory;

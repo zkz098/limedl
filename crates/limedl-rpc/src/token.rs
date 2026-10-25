@@ -36,7 +36,7 @@ const CACHE_CAPACITY: usize = 256;
 
 /// One configured client, as seen by the verifier.
 #[derive(Debug, Clone)]
-pub struct ClientToken {
+pub(crate) struct ClientToken {
     pub(crate) id: String,
     pub(crate) name: String,
     /// Argon2id PHC string.
@@ -44,7 +44,7 @@ pub struct ClientToken {
 }
 
 /// Per-client authentication state.
-pub struct PerClientAuth {
+pub(crate) struct PerClientAuth {
     clients: Vec<ClientToken>,
     /// BLAKE3 digest of a plaintext token -> index into `clients`. Filled only
     /// after a successful Argon2 verification.
@@ -116,14 +116,14 @@ pub fn hash_token(token: &str) -> Result<String, String> {
 ///
 /// A malformed hash is a non-match rather than an error so a hand-edited
 /// settings file cannot take the RPC server down.
-pub fn verify_token(token: &str, stored_hash: &str) -> bool {
+pub(crate) fn verify_token(token: &str, stored_hash: &str) -> bool {
     Argon2::default()
         .verify_password(token.as_bytes(), stored_hash)
         .is_ok()
 }
 
 /// Constant-time string equality, for the shared-secret path.
-pub fn constant_time_eq(a: &str, b: &str) -> bool {
+pub(crate) fn constant_time_eq(a: &str, b: &str) -> bool {
     a.as_bytes().ct_eq(b.as_bytes()).into()
 }
 

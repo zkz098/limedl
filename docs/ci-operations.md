@@ -257,6 +257,15 @@ job was not already building).
   `max_width` stays at 100: raising it to 120 was measured against the
   pre-rustfmt tree and made the diff worse (178 → 272 changed files), because
   rustfmt then rejoins the multi-line argument wraps the code already had.
+- **Documentation links (`check-rust`, `RUSTDOCFLAGS=-D warnings cargo doc`).**
+  Clippy compiles the tree but never resolves intra-doc links or parses prose, so
+  a doc comment pointing at a module that has since moved to another crate stays
+  green forever. The 2026 crate split proved it: `limedl-core`'s `dispatcher`
+  still linked `crate::aria2_rpc` after that module became `limedl-rpc`, and
+  `limedl-engine` linked `DownloadManager`/`TaskLifecycle` names that now live one
+  layer up. `--no-deps` keeps the run to this workspace; `invalid_html_tags`
+  (unclosed `<pieces>`, `<metaurl>`, `<size>`) fails on the same step, which is
+  why those are written in backticks.
 - **Not adopted: `cargo udeps`.** It needs a nightly toolchain plus a full
   build, and rust-cache keys include the toolchain version, so it would add a
   multi-GB cache generation against the 10 GB ceiling this repo already fights

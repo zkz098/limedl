@@ -41,13 +41,8 @@ pub struct AltSvcRecord {
 impl AltSvcRecord {
     /// Returns true if this record is within its validity period and not currently
     /// in a broken-circuit backoff penalty window.
-    pub fn is_valid(&self, now_ms: u64) -> bool {
+    pub(crate) fn is_valid(&self, now_ms: u64) -> bool {
         now_ms < self.expires_at_ms && now_ms >= self.broken_until_ms
-    }
-
-    /// Returns true if the alternative service is temporarily broken.
-    pub fn is_broken(&self, now_ms: u64) -> bool {
-        now_ms < self.broken_until_ms
     }
 
     /// Mark the alternative service as broken with exponential backoff penalty.
@@ -71,7 +66,7 @@ impl AltSvcRecord {
 
 /// Action parsed from an `Alt-Svc` header.
 #[derive(Debug, PartialEq, Eq)]
-pub enum AltSvcAction {
+pub(crate) enum AltSvcAction {
     /// Clear all alternative services for the origin (`Alt-Svc: clear`).
     Clear,
     /// One or more advertised alternative services.
@@ -80,7 +75,7 @@ pub enum AltSvcAction {
 
 /// An entry parsed from an `Alt-Svc` header.
 #[derive(Debug, PartialEq, Eq)]
-pub struct ParsedAltSvcEntry {
+pub(crate) struct ParsedAltSvcEntry {
     pub protocol: String,
     pub host: Option<String>,
     pub port: u16,
@@ -89,8 +84,8 @@ pub struct ParsedAltSvcEntry {
 }
 
 /// Helper to extract origin host and port from an HTTPS URL.
-pub fn extract_https_origin(url: &str) -> Option<(String, u16)> {
-    let parsed = reqwest::Url::parse(url).ok()?;
+pub(crate) fn extract_https_origin(url: &str) -> Option<(String, u16)> {
+    let parsed = url::Url::parse(url).ok()?;
     if parsed.scheme() != "https" {
         return None;
     }
@@ -105,7 +100,7 @@ pub fn extract_https_origin(url: &str) -> Option<(String, u16)> {
 /// - `clear`
 /// - `h3=":443"; ma=2592000; persist=1`
 /// - `h3="alt.example.com:443"; ma=86400, h3-29=":443"; ma=86400`
-pub fn parse_alt_svc_header(header: &str) -> AltSvcAction {
+pub(crate) fn parse_alt_svc_header(header: &str) -> AltSvcAction {
     let trimmed = header.trim();
     if trimmed.eq_ignore_ascii_case("clear") {
         return AltSvcAction::Clear;
@@ -242,7 +237,7 @@ impl AltSvcManager {
     /// Look up a valid (unexpired and not broken) HTTP/3 alternative service.
     ///
     /// Prefers standard `h3`, falling back to draft protocols like `h3-29`.
-    pub fn get_valid_alt_svc(
+    pub(crate) fn get_valid_alt_svc(
         &self,
         origin_host: &str,
         origin_port: u16,
@@ -287,13 +282,8 @@ impl AltSvcManager {
     }
 
     /// Record Alt-Svc header directly from response headers and URL if valid.
-    pub fn record_from_response(
-        &self,
-        url: &str,
-        headers: &reqwest::header::HeaderMap,
-        now_ms: u64,
-    ) {
-        if let Some(alt_val) = headers.get(reqwest::header::ALT_SVC)
+    pub fn record_from_response(&self, url: &str, headers: &http::header::HeaderMap, now_ms: u64) {
+        if let Some(alt_val) = headers.get(http::header::ALT_SVC)
             && let Ok(alt_str) = alt_val.to_str()
             && let Some((host, port)) = extract_https_origin(url)
         {
@@ -302,7 +292,7 @@ impl AltSvcManager {
     }
 
     /// Ingest an `Alt-Svc` response header for an origin authority.
-    pub fn record_alt_svc_header(
+    pub(crate) fn record_alt_svc_header(
         &self,
         origin_host: &str,
         origin_port: u16,
@@ -567,17 +557,6 @@ mod tests {
         assert!(rec.is_valid(now));
     }
 
-    #[test]
-    fn test_reqwest_version_http3() {
-        let client = reqwest::Client::new();
-        let req = client
-            .get("https://example.com")
-            .version(reqwest::Version::HTTP_3)
-            .build()
-            .unwrap();
-        assert_eq!(req.version(), reqwest::Version::HTTP_3);
-    }
-
     #[tokio::test]
     async fn test_alt_svc_manager_flow() {
         let db = Arc::new(Database::open_in_memory().unwrap());
@@ -594,10 +573,10 @@ mod tests {
         );
 
         // Record header
-        let mut headers = reqwest::header::HeaderMap::new();
+        let mut headers = http::header::HeaderMap::new();
         headers.insert(
-            reqwest::header::ALT_SVC,
-            reqwest::header::HeaderValue::from_static(r#"h3=":443"; ma=3600; persist=1"#),
+            http::header::ALT_SVC,
+            http::header::HeaderValue::from_static(r#"h3=":443"; ma=3600; persist=1"#),
         );
         manager.record_from_response(url, &headers, now);
 

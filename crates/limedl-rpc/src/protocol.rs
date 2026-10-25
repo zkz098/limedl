@@ -126,7 +126,7 @@ pub fn bitfield_from_bits(bits: &[bool]) -> String {
     out
 }
 
-pub fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
+pub(crate) fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
     let gid = internal_id_to_gid(&summary.id);
     let is_bt = matches!(summary.kind, TaskKind::Bt);
 
@@ -213,7 +213,7 @@ pub fn summary_to_aria2_status(summary: &DownloadSummary) -> Value {
     Value::Object(map)
 }
 
-pub fn build_file_list(summary: &DownloadSummary) -> Value {
+pub(crate) fn build_file_list(summary: &DownloadSummary) -> Value {
     Value::Array(vec![serde_json::json!({
         "index": "1",
         // aria2 reports the absolute save path, not just the file name.

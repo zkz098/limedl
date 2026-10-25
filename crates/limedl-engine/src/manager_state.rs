@@ -47,8 +47,10 @@ pub struct RuntimeControls {
 
 /// The shared state of a running engine, as seen by the actor modules.
 ///
-/// Crate-private: it exists so the engine's own modules can cooperate, not as
-/// part of the published `limedl_core` API.
+/// This is the engine's outward seam, not an internal helper: the facade crate
+/// (`limedl-core`) implements it on `DownloadManager`, and the actor modules
+/// only ever see it behind `&dyn ManagerState`. Adding a method here is
+/// exporting a requirement to every implementor.
 #[async_trait]
 pub trait ManagerState: Send + Sync {
     // ── Shared infrastructure ─────────────────────────────────────────

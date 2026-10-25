@@ -45,7 +45,7 @@ pub fn chunk_to_params(download_id: &str, chunk: &ChunkManifest) -> Vec<Value> {
     ]
 }
 
-pub fn row_to_chunk(row: &rusqlite::Row) -> RusqliteResult<ChunkManifest> {
+pub(crate) fn row_to_chunk(row: &rusqlite::Row) -> RusqliteResult<ChunkManifest> {
     let downloaded = row.get::<_, i64>(4)? as u64;
     Ok(ChunkManifest {
         index: row.get::<_, i64>(1)? as usize,
@@ -196,7 +196,7 @@ impl Database {
     }
 
     /// Replace all chunks for `download_id` (caller must hold the lock).
-    pub fn replace_chunks_inner(
+    pub(crate) fn replace_chunks_inner(
         &self,
         conn: &Connection,
         download_id: &str,
@@ -231,7 +231,7 @@ impl Database {
     }
 
     /// Fetch all chunks for a download (caller must hold the lock).
-    pub fn fetch_chunks_inner(
+    pub(crate) fn fetch_chunks_inner(
         &self,
         conn: &Connection,
         download_id: &str,

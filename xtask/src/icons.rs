@@ -28,7 +28,7 @@ pub enum IconsCommand {
         #[arg(long, default_value = "crates/limedl-native/ui/assets/logo.png")]
         source: PathBuf,
     },
-    /// Generate Linux hicolor icon hierarchy (<size>x<size>/apps/limedl-native.png).
+    /// Generate Linux hicolor icon hierarchy (`<size>x<size>/apps/limedl-native.png`).
     Hicolor {
         /// Target hicolor root directory (e.g. dist/usr/share/icons/hicolor).
         #[arg(long)]

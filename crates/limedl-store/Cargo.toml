@@ -23,7 +23,8 @@ parking_lot = { workspace = true }
 foldhash = { workspace = true }
 dashmap = { workspace = true }
 # `alt_svc` stores and matches `reqwest::Url`/header values.
-reqwest = { workspace = true }
+url = { workspace = true }
+http = { workspace = true }
 
 [features]
 # `database`'s BT index rows are only meaningful when the engine has the BT

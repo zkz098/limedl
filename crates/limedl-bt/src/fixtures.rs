@@ -1,12 +1,11 @@
 //! Deterministic `.torrent` fixtures.
 //!
 //! They live outside `tests/` because two consumers need the same bytes: this
-//! crate's own backend tests, and `limedl-core`'s cross-stack BT tests (which
-//! drive a real `bootstrap()` and assert the info-hash the Aria2 layer reports).
-//! Sharing them here is what keeps `irontide` named in exactly one `Cargo.toml`
-//! — the alternative was a dev-dependency from the engine on this crate, which
-//! would have dragged the BT engine into `limedl-core --no-default-features
-//! --all-targets`.
+//! crate's own backend tests, and `limedl-rpc`'s cross-stack `bootstrap()` e2e
+//! tests (which assert the info-hash the Aria2 layer reports). Sharing them here
+//! is what keeps `irontide` named in exactly one `Cargo.toml` — the alternative
+//! was a dev-dependency from the engine on this crate, which would have dragged
+//! the BT engine into `limedl-core --no-default-features --all-targets`.
 
 use std::path::PathBuf;
 

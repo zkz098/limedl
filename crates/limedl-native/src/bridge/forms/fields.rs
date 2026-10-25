@@ -1,16 +1,17 @@
 //! Single source of truth for the `SettingsFormData` fields.
 //!
 //! Every field of the Slint-generated `SettingsFormData` appears exactly once in
-//! the [`settings_form_fields!`] table below. The table is what keeps the three
+//! the `settings_form_fields!` table below. The table is what keeps the three
 //! hand-written settings paths (`to_form.rs`, `from_form.rs` and
-//! `aria2_rpc::options`) from silently drifting apart when a field is added:
+//! `limedl-rpc`'s `options.rs`) from silently drifting apart when a field is
+//! added:
 //!
-//! * [`FormFields::validate`] derives the numeric validation of the text fields
+//! * `FormFields::validate` derives the numeric validation of the text fields
 //!   (parse type + localized message function) from the `uNN`/`f64` rows, so the
 //!   five near-identical `check_*` closures that used to live in `from_form.rs`
 //!   no longer have to be kept in sync by hand.
-//! * The test-only helpers ([`FormFields::sentinel_form`],
-//!   [`FormFields::changed`], [`FormFields::names`]) drive the completeness test
+//! * The test-only helpers (`FormFields::sentinel_form`, `FormFields::changed`,
+//!   `FormFields::names`) drive the completeness test
 //!   in this module, which fails when a field is dropped from either direction of
 //!   the conversion or when a new `AppSettings` leaf is not wired to the form.
 //!

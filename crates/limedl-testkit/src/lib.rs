@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use crate::test_harness::TestServer;
+//! use limedl_testkit::TestServer;
 //!
 //! let server = TestServer::new(1024 * 1024).await;
 //! let url = server.file_url();
@@ -34,10 +34,14 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use tokio::time::sleep;
 
-pub use limedl_disk::{buffer_pool, io_scheduler};
-/// The layers this harness drives, re-exported so the moved module kept its
-/// `super::checksum::…` spellings.
-pub use limedl_types::{checksum, error, types};
+use limedl_disk::{buffer_pool, io_scheduler};
+/// The layers this harness drives, imported privately so the moved module kept
+/// its `super::checksum::…` spellings.
+use limedl_types::{checksum, types};
+
+pub mod bench;
+
+pub use bench::BenchHarness;
 
 use crate::checksum::hash_slices;
 use crate::types::ChecksumMode;
@@ -74,7 +78,7 @@ impl TestServer {
     ///
     /// Uses a seeded PRNG (seed = 42) so content is fully reproducible.
     /// The server binds to `127.0.0.1:0` (OS-assigned port) and listens
-    /// until dropped or [`Self::close`] is called.
+    /// until it is dropped, which triggers a graceful shutdown.
     pub async fn new(size: u64) -> Self {
         let data = generate_content(size);
 

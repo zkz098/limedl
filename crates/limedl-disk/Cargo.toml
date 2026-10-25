@@ -40,5 +40,16 @@ default = []
 test-utils = []
 
 [dev-dependencies]
+criterion = { workspace = true }
 tempfile = { workspace = true }
 ntest = { workspace = true }
+
+# The buffer-pool bench drives `DownloadBuffer::new`, which only exists behind
+# `test-utils` (the plain double-buffer constructor is the seam the engine's
+# tests use; production goes through the local-pingpong paths). Hence
+# `--features test-utils`, and hence `required-features`: without it cargo would
+# try to build the bench against a crate where the constructor does not exist.
+[[bench]]
+name = "buffer_pool"
+harness = false
+required-features = ["test-utils"]

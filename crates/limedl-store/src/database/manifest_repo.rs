@@ -32,7 +32,7 @@ pub fn download_state_to_text(state: &DownloadState) -> &'static str {
     state_to_text(*state)
 }
 
-pub fn text_to_state(s: &str) -> RusqliteResult<DownloadState> {
+pub(crate) fn text_to_state(s: &str) -> RusqliteResult<DownloadState> {
     match s {
         "queued" => Ok(DownloadState::Queued),
         "downloading" => Ok(DownloadState::Downloading),
@@ -48,14 +48,14 @@ pub fn text_to_state(s: &str) -> RusqliteResult<DownloadState> {
     }
 }
 
-pub fn thread_mode_to_text(mode: ThreadMode) -> &'static str {
+pub(crate) fn thread_mode_to_text(mode: ThreadMode) -> &'static str {
     match mode {
         ThreadMode::Fixed => "fixed",
         ThreadMode::Adaptive => "adaptive",
     }
 }
 
-pub fn text_to_thread_mode(s: &str) -> RusqliteResult<ThreadMode> {
+pub(crate) fn text_to_thread_mode(s: &str) -> RusqliteResult<ThreadMode> {
     match s {
         "fixed" => Ok(ThreadMode::Fixed),
         "adaptive" => Ok(ThreadMode::Adaptive),
@@ -65,7 +65,7 @@ pub fn text_to_thread_mode(s: &str) -> RusqliteResult<ThreadMode> {
     }
 }
 
-pub fn checksum_mode_to_text(mode: ChecksumMode) -> &'static str {
+pub(crate) fn checksum_mode_to_text(mode: ChecksumMode) -> &'static str {
     match mode {
         ChecksumMode::None => "none",
         ChecksumMode::Blake3 => "blake3",
@@ -74,7 +74,7 @@ pub fn checksum_mode_to_text(mode: ChecksumMode) -> &'static str {
     }
 }
 
-pub fn text_to_checksum_mode(s: &str) -> RusqliteResult<ChecksumMode> {
+pub(crate) fn text_to_checksum_mode(s: &str) -> RusqliteResult<ChecksumMode> {
     match s {
         "none" => Ok(ChecksumMode::None),
         "blake3" => Ok(ChecksumMode::Blake3),
@@ -99,7 +99,7 @@ pub fn text_to_checksum_mode(s: &str) -> RusqliteResult<ChecksumMode> {
     }
 }
 
-pub fn adaptive_profile_to_text(profile: AdaptiveProfile) -> &'static str {
+pub(crate) fn adaptive_profile_to_text(profile: AdaptiveProfile) -> &'static str {
     match profile {
         AdaptiveProfile::Conservative => "conservative",
         AdaptiveProfile::Balanced => "balanced",
@@ -107,7 +107,7 @@ pub fn adaptive_profile_to_text(profile: AdaptiveProfile) -> &'static str {
     }
 }
 
-pub fn text_to_adaptive_profile(s: &str) -> RusqliteResult<AdaptiveProfile> {
+pub(crate) fn text_to_adaptive_profile(s: &str) -> RusqliteResult<AdaptiveProfile> {
     match s {
         "conservative" => Ok(AdaptiveProfile::Conservative),
         "balanced" => Ok(AdaptiveProfile::Balanced),
@@ -118,12 +118,12 @@ pub fn text_to_adaptive_profile(s: &str) -> RusqliteResult<AdaptiveProfile> {
     }
 }
 
-pub fn i64_to_bool(v: i64) -> bool {
+pub(crate) fn i64_to_bool(v: i64) -> bool {
     v != 0
 }
 
 /// INSERT a full manifest row using named parameters.
-pub fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
+pub(crate) fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
     let mirror_urls_json =
         serde_json::to_string(&manifest.mirror_urls).unwrap_or_else(|_| "[]".into());
 
@@ -194,7 +194,7 @@ pub fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()>
 }
 
 /// UPDATE a full manifest row using named parameters.
-pub fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
+pub(crate) fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
     let mirror_urls_json =
         serde_json::to_string(&manifest.mirror_urls).unwrap_or_else(|_| "[]".into());
 
@@ -271,7 +271,7 @@ pub fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()>
     Ok(())
 }
 
-pub fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
+pub(crate) fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
     let thread_mode_str: String = row.get(13)?;
     let state_str: String = row.get(21)?;
     let checksum_mode_str: String = row.get(22)?;
@@ -325,22 +325,6 @@ pub fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
         current_mirror_index: row.get::<_, i64>(30).unwrap_or(0) as usize,
         priority: row.get::<_, u8>(31).unwrap_or(1).into(),
     })
-}
-
-#[cfg(test)]
-pub trait OptionalExt<T> {
-    fn optional(self) -> Result<Option<T>, rusqlite::Error>;
-}
-
-#[cfg(test)]
-impl<T> OptionalExt<T> for Result<T, rusqlite::Error> {
-    fn optional(self) -> Result<Option<T>, rusqlite::Error> {
-        match self {
-            Ok(v) => Ok(Some(v)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(e),
-        }
-    }
 }
 
 impl Database {

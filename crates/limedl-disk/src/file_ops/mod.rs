@@ -732,4 +732,6 @@ pub use media::path_is_within;
 // ── Tests ─────────────────────────────────────────────
 
 #[cfg(test)]
+mod disk_detect_tests;
+#[cfg(test)]
 mod tests;

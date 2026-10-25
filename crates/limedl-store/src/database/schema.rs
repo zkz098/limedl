@@ -112,7 +112,7 @@ pub struct Migration {
     pub(crate) up: fn(&Connection) -> Result<()>,
 }
 
-pub const MIGRATIONS: &[Migration] = &[
+pub(crate) const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
         name: "initial_schema",

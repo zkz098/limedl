@@ -3,8 +3,9 @@ use std::path::Path;
 
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
-use reqwest::header::{self, HeaderMap, HeaderName, HeaderValue};
-use reqwest::{Client, Url};
+use http::header::{self, HeaderMap, HeaderName, HeaderValue};
+use reqwest::Client;
+use url::Url;
 
 use crate::types::ChecksumMode;
 
@@ -262,7 +263,7 @@ pub struct CandidateUrl {
     pub is_manifest: bool,
 }
 
-/// Apply extra headers string array (`"Key: Value"`) to a reqwest HeaderMap.
+/// Apply extra headers string array (`"Key: Value"`) to an HTTP header map.
 fn build_headers(user_agent: &str, extra_headers: &[String]) -> HeaderMap {
     let mut map = HeaderMap::new();
     if let Ok(val) = HeaderValue::from_str(user_agent) {
@@ -813,7 +814,7 @@ mod tests {
 
     #[test]
     fn test_detect_checksum_from_headers_rfc3230_digest() {
-        use reqwest::header::HeaderValue;
+        use http::header::HeaderValue;
 
         // Base64 of ABC_SHA256: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
         // echo -n "abc" | sha256sum | xxd -r -p | base64 => unhWv48Bz+pBQUDeXa4iI7ADY6OWF3qctBD/YfIAFa0=
@@ -836,7 +837,7 @@ mod tests {
 
     #[test]
     fn test_detect_checksum_from_headers_repr_digest_rfc9530() {
-        use reqwest::header::HeaderValue;
+        use http::header::HeaderValue;
 
         let b64 = "unhWv48Bz+pBQUDeXa4iI7ADY6OWF3qctBD/YfIAFa0=";
         let mut headers = HeaderMap::new();
@@ -857,7 +858,7 @@ mod tests {
 
     #[test]
     fn test_detect_checksum_from_headers_s3_and_gcs() {
-        use reqwest::header::HeaderValue;
+        use http::header::HeaderValue;
 
         let b64 = "unhWv48Bz+pBQUDeXa4iI7ADY6OWF3qctBD/YfIAFa0=";
         let mut headers = HeaderMap::new();
@@ -889,7 +890,7 @@ mod tests {
 
     #[test]
     fn test_detect_checksum_from_headers_hex_headers() {
-        use reqwest::header::HeaderValue;
+        use http::header::HeaderValue;
 
         let mut headers = HeaderMap::new();
         headers.insert(

@@ -120,7 +120,7 @@ errors before committing, even pre-existing ones.
 Run it with one command (Windows: init MSVC first, as above):
 
 ```powershell
-cargo xtask gate            # ~3 min: fmt, clippy, all test suites, theme check
+cargo xtask gate            # ~4 min: fmt, clippy, doc, all test suites, theme check
 cargo xtask gate --full     # + feature matrix, unused deps, license gate, RustSec audit
 cargo xtask gate --check-ci # offline: does ci.yml still run every crate's tests?
 cargo xtask gate --keep-going
@@ -139,6 +139,12 @@ section used to carry, moved into code so it cannot drift again:
   registry protocol), and the `rustfmt` pin is checked: with `1.99.0` installed
   the gate formats through it exactly like `check-rust` does, otherwise it warns
   and uses the host toolchain.
+- **`cargo doc` runs with `RUSTDOCFLAGS=-D warnings`.** Clippy compiles the tree
+  but never resolves doc links or parses prose, so a doc comment pointing at a
+  module that has since moved to another crate stays green forever — which is
+  exactly what the crate split left behind (`crate::aria2_rpc` in `limedl-core`,
+  `DownloadManager`/`TaskLifecycle` in `limedl-engine`). `--no-deps` keeps the
+  step on this workspace and reuses clippy's artifacts.
 - **It reports the command that failed**, not just a red step, so a failure can
   be re-run in isolation.
 - **`--full` is the CI-parity profile.** `cargo deny check -W rejected bans

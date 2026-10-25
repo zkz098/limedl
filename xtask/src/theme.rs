@@ -22,7 +22,7 @@ pub enum ThemeCommand {
         #[arg(long, default_value = "crates/limedl-native/ui/theme.slint")]
         out_file: PathBuf,
     },
-    /// Rewrite hardcoded hex literals in ui/*.slint to Theme.c<hex> references.
+    /// Rewrite hardcoded hex literals in ui/*.slint to `Theme.c<hex>` references.
     Apply {
         /// UI source directory.
         #[arg(long, default_value = "crates/limedl-native/ui")]

@@ -89,6 +89,10 @@ pub struct Step {
     pub args: Vec<String>,
     /// `cargo-<tool>` that has to be on `PATH` before this step can run.
     pub tool: Option<&'static str>,
+    /// Extra environment for this step only. `ci.yml` sets these inline on the
+    /// step that needs them (`RUSTDOCFLAGS`), so they must not leak to the
+    /// others: a global `-D warnings` for rustdoc is not a global for clippy.
+    pub env: Vec<(&'static str, &'static str)>,
 }
 
 impl Step {
@@ -98,6 +102,7 @@ impl Step {
             program: "cargo",
             args: args.iter().map(|arg| (*arg).to_string()).collect(),
             tool: None,
+            env: Vec::new(),
         }
     }
 
@@ -112,7 +117,15 @@ impl Step {
     /// The command as a copy-pasteable line. Only quoting for readability —
     /// nothing here is re-parsed by a shell.
     fn rendered(&self) -> String {
-        let mut out = self.program.to_string();
+        let mut out = String::new();
+        for (key, value) in &self.env {
+            if value.contains(' ') {
+                out.push_str(&format!("{key}=\"{value}\" "));
+            } else {
+                out.push_str(&format!("{key}={value} "));
+            }
+        }
+        out.push_str(self.program);
         for arg in &self.args {
             out.push(' ');
             if arg.contains(' ') {
@@ -167,7 +180,8 @@ pub fn run(root: &Path, options: &Options) -> Result<()> {
             .args(&step.args)
             .current_dir(root)
             .env("CARGO_BUILD_WARNINGS", "deny")
-            .env("CARGO_REGISTRIES_CRATES_IO_PROTOCOL", "sparse");
+            .env("CARGO_REGISTRIES_CRATES_IO_PROTOCOL", "sparse")
+            .envs(step.env.iter().copied());
         scrub_cargo_metadata(&mut command);
         let status = command
             .status()
@@ -275,8 +289,27 @@ fn build_steps(options: &Options) -> Vec<Step> {
             program: "cargo",
             args,
             tool: Some("nextest"),
+            env: Vec::new(),
         });
     }
+    // rustdoc is the only compiler pass that resolves doc links and parses the
+    // prose (`rustdoc::broken_intra_doc_links`, `rustdoc::invalid_html_tags`).
+    // Clippy does not run it, so nothing caught the broken links a module move
+    // leaves behind — `crates/limedl-core/src/dispatcher.rs` still linked at a
+    // module that had already become `limedl-rpc`. `-D warnings` is what turns
+    // that into a red step instead of scrollback; the flag is set per step
+    // because clippy's `-D warnings` is a *rustc* argument, not a rustdoc one.
+    steps.push(Step {
+        name: "doc",
+        program: "cargo",
+        args: vec![
+            "doc".to_string(),
+            "--workspace".to_string(),
+            "--no-deps".to_string(),
+        ],
+        tool: None,
+        env: vec![("RUSTDOCFLAGS", "-D warnings")],
+    });
     steps.push(Step::cargo(
         "theme",
         &["run", "-q", "-p", "xtask", "--", "theme", "check"],
@@ -342,6 +375,7 @@ fn rustfmt_step() -> Step {
             name: "fmt",
             program: "cargo",
             tool: None,
+            env: Vec::new(),
             args: vec![
                 format!("+{RUSTFMT_TOOLCHAIN}"),
                 "fmt".to_string(),

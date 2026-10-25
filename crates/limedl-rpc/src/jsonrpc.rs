@@ -41,7 +41,7 @@ pub struct JsonRpcError {
 }
 
 #[derive(Debug, Serialize)]
-pub struct JsonRpcNotification {
+pub(crate) struct JsonRpcNotification {
     pub(crate) jsonrpc: &'static str,
     pub(crate) method: String,
     pub(crate) params: Vec<Value>,

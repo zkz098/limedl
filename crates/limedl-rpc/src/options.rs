@@ -277,7 +277,7 @@ pub fn extract_option_headers(
     headers
 }
 
-pub fn push_header(headers: &mut Vec<String>, raw: &str) {
+pub(crate) fn push_header(headers: &mut Vec<String>, raw: &str) {
     let trimmed = raw.trim();
     if !trimmed.is_empty() && trimmed.contains(':') {
         headers.push(trimmed.to_string());
@@ -286,7 +286,7 @@ pub fn push_header(headers: &mut Vec<String>, raw: &str) {
 
 /// aria2 serialises every boolean option as a string over JSON-RPC
 /// (`"pause": "true"`); accept raw booleans too.
-pub fn aria2_bool(value: &Value) -> bool {
+pub(crate) fn aria2_bool(value: &Value) -> bool {
     value.as_bool().unwrap_or_else(|| {
         value
             .as_str()
@@ -295,7 +295,7 @@ pub fn aria2_bool(value: &Value) -> bool {
 }
 
 /// Read a boolean option from an aria2 options object.
-pub fn option_is_true(options: Option<&serde_json::Map<String, Value>>, key: &str) -> bool {
+pub(crate) fn option_is_true(options: Option<&serde_json::Map<String, Value>>, key: &str) -> bool {
     options.and_then(|o| o.get(key)).is_some_and(aria2_bool)
 }
 

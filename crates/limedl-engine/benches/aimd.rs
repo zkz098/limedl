@@ -1,17 +1,16 @@
 //! Benchmarks for the AIMD congestion controller.
 //!
-//! These are pure algorithm benchmarks 鈥?no network I/O, no TestServer needed.
-//! All AIMD functions are synchronous. The `common` module is imported but its
-//! `BenchHarness` is not instantiated here (it would add unnecessary overhead).
-
-mod common;
+//! These are pure algorithm benchmarks — no network I/O, no test server needed.
+//! All AIMD functions are synchronous.
+//!
+//! Run: `cargo bench -p limedl-engine --bench aimd`
 
 use std::time::{Duration, Instant};
 
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use limedl_core::aimd::{AdaptiveProfile, AimdState, initial_desired_threads, reduce_threads};
+use limedl_engine::aimd::{AdaptiveProfile, AimdState, initial_desired_threads, reduce_threads};
 
-// 鈹€鈹€ sample_throughput 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── sample_throughput ───────────────────────────────────────────────────────
 
 /// Measure the cost of calling `AimdState::sample_throughput` in a loop
 /// simulating rapid sampling (100 samples at 10 ms intervals).
@@ -40,7 +39,7 @@ fn bench_sample_throughput(c: &mut Criterion) {
     });
 }
 
-// 鈹€鈹€ reduce_threads 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── reduce_threads ──────────────────────────────────────────────────────────
 
 /// Benchmark `reduce_threads(current, profile, min_threads)` for all three
 /// profiles at a representative thread count.
@@ -68,7 +67,7 @@ fn bench_reduce_threads(c: &mut Criterion) {
     group.finish();
 }
 
-// 鈹€鈹€ convergence_burst 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── convergence_burst ───────────────────────────────────────────────────────
 
 /// Simulate a throughput burst: feed 200 synthetic samples at increasing byte
 /// counts (ramping from 0 to ~200 MB over 2 seconds) and measure how
@@ -93,7 +92,7 @@ fn bench_convergence_burst(c: &mut Criterion) {
     });
 }
 
-// 鈹€鈹€ initial_desired_threads 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── initial_desired_threads ──────────────────────────────────────────────────
 
 /// Benchmark `initial_desired_threads` for each profile.
 /// Very fast, but useful for regression detection.
@@ -120,7 +119,7 @@ fn bench_initial_desired(c: &mut Criterion) {
     group.finish();
 }
 
-// 鈹€鈹€ criterion plumbing 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── criterion plumbing ──────────────────────────────────────────────────────
 
 criterion_group!(
     benches,

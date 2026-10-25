@@ -516,14 +516,12 @@ impl TaskLifecycle {
     }
 
     /// Record downloaded bytes on a managed download (chunk index optional).
-    /// Records download progress on a [`ManagedDownload`] and updates the snapshot.
+    /// Updates both the snapshot and the manifest chunk bookkeeping.
     ///
-    /// # Design note (duplication with [`record_progress_on_managed`])
-    /// The body is **identical** to the free function `record_progress_on_managed`
-    /// in `manager.rs`. The free version exists because chunk workers in
-    /// `http_executor` only hold an `&Arc<ManagedDownload>` and cannot call
-    /// through `TaskLifecycle` (which would require a handle to the actor).
-    /// If you modify one, you **must** update the other.
+    /// Thin manager-side wrapper over
+    /// [`record_progress_on_managed`](crate::download::record_progress_on_managed),
+    /// which is the one implementation: chunk workers hold only an
+    /// `&Arc<ManagedDownload>` and cannot reach this actor.
     pub fn record_progress(
         &self,
         managed: &Arc<ManagedDownload>,

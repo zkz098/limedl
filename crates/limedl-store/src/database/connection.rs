@@ -205,7 +205,7 @@ impl Database {
     }
 
     /// Run incremental vacuum if the freelist page count exceeds `threshold`.
-    pub fn vacuum_if_needed(&self, conn: &Connection, threshold: u32) -> Result<()> {
+    pub(crate) fn vacuum_if_needed(&self, conn: &Connection, threshold: u32) -> Result<()> {
         let freelist: u32 = conn
             .pragma_query_value(None, "freelist_count", |row| row.get(0))
             .context("failed to query freelist_count")?;

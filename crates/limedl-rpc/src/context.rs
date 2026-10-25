@@ -98,7 +98,7 @@ impl RpcContext {
 /// exemptions (`system.listMethods`, `system.listNotifications`, and the outer
 /// `multicall` call), so a new handler is protected automatically. Only the
 /// `token:`-prefixed first parameter is accepted, matching aria2's wire format.
-pub fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), JsonRpcError> {
+pub(crate) fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), JsonRpcError> {
     if !ctx.auth.is_enabled() {
         return Ok(());
     }
@@ -142,13 +142,13 @@ pub fn strip_token(params: Vec<Value>) -> Vec<Value> {
         params
     }
 }
-pub fn broadcast_event(ctx: &RpcContext, method: &str, gid: &str) {
+pub(crate) fn broadcast_event(ctx: &RpcContext, method: &str, gid: &str) {
     ctx.event_bus.publish(DownloadEvent::Aria2Notification {
         event_name: method.to_string(),
         gid: gid.to_string(),
     });
 }
-pub fn dirs_next() -> Option<String> {
+pub(crate) fn dirs_next() -> Option<String> {
     let home = if cfg!(target_os = "windows") {
         std::env::var("USERPROFILE").ok()
     } else {
@@ -162,6 +162,6 @@ pub fn dirs_next() -> Option<String> {
     })
 }
 
-pub fn default_downloads_dir() -> String {
+pub(crate) fn default_downloads_dir() -> String {
     dirs_next().unwrap_or_else(|| String::from("."))
 }

@@ -25,11 +25,13 @@ use async_trait::async_trait;
 use irontide::core::Id20;
 use parking_lot::{Mutex, RwLock};
 
-// The layers below, re-exported so the moved modules kept their existing
-// `crate::types::…` / `crate::error::…` / `crate::database::…` spellings.
-pub use limedl_http::http_client_factory;
-pub use limedl_store::database;
-pub use limedl_types::{error, event_bus, lock, now_ms, platform, protocol, slot_guard, types};
+// The layers below, imported at this crate root so the moved modules kept their
+// existing `crate::types::…` / `crate::error::…` / `crate::database::…`
+// spellings. Private on purpose: nothing downstream may reach the foundation
+// layer through the BT crate.
+use limedl_http::http_client_factory;
+use limedl_store::database;
+use limedl_types::{error, event_bus, lock, now_ms, platform, protocol, slot_guard, types};
 
 /// The engine this backend drives, re-exported for the engine's own tests: they
 /// parse fixture `.torrent` bytes to check the info-hash the backend reports,

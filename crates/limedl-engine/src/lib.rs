@@ -8,15 +8,20 @@
 //!
 //! It sits above `limedl-http`, `limedl-disk` and `limedl-store`, and below
 //! `limedl-core`, which adds the router (`Dispatcher`), the manager facade and
-//! the boot sequence. Those are re-exported here so the moved modules kept their
-//! existing `crate::types::…` / `crate::database::…` spellings.
+//! the boot sequence.
+//!
+//! The layers below are imported at this crate root so the moved modules kept
+//! their existing `crate::types::…` / `crate::database::…` spellings. Those are
+//! private bindings, not re-exports: `limedl_engine::types` does not exist.
+//! Re-exporting them made every module reachable under two names (`engine`,
+//! `types`) and quietly burdened `limedl-engine` with the duty of re-exporting
+//! whatever a downstream crate wanted.
 
-pub use limedl_disk::{buffer_pool, file_ops, io_scheduler, services};
-pub use limedl_http::{http, http_client_factory, rate_limiter};
-pub use limedl_store::{alt_svc, database};
-pub use limedl_types::{
-    calculate_checksum, calculate_checksum_with_progress, checksum, error, event_bus, lock,
-    manifest, now_ms, protocol, settings, slot_guard, types,
+use limedl_disk::{buffer_pool, file_ops, services};
+use limedl_http::{http, http_client_factory, rate_limiter};
+use limedl_store::{alt_svc, database};
+use limedl_types::{
+    calculate_checksum_with_progress, checksum, error, event_bus, lock, manifest, now_ms, types,
 };
 
 pub mod aimd;

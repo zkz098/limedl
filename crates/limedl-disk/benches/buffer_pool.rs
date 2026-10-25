@@ -1,7 +1,7 @@
 //! Benchmarks for the buffer pool subsystem.
 //!
 //! Compares HDD double-buffer vs SSD local buffer write throughput.
-//! These are **I/O benchmarks** 鈥?data is written to a real disk.
+//! These are **I/O benchmarks** — data is written to a real disk.
 //!
 //! ## Usage
 //!
@@ -9,13 +9,11 @@
 //!
 //! ```powershell
 //! $env:BENCH_DISK = "D:\bench"
-//! cargo bench --manifest-path crates/limedl-core/Cargo.toml --features test-utils -- buffer_pool
+//! cargo bench -p limedl-disk --bench buffer_pool
 //! ```
 //!
 //! If `BENCH_DISK` is not set, the system temp directory is used (may not
 //! reflect real disk performance depending on tmpfs/RAM-disk behaviour).
-
-mod common;
 
 use std::env;
 use std::fs::{self, File};
@@ -24,11 +22,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
-use common::BenchHarness;
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use limedl_core::buffer_pool::{BufferPool, DownloadBuffer, IoWorker};
+use limedl_disk::buffer_pool::{BufferPool, DownloadBuffer, IoWorker};
 
-// 鈹€鈹€ Configuration 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── Configuration ────────────────────────────────────────────────────────────
 // 100 MB total data, written in 1 MB chunks.
 const TOTAL_DATA: u64 = 100 * 1024 * 1024;
 const CHUNK_SIZE: usize = 1024 * 1024; // 1 MB
@@ -179,14 +176,14 @@ async fn run_multi_stream_direct(iters: u64, chunk: &Bytes, offsets: &[u64]) -> 
     }
     start.elapsed()
 }
-// 鈹€鈹€ HDD double-buffer benchmark 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── HDD double-buffer benchmark ─────────────────────────────────────────────
 //
 // Creates a new `BufferPool`, acquires a slot, writes 100 MB via the
 // double-buffer path, then flushes everything to disk. Measures end-to-end
 // latency including the final `flush_all()`.
 
 fn bench_double_hdd(c: &mut Criterion) {
-    let harness = BenchHarness::new(1024); // file size irrelevant 鈥?just needs runtime
+    let rt = bench_runtime(); // file size irrelevant —just needs runtime
     let chunk = zero_chunk();
 
     let mut group = c.benchmark_group("buffer_pool");
@@ -194,7 +191,7 @@ fn bench_double_hdd(c: &mut Criterion) {
 
     group.bench_function("double_hdd", |b| {
         b.iter_custom(|iters| {
-            harness.rt.block_on(async {
+            rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
@@ -224,25 +221,30 @@ fn bench_double_hdd(c: &mut Criterion) {
     group.finish();
 }
 
-// 鈹€鈹€ SSD local-buffer benchmark 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── SSD local-buffer benchmark ──────────────────────────────────────────────
 //
 // Uses a local ping-pong (double-buffer) to write the same 100 MB payload.
 // This is the production SSD write path. The buffer flushes a half when full;
 // the final `flush_all()` persists any remaining buffered data.
 
 fn bench_local_ssd(c: &mut Criterion) {
-    let harness = BenchHarness::new(1024);
+    let rt = bench_runtime();
     let chunk = zero_chunk();
 
     let mut group = c.benchmark_group("buffer_pool");
     group.throughput(Throughput::Bytes(TOTAL_DATA));
 
     // Dedicated I/O worker thread (production SSD ping-pong path).
-    let worker = limedl_core::test_harness::io_worker();
+    // Same worker the engine's own tests use; built inline because a
+    // dev-dependency on `limedl-testkit` would be a cycle (it depends on
+    // this crate).
+    let worker = IoWorker::new(std::sync::Arc::new(
+        limedl_disk::io_scheduler::DiskDeviceManager::new(),
+    ));
 
     group.bench_function("ssd_pingpong", |b| {
         b.iter_custom(|iters| {
-            harness.rt.block_on(async {
+            rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path = unique_temp_name("ssd");
@@ -274,14 +276,14 @@ fn bench_local_ssd(c: &mut Criterion) {
     group.finish();
 }
 
-// 鈹€鈹€ Direct write baseline (no buffer) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── Direct write baseline (no buffer) ──────────────────────────────────────
 //
 // Writes each 1 MB chunk directly to disk via `spawn_blocking` without any
-// in-memory buffering. This is the baseline 鈥?comparing `double_hdd` against
+// in-memory buffering. This is the baseline —comparing `double_hdd` against
 // this shows the benefit of the double-buffer optimization on HDD.
 
 fn bench_direct_write(c: &mut Criterion) {
-    let harness = BenchHarness::new(1024);
+    let rt = bench_runtime();
     let chunk = zero_chunk();
 
     let mut group = c.benchmark_group("buffer_pool");
@@ -289,7 +291,7 @@ fn bench_direct_write(c: &mut Criterion) {
 
     group.bench_function("direct_write", |b| {
         b.iter_custom(|iters| {
-            harness.rt.block_on(async {
+            rt.block_on(async {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let file_path = unique_temp_name("direct");
@@ -322,22 +324,22 @@ fn bench_direct_write(c: &mut Criterion) {
     group.finish();
 }
 
-// 鈹€鈹€ Multi-stream random-write benchmark 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── Multi-stream random-write benchmark ─────────────────────────────────
 //
 // Simulates 4 concurrent download streams writing 1 MB chunks at
 // interleaved offsets (worst-case seek pattern for HDD).  This is the
 // scenario where the double-buffer's pipelining matters: while one half
 // flushes to disk, the other half receives writes from multiple tasks.
 //
-// Offsets are generated in reverse (99MB 鈫?0MB) and distributed round鈥憆obin
+// Offsets are generated in reverse (99MB →0MB) and distributed roundround-robin
 // across streams so no two successive writes target nearby offsets.
 // Direct-write pays the full seek penalty; double-buffer absorbs it.
 
 fn bench_multi_stream_random(c: &mut Criterion) {
-    let harness = BenchHarness::new(1024);
+    let rt = bench_runtime();
     let chunk = zero_chunk();
 
-    // Pre鈥慶ompute interleaved offsets: reverse order to maximise seeks.
+    // Pre-compute interleaved offsets: reverse order to maximise seeks.
     let offsets: Vec<u64> = (0..CHUNK_COUNT)
         .rev()
         .map(|i| i * CHUNK_SIZE as u64)
@@ -346,38 +348,43 @@ fn bench_multi_stream_random(c: &mut Criterion) {
     let mut group = c.benchmark_group("buffer_pool/multi_stream");
     group.throughput(Throughput::Bytes(TOTAL_DATA));
 
-    // 鈹€鈹€ Multi-stream through double-buffer (HDD) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // ── Multi-stream through double-buffer (HDD) ─────────────────────────
     group.bench_function("double_hdd", |b| {
-        b.iter_custom(|iters| {
-            harness
-                .rt
-                .block_on(run_multi_stream_hdd(iters, &chunk, &offsets))
-        });
+        b.iter_custom(|iters| rt.block_on(run_multi_stream_hdd(iters, &chunk, &offsets)));
     });
 
     // Multi-stream through SSD ping-pong buffer.
-    let worker = limedl_core::test_harness::io_worker();
+    // Same worker the engine's own tests use; built inline because a
+    // dev-dependency on `limedl-testkit` would be a cycle (it depends on
+    // this crate).
+    let worker = IoWorker::new(std::sync::Arc::new(
+        limedl_disk::io_scheduler::DiskDeviceManager::new(),
+    ));
     group.bench_function("ssd_pingpong", |b| {
-        b.iter_custom(|iters| {
-            harness
-                .rt
-                .block_on(run_multi_stream_ssd(iters, &chunk, &offsets, &worker))
-        });
+        b.iter_custom(|iters| rt.block_on(run_multi_stream_ssd(iters, &chunk, &offsets, &worker)));
     });
 
-    // 鈹€鈹€ Multi-stream direct write (baseline) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // ── Multi-stream direct write (baseline) ─────────────────────────────
     group.bench_function("direct_write", |b| {
-        b.iter_custom(|iters| {
-            harness
-                .rt
-                .block_on(run_multi_stream_direct(iters, &chunk, &offsets))
-        });
+        b.iter_custom(|iters| rt.block_on(run_multi_stream_direct(iters, &chunk, &offsets)));
     });
 
     group.finish();
 }
 
-// 鈹€鈹€ Criterion plumbing 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── Criterion plumbing ──────────────────────────────────────────────────────
+
+/// Runtime for the async benchmark bodies.
+///
+/// The bench does not need a test server, so it builds its own runtime instead
+/// of pulling `limedl-testkit` in.
+fn bench_runtime() -> tokio::runtime::Runtime {
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(4)
+        .enable_all()
+        .build()
+        .expect("tokio runtime for benchmark")
+}
 
 criterion_group!(
     benches,

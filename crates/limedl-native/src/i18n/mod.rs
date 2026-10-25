@@ -7,7 +7,7 @@
 //!
 //! The strings themselves live in the gettext catalogs
 //! (`lang/<locale>/LC_MESSAGES/limedl-native.po`): `@tr` in `.slint` files and
-//! [`tr`]/[`tr_fmt`] here read the same catalogs, so a message used from both
+//! [`tr()`]/[`tr_fmt`] here read the same catalogs, so a message used from both
 //! sides is translated once. `catalog.rs` is generated from them by
 //! `cargo xtask i18n generate`.
 

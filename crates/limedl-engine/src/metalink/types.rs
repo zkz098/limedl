@@ -72,7 +72,7 @@ pub struct ChecksumEntry {
     pub hash: String,
 }
 
-/// Piece/chunk hashes for progressive piece verification (<pieces> element).
+/// Piece/chunk hashes for progressive piece verification (`<pieces>` element).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PieceVerification {
@@ -94,7 +94,7 @@ pub struct MirrorResource {
     pub max_connections: Option<usize>,
 }
 
-/// External metadata link (<metaurl>), such as a BitTorrent torrent or magnet link.
+/// External metadata link (`<metaurl>`), such as a BitTorrent torrent or magnet link.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MetalinkMetaUrl {

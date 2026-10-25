@@ -4,8 +4,8 @@
 //! manifest and the `DownloadBackend` contract — moved to the `limedl-types`
 //! crate. The module re-exports below keep every historical path
 //! (`limedl_core::types::TaskId`, `crate::error::DownloadError`, …) resolving,
-//! so the ~25 000 lines of tests in this crate and the two consumers did not
-//! have to be touched.
+//! so the ~11 500 lines of tests in this crate and the three frontends
+//! (`limedl-native`, `limedl-server`, `limedl-rpc`) did not have to be touched.
 
 pub mod backend_registry;
 pub mod bootstrap;
@@ -30,7 +30,7 @@ pub use limedl_types::{lock, now_ms};
 
 // Disk/I/O substrate. Re-exported as modules for the same reason as the
 // foundation layer: `crate::file_ops::…` / `crate::buffer_pool::…` keep
-// resolving for the engine and its ~12k lines of tests. `buffer_pool` is now
+// resolving for the facade and its test tree. `buffer_pool` is now
 // an ordinary public module instead of a `cfg(any(test, feature = "test-utils"))`
 // gate — a crate cannot hide a module from its own dependents.
 pub use limedl_disk::{buffer_pool, file_ops, io_scheduler, services};

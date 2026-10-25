@@ -60,6 +60,10 @@ sanitize-filename = "0.6"
 thiserror = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
 percent-encoding = "2"
+url = "2"
+# `reqwest::header` is `http::header`; naming it directly keeps the foundation
+# crate off reqwest (see crates/limedl-types/Cargo.toml).
+http = "1"
 regex = "1"
 anyhow = "1"
 time = { version = ">=0.3.37, <0.4", features = ["local-offset"] }

@@ -17,9 +17,25 @@ name = "limedl_types"
 # Nothing in this crate may depend on another `limedl-*` crate, and nothing may
 # depend on a protocol engine: it is the bottom of the graph. Everything here is
 # either data (serde), a contract (async-trait, thiserror) or the transport types
-# the contract is expressed in (reqwest::Url, reqwest::Error).
+# the contract is expressed in (`url::Url`, `http::header`, `reqwest::Error`).
+#
+# `url` and `http` are what `reqwest::Url` / `reqwest::header` *are* (reqwest
+# re-exports both), so naming them directly costs nothing at the call sites and
+# removes reqwest from `settings`, `url_rewrite` and `checksum::detect`. Only
+# `DownloadError::Http(#[from] reqwest::Error)` is left, and that variant is
+# load-bearing: `?` on a reqwest call has to convert, and a `From` impl for a
+# foreign source type can only live where the target type is defined — here.
 tokio = { workspace = true }
-reqwest = { workspace = true }
+# Declared directly instead of `workspace = true` on purpose: the workspace entry
+# carries the feature list (`http3`, `gzip`, `brotli`, `zstd`), and `workspace =
+# true` re-inherits it. Those features belong to `limedl-http` and
+# `limedl-engine`, which request them where the client is actually built. Cargo
+# unifies features across a build, so a workspace build is unchanged; an isolated
+# `cargo check -p limedl-store` no longer compiles quinn/rustls/h3/brotli/zstd to
+# get nowhere. Keep the version equal to the workspace entry.
+reqwest = { version = "=0.13.5", default-features = false }
+url = { workspace = true }
+http = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

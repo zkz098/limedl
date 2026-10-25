@@ -146,13 +146,12 @@ pub fn sync_snapshot_with_manifest(core: &mut DownloadCore) {
 }
 /// Records download progress directly on a [`ManagedDownload`].
 ///
-/// # Design note (duplication with [`TaskLifecycle::record_progress`])
-/// This free helper exists because chunk workers in [`http_executor`] hold
-/// only an `&Arc<ManagedDownload>` reference and do **not** have access to
-/// a `&DownloadManager` to call through `TaskLifecycle::record_progress`.
-///
-/// The body is **identical** to [`TaskLifecycle::record_progress`] in
-/// `task_lifecycle.rs`. If you modify one, you **must** update the other.
+/// This is the single implementation of *received* progress accounting. It is a
+/// free function rather than a method because chunk workers in
+/// [`http_executor`](crate::http_executor) only hold an
+/// `&Arc<ManagedDownload>` and have no handle to the actor; the manager-side
+/// entry point [`TaskLifecycle::record_progress`](crate::task_lifecycle::TaskLifecycle::record_progress)
+/// delegates here, so the two callers cannot drift apart.
 pub fn record_progress_on_managed(
     managed: &Arc<ManagedDownload>,
     chunk_index: Option<usize>,

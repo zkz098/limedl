@@ -38,8 +38,8 @@ pub struct AppContext {
 impl AppContext {
     /// Current persisted settings.
     ///
-    /// The single source of truth is the core [`SettingsService`] behind the
-    /// dispatcher; this is a convenience read, not a cache. Writers must use
+    /// The single source of truth is the core [`SettingsService`](limedl_core::SettingsService)
+    /// behind the dispatcher; this is a convenience read, not a cache. Writers must use
     /// `Dispatcher::save_settings_with` so a concurrent update is never clobbered.
     pub fn settings(&self) -> AppSettings {
         self.dispatcher

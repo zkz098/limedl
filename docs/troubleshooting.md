@@ -136,7 +136,7 @@ public internet: `CdnService::start_test` runs the real accelerator, which fetch
 Cloudflare's IP ranges (10 s cap) and then probes candidate IPs and the default
 node with the production HTTP client. There is no injection point for the IP-range
 provider or the speed-test strategy (see the comment block in
-`crates/limedl-core/src/tests/retry_tests.rs`), so the tests cannot be made
+`crates/limedl-engine/src/retry/tests.rs`), so the tests cannot be made
 hermetic without adding one.
 
 Two consequences worth knowing before blaming a code change:

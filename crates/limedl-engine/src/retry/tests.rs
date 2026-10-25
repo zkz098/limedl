@@ -30,8 +30,8 @@ use crate::download::DownloadCore;
 use crate::error::DownloadError;
 use crate::manifest::Manifest;
 use crate::retry::{backoff_delay, jittered_backoff_delay, request_with_retry};
-use crate::test_harness::TestServer;
 use crate::types::{ChecksumMode, DownloadSnapshot, DownloadState, Priority, TaskKind, ThreadMode};
+use limedl_testkit::TestServer;
 
 // ---------------------------------------------------------------------------
 // Type alias

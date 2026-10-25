@@ -3,53 +3,46 @@
 //! Measures overhead of the async and blocking consume paths, rate
 //! switching cost, and concurrent fairness under contention.
 //!
-//! Run: `cargo bench --manifest-path crates/limedl-core/Cargo.toml --features test-utils`
-
-mod common;
+//! Run: `cargo bench -p limedl-http --features test-utils --bench rate_limiter`
 
 use std::sync::Arc;
 
-use common::BenchHarness;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use limedl_core::RateLimiter;
+use limedl_http::rate_limiter::RateLimiter;
 
-// 鈹€鈹€ helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── helpers ──────────────────────────────────────────────────────────────
 
-// 鈹€鈹€ 1. Unlimited consume (baseline overhead) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 1. Unlimited consume (baseline overhead) ─────────────────────────────
 
 fn bench_consume_unlimited(c: &mut Criterion) {
-    let harness = BenchHarness::new(1024);
+    let rt = bench_runtime();
     let limiter = RateLimiter::default();
 
     c.bench_function("rate_limiter/consume_unlimited", |b| {
         b.iter(|| {
-            harness
-                .rt
-                .block_on(limiter.consume(std::hint::black_box(4096)));
+            rt.block_on(limiter.consume(std::hint::black_box(4096)));
         });
     });
 }
 
-// 鈹€鈹€ 2. Limited consume (100 MB/s, plentiful budget) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 2. Limited consume (100 MB/s, plentiful budget) ──────────────────────
 
 fn bench_consume_limited(c: &mut Criterion) {
     const RATE: u64 = 100_000_000; // 100 MB/s
 
-    let harness = BenchHarness::new(1024);
+    let rt = bench_runtime();
     let limiter = RateLimiter::default();
     limiter.set_rate(RATE);
     limiter.set_tokens(limiter.capacity() as f64);
 
     c.bench_function("rate_limiter/consume_limited", |b| {
         b.iter(|| {
-            harness
-                .rt
-                .block_on(limiter.consume(std::hint::black_box(8192)));
+            rt.block_on(limiter.consume(std::hint::black_box(8192)));
         });
     });
 }
 
-// 鈹€鈹€ 3. Rate switching (set_rate) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 3. Rate switching (set_rate) ─────────────────────────────────────────
 
 fn bench_set_rate(c: &mut Criterion) {
     let limiter = RateLimiter::default();
@@ -67,7 +60,7 @@ fn bench_set_rate(c: &mut Criterion) {
     group.finish();
 }
 
-// 鈹€鈹€ 4. Blocking consume (unlimited + limited) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 4. Blocking consume (unlimited + limited) ────────────────────────────
 
 fn bench_consume_blocking(c: &mut Criterion) {
     const RATE: u64 = 100_000_000;
@@ -95,14 +88,14 @@ fn bench_consume_blocking(c: &mut Criterion) {
     }
 }
 
-// 鈹€鈹€ 5. Multi-consumer concurrent throughput 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 5. Multi-consumer concurrent throughput ──────────────────────────────
 
 fn bench_multi_consume(c: &mut Criterion) {
     const RATE: u64 = 50_000_000; // 50 MB/s
     const CONCURRENCY: usize = 4;
     const ITERATIONS: usize = 100;
 
-    let harness = BenchHarness::new(1024);
+    let rt = bench_runtime();
     let limiter = Arc::new({
         let l = RateLimiter::default();
         l.set_rate(RATE);
@@ -112,7 +105,7 @@ fn bench_multi_consume(c: &mut Criterion) {
 
     c.bench_function("rate_limiter/multi_consume", |b| {
         b.iter(|| {
-            harness.rt.block_on(async {
+            rt.block_on(async {
                 let mut handles = Vec::with_capacity(CONCURRENCY);
                 for _ in 0..CONCURRENCY {
                     let limiter = limiter.clone();
@@ -130,7 +123,19 @@ fn bench_multi_consume(c: &mut Criterion) {
     });
 }
 
-// 鈹€鈹€ criterion registration 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── criterion registration ───────────────────────────────────────────────
+
+/// Runtime for the async benchmark bodies.
+///
+/// The bench does not need a test server, so it builds its own runtime instead
+/// of pulling `limedl-testkit` in.
+fn bench_runtime() -> tokio::runtime::Runtime {
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(4)
+        .enable_all()
+        .build()
+        .expect("tokio runtime for benchmark")
+}
 
 criterion_group!(
     benches,

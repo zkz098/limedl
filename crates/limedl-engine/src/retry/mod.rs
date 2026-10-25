@@ -215,3 +215,6 @@ pub fn backoff_delay(attempt: u32) -> Duration {
 pub fn jittered_backoff_delay(attempt: u32) -> Duration {
     jittered_backoff_delay_with_config(attempt, 250, 4000, BACKOFF_JITTER_PERCENT)
 }
+
+#[cfg(test)]
+mod tests;

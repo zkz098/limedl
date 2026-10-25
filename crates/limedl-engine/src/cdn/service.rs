@@ -51,8 +51,8 @@ impl CdnService {
 
     /// Wrap an existing [`CdnAccelerator`].
     ///
-    /// Useful when the accelerator must be shared with [`DownloadManager`]
-    /// (via `set_cdn_accelerator`) and also used as a service.
+    /// Useful when the accelerator must be shared with the manager facade in
+    /// `limedl-core` (via `set_cdn_accelerator`) and also used as a service.
     pub fn from_accelerator(accelerator: Arc<CdnAccelerator>) -> Self {
         Self { accelerator }
     }

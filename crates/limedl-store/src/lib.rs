@@ -5,17 +5,17 @@
 //! `Alt-Svc` cache that keeps the CDN accelerator from re-discovering the same
 //! endpoint on every start.
 //!
-//! `limedl-types` is re-exported at this crate root so the moved modules kept
+//! `limedl-types` is imported at this crate root so the moved modules kept
 //! their `crate::types::…` / `crate::error::…` spellings, exactly like
-//! `limedl-disk` does.
+//! `limedl-disk` does. The import is private — `limedl_store::types` is not a
+//! path.
 //!
 //! Note what is *not* here: `persistence` (the free functions the HTTP executor
-//! and the scheduler call on their 300 ms cycle) stays in `limedl-core`. It
-//! names `download::ManagedDownload`, so moving it down would invert the
-//! dependency direction that `LAYERS` in
-//! `crates/limedl-core/src/tests/module_boundaries_tests.rs` enforces.
+//! and the scheduler call on their 300 ms cycle) lives in `limedl-engine`. It
+//! names `download::ManagedDownload`, which sits above this crate, so moving it
+//! down would invert the dependency direction that `Cargo.toml` enforces.
 
-pub use limedl_types::{error, manifest, now_ms, types};
+use limedl_types::{error, manifest, now_ms, types};
 
 pub mod alt_svc;
 pub mod database;

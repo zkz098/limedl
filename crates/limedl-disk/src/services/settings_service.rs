@@ -82,7 +82,7 @@ impl SettingsService {
         &self.settings_path
     }
 
-    /// Get shared Arc reference to the inner RwLock<AppSettings>.
+    /// Get shared Arc reference to the inner `RwLock<AppSettings>`.
     pub fn inner(&self) -> Arc<RwLock<AppSettings>> {
         self.settings.clone()
     }

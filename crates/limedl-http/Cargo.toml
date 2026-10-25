@@ -29,7 +29,18 @@ default = []
 test-utils = []
 
 [dev-dependencies]
+criterion = { workspace = true }
 ntest = { workspace = true }
 futures-util = { workspace = true }
 # `http::tests` builds `reqwest`-shaped responses out of `axum::http`.
 axum = { workspace = true }
+
+# The bench drives the token bucket the way the engine does (`set_tokens`,
+# `capacity`, `consume_blocking`), and those live behind `test-utils` — they are
+# the seam the scheduler tests use, not production API. Hence the feature and
+# hence `required-features`, so a plain `cargo bench` does not try to build the
+# bench against a crate where the methods do not exist.
+[[bench]]
+name = "rate_limiter"
+harness = false
+required-features = ["test-utils"]

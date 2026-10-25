@@ -14,9 +14,10 @@
 //! disk/IO, aggregation, the BT queries below) must go through this layer. The
 //! aria2 RPC surface is deliberately *not* fully generic — `getOption` reads the
 //! HTTP manifest, `tellStatus.files` asks the BT engine — so the aria2 layer
-//! reaches the concrete backends through [`RpcContext`](crate::aria2_rpc)'s
-//! `http()` / `bt()` accessors, which are the only sanctioned downcasts in that
-//! module. Do not add new `get_typed` calls anywhere else.
+//! (the separate `limedl-rpc` crate, which sits *above* this one) reaches the
+//! concrete backends through its own `RpcContext`'s `http()` / `bt()` accessors,
+//! which are the only sanctioned downcasts in that crate. Do not add new
+//! `get_typed` calls anywhere else.
 
 use std::path::Path;
 use std::sync::Arc;

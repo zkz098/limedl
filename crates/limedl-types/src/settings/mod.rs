@@ -3,10 +3,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use reqwest::Url;
 use tokio::io::AsyncWriteExt as _;
+use url::Url;
 
-use reqwest::header;
+use http::header;
 
 use super::{
     error::{DownloadError, Result},
@@ -22,7 +22,7 @@ use super::{
 /// Returns the default Chrome user-agent if the input is empty,
 /// or an error if the value is too long or contains invalid characters.
 ///
-/// Lives here rather than with the `reqwest` client builder in `limedl-core`:
+/// Lives here rather than with the `reqwest` client builder in `limedl-http`:
 /// settings validation is part of the foundation layer, and the client builder
 /// is not the only caller.
 pub fn normalize_user_agent(user_agent: &str) -> Result<String> {

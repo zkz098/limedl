@@ -564,11 +564,11 @@ pub fn peer_info_to_aria2_peer(p: &BtPeerInfo) -> Value {
         "seeder": if seeder { "true" } else { "false" },
     })
 }
-pub fn handle_get_session_info(ctx: &RpcContext) -> Value {
+pub(crate) fn handle_get_session_info(ctx: &RpcContext) -> Value {
     serde_json::json!({ "sessionId": ctx.session_id })
 }
 
-pub fn handle_save_session() -> Value {
+pub(crate) fn handle_save_session() -> Value {
     // limedl auto-persists to SQLite on every state change; no explicit save needed
     Value::String("OK".to_string())
 }
@@ -636,7 +636,7 @@ pub fn handle_list_methods() -> Value {
     )
 }
 
-pub fn extract_gid(params: &[Value]) -> Result<String, JsonRpcError> {
+pub(crate) fn extract_gid(params: &[Value]) -> Result<String, JsonRpcError> {
     params
         .first()
         .and_then(|v| v.as_str())
