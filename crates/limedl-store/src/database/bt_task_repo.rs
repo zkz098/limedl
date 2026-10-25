@@ -98,7 +98,7 @@ impl Database {
 
     /// Drop the whole index (used when the engine's list is authoritative and
     /// empty, and by tests).
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn clear_bt_tasks(&self) -> Result<()> {
         let conn = self.lock_write();
         conn.execute("DELETE FROM bt_tasks", [])

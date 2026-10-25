@@ -44,7 +44,7 @@ pub struct TestGroup {
 
 pub const TEST_GROUPS: &[TestGroup] = &[
     TestGroup {
-        packages: &["limedl-types", "limedl-disk", "limedl-core"],
+        packages: &["limedl-types", "limedl-disk", "limedl-store", "limedl-core"],
         features: &["limedl-core/test-utils", "limedl-core/aria2-rpc"],
     },
     TestGroup {

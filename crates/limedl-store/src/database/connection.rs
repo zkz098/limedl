@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use rusqlite::Connection;
 
 use super::schema::{MIGRATIONS, table_has_column};
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 use crate::error::DownloadError;
 
 /// Databases above this size skip the startup integrity probe: `quick_check`
@@ -161,7 +161,7 @@ impl Database {
     /// Enables foreign keys and busy timeout, then runs all migrations.
     /// Does NOT enable WAL mode (unnecessary for in-memory single-connection tests
     /// and can cause "database is locked" errors).
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory().context("failed to open in-memory database")?;
         conn.set_prepared_statement_cache_capacity(64);

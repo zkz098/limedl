@@ -462,7 +462,7 @@ impl Database {
     }
 
     /// Fetch a single download with its chunks.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn get_download(&self, id: &str) -> Result<Option<Manifest>> {
         let conn = self.lock_read();
 
@@ -470,10 +470,11 @@ impl Database {
             .prepare_cached("SELECT * FROM downloads WHERE id = ?1")
             .context("failed to prepare get_download query")?;
 
-        let opt = stmt
-            .query_row(params![id], row_to_manifest)
-            .optional()
-            .context("failed to query download")?;
+        let opt = match stmt.query_row(params![id], row_to_manifest) {
+            Ok(manifest) => Some(manifest),
+            Err(rusqlite::Error::QueryReturnedNoRows) => None,
+            Err(error) => return Err(error).context("failed to query download"),
+        };
 
         match opt {
             Some(mut manifest) => {

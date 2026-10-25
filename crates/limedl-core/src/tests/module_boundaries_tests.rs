@@ -24,7 +24,8 @@
 //! in this graph and an upward edge to them is a compile error instead:
 //! `limedl-types` (`types`, `error`, `event_bus`, `manifest`, `protocol`,
 //! `settings`, `url_rewrite`, `checksum`, `slot_guard`, `platform`) and
-//! `limedl-disk` (`file_ops`, `buffer_pool`, `io_scheduler`, `services`).
+//! `limedl-disk` (`file_ops`, `buffer_pool`, `io_scheduler`, `services`) and
+//! `limedl-store` (`database`, `alt_svc`).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
@@ -62,10 +63,7 @@ const LAYERS: &[(&str, &[&str])] = &[
         "limedl-http (not extracted yet)",
         &["http", "http_client_factory", "rate_limiter"],
     ),
-    (
-        "limedl-store / limedl-testkit",
-        &["database", "alt_svc", "test_harness"],
-    ),
+    ("limedl-testkit (not extracted yet)", &["test_harness"]),
     (
         "limedl-engine",
         &[

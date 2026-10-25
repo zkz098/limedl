@@ -1,0 +1,41 @@
+[package]
+name = "limedl-store"
+version.workspace = true
+description = "Persistence for limedl — the SQLite task/chunk/manifest store and the Alt-Svc cache"
+license.workspace = true
+edition = "2024"
+# Workspace-internal, like every other limedl crate.
+publish = false
+
+[lib]
+name = "limedl_store"
+
+[dependencies]
+# Only the foundation layer: no engine, no disk, no BT.
+limedl-types = { path = "../limedl-types", default-features = false }
+rusqlite = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+parking_lot = { workspace = true }
+foldhash = { workspace = true }
+dashmap = { workspace = true }
+# `alt_svc` stores and matches `reqwest::Url`/header values.
+reqwest = { workspace = true }
+
+[features]
+# `database`'s BT index rows are only meaningful when the engine has the BT
+# protocol at all; the gate mirrors `limedl-types`' own `bt` switch (no
+# dependency behind it, just the cfg).
+default = []
+bt = ["limedl-types/bt"]
+# Same seam as `limedl-disk`: the in-memory database constructors and the
+# single-download readers are test-only helpers, and `cfg(test)` stops being
+# true for them the moment another crate links this one from its own tests.
+test-utils = []
+
+[dev-dependencies]
+tempfile = { workspace = true }
+ntest = { workspace = true }

@@ -3978,12 +3978,12 @@ dependencies = [
  "brotli",
  "bytes",
  "criterion",
- "dashmap",
  "flate2",
  "foldhash 0.2.0",
  "futures-util",
  "irontide",
  "limedl-disk",
+ "limedl-store",
  "limedl-types",
  "ntest",
  "open",
@@ -3992,7 +3992,6 @@ dependencies = [
  "quick-xml 0.42.0",
  "rand 0.10.3",
  "reqwest 0.13.5",
- "rusqlite",
  "sanitize-filename",
  "serde",
  "serde_json",
@@ -4085,6 +4084,25 @@ dependencies = [
  "limedl-core",
  "ntest",
  "reqwest 0.13.5",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "limedl-store"
+version = "0.5.5"
+dependencies = [
+ "anyhow",
+ "dashmap",
+ "foldhash 0.2.0",
+ "limedl-types",
+ "ntest",
+ "parking_lot",
+ "reqwest 0.13.5",
+ "rusqlite",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",

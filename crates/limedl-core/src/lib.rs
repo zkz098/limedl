@@ -7,14 +7,12 @@
 //! so the ~25 000 lines of tests in this crate and the two consumers did not
 //! have to be touched.
 
-pub mod alt_svc;
 pub mod backend_registry;
 pub mod bootstrap;
 #[cfg(feature = "bt")]
 pub mod bt_backend;
 pub mod cdn;
 pub mod context;
-pub mod database;
 pub mod dispatcher;
 pub mod download;
 pub mod http;
@@ -46,6 +44,9 @@ pub use limedl_types::{lock, now_ms};
 // an ordinary public module instead of a `cfg(any(test, feature = "test-utils"))`
 // gate — a crate cannot hide a module from its own dependents.
 pub use limedl_disk::{buffer_pool, file_ops, io_scheduler, services};
+
+// Persistence. Same module-level re-export as the two layers below it.
+pub use limedl_store::{alt_svc, database};
 
 #[cfg(any(test, feature = "test-utils"))]
 #[cfg_attr(not(test), allow(dead_code))]
