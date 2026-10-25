@@ -9,8 +9,11 @@
 
 pub mod backend_registry;
 pub mod bootstrap;
+// `bt_backend` is a crate now; re-exporting it under the old module name keeps
+// `crate::bt_backend::{IrontideBtBackend, LazyBtBackend, info_hash_to_engine, …}`
+// resolving for the dispatcher, the Aria2 layer and the test tree.
 #[cfg(feature = "bt")]
-pub mod bt_backend;
+pub use limedl_bt as bt_backend;
 pub mod cdn;
 pub mod context;
 pub mod dispatcher;

@@ -127,7 +127,7 @@ async fn bt_backend_get_torrent_files_returns_error_for_unknown() {
     let core = bootstrap(state_dir.clone()).await.unwrap();
     assert!(core.bt_backend.wait_ready().await, "BT engine must start");
 
-    let fake_hash = irontide::core::Id20::from([0u8; 20]);
+    let fake_hash = crate::bt_backend::irontide::core::Id20::from([0u8; 20]);
     let result = core.bt_backend.get_torrent_files(fake_hash);
     assert!(result.is_err(), "expected error for unknown info hash");
 

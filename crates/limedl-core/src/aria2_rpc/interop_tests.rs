@@ -166,7 +166,7 @@ async fn interop_ariang_multicall_shape() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(90_000)]
 async fn interop_ariang_add_torrent_shape_keeps_options() {
-    let fixture = crate::bt_backend::tests::single_file_torrent_bytes();
+    let fixture = crate::bt_backend::fixtures::single_file_torrent_bytes();
     let encoded = base64::engine::general_purpose::STANDARD.encode(&fixture);
 
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
@@ -198,7 +198,7 @@ async fn interop_ariang_add_torrent_shape_keeps_options() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(90_000)]
 async fn interop_add_torrent_legacy_shape_keeps_options() {
-    let fixture = crate::bt_backend::tests::single_file_torrent_bytes();
+    let fixture = crate::bt_backend::fixtures::single_file_torrent_bytes();
     let encoded = base64::engine::general_purpose::STANDARD.encode(&fixture);
 
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
@@ -345,8 +345,8 @@ async fn interop_tell_status_http_field_schema() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(90_000)]
 async fn interop_tell_status_bt_field_schema() {
-    let fixture = crate::bt_backend::tests::single_file_torrent_bytes();
-    let expected_hash = irontide::core::torrent_from_bytes(&fixture)
+    let fixture = crate::bt_backend::fixtures::single_file_torrent_bytes();
+    let expected_hash = crate::bt_backend::irontide::core::torrent_from_bytes(&fixture)
         .expect("the shared BT fixture must parse")
         .info_hash
         .to_hex();

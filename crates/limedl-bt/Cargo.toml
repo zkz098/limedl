@@ -1,0 +1,51 @@
+[package]
+name = "limedl-bt"
+version.workspace = true
+description = "BitTorrent backend for limedl, backed by the irontide engine"
+license.workspace = true
+edition = "2024"
+# Workspace-internal, like every other limedl crate.
+publish = false
+
+[lib]
+name = "limedl_bt"
+
+[dependencies]
+# The BitTorrent engine: pinned exactly (`=1.7.0`) in the workspace table, and
+# this crate is the only place it is named. Before this split it sat under
+# `limedl-types` (through `TaskId::Bt(Id20)`), which meant every limedl crate
+# built 100+ crates of DHT/peer-wire/`aws-lc` whether it wanted BT or not.
+limedl-types = { path = "../limedl-types", default-features = false, features = [
+  "bt",
+] }
+limedl-store = { path = "../limedl-store", default-features = false, features = [
+  "bt",
+] }
+limedl-http = { path = "../limedl-http", default-features = false }
+irontide = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+parking_lot = { workspace = true }
+tracing = { workspace = true }
+xxhash-rust = { workspace = true }
+open = { workspace = true }
+# `DownloadBackend::start` builds the HTTP client for a torrent's http seeds.
+reqwest = { workspace = true }
+uuid = { workspace = true }
+
+[features]
+# The store's test-only helpers (`Database::open_in_memory`, the single-download
+# readers) live behind `limedl-store`'s own `test-utils`, and `cfg(test)` stops
+# being true for them once this crate links the store from its own tests.
+default = []
+test-utils = ["limedl-store/test-utils"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+# This crate's own tests drive `Database::open_in_memory`, which is a
+# `limedl-store` test seam (`cfg(any(test, feature = "test-utils"))`); from here
+# `cfg(test)` is false inside the store, so the feature has to be asked for.
+limedl-store = { path = "../limedl-store", default-features = false, features = [
+  "test-utils",
+  "bt",
+] }

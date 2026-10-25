@@ -25,8 +25,8 @@
 //! `limedl-types` (`types`, `error`, `event_bus`, `manifest`, `protocol`,
 //! `settings`, `url_rewrite`, `checksum`, `slot_guard`, `platform`) and
 //! `limedl-disk` (`file_ops`, `buffer_pool`, `io_scheduler`, `services`) and
-//! `limedl-store` (`database`, `alt_svc`) and `limedl-http` (`http`,
-//! `http_client_factory`, `rate_limiter`).
+//! `limedl-store` (`database`, `alt_svc`), `limedl-http` (`http`,
+//! `http_client_factory`, `rate_limiter`) and `limedl-bt` (`bt_backend`).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
@@ -77,7 +77,6 @@ const LAYERS: &[(&str, &[&str])] = &[
             "task_lifecycle",
         ],
     ),
-    ("limedl-bt", &["bt_backend"]),
     (
         "limedl-core",
         &[

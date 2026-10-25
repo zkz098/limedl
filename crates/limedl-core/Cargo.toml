@@ -19,6 +19,7 @@ name = "limedl_core"
 limedl-types = { path = "../limedl-types", default-features = false }
 limedl-disk = { path = "../limedl-disk", default-features = false }
 limedl-http = { path = "../limedl-http", default-features = false }
+limedl-bt = { path = "../limedl-bt", default-features = false, optional = true }
 limedl-store = { path = "../limedl-store", default-features = false }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
@@ -45,7 +46,6 @@ serde_json = { workspace = true }
 rand = { workspace = true }
 argon2 = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
-irontide = { workspace = true, optional = true }
 open = { workspace = true }
 quick-xml = { workspace = true }
 # Encoders for the compression test endpoints. Optional and only enabled by
@@ -56,7 +56,7 @@ brotli = { version = "9", optional = true }
 zstd = { version = "0.14", optional = true }
 
 [features]
-bt = ["dep:irontide", "limedl-types/bt", "limedl-store/bt"]
+bt = ["dep:limedl-bt", "limedl-types/bt", "limedl-store/bt"]
 default = ["bt"]
 aria2-rpc = [
     "dep:axum",
@@ -74,6 +74,7 @@ test-utils = [
     "limedl-disk/test-utils",
     "limedl-store/test-utils",
     "limedl-http/test-utils",
+
 ]
 
 [dev-dependencies]
@@ -91,6 +92,7 @@ limedl-store = { path = "../limedl-store", default-features = false, features = 
 limedl-http = { path = "../limedl-http", default-features = false, features = [
   "test-utils",
 ] }
+
 tempfile = { workspace = true }
 rand = { workspace = true }
 ntest = { workspace = true }

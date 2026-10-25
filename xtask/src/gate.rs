@@ -49,6 +49,7 @@ pub const TEST_GROUPS: &[TestGroup] = &[
             "limedl-disk",
             "limedl-store",
             "limedl-http",
+            "limedl-bt",
             "limedl-core",
         ],
         features: &["limedl-core/test-utils", "limedl-core/aria2-rpc"],

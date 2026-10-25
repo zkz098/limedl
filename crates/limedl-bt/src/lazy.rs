@@ -124,7 +124,8 @@ pub struct LazyBtBackend {
     /// Active BT download counter, shared with `DownloadManager`.
     pub(crate) active_bt_count: Arc<AtomicUsize>,
     /// Maximum concurrent BT downloads, shared with `DownloadManager`.
-    pub(crate) max_concurrent_bt: Arc<AtomicUsize>,
+    /// Read by `limedl-core`'s BT integration tests (concurrency assertion).
+    pub max_concurrent_bt: Arc<AtomicUsize>,
     /// The started engine; empty while the engine is unloaded.
     ///
     /// A `parking_lot` lock (not an async one) so [`Self::engine_if_ready`] can

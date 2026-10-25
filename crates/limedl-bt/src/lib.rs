@@ -4,6 +4,7 @@
 
 pub mod alerts;
 pub mod anti_leech;
+pub mod fixtures;
 pub mod lazy;
 pub mod lifecycle;
 pub mod queries;
@@ -23,6 +24,18 @@ use std::sync::atomic::AtomicUsize;
 use async_trait::async_trait;
 use irontide::core::Id20;
 use parking_lot::{Mutex, RwLock};
+
+// The layers below, re-exported so the moved modules kept their existing
+// `crate::types::…` / `crate::error::…` / `crate::database::…` spellings.
+pub use limedl_http::http_client_factory;
+pub use limedl_store::database;
+pub use limedl_types::{error, event_bus, lock, now_ms, platform, protocol, slot_guard, types};
+
+/// The engine this backend drives, re-exported for the engine's own tests: they
+/// parse fixture `.torrent` bytes to check the info-hash the backend reports,
+/// and that has to be the *same* irontide the backend used. Re-exporting keeps
+/// `irontide` named in exactly one `Cargo.toml`.
+pub use irontide;
 
 use crate::error::DownloadError;
 use crate::error::Result;
@@ -77,7 +90,9 @@ pub struct IrontideBtBackend {
     /// Default download output directory.
     pub(crate) default_output_dir: PathBuf,
     /// Mirrored BT settings (shared with the alert bridge).
-    pub(crate) bt_settings: Arc<Mutex<crate::types::BtSettings>>,
+    /// Read by `limedl-core`'s BT integration tests to assert the settings the
+    /// backend was constructed with.
+    pub bt_settings: Arc<Mutex<crate::types::BtSettings>>,
     /// Central event bus for publishing download events to subscribers and frontend.
     pub(crate) event_bus: Arc<EventBus>,
     /// Map of info hash → info hash (used as a set of active torrents).
@@ -111,7 +126,8 @@ pub struct IrontideBtBackend {
     /// Active BT download counter (shared with DownloadManager for global throttle).
     pub(crate) active_bt_count: Arc<AtomicUsize>,
     /// Maximum concurrent BT downloads allowed.
-    pub(crate) max_concurrent_bt: Arc<AtomicUsize>,
+    /// Read by `limedl-core`'s BT integration tests (concurrency assertion).
+    pub max_concurrent_bt: Arc<AtomicUsize>,
     /// Guards holding BT download slots for active torrents.
     pub(crate) bt_slot_guards: Arc<FastDashMap<Id20, DownloadSlotGuard>>,
     /// Creation timestamps for active torrents (populated on start).

@@ -3966,6 +3966,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "limedl-bt"
+version = "0.5.5"
+dependencies = [
+ "async-trait",
+ "irontide",
+ "limedl-http",
+ "limedl-store",
+ "limedl-types",
+ "open",
+ "parking_lot",
+ "reqwest 0.13.5",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "uuid",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "limedl-core"
 version = "0.5.5"
 dependencies = [
@@ -3981,7 +4000,7 @@ dependencies = [
  "flate2",
  "foldhash 0.2.0",
  "futures-util",
- "irontide",
+ "limedl-bt",
  "limedl-disk",
  "limedl-http",
  "limedl-store",
