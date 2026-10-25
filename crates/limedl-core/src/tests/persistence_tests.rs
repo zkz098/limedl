@@ -513,7 +513,7 @@ async fn downloading_survives_restart_without_stale_claims() -> TestResult {
 /// were still in memory, so the next resume would skip over a hole.
 #[tokio::test]
 async fn persisted_progress_is_the_durable_progress() {
-    let (_tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+    let (_tmp, dm) = crate::testing::make_manager();
 
     let mut manifest = make_test_manifest("durable-persist", DownloadState::Downloading);
     manifest.total_bytes = Some(200);
@@ -555,7 +555,7 @@ async fn persisted_progress_is_the_durable_progress() {
 /// The incremental 300 ms cycle uses the same substitution as the full upsert.
 #[tokio::test]
 async fn incremental_persist_of_a_completed_but_unflushed_chunk_stays_incomplete() {
-    let (_tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+    let (_tmp, dm) = crate::testing::make_manager();
 
     let mut manifest = make_test_manifest("durable-cycle", DownloadState::Downloading);
     manifest.total_bytes = Some(100);

@@ -51,9 +51,11 @@ pub const TEST_GROUPS: &[TestGroup] = &[
             "limedl-http",
             "limedl-engine",
             "limedl-bt",
+            "limedl-rpc",
+            "limedl-testkit",
             "limedl-core",
         ],
-        features: &["limedl-core/test-utils", "limedl-core/aria2-rpc"],
+        features: &["limedl-core/test-utils"],
     },
     TestGroup {
         packages: &["limedl-native"],

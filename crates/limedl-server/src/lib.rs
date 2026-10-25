@@ -17,10 +17,10 @@ use std::path::Path;
 
 use anyhow::Context as _;
 use clap::Parser as _;
-use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::bootstrap::bootstrap;
 use limedl_core::init_logging;
 use limedl_core::types::{Aria2AuthMode, LogSettings};
+use limedl_rpc::Aria2RpcServer;
 
 pub use cli::Cli;
 pub use config::{Config, RpcOverrides, resolve_data_dir};

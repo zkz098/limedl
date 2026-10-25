@@ -18,9 +18,10 @@ name = "limedl-server"
 path = "src/main.rs"
 
 [dependencies]
-# `aria2-rpc` pulls the axum server and, through the core default features, the
-# BitTorrent engine — the daemon serves both protocols.
-limedl-core = { path = "../limedl-core", features = ["aria2-rpc"] }
+# The daemon serves both protocols: the engine, and the Aria2 JSON-RPC facade
+# that `limedl-rpc` hosts.
+limedl-core = { path = "../limedl-core" }
+limedl-rpc = { path = "../limedl-rpc" }
 # `signal` is what turns SIGTERM/SIGINT into a clean engine shutdown; `fs` is
 # used for the data-directory lock, `sync` for the RPC shutdown watch channel.
 tokio = { workspace = true, features = ["signal", "macros", "rt-multi-thread"] }

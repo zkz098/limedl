@@ -23,6 +23,3 @@ mod retry_tests;
 mod scheduler_concurrency_tests;
 mod scheduler_tests;
 mod settings_roundtrip_tests;
-
-#[cfg(feature = "aria2-rpc")]
-mod aria2_ws_e2e_tests;

@@ -7,8 +7,8 @@ use tempfile::TempDir;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::aria2_rpc::Aria2RpcServer;
-use crate::types::Aria2RpcSettings;
+use limedl_core::types::Aria2RpcSettings;
+use limedl_rpc::Aria2RpcServer;
 
 /// Start an Aria2RpcServer on a random port, return the WebSocket URL
 /// and shutdown handle.
@@ -18,7 +18,7 @@ async fn start_ws_server() -> (String, tokio::sync::watch::Sender<bool>, TempDir
     let dest_dir = tmp.path().join("output");
     std::fs::create_dir_all(&dest_dir).unwrap();
 
-    let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
+    let core = limedl_core::bootstrap::bootstrap(state_dir).await.unwrap();
 
     // Reserve a random port
     let probe = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -185,7 +185,7 @@ fn is_notification(frame: &Value, method: &str, gid: &str) -> bool {
 #[timeout(60_000)]
 async fn websocket_add_uri_and_receive_event() {
     // Start a file server so the download has a real URL
-    let test_server = crate::test_harness::TestServer::new(256 * 1024).await;
+    let test_server = limedl_testkit::TestServer::new(256 * 1024).await;
     let file_url = test_server.file_url();
 
     let (ws_url, shutdown_tx, tmp) = start_ws_server().await;
@@ -257,7 +257,7 @@ async fn websocket_add_uri_and_receive_event() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(90_000)]
 async fn websocket_lifecycle_notifications_are_pushed_exactly_once() {
-    let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
+    let test_server = limedl_testkit::TestServer::new(4 * 1024 * 1024).await;
     // Throttled so the task cannot finish between two RPC calls.
     let file_url = test_server.file_url_bandwidth(32 * 1024);
 
@@ -301,7 +301,7 @@ async fn websocket_lifecycle_notifications_are_pushed_exactly_once() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(60_000)]
 async fn websocket_pushes_completion_notification() {
-    let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
+    let test_server = limedl_testkit::TestServer::new(64 * 1024).await;
 
     let (ws_url, shutdown_tx, tmp) = start_ws_server().await;
     let dest_dir = tmp.path().join("output");
@@ -425,7 +425,7 @@ async fn the_replacement_server_waits_out_the_predecessor_and_wins_the_port() {
     let state_dir = tmp.path().join("downloads");
     let dest_dir = tmp.path().join("output");
     std::fs::create_dir_all(&dest_dir).unwrap();
-    let core = crate::bootstrap::bootstrap(state_dir).await.unwrap();
+    let core = limedl_core::bootstrap::bootstrap(state_dir).await.unwrap();
 
     // Stand in for the predecessor: it owns the port while the replacement
     // starts, and releases it only afterwards (as the real accept loop does).

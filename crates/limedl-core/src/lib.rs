@@ -51,9 +51,17 @@ pub use limedl_engine::{
     speed_tracker, task_lifecycle,
 };
 
+/// Fixtures that need the manager facade (see the module docs).
+#[cfg(any(test, feature = "test-utils"))]
+pub mod testing;
+
+// The test harness is a crate now (`limedl-testkit`); re-exported under the old
+// module name so `crate::test_harness::TestServer` keeps resolving in the ~12k
+// lines of `src/tests/`. Optional in every sense: production builds do not get
+// it, and it is the only thing that would pull `axum` into this graph.
 #[cfg(any(test, feature = "test-utils"))]
 #[cfg_attr(not(test), allow(dead_code))]
-pub mod test_harness;
+pub use limedl_testkit as test_harness;
 
 pub use backend_registry::BackendRegistry;
 #[cfg(feature = "bt")]
@@ -74,12 +82,9 @@ pub use settings::{normalize_tracker_list_lossy, normalize_tracker_list_url};
 pub use speed_tracker::SpeedTracker;
 pub use types::CloseBehavior;
 
-// Aria2 JSON-RPC compatibility layer (enabled by default in the desktop app,
-// available via `--features aria2-rpc` for NAS/server builds).
-#[cfg(feature = "aria2-rpc")]
-pub mod aria2_rpc;
-#[cfg(feature = "aria2-rpc")]
-pub use aria2_rpc::{Aria2RpcServer, cleanup_old_aria2_temp_files};
+// The Aria2 JSON-RPC layer is `limedl-rpc` now, a crate *above* this one: it
+// speaks to the engine through `Dispatcher`/`SystemContext`, so the dependency
+// runs one way and `axum`/`tower-http`/`argon2` are no longer in this graph.
 
 #[cfg(test)]
 mod tests;

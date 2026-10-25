@@ -14,7 +14,10 @@ name = "limedl-native"
 path = "src/main.rs"
 
 [dependencies]
-limedl-core = { path = "../limedl-core", features = ["aria2-rpc"] }
+limedl-core = { path = "../limedl-core" }
+# The Aria2 JSON-RPC/WebSocket server is its own crate now: the desktop app is
+# the only reason it exists, and the engine no longer knows about it.
+limedl-rpc = { path = "../limedl-rpc" }
 # Slint's renderer is a compile-time choice, and this crate pins the shipped pair
 # here instead of exposing it as crate features: FemtoVG/OpenGL as the primary,
 # plus Slint's software rasterizer, which `try_create_window_with_fallback_renderer`

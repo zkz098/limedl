@@ -33,8 +33,8 @@ impl Aria2ClientText {
     /// The plaintext is carried in `token` for the one-time reveal; only
     /// `token_hash` ever reaches settings.json.
     pub fn generate(name: String) -> Result<Self, String> {
-        let token = limedl_core::aria2_rpc::generate_token();
-        let token_hash = limedl_core::aria2_rpc::hash_token(&token)?;
+        let token = limedl_rpc::generate_token();
+        let token_hash = limedl_rpc::hash_token(&token)?;
         Ok(Self {
             id: uuid::Uuid::new_v4().to_string(),
             name,
@@ -46,8 +46,8 @@ impl Aria2ClientText {
 
     /// Replace this row's token with a freshly generated one.
     pub fn regenerate(&mut self) -> Result<(), String> {
-        let token = limedl_core::aria2_rpc::generate_token();
-        self.token_hash = limedl_core::aria2_rpc::hash_token(&token)?;
+        let token = limedl_rpc::generate_token();
+        self.token_hash = limedl_rpc::hash_token(&token)?;
         self.token = token;
         self.created_at_ms = now_ms();
         Ok(())

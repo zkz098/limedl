@@ -14,7 +14,7 @@ use base64::Engine;
 use ntest::timeout;
 use tempfile::TempDir;
 
-use crate::aria2_rpc::Aria2RpcServer;
+use crate::Aria2RpcServer;
 use crate::event_bus::{DownloadEvent, EventBus};
 use crate::types::{Aria2AuthMode, Aria2Client, Aria2RpcSettings};
 
@@ -1112,13 +1112,13 @@ async fn aria2_per_client_tokens_authenticate_independently() {
         Aria2Client {
             id: "a".to_string(),
             name: "AriaNg".to_string(),
-            token_hash: crate::aria2_rpc::hash_token(token_a).expect("hash a"),
+            token_hash: crate::hash_token(token_a).expect("hash a"),
             created_at_ms: 1,
         },
         Aria2Client {
             id: "b".to_string(),
             name: "Motrix".to_string(),
-            token_hash: crate::aria2_rpc::hash_token(token_b).expect("hash b"),
+            token_hash: crate::hash_token(token_b).expect("hash b"),
             created_at_ms: 2,
         },
     ];
@@ -2113,7 +2113,7 @@ async fn aria2_evicted_results_are_removable_without_a_cached_gid() {
     };
     let in_memory_gids: Vec<String> = in_memory
         .iter()
-        .map(|summary| crate::aria2_rpc::internal_id_to_gid(&summary.id))
+        .map(|summary| crate::internal_id_to_gid(&summary.id))
         .collect();
     let evicted: Vec<String> = gids
         .iter()

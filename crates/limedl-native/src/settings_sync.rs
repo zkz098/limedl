@@ -15,9 +15,9 @@ use parking_lot::Mutex;
 use slint::SharedString;
 use tokio::sync::watch;
 
-use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::types::AppSettings;
+use limedl_rpc::Aria2RpcServer;
 
 use crate::MainWindow;
 use crate::bridge::{TaskStore, summary_to_inspector_info};

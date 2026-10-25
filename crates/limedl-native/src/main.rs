@@ -43,9 +43,9 @@ use slint::ComponentHandle;
 use tokio::sync::watch;
 use tray_icon::TrayIconBuilder;
 
-use limedl_core::aria2_rpc::Aria2RpcServer;
 use limedl_core::bootstrap::bootstrap;
 use limedl_core::event_bus::DownloadEvent;
+use limedl_rpc::Aria2RpcServer;
 
 use crate::i18n::Language;
 use crate::tray::TRAY_INSTANCE;

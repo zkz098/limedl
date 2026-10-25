@@ -3989,15 +3989,10 @@ name = "limedl-core"
 version = "0.5.5"
 dependencies = [
  "anyhow",
- "argon2 0.6.0",
  "async-trait",
  "axum",
- "base64 0.23.1",
- "blake3",
- "brotli",
  "bytes",
  "criterion",
- "flate2",
  "foldhash 0.2.0",
  "futures-util",
  "limedl-bt",
@@ -4005,28 +4000,22 @@ dependencies = [
  "limedl-engine",
  "limedl-http",
  "limedl-store",
+ "limedl-testkit",
  "limedl-types",
  "ntest",
  "open",
  "parking_lot",
- "percent-encoding",
  "rand 0.10.3",
  "reqwest 0.13.5",
  "sanitize-filename",
- "serde",
  "serde_json",
- "subtle",
  "tempfile",
  "time",
  "tokio",
- "tokio-tungstenite 0.30.0",
  "tokio-util",
- "tower-http 0.7.1",
  "tracing",
  "tracing-subscriber",
  "uuid",
- "xxhash-rust",
- "zstd",
 ]
 
 [[package]]
@@ -4109,6 +4098,7 @@ dependencies = [
  "i-slint-backend-testing",
  "image",
  "limedl-core",
+ "limedl-rpc",
  "mimalloc",
  "minisign-verify",
  "muda 0.21.0",
@@ -4143,12 +4133,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "limedl-rpc"
+version = "0.5.5"
+dependencies = [
+ "anyhow",
+ "argon2 0.6.0",
+ "axum",
+ "base64 0.23.1",
+ "blake3",
+ "foldhash 0.2.0",
+ "futures-util",
+ "limedl-core",
+ "limedl-testkit",
+ "ntest",
+ "percent-encoding",
+ "rand 0.10.3",
+ "reqwest 0.13.5",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tempfile",
+ "tokio",
+ "tokio-tungstenite 0.30.0",
+ "tower-http 0.7.1",
+ "tracing",
+ "uuid",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "limedl-server"
 version = "0.5.5"
 dependencies = [
  "anyhow",
  "clap",
  "limedl-core",
+ "limedl-rpc",
  "ntest",
  "reqwest 0.13.5",
  "serde_json",
@@ -4174,6 +4194,24 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "limedl-testkit"
+version = "0.5.5"
+dependencies = [
+ "axum",
+ "brotli",
+ "bytes",
+ "flate2",
+ "futures-util",
+ "limedl-disk",
+ "limedl-types",
+ "ntest",
+ "rand 0.10.3",
+ "reqwest 0.13.5",
+ "tokio",
+ "zstd",
 ]
 
 [[package]]

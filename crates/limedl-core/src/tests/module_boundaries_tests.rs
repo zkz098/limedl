@@ -26,8 +26,9 @@
 //! `settings`, `url_rewrite`, `checksum`, `slot_guard`, `platform`) and
 //! `limedl-disk` (`file_ops`, `buffer_pool`, `io_scheduler`, `services`) and
 //! `limedl-store` (`database`, `alt_svc`), `limedl-http` (`http`,
-//! `http_client_factory`, `rate_limiter`), `limedl-bt` (`bt_backend`) and
-//! `limedl-engine` (executor, scheduler, CDN, metalink, task lifecycle).
+//! `http_client_factory`, `rate_limiter`), `limedl-bt` (`bt_backend`),
+//! `limedl-engine` (executor, scheduler, CDN, metalink, task lifecycle),
+//! `limedl-rpc` (`aria2_rpc`) and `limedl-testkit` (`test_harness`).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
@@ -61,7 +62,6 @@ const ALLOWED_CYCLES: &[&[&str]] = &[];
 /// When a module moves to another crate, delete its name from here in the same
 /// commit — the stale-entry check below fails otherwise.
 const LAYERS: &[(&str, &[&str])] = &[
-    ("limedl-testkit (not extracted yet)", &["test_harness"]),
     (
         "limedl-core",
         &[
@@ -70,9 +70,10 @@ const LAYERS: &[(&str, &[&str])] = &[
             "dispatcher",
             "backend_registry",
             "logging",
+            // Test fixtures that need the manager facade; see `src/testing.rs`.
+            "testing",
         ],
     ),
-    ("limedl-rpc", &["aria2_rpc"]),
     ("limedl-core (bootstrap only)", &["bootstrap"]),
 ];
 

@@ -20,61 +20,43 @@ limedl-types = { path = "../limedl-types", default-features = false }
 limedl-disk = { path = "../limedl-disk", default-features = false }
 limedl-http = { path = "../limedl-http", default-features = false }
 limedl-engine = { path = "../limedl-engine", default-features = false }
+# The harness is test-only; the optional entry is what the `test-utils` feature
+# turns on, and the dev-dependency below is what `cfg(test)` alone gets.
+limedl-testkit = { path = "../limedl-testkit", optional = true }
+# `testing::make_manager` hands back a TempDir guard, and that module is
+# reachable from `--features test-utils` (not just `cfg(test)`), where
+# dev-dependencies are not linked.
+tempfile = { workspace = true, optional = true }
 limedl-bt = { path = "../limedl-bt", default-features = false, optional = true }
 limedl-store = { path = "../limedl-store", default-features = false }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 reqwest = { workspace = true }
 futures-util = { workspace = true }
-blake3 = { workspace = true }
-xxhash-rust = { workspace = true }
 sanitize-filename = { workspace = true }
 uuid = { workspace = true }
-percent-encoding = { workspace = true }
 anyhow = { workspace = true }
 time = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-axum = { workspace = true, optional = true }
-tower-http = { workspace = true, optional = true }
-base64 = { workspace = true }
 async-trait = { workspace = true }
 bytes = { workspace = true }
 foldhash = { workspace = true }
 parking_lot = { workspace = true }
-serde = { workspace = true }
 serde_json = { workspace = true }
 rand = { workspace = true }
-argon2 = { workspace = true, optional = true }
-subtle = { workspace = true, optional = true }
 open = { workspace = true }
-# Encoders for the compression test endpoints. Optional and only enabled by
-# `test-utils`: the decoder side arrives through reqwest's gzip/brotli/zstd
-# features, so these exact versions are already in the graph.
-flate2 = { version = "1", optional = true }
-brotli = { version = "9", optional = true }
-zstd = { version = "0.14", optional = true }
 
 [features]
 bt = ["dep:limedl-bt", "limedl-types/bt", "limedl-store/bt"]
 default = ["bt"]
-aria2-rpc = [
-    "dep:axum",
-    "dep:tower-http",
-    "dep:argon2",
-    "dep:subtle",
-    "bt",
-]
 test-utils = [
-    "dep:axum",
-    "dep:tower-http",
-    "dep:flate2",
-    "dep:brotli",
-    "dep:zstd",
+    "dep:limedl-testkit",
+    "dep:tempfile",
     "limedl-disk/test-utils",
     "limedl-store/test-utils",
     "limedl-http/test-utils",
-
+    "limedl-engine/test-utils",
 ]
 
 [dev-dependencies]
@@ -95,19 +77,17 @@ limedl-http = { path = "../limedl-http", default-features = false, features = [
 limedl-engine = { path = "../limedl-engine", default-features = false, features = [
   "test-utils",
 ] }
+limedl-testkit = { path = "../limedl-testkit" }
+# The engine's own tests stand up ad-hoc HTTP servers (mirror/abuse/error
+# injection) that the shared `TestServer` does not cover.
+axum = { workspace = true }
 
 tempfile = { workspace = true }
 rand = { workspace = true }
 ntest = { workspace = true }
-tokio-tungstenite = { workspace = true }
-axum = { workspace = true }
-tower-http = { workspace = true }
 criterion = { workspace = true }
 # Encoders for the compression test endpoints, needed under `cfg(test)` where
 # the optional normal deps above are not enabled. See the `test-utils` feature.
-flate2 = "1"
-brotli = "9"
-zstd = "0.14"
 
 [[bench]]
 name = "aimd"

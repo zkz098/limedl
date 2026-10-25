@@ -34,8 +34,13 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use tokio::time::sleep;
 
-use super::checksum::hash_slices;
-use super::types::ChecksumMode;
+pub use limedl_disk::{buffer_pool, io_scheduler};
+/// The layers this harness drives, re-exported so the moved module kept its
+/// `super::checksum::…` spellings.
+pub use limedl_types::{checksum, error, types};
+
+use crate::checksum::hash_slices;
+use crate::types::ChecksumMode;
 
 // ---------------------------------------------------------------------------
 // Public API

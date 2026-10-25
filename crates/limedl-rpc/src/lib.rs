@@ -1,5 +1,15 @@
 use foldhash::HashMap;
 
+// The engine facade, re-exported as modules so the moved files kept their
+// `crate::dispatcher::…` / `crate::types::…` spellings.
+pub use limedl_core::{
+    backend_registry, bootstrap, bt_backend, dispatcher, event_bus, http, manager, manifest,
+    metalink, types,
+};
+// Test-only, like the modules that use it.
+#[cfg(test)]
+pub use limedl_core::test_harness;
+
 mod bind;
 mod context;
 mod dispatch;

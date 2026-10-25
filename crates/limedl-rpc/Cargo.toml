@@ -1,0 +1,48 @@
+[package]
+name = "limedl-rpc"
+version.workspace = true
+description = "Aria2 JSON-RPC + WebSocket compatibility server for limedl"
+license.workspace = true
+edition = "2024"
+# Workspace-internal, like every other limedl crate.
+publish = false
+
+[lib]
+name = "limedl_rpc"
+
+[dependencies]
+# One direction only: the RPC layer speaks to the engine through `limedl-core`'s
+# facade (`Dispatcher`, `SystemContext`, `BackendRegistry`). `limedl-core` does
+# not and must not depend on this crate — that is what keeps `axum`, `tower-http`
+# and `argon2` out of the desktop app's graph unless it asks for them.
+limedl-core = { path = "../limedl-core" }
+axum = { workspace = true }
+tower-http = { workspace = true }
+argon2 = { workspace = true }
+subtle = { workspace = true }
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+base64 = { workspace = true }
+blake3 = { workspace = true }
+percent-encoding = { workspace = true }
+foldhash = { workspace = true }
+futures-util = { workspace = true }
+xxhash-rust = { workspace = true }
+uuid = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]
+# The engine's test seams (`limedl_core::testing`, `limedl_core::test_harness`)
+# are behind its `test-utils` feature. Cargo unifies a package's features across
+# normal and dev dependencies when the test target is built, so this is what
+# turns them on for `cargo nextest -p limedl-rpc` without changing what a
+# production build of this crate links.
+limedl-core = { path = "../limedl-core", features = ["test-utils"] }
+limedl-testkit = { path = "../limedl-testkit" }
+tempfile = { workspace = true }
+ntest = { workspace = true }
+reqwest = { workspace = true }

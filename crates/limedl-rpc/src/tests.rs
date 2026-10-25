@@ -970,10 +970,10 @@ async fn empty_batch_is_an_invalid_request() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(30_000)]
 async fn resolve_gid_scans_backends_and_remove_clears_the_cache() {
-    let (_tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+    let (_tmp, dm) = limedl_core::testing::make_manager();
     let uuid = uuid::Uuid::from_u128(0xC0FFEE);
     let id = uuid.to_string();
-    crate::tests::dispatcher_tests::inject_download(&dm, &id, DownloadState::Completed).await;
+    limedl_core::testing::inject_download(&dm, &id, DownloadState::Completed).await;
 
     let mut registry = BackendRegistry::new();
     registry.register_arc(TaskKind::Http, dm.clone());
@@ -1021,12 +1021,12 @@ async fn resolve_gid_scans_backends_and_remove_clears_the_cache() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(30_000)]
 async fn resolve_gid_accepts_a_unique_prefix_and_refuses_an_ambiguous_one() {
-    let (_tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+    let (_tmp, dm) = limedl_core::testing::make_manager();
     // 17 GIDs over 16 leading hex digits guarantees two share the first digit.
     let mut gids = Vec::new();
     for n in 0u128..17 {
         let id = uuid::Uuid::from_u128(0x1000 + n).to_string();
-        crate::tests::dispatcher_tests::inject_download(&dm, &id, DownloadState::Completed).await;
+        limedl_core::testing::inject_download(&dm, &id, DownloadState::Completed).await;
         gids.push(internal_id_to_gid(&id));
     }
 
@@ -1148,10 +1148,10 @@ fn bt_files_to_aria2_uses_one_based_indices_and_selection() {
 #[tokio::test(flavor = "multi_thread")]
 #[timeout(30_000)]
 async fn change_option_applies_pause_and_rejects_unsupported_keys() {
-    let (tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+    let (tmp, dm) = limedl_core::testing::make_manager();
     let uuid = uuid::Uuid::from_u128(0xCAFE);
     let id = uuid.to_string();
-    crate::tests::dispatcher_tests::inject_download(&dm, &id, DownloadState::Queued).await;
+    limedl_core::testing::inject_download(&dm, &id, DownloadState::Queued).await;
 
     let mut registry = BackendRegistry::new();
     registry.register_arc(TaskKind::Http, dm.clone());
@@ -1196,7 +1196,7 @@ async fn change_option_applies_pause_and_rejects_unsupported_keys() {
 #[timeout(60_000)]
 async fn http_lifecycle_notifications_are_emitted_exactly_once() {
     let server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
-    let (tmp, dm) = crate::tests::dispatcher_tests::make_manager();
+    let (tmp, dm) = limedl_core::testing::make_manager();
     let out_dir = tmp.path().join("out");
     std::fs::create_dir_all(&out_dir).expect("create out dir");
 

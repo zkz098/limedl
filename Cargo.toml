@@ -6,6 +6,8 @@ members = [
     "crates/limedl-engine",
     "crates/limedl-bt",
     "crates/limedl-http",
+    "crates/limedl-rpc",
+    "crates/limedl-testkit",
     "crates/limedl-store",
     "crates/limedl-native",
     "crates/limedl-server",

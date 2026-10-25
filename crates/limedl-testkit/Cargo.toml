@@ -1,0 +1,36 @@
+[package]
+name = "limedl-testkit"
+version.workspace = true
+description = "Test harness for the limedl engine — a local HTTP server with deterministic content, range support, bandwidth simulation and failure injection"
+license.workspace = true
+edition = "2024"
+# Workspace-internal and test-only: nothing ships it, and no production crate may
+# depend on it except through a `test-utils` feature or a dev-dependency.
+publish = false
+
+[lib]
+name = "limedl_testkit"
+
+[dependencies]
+# The engine's own stack, so a `TestServer` speaks to exactly what the engine
+# speaks to. Sits above `limedl-disk` because the fault-injection endpoints drive
+# the write-coalescing primitives and the IO scheduler.
+limedl-types = { path = "../limedl-types", default-features = false }
+limedl-disk = { path = "../limedl-disk", default-features = false, features = [
+  "test-utils",
+] }
+axum = { workspace = true }
+tokio = { workspace = true }
+bytes = { workspace = true }
+futures-util = { workspace = true }
+rand = { workspace = true }
+# The compression endpoints encode a response with each backend so the executor's
+# decompression paths can be driven end to end. Same versions reqwest already
+# links for decoding, so the graph does not gain a second backend.
+flate2 = "1"
+brotli = "9"
+zstd = "0.14"
+
+[dev-dependencies]
+ntest = { workspace = true }
+reqwest = { workspace = true }
