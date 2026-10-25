@@ -1,0 +1,35 @@
+[package]
+name = "limedl-http"
+version.workspace = true
+description = "HTTP transport policy for limedl — client construction (proxy/TLS/HTTP-3), identity encoding, url→header helpers and the token-bucket rate limiter"
+license.workspace = true
+edition = "2024"
+# Workspace-internal, like every other limedl crate.
+publish = false
+
+[lib]
+name = "limedl_http"
+
+[dependencies]
+# The whole point of this crate: every `reqwest` policy the engine has opinions
+# about lives behind this one boundary (proxy modes, the identity-encoding rule
+# for range requests, the HTTP/3 toggle), so `limedl-bt`, `limedl-engine` and the
+# CDN accelerator share the same client instead of each building their own.
+limedl-types = { path = "../limedl-types", default-features = false }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+parking_lot = { workspace = true }
+percent-encoding = { workspace = true }
+sanitize-filename = { workspace = true }
+time = { workspace = true }
+
+[features]
+# `rate_limiter` exposes its occupancy counters to the engine's tests only.
+default = []
+test-utils = []
+
+[dev-dependencies]
+ntest = { workspace = true }
+futures-util = { workspace = true }
+# `http::tests` builds `reqwest`-shaped responses out of `axum::http`.
+axum = { workspace = true }

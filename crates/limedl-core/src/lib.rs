@@ -15,15 +15,12 @@ pub mod cdn;
 pub mod context;
 pub mod dispatcher;
 pub mod download;
-pub mod http;
-pub mod http_client_factory;
 pub mod http_executor;
 pub mod logging;
 pub mod manager;
 pub mod manager_state;
 pub mod metalink;
 pub mod persistence;
-pub mod rate_limiter;
 pub mod retry;
 pub mod scheduler;
 pub mod speed_tracker;
@@ -47,6 +44,11 @@ pub use limedl_disk::{buffer_pool, file_ops, io_scheduler, services};
 
 // Persistence. Same module-level re-export as the two layers below it.
 pub use limedl_store::{alt_svc, database};
+
+// HTTP transport policy: the client factory, the shared header/url helpers and
+// the rate limiter. Module re-exports, so `crate::http::identity_encoding` and
+// `crate::http_client_factory::…` keep resolving.
+pub use limedl_http::{http, http_client_factory, rate_limiter};
 
 #[cfg(any(test, feature = "test-utils"))]
 #[cfg_attr(not(test), allow(dead_code))]

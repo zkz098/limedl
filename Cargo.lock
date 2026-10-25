@@ -3983,6 +3983,7 @@ dependencies = [
  "futures-util",
  "irontide",
  "limedl-disk",
+ "limedl-http",
  "limedl-store",
  "limedl-types",
  "ntest",
@@ -4026,6 +4027,22 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "limedl-http"
+version = "0.5.5"
+dependencies = [
+ "axum",
+ "futures-util",
+ "limedl-types",
+ "ntest",
+ "parking_lot",
+ "percent-encoding",
+ "reqwest 0.13.5",
+ "sanitize-filename",
+ "time",
+ "tokio",
 ]
 
 [[package]]

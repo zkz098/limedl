@@ -18,6 +18,7 @@ name = "limedl_core"
 # graph.
 limedl-types = { path = "../limedl-types", default-features = false }
 limedl-disk = { path = "../limedl-disk", default-features = false }
+limedl-http = { path = "../limedl-http", default-features = false }
 limedl-store = { path = "../limedl-store", default-features = false }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
@@ -72,6 +73,7 @@ test-utils = [
     "dep:zstd",
     "limedl-disk/test-utils",
     "limedl-store/test-utils",
+    "limedl-http/test-utils",
 ]
 
 [dev-dependencies]
@@ -84,6 +86,9 @@ limedl-disk = { path = "../limedl-disk", default-features = false, features = [
   "test-utils",
 ] }
 limedl-store = { path = "../limedl-store", default-features = false, features = [
+  "test-utils",
+] }
+limedl-http = { path = "../limedl-http", default-features = false, features = [
   "test-utils",
 ] }
 tempfile = { workspace = true }

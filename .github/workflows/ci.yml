@@ -245,7 +245,7 @@ jobs:
       # `cargo xtask gate` and its `ci_covers_every_workspace_crate` test fail
       # when this list and the workspace members drift apart.
       # Deliberately no MiSans font step: none of these packages build the UI.
-      - run: cargo nextest run -p limedl-types -p limedl-disk -p limedl-store -p limedl-core --features "limedl-core/test-utils,limedl-core/aria2-rpc"
+      - run: cargo nextest run -p limedl-types -p limedl-disk -p limedl-store -p limedl-http -p limedl-core --features "limedl-core/test-utils,limedl-core/aria2-rpc"
       # xtask rides along: it needs neither the font nor the UI crate, and its
       # tests are the only coverage of the release guard's default `--update-rs`
       # path. `release.yml` calls `cargo xtask guard <files>` with no flag, so a
@@ -351,7 +351,7 @@ jobs:
       # the Windows legs. All tests in these crates are pure Rust logic tests
       # that do not require a display server.
       - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo nextest run -p limedl-types -p limedl-disk -p limedl-store -p limedl-core --features "limedl-core/test-utils,limedl-core/aria2-rpc"
+      - run: cargo nextest run -p limedl-types -p limedl-disk -p limedl-store -p limedl-http -p limedl-core --features "limedl-core/test-utils,limedl-core/aria2-rpc"
       # limedl-native's `cfg(target_os = "macos")` tests (the tar.gz/`.app` member
       # match and the window-placement guard) exist only here: test-windows-native
       # compiles the Windows branches and check-rust the Linux ones, so without
@@ -474,7 +474,7 @@ jobs:
           # `-C instrument-coverage` instrumentation is unaffected, and neither
           # this repo nor core's dependency graph uses that cfg (measured
           # difference: 5 dependency lines).
-          cargo llvm-cov nextest --cargo-profile dev --no-fail-fast -p limedl-types -p limedl-disk -p limedl-store -p limedl-core --features "limedl-core/test-utils,limedl-core/aria2-rpc" --lcov --output-path crates/limedl-core/lcov-core.info --fail-under-lines 85 --no-cfg-coverage
+          cargo llvm-cov nextest --cargo-profile dev --no-fail-fast -p limedl-types -p limedl-disk -p limedl-store -p limedl-http -p limedl-core --features "limedl-core/test-utils,limedl-core/aria2-rpc" --lcov --output-path crates/limedl-core/lcov-core.info --fail-under-lines 85 --no-cfg-coverage
           # Second report for the Sonar scan: the desktop crate is a workspace
           # path dependency of limedl-core's *sibling*, so without it every
           # limedl-native line was missing from the report and Sonar counted the
@@ -495,7 +495,7 @@ jobs:
           # and the nextest runner (CI-equivalent local run, 2026-10-03). There
           # is no --fail-under-lines here yet: land a baseline gate once the
           # number has settled in CI.
-          cargo llvm-cov nextest --cargo-profile dev --no-fail-fast --manifest-path crates/limedl-native/Cargo.toml --lcov --output-path crates/limedl-native/lcov-native.info --ignore-filename-regex 'crates.limedl-(core|types|disk|store)' --no-cfg-coverage
+          cargo llvm-cov nextest --cargo-profile dev --no-fail-fast --manifest-path crates/limedl-native/Cargo.toml --lcov --output-path crates/limedl-native/lcov-native.info --ignore-filename-regex 'crates.limedl-(core|types|disk|store|http)' --no-cfg-coverage
       # Formatting is checked against a *pinned* toolchain instead of this job's
       # `stable`: rustfmt's output changes between Rust releases (the style
       # edition is the obvious one, and it silently ignores its nightly-only

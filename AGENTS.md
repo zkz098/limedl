@@ -13,7 +13,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Purpose         | Command                                                                                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Gate (all)      | `cargo xtask gate` · `cargo xtask gate --full` · `cargo xtask gate --check-ci` (see "Pre-commit verification gate")                                   |
-| Test (Rust)     | `cargo nextest run -p limedl-types -p limedl-disk -p limedl-store -p limedl-core --features "limedl-core/test-utils,limedl-core/aria2-rpc"` (engine), then `xtask`, `limedl-native`, `limedl-server` (see the gate below)                                                                |
+| Test (Rust)     | `cargo nextest run -p limedl-types -p limedl-disk -p limedl-store -p limedl-http -p limedl-core --features "limedl-core/test-utils,limedl-core/aria2-rpc"` (engine), then `xtask`, `limedl-native`, `limedl-server` (see the gate below)                                                                |
 | Feature matrix  | `cargo hack check --feature-powerset --all-targets --keep-going --manifest-path crates/limedl-core/Cargo.toml`                                                      |
 | Unused deps     | `cargo machete --with-metadata`                                                                                                                                     |
 | Version bump    | `cargo xtask bump-version patch`                                                                                                                                   |
@@ -33,18 +33,19 @@ limedl/
 ├── crates/limedl-types/  # Foundation layer: domain types, settings, errors, events, manifest, DownloadBackend
 ├── crates/limedl-disk/   # Disk/IO substrate: file_ops, buffer_pool, io_scheduler, disk services
 ├── crates/limedl-store/  # Persistence: SQLite task/chunk/manifest store, Alt-Svc cache
+├── crates/limedl-http/   # HTTP policy: client factory, identity encoding, rate limiter
 ├── crates/limedl-core/   # Engine + orchestration (lib: limedl_core): HTTP executor, scheduler, CDN, BT, Aria2 RPC
 ├── crates/limedl-native/ # Lightweight native desktop UI based on Slint
 ├── crates/limedl-server/ # Headless daemon: Aria2 JSON-RPC over the engine (NAS/server)
 └── xtask/                # Repo tooling: minisign keygen/sign/guard, font fetch, version bump, theme, icons
 ```
 
-The engine is being split bottom-up. As of this commit three layers are out:
-`limedl-types`, `limedl-disk` and `limedl-store`. `limedl-core` keeps a `pub use` shim per
+The engine is being split bottom-up. As of this commit four layers are out:
+`limedl-types`, `limedl-disk`, `limedl-store` and `limedl-http`. `limedl-core` keeps a `pub use` shim per
 module (`pub use limedl_types::{types, error, …}`) so every historical path —
 including the ~12k lines of tests in `src/tests/` — still resolves; the remaining
-layers (`limedl-http`, `limedl-engine`, `limedl-bt`, `limedl-rpc`,
-`limedl-testkit`) are listed as
+layers (`limedl-engine`, `limedl-bt`, `limedl-rpc`, `limedl-testkit`) are
+listed as
 `LAYERS` in `crates/limedl-core/src/tests/module_boundaries_tests.rs`, which
 fails on an upward edge and on a module it cannot classify.
 
