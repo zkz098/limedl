@@ -192,8 +192,9 @@ These used to be documented here and all came from the retired Tauri shell
 
 - **`LNK4078` "multiple `.rsrc` sections"** — came from `src-tauri/build.rs`
   embedding a ComCtl32 v6 manifest while `tauri_build::build()` embedded one
-  through `tauri-winres`. `crates/limedl-native/build.rs` only calls `winres` for
-  icon/version metadata, so the duplicate section cannot occur. There is no custom
+  through `tauri-winres`. `crates/limedl-native/build.rs` embeds exactly one
+  resource object — `limedl-native.rc` (icon, VERSIONINFO), compiled by
+  `embed-resource` — so the duplicate section cannot occur. There is no custom
   manifest code to preserve.
 - **`quick-xml` RUSTSEC-2026-0194 / RUSTSEC-2026-0195** — accepted advisories for
   `quick-xml 0.39.x`, pinned by `wayland-scanner 0.31.10` in the Slint/winit Linux
@@ -203,4 +204,7 @@ These used to be documented here and all came from the retired Tauri shell
 - **`winreg` `multiple-versions` warning** — previously came from `auto-launch` and
   `embed-resource`. `winreg` has been completely replaced by the official
   `windows-registry` crate in `crates/limedl-native`, eliminating the dependency
-  entirely.
+  entirely. Note that `winreg 0.56` is back as `embed-resource`'s own
+  build-dependency (Windows build scripts only, never linked into the app), a
+  single version — so the warning stays gone; `cargo deny` in the `supply-chain`
+  job is what proves it.

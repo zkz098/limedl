@@ -21,7 +21,6 @@ tower-http = { workspace = true }
 argon2 = { workspace = true }
 subtle = { workspace = true }
 tokio = { workspace = true }
-tokio-tungstenite = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
@@ -36,6 +35,10 @@ uuid = { workspace = true }
 rand = { workspace = true }
 
 [dev-dependencies]
+# The WebSocket server is served by `axum::extract::ws` above, which owns
+# `tokio-tungstenite` internally; this crate only ever names the crate from
+# `tests/ws_e2e.rs`, so it belongs here rather than in the release graph.
+tokio-tungstenite = { workspace = true }
 # The engine's test seams (`limedl_core::testing`, `limedl_core::test_harness`)
 # are behind its `test-utils` feature. Cargo unifies a package's features across
 # normal and dev dependencies when the test target is built, so this is what

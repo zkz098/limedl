@@ -12,6 +12,8 @@ use fs4::FileExt;
 use tracing;
 
 use super::error::{DownloadError, Result, io_error_with_path};
+#[cfg(unix)]
+use rustix::io::IoSlice;
 
 pub mod batch;
 pub mod coalesce;
@@ -298,17 +300,14 @@ impl<'a> VectoredCursor<'a> {
         self.slices.len().min(MAX_IOV_BATCH)
     }
 
-    /// Build the iovec batch for the next `pwritev` call.
-    fn iov_batch(&self) -> Vec<libc::iovec> {
+    /// Build the `IoSlice` batch for the next `pwritev` call.
+    fn iov_batch(&self) -> Vec<IoSlice<'_>> {
         let batch_len = self.batch_len();
-        let mut iov: Vec<libc::iovec> = Vec::with_capacity(batch_len);
+        let mut iov: Vec<IoSlice<'_>> = Vec::with_capacity(batch_len);
         for (i, slice) in self.slices[..batch_len].iter().enumerate() {
             let data = if i == 0 { &slice[self.skip..] } else { *slice };
             if !data.is_empty() {
-                iov.push(libc::iovec {
-                    iov_base: data.as_ptr() as *mut libc::c_void,
-                    iov_len: data.len(),
-                });
+                iov.push(IoSlice::new(data));
             }
         }
         iov
@@ -343,8 +342,6 @@ impl<'a> VectoredCursor<'a> {
 /// coalescing fallback on other platforms.
 #[cfg(unix)]
 pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], mut offset: u64) -> Result<()> {
-    use std::os::unix::io::AsRawFd;
-
     if bufs.is_empty() {
         return Ok(());
     }
@@ -352,7 +349,6 @@ pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], mut offset: u64) -> Re
         return write_all_at(file, bufs[0], offset);
     }
 
-    let fd = file.as_raw_fd();
     let mut cursor = VectoredCursor::new(bufs);
 
     while !cursor.is_empty() {
@@ -367,30 +363,16 @@ pub fn write_all_vectored_at(file: &File, bufs: &[&[u8]], mut offset: u64) -> Re
             continue;
         }
 
-        let res = unsafe {
-            libc::pwritev(
-                fd,
-                iov.as_ptr(),
-                iov.len() as libc::c_int,
-                offset as libc::off_t,
-            )
-        };
-
-        if res < 0 {
-            let err = std::io::Error::last_os_error();
-            if err.kind() == std::io::ErrorKind::Interrupted {
-                continue;
+        match rustix::io::pwritev(file, &iov, offset) {
+            Ok(written) if written > 0 => offset += cursor.advance(written) as u64,
+            Ok(_) => {
+                return Err(DownloadError::InvalidResponse(String::from(
+                    "failed to write download data (pwritev returned 0)",
+                )));
             }
-            return Err(DownloadError::Io(err));
+            Err(rustix::io::Errno::INTR) => continue,
+            Err(errno) => return Err(DownloadError::Io(errno.into())),
         }
-
-        if res == 0 {
-            return Err(DownloadError::InvalidResponse(String::from(
-                "failed to write download data (pwritev returned 0)",
-            )));
-        }
-
-        offset += cursor.advance(res as usize) as u64;
     }
     Ok(())
 }

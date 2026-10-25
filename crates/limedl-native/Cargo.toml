@@ -109,7 +109,12 @@ notify-rust = "4"
 # so Windows and macOS dependency graphs and behaviour are unchanged.
 rfd = { version = "0.17", default-features = false, features = ["xdg-portal", "wayland"] }
 arboard = "3.6"
-image = { version = "0.25", default-features = false, features = ["png"] }
+# The tray icon is the only bitmap this crate decodes: a 32x32 RGBA PNG compiled
+# in with `include_bytes!` (`src/tray.rs`). `png` is the codec `image` already
+# links, so this removes *our* dependency on `image`'s container/format dispatch,
+# not a crate from the binary — `image` still arrives through `arboard` (clipboard
+# images) and Slint, and `xtask` keeps it for actual icon resizing.
+png = "0.18"
 sys-locale = "0.3"
 reqwest = { workspace = true }
 minisign-verify = { workspace = true }
@@ -120,10 +125,13 @@ self-replace = "1.5"
 percent-encoding = { workspace = true }
 
 [target.'cfg(windows)'.build-dependencies]
-# Windows PE resource embedding (icon, product name). winres is a pure-Rust rc
-# generator, but it is only ever used by the `CARGO_CFG_TARGET_OS == windows`
-# branch of build.rs — scoping it here keeps it out of the macOS/Linux builds.
-winres = "0.1"
+# Windows PE resource embedding (icon, version info) from the crate-root
+# `limedl-native.rc`. `embed-resource` is the maintained rc driver — `winres`
+# 0.1.12 was last published in 2021 — and it finds RC.EXE next to the MSVC
+# toolchain instead of requiring it on PATH (falling back to `llvm-rc`/`windres`
+# when cross-compiling). It is only ever used by the `#[cfg(windows)]` branch of
+# build.rs, so scoping it here keeps it out of the macOS/Linux builds.
+embed-resource = "3"
 
 [target.'cfg(windows)'.dependencies]
 windows-registry = "0.6"
@@ -156,7 +164,9 @@ windows = { version = "0.62", features = [
 windows-future = { version = "0.3", default-features = false, features = ["std"] }
 
 [target.'cfg(not(windows))'.dependencies]
-flate2 = "1"
+# `zlib-rs` (pure Rust, no C) replaces `miniz_oxide` as flate2's backend; the
+# backend is a workspace-wide choice, see `crates/limedl-testkit/Cargo.toml`.
+flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 tar = "0.4"
 
 # Sleep inhibition is a per-platform OS API, so each backend's dependency is
@@ -207,9 +217,9 @@ async-trait = { workspace = true }
 # tool".
 #
 #   slint-build    — invoked from `build.rs` to compile `ui/appwindow.slint`
-#   winres         — invoked from `build.rs`, inside its `#[cfg(windows)]` arm
+#   embed-resource — invoked from `build.rs`, inside its `#[cfg(windows)]` arm
 #   windows-future — deliberately never named in code: the `windows` crate turns
 #                    its `std` feature off and this declaration turns it back on
 #                    for the rest of the graph (see the comment on the entry)
 [package.metadata.cargo-machete]
-ignored = ["slint-build", "winres", "windows-future"]
+ignored = ["slint-build", "embed-resource", "windows-future"]

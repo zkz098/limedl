@@ -261,8 +261,8 @@ mod imp {
 
         use std::os::linux::fs::MetadataExt;
         let dev = meta.st_dev();
-        let major = libc::major(dev);
-        let minor = libc::minor(dev);
+        let major = rustix::fs::major(dev);
+        let minor = rustix::fs::minor(dev);
 
         let dev_symlink = format!("/sys/dev/block/{major}:{minor}");
         let Ok(link) = fs::read_link(&dev_symlink) else {

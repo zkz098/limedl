@@ -28,7 +28,18 @@ fs4 = { workspace = true }
 async-trait = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
-# `O_DIRECT`-style advice and `fstatvfs` for the SSD/HDD probe.
+# Vectored writes and device-number decoding without hand-built `iovec`s. The
+# coalesced flush (`file_ops::write_all_vectored_at`) is the hottest write path
+# in the engine: `rustix::io::pwritev` takes `IoSlice`s and returns `Errno`, so
+# that loop needs no `unsafe` block at all. `fs` is for `major`/`minor`.
+rustix = { version = "1", features = ["fs"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# The macOS disk probe needs the *raw* `statfs` struct (`f_mntfromname`,
+# `f_fstypename`) to name the mounted BSD device, and `rustix::fs::statfs`
+# exposes only the portable fields — so libc stays, scoped to the one platform
+# that reads those fields. Linux needs none of it: it resolves the block device
+# through `/sys/dev/block/<major>:<minor>`.
 libc = { workspace = true }
 
 [features]

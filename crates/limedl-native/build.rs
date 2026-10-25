@@ -13,6 +13,11 @@ fn main() {
     }
     println!("cargo:rerun-if-changed=assets/fonts/MiSansVF.ttf");
     println!("cargo:rerun-if-changed=ui/assets/icon.ico");
+    // `embed-resource` never emits this itself (its preprocessing step cannot
+    // produce dependency lines, see the crate's README errata); because this
+    // script prints any `rerun-if-changed` at all, cargo would otherwise stop
+    // rescanning the crate root and a `.rc` edit would not relink.
+    println!("cargo:rerun-if-changed=limedl-native.rc");
     // Not read by this build script, but the macOS release bundle is assembled
     // from them (`scripts/package-macos.sh` runs post-build), so a change to the
     // bundle identity or the icon source has to invalidate the cached binary.
@@ -20,15 +25,16 @@ fn main() {
     println!("cargo:rerun-if-changed=../../packaging/macos/Info.plist.in");
 
     // Windows PE file resources: embed app icon (.ico), product name, description,
-    // copyright.
+    // copyright, and the four-integer VERSIONINFO that Explorer reads.
     //
     // NOTE the cfg is `windows`, NOT a runtime `CARGO_CFG_TARGET_OS == "windows"`
-    // check. A build script is itself compiled for the host, and `winres` lives in
-    // `[target.'cfg(windows)'.build-dependencies]` — so on macOS/Linux the crate is
-    // simply not linked into the build script, and a runtime check would compile
-    // `winres::WindowsResource` anyway (E0433) while only *skipping* it at run time.
-    // The env var is only correct in cargo's own cfg plumbing; a `#[cfg]` here reads
-    // the same signal at compile time and keeps the dependency graph honest.
+    // check. A build script is itself compiled for the host, and `embed-resource`
+    // lives in `[target.'cfg(windows)'.build-dependencies]` — so on macOS/Linux the
+    // crate is simply not linked into the build script, and a runtime check would
+    // compile `embed_resource::compile` anyway (E0433) while only *skipping* it at
+    // run time. The env var is only correct in cargo's own cfg plumbing; a `#[cfg]`
+    // here reads the same signal at compile time and keeps the dependency graph
+    // honest.
     #[cfg(windows)]
     {
         // Guard against the silent breakage this replaced: if cargo ever stops
@@ -40,16 +46,34 @@ fn main() {
                  skipping the PE resource embedding"
             );
         }
-        let mut res = winres::WindowsResource::new();
-        res.set_icon("ui/assets/icon.ico");
-        res.set("ProductName", "limedl");
-        res.set(
-            "FileDescription",
-            "limedl - Native High-Performance Download Manager",
-        );
-        res.set("LegalCopyright", "Copyright (c) 2026 zkz098");
-        if let Err(e) = res.compile() {
-            eprintln!("cargo:warning=Failed to compile Windows resources: {e}");
+
+        // `CARGO_PKG_VERSION_*` are the parsed components; `CARGO_PKG_VERSION` is
+        // the dotted string the string table shows. A pre-release suffix is
+        // already absent from the numeric parts, which is what VERSIONINFO wants.
+        let macro_of = |name: &str, var: &str| {
+            format!(
+                "{name}={}",
+                std::env::var(var).expect("cargo sets CARGO_PKG_VERSION*")
+            )
+        };
+        let version = std::env::var("CARGO_PKG_VERSION").expect("cargo sets CARGO_PKG_VERSION");
+        let macros = [
+            macro_of("VERSION_MAJOR", "CARGO_PKG_VERSION_MAJOR"),
+            macro_of("VERSION_MINOR", "CARGO_PKG_VERSION_MINOR"),
+            macro_of("VERSION_PATCH", "CARGO_PKG_VERSION_PATCH"),
+            // VERSIONINFO has no build number to source here; 0 matches what
+            // winres derived from a plain `major.minor.patch` package version.
+            String::from("VERSION_BUILD=0"),
+            format!("VERSION_STR=\"{version}\""),
+        ];
+        // Warn instead of failing the build, exactly like the winres call this
+        // replaced: a missing RC.EXE is a packaging defect, not a reason to make
+        // `cargo check` unusable. `NotAttempted` (no compiler found) is called out
+        // separately — `manifest_optional()` would swallow it silently.
+        match embed_resource::compile("limedl-native.rc", macros) {
+            embed_resource::CompilationResult::Ok
+            | embed_resource::CompilationResult::NotWindows => {}
+            other => eprintln!("cargo:warning=Failed to embed Windows resources: {other}"),
         }
     }
 

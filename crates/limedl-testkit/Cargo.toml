@@ -27,7 +27,13 @@ rand = { workspace = true }
 # The compression endpoints encode a response with each backend so the executor's
 # decompression paths can be driven end to end. Same versions reqwest already
 # links for decoding, so the graph does not gain a second backend.
-flate2 = "1"
+#
+# `zlib-rs` (pure Rust, no C dependency) replaces `miniz_oxide` as flate2's
+# backend. It is a workspace-wide choice: flate2 features unify, and `any_zlib`
+# is what makes flate2 skip its miniz_oxide backend entirely, so the two crates
+# that also link flate2 (`xtask`, the non-Windows `limedl-native` updater) get the
+# same one. `cargo tree -e features -i flate2` shows which backend won.
+flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 brotli = "9"
 zstd = "0.14"
 

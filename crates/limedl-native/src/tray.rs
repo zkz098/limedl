@@ -76,12 +76,10 @@ pub fn update_tray_menu_and_tooltip(lang: Language, speed_limit_active: bool) {
 
 pub fn create_default_tray_icon() -> tray_icon::Icon {
     const ICON_BYTES: &[u8] = include_bytes!("../ui/assets/32x32.png");
-    if let Ok(dyn_img) = image::load_from_memory_with_format(ICON_BYTES, image::ImageFormat::Png) {
-        let rgba = dyn_img.to_rgba8();
-        let (width, height) = rgba.dimensions();
-        if let Ok(icon) = tray_icon::Icon::from_rgba(rgba.into_raw(), width, height) {
-            return icon;
-        }
+    if let Some((rgba, width, height)) = embedded_png_rgba(ICON_BYTES)
+        && let Ok(icon) = tray_icon::Icon::from_rgba(rgba, width, height)
+    {
+        return icon;
     }
 
     // Fallback: 32x32 RGBA icon
@@ -99,4 +97,62 @@ pub fn create_default_tray_icon() -> tray_icon::Icon {
         }
     }
     tray_icon::Icon::from_rgba(rgba, SIZE, SIZE).unwrap()
+}
+
+/// Decode the bundled icon into the RGBA8 buffer `tray-icon` wants.
+///
+/// `normalize_to_color8` (expand palette/low bit depths, strip 16-bit samples)
+/// plus `ALPHA` (expand a `tRNS` chunk, or an opaque channel) covers every shape
+/// an icon asset realistically takes. Grayscale output is *not* handled: it falls
+/// through to the drawn fallback above rather than being guessed at.
+fn embedded_png_rgba(bytes: &[u8]) -> Option<(Vec<u8>, u32, u32)> {
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+    decoder.set_transformations(
+        png::Transformations::normalize_to_color8() | png::Transformations::ALPHA,
+    );
+    let mut reader = decoder.read_info().ok()?;
+    let mut buffer = vec![0; reader.output_buffer_size()?];
+    let frame = reader.next_frame(&mut buffer).ok()?;
+    let pixels = buffer.get(..frame.buffer_size())?;
+
+    let rgba = match frame.color_type {
+        png::ColorType::Rgba => pixels.to_vec(),
+        // A trailing partial pixel cannot exist in an 8-bit RGB frame; if it did,
+        // dropping it is better than panicking on a corrupt asset.
+        png::ColorType::Rgb => pixels
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], u8::MAX])
+            .collect(),
+        _ => return None,
+    };
+
+    Some((rgba, frame.width, frame.height))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The bundled PNG has to decode through `png` the same way it decoded through
+    /// `image`. This is silent when it breaks — the drawn fallback below still
+    /// yields a usable (if wrong) tray icon — so assert on the pixels instead.
+    #[test]
+    fn bundled_png_decodes_to_32x32_rgba() {
+        const ICON_BYTES: &[u8] = include_bytes!("../ui/assets/32x32.png");
+        let (rgba, width, height) = embedded_png_rgba(ICON_BYTES).expect("bundled PNG decodes");
+
+        assert_eq!((width, height), (32, 32));
+        assert_eq!(rgba.len(), 32 * 32 * 4);
+        // Artwork-independent sanity: the icon is neither fully transparent nor
+        // fully black, which is what a wrong stride/color-type read produces.
+        let (pixels, remainder) = rgba.as_chunks::<4>();
+        assert!(remainder.is_empty(), "ragged RGBA buffer");
+        assert!(pixels.iter().any(|px| px[3] == 255), "no opaque pixel");
+        assert!(
+            pixels.iter().any(|px| px[..3].iter().any(|&c| c != 0)),
+            "fully black icon"
+        );
+    }
 }

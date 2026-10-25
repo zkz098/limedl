@@ -15,8 +15,10 @@ anyhow = { workspace = true }
 base64 = { workspace = true }
 clap = { workspace = true }
 # Raw deflate decode for the MiSans zip entry; same version limedl-native uses,
-# so the shared build graph does not gain a second compression backend.
-flate2 = "1"
+# so the shared build graph does not gain a second compression backend. The
+# `zlib-rs` backend is picked here as well — see `crates/limedl-testkit/Cargo.toml`
+# for why it is a workspace-wide choice rather than a per-crate one.
+flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 # Pure-Rust image decoder/resizer for cross-platform icon generation
 image = { version = "0.25", default-features = false, features = ["png"] }
 fips204 = { workspace = true }
