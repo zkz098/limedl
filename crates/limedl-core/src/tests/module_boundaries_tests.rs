@@ -26,7 +26,8 @@
 //! `settings`, `url_rewrite`, `checksum`, `slot_guard`, `platform`) and
 //! `limedl-disk` (`file_ops`, `buffer_pool`, `io_scheduler`, `services`) and
 //! `limedl-store` (`database`, `alt_svc`), `limedl-http` (`http`,
-//! `http_client_factory`, `rate_limiter`) and `limedl-bt` (`bt_backend`).
+//! `http_client_factory`, `rate_limiter`), `limedl-bt` (`bt_backend`) and
+//! `limedl-engine` (executor, scheduler, CDN, metalink, task lifecycle).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
@@ -61,22 +62,6 @@ const ALLOWED_CYCLES: &[&[&str]] = &[];
 /// commit — the stale-entry check below fails otherwise.
 const LAYERS: &[(&str, &[&str])] = &[
     ("limedl-testkit (not extracted yet)", &["test_harness"]),
-    (
-        "limedl-engine",
-        &[
-            "aimd",
-            "speed_tracker",
-            "retry",
-            "download",
-            "metalink",
-            "manager_state",
-            "persistence",
-            "scheduler",
-            "http_executor",
-            "cdn",
-            "task_lifecycle",
-        ],
-    ),
     (
         "limedl-core",
         &[
@@ -562,7 +547,10 @@ fn modules_form_a_dag_outside_the_allowed_cycles() {
     let src_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let (nodes, edges) = module_graph(&src_root);
     assert!(
-        nodes.len() > 10,
+        // The floor only exists to catch a broken parser, not to assert a
+        // module count: after six extractions the facade holds eight modules,
+        // so the bar had to come down with it.
+        nodes.len() > 4,
         "module discovery found only {} modules under {} — the parser is broken, \
          not the dependency graph",
         nodes.len(),
@@ -604,7 +592,10 @@ fn modules_only_depend_on_their_own_or_a_lower_layer() {
     let src_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let (nodes, edges) = module_graph(&src_root);
     assert!(
-        nodes.len() > 10,
+        // The floor only exists to catch a broken parser, not to assert a
+        // module count: after six extractions the facade holds eight modules,
+        // so the bar had to come down with it.
+        nodes.len() > 4,
         "module discovery found only {} modules under {} — the parser is broken, \
          not the dependency graph",
         nodes.len(),

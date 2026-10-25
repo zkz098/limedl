@@ -49,6 +49,7 @@ pub const TEST_GROUPS: &[TestGroup] = &[
             "limedl-disk",
             "limedl-store",
             "limedl-http",
+            "limedl-engine",
             "limedl-bt",
             "limedl-core",
         ],

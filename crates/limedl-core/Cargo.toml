@@ -19,6 +19,7 @@ name = "limedl_core"
 limedl-types = { path = "../limedl-types", default-features = false }
 limedl-disk = { path = "../limedl-disk", default-features = false }
 limedl-http = { path = "../limedl-http", default-features = false }
+limedl-engine = { path = "../limedl-engine", default-features = false }
 limedl-bt = { path = "../limedl-bt", default-features = false, optional = true }
 limedl-store = { path = "../limedl-store", default-features = false }
 tokio = { workspace = true }
@@ -47,7 +48,6 @@ rand = { workspace = true }
 argon2 = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
 open = { workspace = true }
-quick-xml = { workspace = true }
 # Encoders for the compression test endpoints. Optional and only enabled by
 # `test-utils`: the decoder side arrives through reqwest's gzip/brotli/zstd
 # features, so these exact versions are already in the graph.
@@ -90,6 +90,9 @@ limedl-store = { path = "../limedl-store", default-features = false, features = 
   "test-utils",
 ] }
 limedl-http = { path = "../limedl-http", default-features = false, features = [
+  "test-utils",
+] }
+limedl-engine = { path = "../limedl-engine", default-features = false, features = [
   "test-utils",
 ] }
 

@@ -232,7 +232,7 @@ pub fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> ChunkWorker
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 impl ManagedDownload {
     /// Test helper: wrap a manifest in a managed download with a matching
     /// snapshot, as `DownloadManager` does when it creates or loads a task.

@@ -1,0 +1,63 @@
+[package]
+name = "limedl-engine"
+version.workspace = true
+description = "The limedl HTTP download engine — chunk executor, scheduler, CDN accelerator, mirror racing and the manifest state machine"
+license.workspace = true
+edition = "2024"
+# Workspace-internal, like every other limedl crate.
+publish = false
+
+[lib]
+name = "limedl_engine"
+
+[dependencies]
+limedl-types = { path = "../limedl-types", default-features = false }
+limedl-disk = { path = "../limedl-disk", default-features = false }
+limedl-store = { path = "../limedl-store", default-features = false }
+limedl-http = { path = "../limedl-http", default-features = false }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+reqwest = { workspace = true }
+futures-util = { workspace = true }
+bytes = { workspace = true }
+parking_lot = { workspace = true }
+foldhash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+time = { workspace = true }
+uuid = { workspace = true }
+sanitize-filename = { workspace = true }
+async-trait = { workspace = true }
+# Metalink parsing (the `<file>`/`<url>` flavour that lists a download's mirrors)
+# and the base64-wrapped HTTP link form some of them use.
+quick-xml = { workspace = true }
+base64 = { workspace = true }
+# Aria2-compatible GIDs for chunk-worker identity.
+xxhash-rust = { workspace = true }
+rand = { workspace = true }
+
+[features]
+# The executor's write-fault seams and the lifecycle test hooks.
+default = []
+test-utils = [
+  "limedl-disk/test-utils",
+  "limedl-store/test-utils",
+  "limedl-http/test-utils",
+]
+
+[dev-dependencies]
+axum = { workspace = true }
+ntest = { workspace = true }
+# The engine's tests drive the disk layer's deterministic write-fault hooks and
+# the store's in-memory constructors, both of which are `test-utils` seams now.
+limedl-disk = { path = "../limedl-disk", default-features = false, features = [
+  "test-utils",
+] }
+limedl-store = { path = "../limedl-store", default-features = false, features = [
+  "test-utils",
+] }
+limedl-http = { path = "../limedl-http", default-features = false, features = [
+  "test-utils",
+] }

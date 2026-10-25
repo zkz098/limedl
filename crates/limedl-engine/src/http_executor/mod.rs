@@ -340,7 +340,7 @@ mod run;
 mod single;
 mod worker;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 pub use worker::mark_chunk_released;
 
 #[cfg(test)]

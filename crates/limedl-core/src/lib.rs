@@ -14,20 +14,10 @@ pub mod bootstrap;
 // resolving for the dispatcher, the Aria2 layer and the test tree.
 #[cfg(feature = "bt")]
 pub use limedl_bt as bt_backend;
-pub mod cdn;
 pub mod context;
 pub mod dispatcher;
-pub mod download;
-pub mod http_executor;
 pub mod logging;
 pub mod manager;
-pub mod manager_state;
-pub mod metalink;
-pub mod persistence;
-pub mod retry;
-pub mod scheduler;
-pub mod speed_tracker;
-pub mod task_lifecycle;
 
 // Foundation modules, re-exported as modules (not as a glob of items): the
 // re-export has to preserve the *module* path, because the engine and the test
@@ -53,12 +43,13 @@ pub use limedl_store::{alt_svc, database};
 // `crate::http_client_factory::…` keep resolving.
 pub use limedl_http::{http, http_client_factory, rate_limiter};
 
-#[cfg(any(test, feature = "test-utils"))]
-#[cfg_attr(not(test), allow(dead_code))]
-pub mod aimd;
-
-#[cfg(not(any(test, feature = "test-utils")))]
-mod aimd;
+// The engine: chunk executor, scheduler, CDN, mirror racing, manifest state
+// machine. Module re-exports again, so `crate::http_executor::…` and
+// `crate::scheduler::…` keep resolving for the facade and the test tree.
+pub use limedl_engine::{
+    aimd, cdn, download, http_executor, manager_state, metalink, persistence, retry, scheduler,
+    speed_tracker, task_lifecycle,
+};
 
 #[cfg(any(test, feature = "test-utils"))]
 #[cfg_attr(not(test), allow(dead_code))]
