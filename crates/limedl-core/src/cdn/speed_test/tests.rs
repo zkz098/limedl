@@ -47,6 +47,20 @@ async fn test_throughput_to_localhost() {
 
     tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await.unwrap();
+        // Read the request head before answering. Answering first is not valid
+        // HTTP/1.1, and hyper rejects it as `UnexpectedMessage` when the
+        // response wins the race against its own write of the request head —
+        // which is exactly what made this test fail 3/3 in CI (both platforms)
+        // while passing locally: the scheduling that decides the winner is not
+        // ours to control.
+        let mut request = Vec::new();
+        let mut byte = [0u8; 1];
+        while !request.ends_with(b"\r\n\r\n") {
+            match stream.read(&mut byte).await {
+                Ok(0) | Err(_) => return,
+                Ok(_) => request.push(byte[0]),
+            }
+        }
         let body = vec![b'X'; 1024 * 1024];
         let headers = format!(
             "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
@@ -55,9 +69,10 @@ async fn test_throughput_to_localhost() {
         stream.write_all(headers.as_bytes()).await.unwrap();
         stream.write_all(&body).await.unwrap();
         stream.flush().await.unwrap();
-        // Keep connection alive until client disconnects
-        let mut buf = [0u8; 1];
-        let _ = stream.read(&mut buf).await;
+        // Half-close: the client can still drain the body, and a client that
+        // abandons the response stops holding the task open.
+        let _ = stream.shutdown().await;
+        let _ = stream.read(&mut byte).await;
     });
 
     tokio::time::sleep(Duration::from_millis(50)).await;
