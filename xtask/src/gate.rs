@@ -284,6 +284,10 @@ fn build_steps(options: &Options) -> Vec<Step> {
 
     if options.full {
         steps.extend([
+            // `limedl-core` flips `{bt, test-utils}` (4 combinations). The same
+            // walk over `limedl-types` (2, `bt` alone) is what proves the type
+            // layer still compiles with the BT variants absent under its own
+            // manifest, not just through the engine's forwarding.
             Step::cargo_tool(
                 "hack",
                 "hack",
@@ -295,6 +299,19 @@ fn build_steps(options: &Options) -> Vec<Step> {
                     "--keep-going",
                     "--manifest-path",
                     "crates/limedl-core/Cargo.toml",
+                ],
+            ),
+            Step::cargo_tool(
+                "hack",
+                "hack",
+                &[
+                    "hack",
+                    "check",
+                    "--feature-powerset",
+                    "--all-targets",
+                    "--keep-going",
+                    "--manifest-path",
+                    "crates/limedl-types/Cargo.toml",
                 ],
             ),
             Step::cargo_tool("machete", "machete", &["machete", "--with-metadata"]),
@@ -428,6 +445,35 @@ pub fn ci_parity(root: &Path) -> Result<()> {
     ci_parity_for(root, &workspace_members(root)?)
 }
 
+/// Crates whose coverage report never reaches their Sonar module.
+///
+/// `ci.yml` copies the engine's union report into each sibling crate's
+/// directory, because the Sonar Rust analyzer resolves
+/// `sonar.rust.lcov.reportPaths` per Cargo manifest — a crate missing from that
+/// loop is measured as 0% covered while every test still passes.
+///
+/// Three members are not in the loop by design: `limedl-core` writes
+/// `lcov-core.info` under its own manifest (it owns the union report),
+/// `limedl-native` writes `lcov-native.info` there, and `limedl-server` is
+/// excluded from the coverage metric entirely (see sonar-project.properties).
+pub fn crates_missing_from_fanout(members: &[String], ci: &str) -> Vec<String> {
+    let fanout: Vec<&str> = ci
+        .lines()
+        .filter_map(|line| {
+            let rest = line.trim().strip_prefix("for crate in ")?;
+            Some(rest.trim_end_matches("; do").split_whitespace())
+        })
+        .flatten()
+        .collect();
+    members
+        .iter()
+        .filter_map(|member| member.strip_prefix("limedl-"))
+        .filter(|suffix| !matches!(*suffix, "native" | "server" | "core"))
+        .filter(|suffix| !fanout.contains(suffix))
+        .map(|suffix| format!("limedl-{suffix}"))
+        .collect()
+}
+
 /// Test seam: [`ci_parity`] with an injected member list, so the drift checks
 /// can be exercised against a fake workspace.
 #[cfg(test)]
@@ -495,8 +541,20 @@ fn ci_parity_for(root: &Path, members: &[String]) -> Result<()> {
         );
     }
 
+    let unfanned = crates_missing_from_fanout(members, &ci);
+    if !unfanned.is_empty() {
+        bail!(
+            "crates whose coverage report never reaches their Sonar module: {}\n\
+             Add them to the `for crate in …; do cp …/lcov-core.info …/lcov.info; done`\n\
+             loop in .github/workflows/ci.yml — the analyzer reads the report relative\n\
+             to each Cargo manifest, so a missing copy is reported as 0% covered.",
+            unfanned.join(", ")
+        );
+    }
+
     println!(
-        "ci parity ok: {} workspace members, all selected here and on a test line in ci.yml",
+        "ci parity ok: {} workspace members, all selected here, on a test line in \
+         ci.yml, and in the coverage fan-out",
         members.len()
     );
     Ok(())

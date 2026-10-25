@@ -450,3 +450,51 @@ fn gate_scrubs_the_cargo_metadata_block() {
     assert!(!scrubbed.contains(&"CARGO".to_string()));
     assert!(!scrubbed.contains(&"PATH".to_string()));
 }
+
+#[test]
+fn ci_parity_rejects_a_crate_missing_from_the_coverage_fanout() {
+    // The 9-crate split made the Sonar report per-module: `ci.yml` copies the
+    // engine's union report into each sibling crate's directory, and a crate
+    // missing from that loop is reported as 0% covered while every test passes.
+    let root = repo_root().unwrap();
+    let members = workspace_member_names(&root);
+    let ci = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).unwrap();
+
+    // The real file satisfies the contract …
+    assert!(
+        gate::crates_missing_from_fanout(&members, &ci).is_empty(),
+        "ci.yml must copy the coverage report into every measured crate"
+    );
+    // … and dropping one crate from the loop is what the check exists to catch.
+    let without_testkit = ci.replace(" bt rpc testkit;", " bt rpc;");
+    assert_ne!(
+        without_testkit, ci,
+        "the fixture must actually edit the loop"
+    );
+    assert_eq!(
+        gate::crates_missing_from_fanout(&members, &without_testkit),
+        vec!["limedl-testkit".to_string()]
+    );
+}
+
+#[test]
+fn gate_reports_the_coverage_fanout_in_its_parity_line() {
+    // Guards the wiring, not the logic: `--check-ci` must run the fan-out check.
+    let root = repo_root().unwrap();
+    gate::ci_parity(&root).expect("gate --check-ci on this tree");
+}
+
+fn workspace_member_names(root: &std::path::Path) -> Vec<String> {
+    let out = std::process::Command::new("cargo")
+        .args(["metadata", "--no-deps", "--format-version", "1"])
+        .current_dir(root)
+        .output()
+        .expect("cargo metadata");
+    let value: serde_json::Value = serde_json::from_slice(&out.stdout).expect("metadata json");
+    value["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|p| p["name"].as_str().map(str::to_string))
+        .collect()
+}

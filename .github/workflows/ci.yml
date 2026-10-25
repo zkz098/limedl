@@ -475,6 +475,16 @@ jobs:
           # this repo nor core's dependency graph uses that cfg (measured
           # difference: 5 dependency lines).
           cargo llvm-cov nextest --cargo-profile dev --no-fail-fast -p limedl-types -p limedl-disk -p limedl-store -p limedl-http -p limedl-engine -p limedl-bt -p limedl-rpc -p limedl-testkit -p limedl-core --features "limedl-core/test-utils" --lcov --output-path crates/limedl-core/lcov-core.info --fail-under-lines 85 --no-cfg-coverage
+          # One report, one module per crate. The Rust analyzer turns every
+          # Cargo manifest into a Sonar module and each module resolves
+          # `sonar.rust.lcov.reportPaths` **relative to its own base dir**, so a
+          # single copy under crates/limedl-core is invisible to the eight
+          # sibling modules the split created — they would be reported as 0%
+          # covered. The union report already contains every crate's files, so
+          # the fix is a copy per module, not another llvm-cov run.
+          for crate in types disk store http engine bt rpc testkit; do
+            cp crates/limedl-core/lcov-core.info "crates/limedl-$crate/lcov.info"
+          done
           # Second report for the Sonar scan: the desktop crate is a workspace
           # path dependency of limedl-core's *sibling*, so without it every
           # limedl-native line was missing from the report and Sonar counted the
@@ -588,8 +598,32 @@ jobs:
         with:
           name: rust-coverage-lcov
           # Recursive: the report is written next to the crate it covers.
-          path: '**/lcov-*.info'
+          path: |
+            **/lcov-*.info
+            crates/*/lcov.info
           if-no-files-found: warn
+
+  # The gate is code now (`cargo xtask gate`), and this job is what keeps it
+  # honest: `--check-ci` re-reads *this file* and fails when a workspace member's
+  # tests are not run here, or when the coverage fan-out loop misses a crate.
+  # Without it the gate and CI would drift exactly the way the old AGENTS.md
+  # command list did — it never grew `cargo deny`/`cargo audit`, and every
+  # `--manifest-path crates/limedl-core` silently skipped the crates that were
+  # split out of it.
+  #
+  # No rust-cache on purpose: this builds one small binary (`xtask`) and every
+  # cache entry competes with the 10 GB per-repo budget documented at the top.
+  gate-contract:
+    name: Gate / CI parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          cache: false
+          rustflags: ""
+      - run: cargo xtask gate --check-ci
 
   supply-chain:
     name: Supply chain (cargo-deny, cargo-audit, cargo-machete)

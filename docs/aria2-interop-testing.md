@@ -4,20 +4,19 @@ How limedl verifies that real aria2 clients (AriaNg, Motrix, userscripts, CLI
 tools) can drive its JSON-RPC server, and the plan for the layers that need a
 real `aria2c` binary.
 
-The server lives in `crates/limedl-core/src/aria2_rpc/`; the compatibility
+The server lives in `crates/limedl-rpc/src/`; the compatibility
 contract spans the dispatcher (`dispatch.rs`), the status mapper
 (`protocol.rs`) and the query/lifecycle handlers (`query.rs`, `download.rs`,
 `options.rs`).
 
 ## Tier 1 — fixture contract tests (in the normal gate)
 
-`crates/limedl-core/src/aria2_rpc/interop_tests.rs` encodes the **wire shapes
+`crates/limedl-rpc/src/interop_tests.rs` encodes the **wire shapes
 real clients send**, not the shapes limedl happens to expect. It is pure Rust,
 needs no external binary, and runs with the existing core gate:
 
 ```sh
-cargo nextest run --manifest-path crates/limedl-core/Cargo.toml \
-  --features "test-utils,aria2-rpc" -E 'test(/interop_/)'
+cargo nextest run -p limedl-rpc -E 'test(/interop_/)'
 ```
 
 What it pins down:
@@ -76,7 +75,7 @@ Record the capturing aria2 version in the fixture file.
 
 ### Mode B — live dual-run diff (implemented, nightly)
 
-`crates/limedl-core/src/aria2_rpc/oracle_tests.rs` starts a real
+`crates/limedl-rpc/src/oracle_tests.rs` starts a real
 `aria2c --enable-rpc` beside limedl's server, sends both the same requests, and
 reports how the responses differ. It is the executable form of the deviation
 table below.
@@ -85,13 +84,11 @@ Run it locally:
 
 ```sh
 ARIA2_ORACLE_BIN=$(command -v aria2c) cargo nextest run \
-  --manifest-path crates/limedl-core/Cargo.toml \
-  --features "test-utils,aria2-rpc" \
-  -E 'test(/aria2_rpc::oracle_tests::/)' --success-output=final
+  -p limedl-rpc -E 'test(/oracle_tests::/)' --success-output=final
 ```
 
 When `ARIA2_ORACLE_BIN` is unset every oracle test returns early, so the normal
-core gate never needs aria2. A set-but-unusable path panics, so the job cannot
+gate never needs aria2. A set-but-unusable path panics, so the job cannot
 pass by accident.
 
 **Policy: allowlisted gaps only.** The oracle asserts the client-facing

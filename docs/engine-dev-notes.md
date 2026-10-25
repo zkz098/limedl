@@ -19,9 +19,9 @@ synchronous fast path for in-memory buffers.
 Adding an algorithm means touching **all** of these, or one site is missed and
 verification silently does nothing:
 
-- `crates/limedl-core/src/types/common.rs` — the enum
-- `crates/limedl-core/src/checksum/mod.rs` — the hasher and `hash_slices`
-- `crates/limedl-core/src/database/manifest_repo.rs` — the text mapping
+- `crates/limedl-types/src/types/common.rs` — the enum
+- `crates/limedl-types/src/checksum/mod.rs` — the hasher and `hash_slices`
+- `crates/limedl-store/src/database/manifest_repo.rs` — the text mapping
 - `crates/limedl-core/src/aria2_rpc/options.rs` — `TYPE=DIGEST` parsing
 - desktop `bridge/forms/enums.rs` + `combo::CHECKSUMS` (index-aligned with the
   `@tr` list in `tab_download.slint`) and the three `.po` catalogs

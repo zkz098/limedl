@@ -169,7 +169,8 @@ and `.github/workflows/sign-check.yml`. Read this before editing a job.
   the nightly-only `#![feature(coverage_attribute)]` (stable fails with E0554),
   and identical RUSTFLAGS let the second step reuse the first step's instrumented
   shared dependencies. Reports are written per crate
-  (`crates/limedl-core/lcov-core.info`, `crates/limedl-native/lcov-native.info`):
+  (`crates/limedl-core/lcov-core.info`, `crates/limedl-native/lcov-native.info`,
+  plus one `lcov.info` copy per engine crate for the Sonar module split):
   Sonar's Rust analyzer resolves `sonar.rust.lcov.reportPaths` per Cargo manifest
   module and only looks in that module's own base dir. `scripts/`, `website/` and
   `xtask` are excluded in `sonar.coverage.exclusions` — llvm-cov cannot instrument
@@ -192,10 +193,11 @@ job was not already building).
 
 - **Feature matrix (`check-rust`, cargo-hack 0.6.45).**
   `cargo hack check --feature-powerset --all-targets --keep-going` over
-  `limedl-core` expands to 10 combinations of `{bt, aria2-rpc, test-utils}` and
-  runs under the job's `CARGO_BUILD_WARNINGS=deny`, so a warning in *any*
-  combination is fatal. Only `limedl-core` has features; native/server/xtask have
-  none, so running it there would only burn runner time.
+  `limedl-core` expands to 4 combinations of `{bt, test-utils}`, and over
+  `limedl-types` to the 2 of `{bt}` — it runs under the job's
+  `CARGO_BUILD_WARNINGS=deny`, so a warning in *any* combination is fatal. The
+  rest of the workspace has nothing to permute: `limedl-bt` is selected whole or
+  not at all, and native/server/xtask have no features.
   It exists because `--no-default-features` (the BT engine absent) is a
   documented configuration — the commit that added the `bt` feature promised it —
   and nothing ever built it: by the time the step was added it produced ten
@@ -298,11 +300,12 @@ The details below are what those steps mean and why they stay per-crate.
   `.cargo/config.toml`'s per-target rustflags (`target-cpu`, `rust-lld`,
   `/FORCE:MULTIPLE`), which CI keeps authoritative with `rustflags: ""`.
 - Tests run **per crate group, not `--workspace`**: only the engine crates take
-  `test-utils,aria2-rpc`, a workspace-wide run would lose those tests, and it
-  would build the UI crate just to check its flags. The three engine crates
-  (`limedl-types`, `limedl-disk`, `limedl-core`) are always selected together:
-  `--features` binds to `limedl-core` and `--manifest-path` on one of them skips
-  the other two suites.
+  `test-utils`, a workspace-wide run would lose those tests, and it would build
+  the UI crate just to check its flags. The nine engine crates are always
+  selected together: `--features` binds to `limedl-core` and `--manifest-path`
+  on one of them silently skips the other eight suites (269 tests vanished that
+  way during the split, which is why `cargo xtask gate --check-ci` now fails when
+  a member is not named on a `nextest`/`llvm-cov` line).
   `xtask` is in the gate because it holds the release-guard tests
   (`cargo xtask guard` runs in `release.yml`, and its default `--update-rs` path
   broke a release once).
