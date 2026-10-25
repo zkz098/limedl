@@ -1,33 +1,11 @@
 ---
 type: architecture
 title: Bootstrap, SystemContext and Shared Services
-description: The single canonical initialization sequence that builds SystemContext, DownloadManager, the lazy BT backend, the BackendRegistry, CDN service and Dispatcher, plus the shared services that own global runtime state and the two frontends that consume them.
-tags: [bootstrap, systemcontext, services, initialization, dependency-injection]
+description: The single canonical initialization sequence that builds SystemContext, DownloadManager, the lazy BT backend, the BackendRegistry, CDN service and Dispatcher, plus the shared services that own global runtime state, which crate each one lives in after the engine split, and the two frontends that consume them.
+tags: [bootstrap, systemcontext, services, initialization, dependency-injection, crate-boundaries]
 verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
-sources:
-  - id: openwiki-source-2262be0eb4e0dcf867247c95
-    resource: repo://crates/limedl-core/src/backend_registry/mod.rs
-  - id: openwiki-source-fd95ce7448707ad4ddaa3b43
-    resource: repo://crates/limedl-core/src/bootstrap.rs
-  - id: openwiki-source-fd061a9c15d2a04bc703746d
-    resource: repo://crates/limedl-core/src/context.rs
-  - id: openwiki-source-4b83dfd7538606d5871938ef
-    resource: repo://crates/limedl-core/src/dispatcher.rs
-  - id: openwiki-source-76cf0b396abab954f820977a
-    resource: repo://crates/limedl-core/src/services/concurrency.rs
-  - id: openwiki-source-9407da3da7a807b7713a5e9d
-    resource: repo://crates/limedl-core/src/services/disk_io.rs
-  - id: openwiki-source-2468c28a2ebe626471835de0
-    resource: repo://crates/limedl-core/src/services/settings_service.rs
-  - id: openwiki-source-a6c9307e4c12f6dae4a8f919
-    resource: repo://crates/limedl-core/src/slot_guard.rs
-  - id: openwiki-source-fb048d5fb7a13a8f9b8fad76
-    resource: repo://crates/limedl-native/src/main.rs
-  - id: openwiki-source-2d1753b77bfe7d551752205e
-    resource: repo://crates/limedl-server/src/lib.rs
-generated: { by: "pi", at: "2026-10-04T12:36:56.946Z" }
+  - by: openwiki/0.7.2
+    at: 2026-10-25T12:09:48.740Z
 ---
 
 # Bootstrap, SystemContext and Shared Services
@@ -36,7 +14,7 @@ Every frontend of limedl starts from one function: `bootstrap(state_dir)` in
 `crates/limedl-core/src/bootstrap.rs`. There are two frontends: the Slint desktop
 client (`crates/limedl-native/`) and the headless `limedl-server` daemon
 (`crates/limedl-server/`). `bootstrap` is deliberately the *only* place that
-constructs the core subsystems, so the initialization order and the Arc-sharing
+constructs the engine subsystems, so the initialization order and the Arc-sharing
 rules below apply uniformly and a new subsystem is added in exactly one place —
 the daemon inherits the whole engine graph for free.
 
@@ -45,17 +23,20 @@ the daemon inherits the whole engine graph for free.
 `bootstrap` returns a `CoreSystems` struct whose fields are `Arc`s (plus a
 settings snapshot):
 
-| Field | Purpose |
-| --- | --- |
-| `context: Arc<SystemContext>` | DB, EventBus, RateLimiter, BufferPool, device manager, concurrency, settings, disk I/O, shutdown token |
-| `download_manager: Arc<DownloadManager>` | HTTP engine |
-| `bt_backend: Arc<LazyBtBackend>` | BitTorrent engine wrapper (behind the `bt` feature, on by default) |
-| `registry: Arc<BackendRegistry>` | protocol routing table |
-| `dispatcher: Arc<Dispatcher>` | unified facade used by every frontend |
-| `event_bus`, `rate_limiter`, `cdn_service`, `settings_service`, `disk_io_service`, `concurrency` | shared services re-exported for callers |
-| `settings: AppSettings` | the startup snapshot read from `SettingsService` |
+| Field | Purpose | Type lives in |
+| --- | --- | --- |
+| `context: Arc<SystemContext>` | DB, EventBus, RateLimiter, BufferPool, device manager, concurrency, settings, disk I/O, shutdown token | `limedl-core` |
+| `download_manager: Arc<DownloadManager>` | task creation, settings application, facades over the HTTP engine | `limedl-core` |
+| `bt_backend: Arc<LazyBtBackend>` | BitTorrent engine wrapper (behind the `bt` feature, on by default) | `limedl-bt` |
+| `registry: Arc<BackendRegistry>` | protocol routing table | `limedl-core` |
+| `dispatcher: Arc<Dispatcher>` | unified facade used by every frontend | `limedl-core` |
+| `event_bus`, `rate_limiter`, `cdn_service`, `settings_service`, `disk_io_service`, `concurrency` | shared services re-exported for callers | `limedl-types`, `limedl-disk`, `limedl-engine` |
 
-Evidence: `repo://crates/limedl-core/src/bootstrap.rs#L21-L34`.
+Evidence: `repo://crates/limedl-core/src/bootstrap.rs#L21-L35`.
+
+The right-hand column is the crate split made visible: `bootstrap` is the one
+function that has to name a type from almost every engine crate, which is why it
+stayed in `limedl-core` and why it is the top of the engine's dependency graph.
 
 ## SystemContext: where global state is created
 
@@ -81,7 +62,12 @@ bus through that second constructor.
 - `ConcurrencyManager::new(5, 3)` (5 HTTP, 3 BT) and `DiskIoService`.
 - A fresh `CancellationToken` for shutdown.
 
-Evidence: `repo://crates/limedl-core/src/context.rs#L16-L100`.
+Evidence: `repo://crates/limedl-core/src/context.rs#L31-L100`.
+
+`SystemContext` names types from four crates at once (`limedl-store`'s `Database`,
+`limedl-disk`'s buffer pool / device manager / services, `limedl-http`'s
+`RateLimiter`, `limedl-types`' `EventBus`), and it is the reason `limedl-disk`
+must not depend on `limedl-core`: the dependency points the other way.
 
 ## The canonical initialization order
 
@@ -97,13 +83,15 @@ Evidence: `repo://crates/limedl-core/src/context.rs#L16-L100`.
    `spawn_idle_supervisor()` unloads an idle engine in lightweight mode. The
    expensive irontide session is started by `spawn_startup()`, and only when
    either lightweight mode is off **or** the index already holds unfinished
-   work.
+   work. Everything in this step is `limedl-bt`, reachable only when the `bt`
+   feature pulls it in.
 4. `BackendRegistry::new()`, then `register_arc(TaskKind::Http, ...)` and
    `register_arc(TaskKind::Bt, ...)`.
 5. `CdnService::new()`, injected into the manager via
    `download_manager.set_cdn_accelerator(...)` and restored from settings via
    `init_from_settings`.
-6. A dedicated `reqwest::Client` built with `configure_client_builder` (so
+6. A dedicated `reqwest::Client` built with
+   `limedl_http::http_client_factory::configure_client_builder` (so
    Dispatcher-side requests honour proxy and User-Agent) plus a 5-redirect
    policy, 15 s timeout and `limedl/<version>` UA.
 7. `Dispatcher::full(...)` with the registry, event bus, settings service, disk
@@ -121,13 +109,17 @@ atomics) and silently diverge from the copy in `CoreSystems`. The correlation
 counters, overclock flag and BT slot state must be the *same* objects the
 frontends talk to.
 
-Evidence: `repo://crates/limedl-core/src/backend_registry/mod.rs#L42-L60`,
-`repo://crates/limedl-core/src/bootstrap.rs#L81-L87`.
+Evidence: `repo://crates/limedl-core/src/backend_registry/mod.rs#L47-L60`,
+`repo://crates/limedl-core/src/bootstrap.rs#L81-L88`.
 
 ## What bootstrap deliberately does not build
 
-`Aria2RpcServer` is **not** part of `bootstrap`. The RPC server is optional and
-feature-gated (`aria2-rpc`), and it needs a shutdown channel the owner controls.
+`Aria2RpcServer` is **not** part of `bootstrap`, and after the crate split that
+is no longer a feature flag inside the engine — the RPC layer is a separate
+crate, `limedl-rpc`, that sits *above* `limedl-core`. `limedl-core` has no
+dependency on it at all, which is what keeps `axum`, `tower-http` and `argon2`
+out of the engine's dependency graph.
+
 Each frontend constructs it after `bootstrap` returns, from `core.registry`,
 `core.event_bus` and its own `Aria2RpcSettings`:
 
@@ -139,9 +131,11 @@ Each frontend constructs it after `bootstrap` returns, from `core.registry`,
   process, and selects on the signal/shutdown handles before calling
   `core.registry.shutdown_all()`.
 
-Evidence: `repo://crates/limedl-native/src/main.rs#L131-L145`,
-`repo://crates/limedl-server/src/lib.rs#L83-L139`,
-`repo://crates/limedl-core/src/lib.rs#L69-L74`.
+Evidence: `repo://crates/limedl-native/src/main.rs#L128-L136`,
+`repo://crates/limedl-native/src/settings_sync.rs#L125-L131`,
+`repo://crates/limedl-server/src/lib.rs#L104-L107`,
+`repo://crates/limedl-rpc/src/server.rs` (the `Aria2RpcServer::new`
+signature this call shape has to match).
 
 ## Shared services
 
@@ -156,7 +150,11 @@ two saves could each start from the same stale base and the later one would drop
 the other's change. A closure that returns an error leaves the persisted value
 untouched.
 
-Evidence: `repo://crates/limedl-core/src/services/settings_service.rs#L10-L73`.
+Lives in `limedl-disk`, not `limedl-core`: settings normalization is shared with
+`limedl-http` (the client factory reads the same struct) and nothing in it needs
+the engine.
+
+Evidence: `repo://crates/limedl-disk/src/services/settings_service.rs#L12-L73`.
 
 ### ConcurrencyManager — protocol-independent slot limits
 
@@ -168,8 +166,12 @@ on success they return a `DownloadSlotGuard` whose `Drop` decrements the counter
 shared by `DownloadManager` and `LazyBtBackend`, which is why `max_concurrent_bt`
 can bound both protocols.
 
-Evidence: `repo://crates/limedl-core/src/services/concurrency.rs#L8-L94`,
-`repo://crates/limedl-core/src/slot_guard.rs#L8-L24`.
+The manager lives in `limedl-disk` and the guard it hands out lives in
+`limedl-types` (`slot_guard.rs`, 24 lines) — the guard is the one piece of the
+pair `limedl-bt` also needs, so it had to sit below both.
+
+Evidence: `repo://crates/limedl-disk/src/services/concurrency.rs#L10-L94`,
+`repo://crates/limedl-types/src/slot_guard.rs#L1-L24`.
 
 ### DiskIoService — media resolution and buffer status
 
@@ -183,7 +185,7 @@ construction. `get_io_status()` reports buffer usage/limits, active slots,
 queued count and per-device metrics, and game-mode toggling is delegated to the
 buffer pool.
 
-Evidence: `repo://crates/limedl-core/src/services/disk_io.rs#L11-L138`.
+Evidence: `repo://crates/limedl-disk/src/services/disk_io.rs#L17-L138`.
 
 ## How a settings change fans out
 
@@ -205,6 +207,11 @@ whole struct. `factory_reset` saves `AppSettings::default()` through the same
 path. The daemon uses this path once at startup to persist `--download-dir` when
 it is given.
 
+Note that this path crosses four crates in one call: the facade is in
+`limedl-core`, the service it drives is in `limedl-disk`, the settings tree is in
+`limedl-types` and the backends it broadcasts to live in `limedl-core` and
+`limedl-bt`. Keeping the *sequence* in one function is what makes that tractable.
+
 Evidence: `repo://crates/limedl-core/src/dispatcher.rs#L281-L348`,
 `repo://crates/limedl-server/src/lib.rs#L64-L76`.
 
@@ -218,8 +225,8 @@ calling it; the daemon reaches the same call through a `tokio::select!` on the
 SIGTERM/SIGINT future, the RPC server task, and the shutdown `Notify` that
 `aria2.shutdown` fires.
 
-Evidence: `repo://crates/limedl-core/src/context.rs#L27-L30`,
-`repo://crates/limedl-core/src/backend_registry/mod.rs#L120-L125`,
+Evidence: `repo://crates/limedl-core/src/context.rs#L26-L27`,
+`repo://crates/limedl-core/src/backend_registry/mod.rs#L120-L126`,
 `repo://crates/limedl-native/src/main.rs#L287-L300`,
 `repo://crates/limedl-server/src/lib.rs#L106-L139`.
 
@@ -227,18 +234,23 @@ Evidence: `repo://crates/limedl-core/src/context.rs#L27-L30`,
 
 - Add a new core subsystem inside one of the three places, in dependency order:
   a field on `SystemContext` (created in `with_components`), then a field on
-  `CoreSystems` and construction in `bootstrap`.
+  `CoreSystems` and construction in `bootstrap`. If the subsystem needs no engine
+  type, put it in the crate that matches its concern (`limedl-disk`, `limedl-http`,
+  `limedl-store`) rather than in `limedl-core`.
 - A new protocol backend is registered with `register_arc` under its `TaskKind`
-  and becomes reachable through `Dispatcher` for free.
+  and becomes reachable through `Dispatcher` for free; a backend that owns a
+  heavy dependency should live in its own crate the way `limedl-bt` does.
 - A new shared service should be exposed on `Dispatcher` for frontends rather
   than reaching into `SystemContext`, keeping the facade the single integration
   point.
 - A new frontend should call `bootstrap`, construct its own transport over
   `registry`/`event_bus`, and own shutdown; it does not add construction logic to
-  the core.
+  the core. `limedl-rpc` is the worked example: it is a consumer of the engine,
+  not part of it.
 
 Related pages: [Workspace and System Architecture](overview.md),
 [Protocol Routing and the Dispatcher Facade](protocol-routing-and-dispatcher.md),
 [Settings and Configuration](../systems/settings-and-configuration.md),
 [Headless Server Daemon](../integrations/headless-server-daemon.md),
 [Disk I/O, Buffer Pool and Storage Detection](../systems/disk-io-and-storage.md).
+

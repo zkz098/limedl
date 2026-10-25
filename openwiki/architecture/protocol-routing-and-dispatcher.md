@@ -13,9 +13,6 @@ sources:
   - id: openwiki-source-91b6ee5086a47115791aca3c
     resource: repo://crates/limedl-core/src/protocol.rs
 generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
-verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Protocol Routing and the Dispatcher Facade

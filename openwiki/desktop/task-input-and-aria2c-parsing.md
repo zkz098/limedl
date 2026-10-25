@@ -3,9 +3,6 @@ type: desktop
 title: Task Input Surfaces and aria2c Command Parsing
 description: How a user-supplied payload becomes downloads in the limedl desktop client — CLI arguments, limedl:// deep links and second-instance forwarding, clipboard sniffing, dropped files, .txt batch lists and pasted aria2c command lines; the quote-aware tokenizer, the honored and reported-unsupported options, the batch and range expansion rules, and the long-input layout contract.
 tags: [desktop, input, parsing, aria2c, clipboard, batch, dialog]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-14T09:19:57.024Z
 sources:
   - id: openwiki-source-24d873252a3093670382cb6f
     resource: repo://crates/limedl-native/src/aria2_cli.rs

@@ -35,9 +35,6 @@ sources:
   - id: openwiki-source-3e467e67d349677035f0363f
     resource: repo://xtask/src/main.rs
 generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-14T09:19:57.024Z
 ---
 
 # Build, Tooling, CI and Release Operations

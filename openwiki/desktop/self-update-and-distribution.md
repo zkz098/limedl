@@ -23,9 +23,6 @@ sources:
   - id: openwiki-source-c74f60d1c3f2961e83a2a521
     resource: repo://xtask/src/manifest.rs
 generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
-verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Self-Update and Distribution Channels

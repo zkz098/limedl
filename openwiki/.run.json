@@ -1,0 +1,659 @@
+{
+  "schemaVersion": 1,
+  "runId": "e2cc1b1e-370e-45bb-be2c-3c834ae5d33f",
+  "mode": "update",
+  "phase": "generating",
+  "startedAt": "2026-10-25T12:09:48.740Z",
+  "language": "en",
+  "languageChanged": false,
+  "requiredRewritePages": [],
+  "initialPages": [
+    "/openwiki/architecture/bootstrap-and-services.md",
+    "/openwiki/architecture/overview.md",
+    "/openwiki/architecture/protocol-routing-and-dispatcher.md",
+    "/openwiki/desktop/native-ui-architecture.md",
+    "/openwiki/desktop/self-update-and-distribution.md",
+    "/openwiki/desktop/task-input-and-aria2c-parsing.md",
+    "/openwiki/integrations/aria2-rpc-server.md",
+    "/openwiki/integrations/headless-server-daemon.md",
+    "/openwiki/operations/build-release-and-ci.md",
+    "/openwiki/operations/server-deployment-and-packaging.md",
+    "/openwiki/quickstart.md",
+    "/openwiki/systems/disk-io-and-storage.md",
+    "/openwiki/systems/networking-and-rate-control.md",
+    "/openwiki/systems/persistence-and-recovery.md",
+    "/openwiki/systems/settings-and-configuration.md",
+    "/openwiki/testing/slint-ui-testing.md",
+    "/openwiki/testing/testing-strategy.md",
+    "/openwiki/workflows/bit-torrent-backend.md",
+    "/openwiki/workflows/cdn-acceleration.md",
+    "/openwiki/workflows/http-download-lifecycle.md",
+    "/openwiki/workflows/metalink-and-mirror-selection.md",
+    "/openwiki/workflows/scheduler-and-concurrency.md"
+  ],
+  "sourceFingerprint": "sha256:0fa872c48c6de0c839521685df3431237bf639f7d4f1ad1287efe4a0961f097b",
+  "targetGitHead": "15b44427234b6accded0cb498102d6b2e9542edc",
+  "actor": {
+    "producerActor": "pi",
+    "metadataModel": "host-agent/pi"
+  },
+  "previousLastUpdate": {
+    "updatedAt": "2026-10-14T09:34:25.891Z",
+    "command": "update",
+    "gitHead": "04e2a92bb374e8330b3a4acf37dd9a6e5e9f0f5f",
+    "model": "host-agent/pi",
+    "status": "complete",
+    "language": "en"
+  },
+  "baseGitHead": "04e2a92bb374e8330b3a4acf37dd9a6e5e9f0f5f",
+  "beforeContentSnapshot": "ce7be48ce551e2df294fac417a7bb87c9052e744c63e41aa29df4e04b957ed3e",
+  "preparedWiki": {
+    "generatedProvenance": [
+      {
+        "page": "/openwiki/architecture/bootstrap-and-services.md",
+        "bodyHash": "b24868af18bdda9724031580e99cb501d8d53d3210e847610c59d017812bdb36",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-04T12:36:56.946Z"
+        }
+      },
+      {
+        "page": "/openwiki/architecture/overview.md",
+        "bodyHash": "7c49f94751852c8927bca58f2d2d7e439c29ecf410006da40e689c21298ce7c3",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      },
+      {
+        "page": "/openwiki/architecture/protocol-routing-and-dispatcher.md",
+        "bodyHash": "47c282c0c1b9726cfde37606843f96a87b2b175552b204556818fd56f885a062",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      },
+      {
+        "page": "/openwiki/desktop/native-ui-architecture.md",
+        "bodyHash": "e35f9a241cd63bd6f4516043167eb48a7847148f32f3073f63b6be055c2bd3de",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-14T09:19:57.024Z"
+        }
+      },
+      {
+        "page": "/openwiki/desktop/self-update-and-distribution.md",
+        "bodyHash": "d1e981d425321d170e5ad95c12850e4727eb1b2224f779c05bc9f366b7d3aaae",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      },
+      {
+        "page": "/openwiki/desktop/task-input-and-aria2c-parsing.md",
+        "bodyHash": "68ac8002515cf3120271187ed1373285d90b06f7c89f54fc0e62fa8a480ce07c",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-14T09:19:57.024Z"
+        }
+      },
+      {
+        "page": "/openwiki/integrations/aria2-rpc-server.md",
+        "bodyHash": "085bbf8ef9ad8bfc5b17ceb249cf567950a2034395eec7a910f35b5a57703626",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      },
+      {
+        "page": "/openwiki/integrations/headless-server-daemon.md",
+        "bodyHash": "aacc5683d4a3e68ce5bef15c4caaa0c6f1ddd7c257bf3e0810db1cf67ec1a0f0",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-14T09:19:57.024Z"
+        }
+      },
+      {
+        "page": "/openwiki/operations/build-release-and-ci.md",
+        "bodyHash": "70422cc069892937f39849a361b37749df4f33d0136dc37cc5244e3e14baf146",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-14T09:19:57.024Z"
+        }
+      },
+      {
+        "page": "/openwiki/operations/server-deployment-and-packaging.md",
+        "bodyHash": "ed64ce35133de028e22d41c2789c3ea999e3a24a4f1e0c53112618e3196f72f4",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-14T09:19:57.024Z"
+        }
+      },
+      {
+        "page": "/openwiki/quickstart.md",
+        "bodyHash": "20cdddcb71c50bc96941bec41019a608af63e78234f08fdb2a22863cb7c7c295",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-14T09:19:57.024Z"
+        }
+      },
+      {
+        "page": "/openwiki/systems/disk-io-and-storage.md",
+        "bodyHash": "ed80b13754df5d8d0d612e0e040aef82cf0e874970aa1a4656d641a3692a942a",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-04T05:35:23.596Z"
+        }
+      },
+      {
+        "page": "/openwiki/systems/networking-and-rate-control.md",
+        "bodyHash": "807d032e2673524f6caad4e3b88267498fd31788bfc36c8faffd790570e6ee80",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      },
+      {
+        "page": "/openwiki/systems/persistence-and-recovery.md",
+        "bodyHash": "1cd9989d78ec4584fa257ff8c96f3f3f02b6dc5f3b64b0c07a2d0e4fc2aeee71",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      },
+      {
+        "page": "/openwiki/systems/settings-and-configuration.md",
+        "bodyHash": "6ca0208a8ae038085d27bfdbe57ed2079abd5a93537c48713ebcef756c0ab105",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-14T09:19:57.024Z"
+        }
+      },
+      {
+        "page": "/openwiki/testing/slint-ui-testing.md",
+        "bodyHash": "944bf67b5b76917acc5fdba11472eed567920cdeb1206a40d45ff6c7ee3bb44c",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-14T09:19:57.024Z"
+        }
+      },
+      {
+        "page": "/openwiki/testing/testing-strategy.md",
+        "bodyHash": "89ca4cdc7d7fcba122952496c2f74485cddb17c65663119b370dd84de57bb227",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      },
+      {
+        "page": "/openwiki/workflows/bit-torrent-backend.md",
+        "bodyHash": "53b92e52c808392e534d4639d307d1344707985f1748a16397b0210f2efe53ce",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      },
+      {
+        "page": "/openwiki/workflows/cdn-acceleration.md",
+        "bodyHash": "0c7c84efaa259be0e7d490863fab61daf951ddee53db6383d48b362f018989cf",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      },
+      {
+        "page": "/openwiki/workflows/http-download-lifecycle.md",
+        "bodyHash": "c54552fd6448549f1704ba875c7d60a104fe53dccfb3bd7f2589bd3c20bfc0ce",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      },
+      {
+        "page": "/openwiki/workflows/metalink-and-mirror-selection.md",
+        "bodyHash": "f91e8b9c57672dbb35e12707f41fabc48a39798c4b5a729d505b391ad03cc55b",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T04:23:45.747Z"
+        }
+      },
+      {
+        "page": "/openwiki/workflows/scheduler-and-concurrency.md",
+        "bodyHash": "b318ac7fc2e458d2fb26e2845cea495e28076daae7b4b88a374b7161da1fbc7e",
+        "generated": {
+          "by": "pi",
+          "at": "2026-10-07T03:53:23.435Z"
+        }
+      }
+    ]
+  },
+  "plan": {
+    "pages": [
+      {
+        "id": "84d83ae7-4eae-4861-9217-18fd5e7f6680",
+        "path": "/openwiki/architecture/bootstrap-and-services.md",
+        "title": "Bootstrap and Shared Services",
+        "purpose": "How a running engine is assembled: bootstrap() and CoreSystems, SystemContext, the shared services (disk I/O, concurrency, settings), and how the Aria2 RPC server is started by the frontends rather than by the engine.",
+        "seedPaths": [
+          "crates/limedl-core/src/backend_registry/mod.rs",
+          "crates/limedl-core/src/bootstrap.rs",
+          "crates/limedl-core/src/context.rs",
+          "crates/limedl-disk/src/services/",
+          "crates/limedl-native/src/main.rs",
+          "crates/limedl-server/src/lib.rs"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/overview.md",
+          "/openwiki/integrations/aria2-rpc-server.md"
+        ],
+        "instructions": [
+          "Write in English."
+        ],
+        "status": "complete",
+        "completedBy": "pi"
+      },
+      {
+        "id": "86c3554c-0aef-4d24-a119-f5013d234ba9",
+        "path": "/openwiki/architecture/overview.md",
+        "title": "Workspace Architecture Overview",
+        "purpose": "The workspace's crate graph: nine engine crates plus the two frontends and the tooling crate, the dependency direction between them, which crate owns which dependency (irontide, axum, rusqlite), and what limedl-core still is.",
+        "seedPaths": [
+          "Cargo.toml",
+          "crates/limedl-bt/Cargo.toml",
+          "crates/limedl-core/Cargo.toml",
+          "crates/limedl-core/src/lib.rs",
+          "crates/limedl-disk/Cargo.toml",
+          "crates/limedl-engine/Cargo.toml",
+          "crates/limedl-http/Cargo.toml",
+          "crates/limedl-rpc/Cargo.toml",
+          "crates/limedl-store/Cargo.toml",
+          "crates/limedl-testkit/Cargo.toml",
+          "crates/limedl-types/Cargo.toml"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/bootstrap-and-services.md",
+          "/openwiki/architecture/protocol-routing-and-dispatcher.md",
+          "/openwiki/quickstart.md"
+        ],
+        "instructions": [
+          "Write in English."
+        ],
+        "status": "complete",
+        "completedBy": "pi"
+      },
+      {
+        "id": "e5b06495-4bf6-42ac-9013-9d8699700713",
+        "path": "/openwiki/architecture/protocol-routing-and-dispatcher.md",
+        "title": "Protocol Routing and the Dispatcher",
+        "purpose": "TaskId routing and the Dispatcher facade: how http:/bt: ids reach a backend through BackendRegistry, what the facade adds on top, and where the BT backend now lives relative to it.",
+        "seedPaths": [
+          "crates/limedl-bt/src/lib.rs",
+          "crates/limedl-core/src/backend_registry/mod.rs",
+          "crates/limedl-core/src/dispatcher.rs",
+          "crates/limedl-types/src/protocol.rs",
+          "crates/limedl-types/src/types/task.rs"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/overview.md",
+          "/openwiki/http-download-lifecycle.md",
+          "/openwiki/workflows/bit-torrent-backend.md"
+        ],
+        "instructions": [
+          "Write in English."
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "d4902428-2cf4-4481-acae-2f4ea7a68b30",
+        "path": "/openwiki/desktop/native-ui-architecture.md",
+        "title": "Native Ui Architecture",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-native/src/bridge/mod.rs",
+          "crates/limedl-native/src/bridge/models.rs",
+          "crates/limedl-native/src/crash.rs",
+          "crates/limedl-native/src/handlers/common.rs",
+          "crates/limedl-native/src/i18n/mod.rs",
+          "crates/limedl-native/src/main.rs",
+          "crates/limedl-native/src/platform_win.rs",
+          "crates/limedl-native/src/power.rs",
+          "crates/limedl-native/src/settings_sync.rs",
+          "crates/limedl-native/src/ui_sync.rs",
+          "crates/limedl-native/ui/components/settings/tab_about.slint"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "bab9a53b-baac-46bd-9125-03491e1e68bb",
+        "path": "/openwiki/desktop/self-update-and-distribution.md",
+        "title": "Self Update And Distribution",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-native/src/update/mod.rs",
+          "xtask/src/main.rs",
+          "xtask/src/manifest.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "9d3cfe4a-0538-48e6-815f-a2b156517158",
+        "path": "/openwiki/desktop/task-input-and-aria2c-parsing.md",
+        "title": "Task Input And Aria2c Parsing",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-native/src/aria2_cli.rs",
+          "crates/limedl-native/src/bridge/clipboard.rs",
+          "crates/limedl-native/src/handlers/new_task/payload.rs",
+          "crates/limedl-native/src/handlers/new_task/submit.rs",
+          "crates/limedl-native/src/i18n/dialogs.rs",
+          "crates/limedl-native/src/ui_tests/new_task.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "ec366850-0e6c-49b0-891d-594cf3644dd5",
+        "path": "/openwiki/integrations/aria2-rpc-server.md",
+        "title": "Aria2 Rpc Server",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-core/src/aria2_rpc/bind.rs",
+          "crates/limedl-core/src/aria2_rpc/context.rs",
+          "crates/limedl-core/src/aria2_rpc/dispatch.rs",
+          "crates/limedl-core/src/aria2_rpc/download.rs",
+          "crates/limedl-core/src/aria2_rpc/interop_tests.rs",
+          "crates/limedl-core/src/aria2_rpc/options.rs",
+          "crates/limedl-core/src/aria2_rpc/oracle_tests.rs",
+          "crates/limedl-core/src/aria2_rpc/protocol.rs",
+          "crates/limedl-core/src/aria2_rpc/query.rs",
+          "crates/limedl-core/src/aria2_rpc/server.rs",
+          "crates/limedl-core/src/aria2_rpc/system.rs",
+          "crates/limedl-core/src/aria2_rpc/token.rs",
+          "crates/limedl-core/src/aria2_rpc/transport.rs",
+          "crates/limedl-core/src/bt_backend/alerts.rs",
+          "crates/limedl-core/src/types/settings.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "f0408a6a-12b5-49a7-8a25-3a93260227a7",
+        "path": "/openwiki/integrations/headless-server-daemon.md",
+        "title": "Headless Server Daemon",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-server/Cargo.toml",
+          "crates/limedl-server/src/lib.rs",
+          "crates/limedl-server/tests/daemon.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "766f829c-5b07-4fd1-8bf8-53b3ce493bfa",
+        "path": "/openwiki/operations/build-release-and-ci.md",
+        "title": "Build, Release and CI",
+        "purpose": "How the workspace is built, gated and released: the CI job graph, `cargo xtask gate` as the local single entry point, the CI-parity job that keeps the two in sync, the coverage report fan-out, and the release pipeline.",
+        "seedPaths": [
+          ".github/workflows/ci.yml",
+          ".github/workflows/release.yml",
+          "AGENTS.md",
+          "docs/ci-operations.md",
+          "sonar-project.properties",
+          "xtask/src/gate.rs"
+        ],
+        "relatedPages": [
+          "/openwiki/quickstart.md",
+          "/openwiki/testing/testing-strategy.md"
+        ],
+        "instructions": [
+          "Write in English."
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "abce8441-9294-4a30-b5b5-4b94cbaaf608",
+        "path": "/openwiki/systems/disk-io-and-storage.md",
+        "title": "Disk Io And Storage",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-core/src/buffer_pool/download_buffer.rs",
+          "crates/limedl-core/src/buffer_pool/mod.rs",
+          "crates/limedl-core/src/buffer_pool/worker.rs",
+          "crates/limedl-core/src/download/managed.rs",
+          "crates/limedl-core/src/file_ops/disk_detect.rs",
+          "crates/limedl-core/src/file_ops/media.rs",
+          "crates/limedl-core/src/file_ops/mod.rs",
+          "crates/limedl-core/src/http_executor/mod.rs",
+          "crates/limedl-core/src/io_scheduler/mod.rs",
+          "crates/limedl-core/src/io_scheduler/queue.rs",
+          "crates/limedl-core/src/io_scheduler/topology.rs",
+          "crates/limedl-core/src/services/disk_io.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "e4203247-b42c-426f-a45b-d97260632a6e",
+        "path": "/openwiki/systems/networking-and-rate-control.md",
+        "title": "Networking And Rate Control",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-core/src/http/mod.rs",
+          "crates/limedl-core/src/http_client_factory/mod.rs",
+          "crates/limedl-core/src/http_client_factory/tests.rs",
+          "crates/limedl-core/src/http_executor/mod.rs",
+          "crates/limedl-core/src/http_executor/single.rs",
+          "crates/limedl-core/src/http_executor/worker.rs",
+          "crates/limedl-core/src/rate_limiter/mod.rs",
+          "crates/limedl-core/src/retry.rs",
+          "crates/limedl-core/src/types/common.rs",
+          "crates/limedl-core/src/types/settings.rs",
+          "crates/limedl-core/src/url_rewrite/mod.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "8fa65ebf-fc50-4c00-919b-8c0c9d49e987",
+        "path": "/openwiki/systems/persistence-and-recovery.md",
+        "title": "Persistence And Recovery",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-core/src/database/bt_task_repo.rs",
+          "crates/limedl-core/src/database/chunk_repo.rs",
+          "crates/limedl-core/src/database/connection.rs",
+          "crates/limedl-core/src/database/manifest_repo.rs",
+          "crates/limedl-core/src/database/schema.rs",
+          "crates/limedl-core/src/download/managed.rs",
+          "crates/limedl-core/src/persistence.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "7601e214-15e7-4d77-8c9f-bb95c2d40076",
+        "path": "/openwiki/systems/settings-and-configuration.md",
+        "title": "Settings And Configuration",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-core/src/services/settings_service.rs",
+          "crates/limedl-core/src/settings/mod.rs",
+          "crates/limedl-core/src/settings/tests.rs",
+          "crates/limedl-core/src/types/settings.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "86f69da1-d973-42c7-8ac8-2c8365980e68",
+        "path": "/openwiki/testing/slint-ui-testing.md",
+        "title": "Slint Ui Testing",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-native/src/ui_tests/async_contracts/dialogs.rs",
+          "crates/limedl-native/src/ui_tests/async_contracts/new_task.rs",
+          "crates/limedl-native/src/ui_tests/mod.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "f908f5c3-ca41-4a7d-aa93-ccf920213a5b",
+        "path": "/openwiki/testing/testing-strategy.md",
+        "title": "Testing Strategy",
+        "purpose": "The test architecture after the split: per-crate suites, the test-utils dev-dependency seam, limedl-testkit versus limedl-core::testing, the module-boundary guard, and what the gate runs in which order.",
+        "seedPaths": [
+          "crates/limedl-core/Cargo.toml",
+          "crates/limedl-core/src/testing.rs",
+          "crates/limedl-core/src/tests/module_boundaries_tests.rs",
+          "crates/limedl-disk/Cargo.toml",
+          "crates/limedl-testkit/src/lib.rs",
+          "xtask/src/gate.rs"
+        ],
+        "relatedPages": [
+          "/openwiki/operations/build-release-and-ci.md",
+          "/openwiki/testing/slint-ui-testing.md"
+        ],
+        "instructions": [
+          "Write in English."
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "679cd323-324c-4a3c-a627-7a7c6add1233",
+        "path": "/openwiki/workflows/bit-torrent-backend.md",
+        "title": "Bit Torrent Backend",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-core/src/bt_backend/alerts.rs",
+          "crates/limedl-core/src/bt_backend/anti_leech.rs",
+          "crates/limedl-core/src/bt_backend/lazy.rs",
+          "crates/limedl-core/src/bt_backend/queries.rs",
+          "crates/limedl-core/src/bt_backend/session.rs",
+          "crates/limedl-core/src/bt_backend/snapshot.rs",
+          "crates/limedl-core/src/bt_backend/uploads.rs",
+          "crates/limedl-core/src/database/bt_task_repo.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "d6eb5226-b5f6-42ff-86e8-efc9004e4487",
+        "path": "/openwiki/workflows/cdn-acceleration.md",
+        "title": "Cdn Acceleration",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-core/src/cdn/accelerator.rs",
+          "crates/limedl-core/src/cdn/provider.rs",
+          "crates/limedl-core/src/cdn/resolver.rs",
+          "crates/limedl-core/src/cdn/service.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "8b2d1eed-4176-449f-b282-6b676143fc22",
+        "path": "/openwiki/workflows/http-download-lifecycle.md",
+        "title": "Http Download Lifecycle",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-core/src/database/chunk_repo.rs",
+          "crates/limedl-core/src/download/managed.rs",
+          "crates/limedl-core/src/download/shared.rs",
+          "crates/limedl-core/src/http_executor/chunked.rs",
+          "crates/limedl-core/src/http_executor/finalize.rs",
+          "crates/limedl-core/src/http_executor/mod.rs",
+          "crates/limedl-core/src/http_executor/run.rs",
+          "crates/limedl-core/src/http_executor/single.rs",
+          "crates/limedl-core/src/http_executor/worker.rs",
+          "crates/limedl-core/src/manager.rs",
+          "crates/limedl-core/src/manifest.rs",
+          "crates/limedl-core/src/persistence.rs",
+          "crates/limedl-core/src/task_lifecycle/mod.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "2dea93f7-7d30-469a-823b-c1211dcf0723",
+        "path": "/openwiki/workflows/metalink-and-mirror-selection.md",
+        "title": "Metalink And Mirror Selection",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-core/src/aria2_rpc/download.rs",
+          "crates/limedl-core/src/aria2_rpc/e2e_tests.rs",
+          "crates/limedl-core/src/database/schema.rs",
+          "crates/limedl-core/src/manifest.rs",
+          "crates/limedl-core/src/metalink/http_link.rs",
+          "crates/limedl-core/src/metalink/mod.rs",
+          "crates/limedl-core/src/metalink/pool.rs",
+          "crates/limedl-core/src/metalink/prober.rs",
+          "crates/limedl-core/src/metalink/scorer.rs",
+          "crates/limedl-core/src/metalink/tests.rs",
+          "crates/limedl-core/src/metalink/types.rs",
+          "crates/limedl-core/src/metalink/xml_parser.rs",
+          "crates/limedl-core/src/task_lifecycle/mod.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "f27307b0-3f1f-4f61-8ea2-3c4965351759",
+        "path": "/openwiki/workflows/scheduler-and-concurrency.md",
+        "title": "Scheduler And Concurrency",
+        "purpose": "Reconcile stale or unresolved Claims and update this page from current repository evidence while preserving unaffected accurate content.",
+        "seedPaths": [
+          "crates/limedl-core/src/aimd/mod.rs",
+          "crates/limedl-core/src/download/shared.rs",
+          "crates/limedl-core/src/scheduler/mod.rs",
+          "crates/limedl-core/src/services/concurrency.rs",
+          "crates/limedl-core/src/slot_guard.rs",
+          "crates/limedl-core/src/speed_tracker.rs",
+          "crates/limedl-core/src/task_lifecycle/mod.rs"
+        ],
+        "relatedPages": [],
+        "instructions": [],
+        "status": "pending"
+      },
+      {
+        "id": "f8724006-c80b-4353-a0b4-7f5b0cea5aee",
+        "path": "/openwiki/quickstart.md",
+        "title": "limedl Wiki Quickstart",
+        "purpose": "Entry point and task-routing map: which crate to open for each task, how the engine is layered after the crate split, and where the authoritative gate lives.",
+        "seedPaths": [
+          "AGENTS.md",
+          "Cargo.toml",
+          "crates/limedl-core/src/lib.rs",
+          "xtask/src/gate.rs"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/overview.md",
+          "/openwiki/operations/build-release-and-ci.md",
+          "/openwiki/testing/testing-strategy.md"
+        ],
+        "instructions": [
+          "Write in English."
+        ],
+        "status": "pending"
+      }
+    ],
+    "deletePages": []
+  }
+}

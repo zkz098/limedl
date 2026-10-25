@@ -19,9 +19,6 @@ sources:
   - id: openwiki-source-41f2f85d035ed1edf0c09b2e
     resource: repo://crates/limedl-core/src/persistence.rs
 generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
-verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
 ---
 
 # SQLite Persistence, Durable Progress and Crash Recovery

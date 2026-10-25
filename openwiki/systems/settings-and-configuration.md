@@ -27,9 +27,6 @@ sources:
   - id: openwiki-source-600bf3367c4599b56dc1a044
     resource: repo://docs/server-daemon.md
 generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-14T09:19:57.024Z
 ---
 
 # Settings and Configuration

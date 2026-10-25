@@ -21,9 +21,6 @@ sources:
   - id: openwiki-source-e4fbb1ee7bbda6133fb042fc
     resource: repo://crates/limedl-native/src/handlers/labs/cdn.rs
 generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
-verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
 ---
 
 # CDN Acceleration

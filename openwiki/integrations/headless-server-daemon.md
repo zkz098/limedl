@@ -27,9 +27,6 @@ sources:
   - id: openwiki-source-816a10881eb55b69eaf93236
     resource: repo://packaging/server/systemd/limedl-server.service
 generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-14T09:19:57.024Z
 ---
 
 # Headless Server Daemon (`limedl-server`)

@@ -67,9 +67,6 @@ sources:
   - id: openwiki-source-ca864fd40fa4107ed35f840f
     resource: repo://xtask/src/fetch_font.rs
 generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-14T09:19:57.024Z
 ---
 
 # limedl Wiki Quickstart

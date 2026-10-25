@@ -33,9 +33,6 @@ sources:
   - id: openwiki-source-098d28438aacd15b419786dc
     resource: repo://crates/limedl-core/src/task_lifecycle/mod.rs
 generated: { by: "pi", at: "2026-10-07T04:23:45.747Z" }
-verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T04:23:45.747Z
 ---
 
 # Metalink Parsing and Mirror Selection

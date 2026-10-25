@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:d413d8b682f06a15ca0158c65a04a272b7cefe3b8204352294a73700f09b085e",
+  "pageVersion": "sha256:0241f17cc35f73e84c1d55ba351e65394a651b8a46bc9ad194e6354adc197488",
   "claims": [
     {
       "id": "claim_fa16f0d8eef64f5b81e8ac9e6883ecbb",
@@ -21,7 +21,7 @@
       "statement": "SystemContext::new creates a default RateLimiter and an EventBus with capacity 8192, then delegates to with_components, which derives the settings path as state_dir's parent joined with settings.json.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/context.rs#L32-L56",
+          "resource": "repo://crates/limedl-core/src/context.rs#L31-L55",
           "version": "repo-lines-v1:sha256:cc16854d648ccc6e2fcac03e96a9394f3dff5e6aed625d54fcf5011263b39740:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFiMDMxNGY2YTRhYmQ2NTVlNzliNGYwYmMxMTY5ZTUxZDgwYWMxM2JmYTQ3MzU4NjZjMTE0NGMwMmFiOTcwNGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjOTU5MTc4ZGFkMDYxMWVhODA4MzgyYjY4ZjFhMzYyZjc3Y2M0YzQxZGQ5NzBjMTIzOGNhOTVhMDJkM2EzM2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4ODE4ODhjN2E2MjRiYjRmNzFhYWFlZDE5Y2Q4MmY0MmE0MmUwODcxZWUxNTA4ODJhOTQwNjRjM2I1OTI3OGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVhOTI5MDUyM2M2Yzg4YzRkOTExMDRkNzUzZWE3ZTFkODBhMGVmMDU0MGY5MDhjNjhkZTMxMGYyMWM0NzFhMTgifQ"
         }
       ]
@@ -31,8 +31,8 @@
       "statement": "SystemContext::with_components constructs the Database, a BufferPool sized from io_baseline, a DiskDeviceManager seeded with persisted disk_type_overrides, an IoWorker pool of min(available_parallelism, 4), ConcurrencyManager::new(5, 3), DiskIoService and a shutdown CancellationToken.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/context.rs#L60-L89",
-          "version": "repo-lines-v1:sha256:32adc90e39c7ba42fa15c53ed03c91ea75fa2b39595bba2fe79ef938e3d381a1:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxNzc2ODZhNjlkY2IxMWU4OWNhYjJmNjI1MWIwZmJjYTkzMzk5ZGQ2YTUxMWM2NTY1ZGM2OWFkYmRhZDM5NzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhOTI5MDUyM2M2Yzg4YzRkOTExMDRkNzUzZWE3ZTFkODBhMGVmMDU0MGY5MDhjNjhkZTMxMGYyMWM0NzFhMTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg1YjY2YjcwOWUyMGFiMTRhOTMxOWI4YmQ4MzhiMjcwNGVhNTU1MWMyY2FiNzhkNTBjMDBmOGE1ZjkyZjc0MWIifQ"
+          "resource": "repo://crates/limedl-core/src/context.rs#L31-L100",
+          "version": "repo-lines-v1:sha256:d5bcef33a6849cb22e88532f6efa2663793988823a7eb70e5f8f08996e7ae52b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFiMDMxNGY2YTRhYmQ2NTVlNzliNGYwYmMxMTY5ZTUxZDgwYWMxM2JmYTQ3MzU4NjZjMTE0NGMwMmFiOTcwNGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4ODE4ODhjN2E2MjRiYjRmNzFhYWFlZDE5Y2Q4MmY0MmE0MmUwODcxZWUxNTA4ODJhOTQwNjRjM2I1OTI3OGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
@@ -41,16 +41,16 @@
       "statement": "bootstrap starts the DownloadManager scheduler loop and registers the HTTP and BT backends with register_arc so the registry shares the same Arc instances as CoreSystems rather than cloning backend state.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/backend_registry/mod.rs#L42-L60",
-          "version": "repo-lines-v1:sha256:bb63fe912b90e7562555a8a4208eeea8922d73824982bb9a9e0b687cc3a72225:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyNzdjNDAxOTZiODM4ODJhMTMzOGQyNTExYzUxYWQ1NzExZjU4YWJjZGQzY2UyZWI2ODcwMDA0YTRjMGJlMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmOTY3YWI5NTkyYjQzY2Y4MTBjOTgwMmY2ZmEyZTlmNDYwZjdlN2U3NGM1MjIyMTM2M2U0NTk0MmIzYmVjMDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRlOWY2NDE4NDJkMWJjNmQzYTMyZGI2ZmFkMWRiNWMyODgwMjczYTNkZDFkOGRkNzBlOWUwZTIzNTQxMTRjMmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA1YWU4MjU4OWYyZDBjOTk3MmU5YTExNDIzYjBhODA4ZmVmZTUyMzRhNjU5ZjMxOTFhNGY5MGFkYjZhMWRhODUifQ"
+          "resource": "repo://crates/limedl-core/src/backend_registry/mod.rs#L47-L60",
+          "version": "repo-lines-v1:sha256:ecdfc9726e051f75ee43a37f6d5e08e580bbcb54aa844a6182b6c1855d6e798c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ1YWUzOTZmOTk1NzUxYTdlNmQ2MTUzN2NiMTE2NDY5ZTIzOTkxNjhjNmMxZGEyNTU2MmZlZTEzNzQyNmFlY2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhMDFlMTY1YjM2ZDhiYzI5Njk3YTEyNDM0YzlhYjU1OTgzNmQ5NTI5ZTViNTBmOWNiNzY0N2Q0NmFlNWMzYzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjllYWFiYWY4ZDJjODIzYTQyZTI1MTNhY2UzZWJkZjRhMmRhZTkzN2YwOGI5YmRjMzdhZThiNDRkZjk3Y2E3MTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI1YTE1YTVhMTVmNTE0YjY4YTE4MjBiNWY3ZjA2YWY5MjE5OGIwNDU5YWNlMjNkZTAyZGZlYmEzMzMyMDg2ZjIifQ"
         },
         {
           "resource": "repo://crates/limedl-core/src/bootstrap.rs#L44-L53",
           "version": "repo-lines-v1:sha256:e74e82af29d586f9a3e12872e9bfe642146db7b04e19182387cb6d614d5aa999:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2YzA2NmE3ZGZiMzYzMjdjNGQ2M2JhYjNkMTBhOTg3ZjJiZDVjNjM4OTM2M2Y5YTEzMTY0YjYzYzhkMTc1N2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyNWQyYmI3OTEyMTg5MzFiNDU4NjQyOGVlZmRjZGVmYzVjYzNkZmYzN2ZkNTEzMmM2MzBhMjBkMWJkZDNhN2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRlZmU2NzI4ZTFhMDRmNTRlNjFhMzliZmY0NGYyOTE4OGFkOTU3NTlkODQyMDQ5ZTIzNTRjM2EzZDRiNDBmZWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjZTk1YzNjNDVkY2E1Yjc4OTdhMDRhNmQ5YTkxNDQwYjlhOTFiNDlhZmUxMjYxYWY1MDNlOTYxMzE1NGQ1ZTgifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L81-L87",
-          "version": "repo-lines-v1:sha256:bed5eb4cdc380fe7f05326c952f5cb04898e542c269fe03049a9da6572716092:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTNlMzI1YzE2NzM0NDY4OGM5MDNjYmE4NTc1YTk0YjE3NGM2ZTlkMTZkNTdmMDQ0MjNkZmUxYjc3NGI3Y2I2NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDJjMjQ0NDA0MDZjZWUwOWQ3NGViMDYwZjMwZjAzMWIxM2I2OGM3M2UzMmExMjY4NTUxMDNmZDI4MzVjMGM5MiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmE1ZmRiNmIyMTcwMTdjYTU2ZmE5N2YzODhlNmEzZjY1YTdkNjBjZjQ1Y2NiNWVlNGQ2NTQ1NDUwNjBkZmYyYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTAxNTBlYmVhZjE3Yzk2OGRhNDY2M2FlNjRlNDBiNWY3OGI2YmUwMDY5MzgwNmVlOTk1OTRjZDZiNzNlYWViNSJ9"
+          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L81-L88",
+          "version": "repo-lines-v1:sha256:27cb21967eb2375bfead531c7af5f678d4f9fcfe1dfec013e7bdd69ff5a7242f:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTNlMzI1YzE2NzM0NDY4OGM5MDNjYmE4NTc1YTk0YjE3NGM2ZTlkMTZkNTdmMDQ0MjNkZmUxYjc3NGI3Y2I2NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmE1ZmRiNmIyMTcwMTdjYTU2ZmE5N2YzODhlNmEzZjY1YTdkNjBjZjQ1Y2NiNWVlNGQ2NTQ1NDUwNjBkZmYyYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMmQ2NzZhMGIyOWY5ZGJhNmVmMWY5N2YxMDI0Nzk2YWExNjE1Y2NkMGQ3NWJlZTA1Yzk3YjliOTA5MmU1MGI0YyJ9"
         }
       ]
     },
@@ -76,15 +76,23 @@
     },
     {
       "id": "claim_77d3d769c2fa4eb3ac6c00864c3bf25c",
-      "statement": "Aria2RpcServer is not created by bootstrap; the desktop client creates and spawns it after bootstrap only when settings.aria2_rpc.enabled is set, keeping a watch shutdown sender for hot-reload.",
+      "statement": "Aria2RpcServer is not created by bootstrap; the desktop client creates and spawns it after bootstrap only when settings.aria2_rpc.enabled is set, keeping a watch shutdown sender for hot-reload, and the daemon force-enables it because the RPC endpoint is its interface.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L38-L42",
-          "version": "repo-lines-v1:sha256:8d78fd6d4bd26f055a6343eb1ebeb29164ace5a508064686bfe9082c8817f50a:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmUwZWIyYjA1YjI4YTVkYWE4ZTUwY2UwNDExMTllYWI4ZDIwMjRiNGM0YzE0YzBjYjExYTRmZTNlMGQzZDkyMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWZkODY4OTI4MjE2ZDhmM2U1ZDEzNTZjZDUwZjE2MWUzZDRhMTQ1Mzk0NDIxNzBiZjcyM2U2MjY5ZTI1YThmNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjk2YzM4YTA3ODYzNmFiMDdmZTA5MmRjM2M1N2I4NGQzZjg5MDBlMDM1YWMyOGUyYjgyMGZhNDM2Y2MwYmEyNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYThlMTU2YjYwODllYTFhNDRkMDE5YTZkOGRlNGEyNzdmYzk0NWJkM2JmZjU2MjRlYTQzM2IyZmNmNjRhZjUxNSJ9"
+          "resource": "repo://crates/limedl-native/src/main.rs#L128-L136",
+          "version": "repo-lines-v1:sha256:f0a85255632f3b4371c3acb60c963ef4c351fbb81c51ed724831b8e74c973edb:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDNiNmViNTY5ZmE4NGYzYjEwZGRjMDA3M2QyMjEzOWM0NjUwOWViNTJiODkxZjdjYWFhZmQ2MjRlMjgxYWM1ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTUyMmM0MmNkMTljNmQwM2Q4MDhjNDUyNzIwNTUyODI1YjdlYTFjNWI0OTFiMjE4NTExY2FjNzQxNWNmOWQ5YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmJhZGU5OTg4MDZjNzBhMjYxMDk4YmFjMTJlYmRhZGE0ZjdlNDI3ZTBiNGI2YTE4MGMwNzg4ZGUzYTkzYzBiMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZmI4ZjcxYjM2MjhhOTVjM2JhN2VmNDY1MWE3ZGI5YzAzMzgyMzFkZGEyYzQ3ODBjMjk0MGViYmFhYzY0ZGRiMyJ9"
         },
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L118-L135",
-          "version": "repo-lines-v1:sha256:f64ffa0a75f404b233b08ec0755216f12ecd81f7da860a76b31cdfd693301c4d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM2NzFjZGYwM2I1N2E2ODdjZGY1NmRiYmNkOWIzMjAxMTlmYTZiNzIzMWI0NDI5YzNkMzU3NmI4NGMwOTFlMzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyMGVmMzY4YjIxOWVkYmY0YzVmOTVmMzExOGMyMTMyNzEyMjdjYTIxZGFjNzU1MTc1YTA1MzNjYzRiMGIyMWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEwODU3N2MwOGM3ZTJlODcyOGQ5NjAxMThiM2UyOTYwNmI2ZjVmNzA1NGVkMmQzZjZmZWEzMTYxZWViMDcwN2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5YzQxZTlhMGJlNjlhMjEyNjRlOGYwYmUxZDE2MDNjOTZmOGNlM2UzZDE2NDlkMjg5NTA3MGQzYzU2Njk2MjIifQ"
+          "resource": "repo://crates/limedl-native/src/settings_sync.rs#L125-L131",
+          "version": "repo-lines-v1:sha256:6ab94eec1679458940116ece5f2c7afd0bcf9c1227e39c7c370d9edbb7bdfb8a:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDNiNmViNTY5ZmE4NGYzYjEwZGRjMDA3M2QyMjEzOWM0NjUwOWViNTJiODkxZjdjYWFhZmQ2MjRlMjgxYWM1ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODMzOTA0NGU1MjViNGRkODJkZWU1YjNiZTA3NTliMjYzM2NkMmU1MGUxZDlkZGRhYTYzM2Y0ZWQ4MmZlZTVhNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYzMwMGVlY2RiNjNiZGM1OTI5MDhhNmVjZWUwNTk5ZWZmMDhhZDgzNDdlMTlmZDEwNjgzNTQwNzgyMzVhN2E4MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYWVlOTQ3MTdiYjQ4MGFjYTBkYzlmMjQ3NjIyODdlNjA2MzdlNDZjMmZhN2M5Y2ZhNGIxODY4OWYxZjJlYTQzZiJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-rpc/src/server.rs",
+          "version": "repo-file-v1:sha256:e5572bc3b444154b58046d9e1457c9a211ae1637997ec5a94d542e2d77dc7761"
+        },
+        {
+          "resource": "repo://crates/limedl-server/src/lib.rs#L104-L107",
+          "version": "repo-lines-v1:sha256:0fc1fb4e8ecbaa987c064f2058bc549eca8a69a2b1be24f28b6ce28c19e23f1e:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDRlZTdkMmU2ZDZmYzcxNTlhZmY0NmY4YmI3MjgwNDM1OGZmNThhZWYzY2VkMDg1ZjE4ZDA3YTg2YzIzOWU1OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjlkNzk1NDJlMDQxMzFlNDk4ZjE4MTQwZWUwMzg2YjgyMzI0Zjg0YTI1NmYxYjU3YWFiMzQ0OTNmM2EyZTU1OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjExMjMxOThkMTAwODA0NDhmMTE4NTFmZDVjYjBjYWIyOGU0YmEyNjViZTE5NzYwMjdlMTE1MDJiMWJiZWIwNiJ9"
         }
       ]
     },
@@ -93,12 +101,8 @@
       "statement": "SettingsService serializes all updates through a tokio Mutex update_lock; update_with mutates the current persisted base, and a closure returning an error leaves the persisted settings untouched.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/services/settings_service.rs#L132-L145",
-          "version": "repo-lines-v1:sha256:edf6c17d9c50cfbf88ea8f90098fb922f8f1dfe2a6b742a29e40b3b47af42a02:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhZDg2MmZkOTI1OGJlM2M0MTM2NGViYzZhZGNkNzQ0MTBlY2Q0NTk1NGYyMjlmZWViZDlkMDhlYmIyODQ2YjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxMmM2Y2YzOWY0MTQ5N2Y2MTA2Yzc1M2Y4NGNlNDk4NjVmNGY5OWUzZWE5NDZmNWIzZWRhYjg4YTU4ZWUwNTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE3YTU4MDA3MGY1NTVjNGE5NWI4M2E2ZTA0NTk1NzVkODg1NGQ1YzEzODQ1MGJkNDMwZjE5NmM2NzcwNTcyYTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQwODZhMzM2YWUzNTU5NzU2ODRiOTdlMjc2YTllZTU5NmExZjI2MDQ4ZmFmNTEyOTYzOGZlYzA1MjIyMGIyYzEifQ"
-        },
-        {
-          "resource": "repo://crates/limedl-core/src/services/settings_service.rs#L50-L73",
-          "version": "repo-lines-v1:sha256:f2a49a7a28a234b3f19cddbfc2ceec3e2f161387036593734c443349fd0f3c33:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc2NDlkZTgwMTQzNDA5OGIyMTVjYjgyYTJiZDU1MDhiYWE5MjRkMzJkNTNkMWNlMDkzOWMyMWI5YTE2NjAxNTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE0MDhhM2EyNDhlM2FjZDAxZDA2MGYzYTAzMjg5MTc4ODYxYThlOGRjODg3ODQ1MTg0MDczMTU1NjExMDA0OWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUwZWViY2Y1ZWIxZGQxOTM0NDQxMDJmZGI3ZjY5NjY0ZWE0MjA5NGM2ZjdmMDAxNzM2YTA0YmQ0YTUyNDg3MzYifQ"
+          "resource": "repo://crates/limedl-disk/src/services/settings_service.rs#L12-L73",
+          "version": "repo-lines-v1:sha256:e381b5b592e40cc8a239a55422a207f00abd90f1290b0c8acb36b58e1a45fd39:eyJzZWxlY3RlZExpbmVDb3VudCI6NjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlNDM1MjNiMmE1ODdkZjI0NGUxZTM4N2VhNDdiNzRhNDMxZGY5MTY0MGNiZWYyZjM4M2UwNDJmMWI3MmM0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI0YWE4MWQ3MDQ0NzI3OWJhZGExN2IxNGE4OWNkNzA4YmRlNDhlOWUzZjIyMGM4MTZlMTBhODYwMDU5ZmZkNjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUwZWViY2Y1ZWIxZGQxOTM0NDQxMDJmZGI3ZjY5NjY0ZWE0MjA5NGM2ZjdmMDAxNzM2YTA0YmQ0YTUyNDg3MzYifQ"
         }
       ]
     },
@@ -107,12 +111,12 @@
       "statement": "ConcurrencyManager acquires HTTP/BT slots with a compare-and-swap loop and returns a DownloadSlotGuard whose Drop decrements the shared counter, and limit changes wake the scheduler via Notify.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/services/concurrency.rs#L47-L94",
-          "version": "repo-lines-v1:sha256:4981097436b53e70d59cc984e0db345a2398970c219492985d0e63d4fdc302dc:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ2NGViYWJhNzUwMGI4MWM2ZjkxMTNmYzg1NWIxZDM3OTlkYzhiZDRjNTdmMzY2ZDYwZjgyN2M0NDI4NzU4NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE0ZDNkYzAzODk5M2Y2NjVjYmY4NjIzM2Y3MTQ2YmEyMjMyM2Q1MGE3NzE4YjEzN2JlZjkwMWNkNGFlNmE3ZDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://crates/limedl-disk/src/services/concurrency.rs#L10-L94",
+          "version": "repo-lines-v1:sha256:a88453a49c4003e641558ba53f24b69a6ea363d70cf01cdc49ae7d8afba5762e:eyJzZWxlY3RlZExpbmVDb3VudCI6ODUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxOGNmYjM4MmU2YWFjZGFhMDkwNTA2YjgzZjBmNDlkMjA5MWY0ZTFmOTI3YjRhNDNmZGMzNDM0YjhhZDcwZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUyNWJmMjMwODllMTJjZjAwYzNkMmEwNGMyNTE2NzA2ODJjOGI4MDBjMmQzZjU0ZDI3YzdlMmQyNDZkNWM4ODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         },
         {
-          "resource": "repo://crates/limedl-core/src/slot_guard.rs#L8-L24",
-          "version": "repo-lines-v1:sha256:72b0ef72f1f79745e1c5f22b4210d6c519c8669cd48c98fa506fe57d7e9a4425:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVmMjM4MDY0MDY1NDYyMWJmZjM1OGE5ODE1YzUzMzkzMDdkZTBmN2ZlYTQ2MmY1ZjFhOWFiY2RmODFmMWM2YmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY4MDRlMWE2ZjEwOWM1NDI4NjJiZTBjODRkZjk0YzVhNWJjMmM5MDIzZWUxOGUyZjE2MTQ0YmMwY2U5MzgwM2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://crates/limedl-types/src/slot_guard.rs#L1-L24",
+          "version": "repo-lines-v1:sha256:0cbcf55095460f52ca2a4e67b686007071a83ed40016ced478643e448eee7d91:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk1M2Q5YTYwOTI4NDZmNmU2OWJiNDJmMzNiZWU2M2ExNDQ1ZDAwNGQ1ZDI0OGM2Y2M3NzcxYmMyZTBiY2JjYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
@@ -121,8 +125,8 @@
       "statement": "DiskIoService::resolve_disk_type checks disk_type_overrides first, then on Unix a per-device cache keyed by st_dev, then OS detection; apply_overrides forwards overrides to the DiskDeviceManager so device write queues are rebuilt.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/services/disk_io.rs#L64-L105",
-          "version": "repo-lines-v1:sha256:6db64ed5c8c9eb012c9cdeaa2e76859a901549908ee3bab77cff7d906d60210f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk3NDBhMmE2Mjk1ZDE0MWRmYzljNDFiZjIxYmI3ZmI5NWRjM2RkZWVkODU4ZmE0NDM1NTM5ZjUyNDcxYzE0NDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4ODg5MTBiMWM3ZDE5NmVkNzQ3ZTJkMWM3M2UyMGI4Y2RhZDc2MjFhYjQ2ZDVhM2Y0MzlkYjY0MWQ2YTkxN2QifQ"
+          "resource": "repo://crates/limedl-disk/src/services/disk_io.rs#L17-L138",
+          "version": "repo-lines-v1:sha256:dd83801e3ed29edbe6072e57bb14e26305c786f85a958feab68307a213b0ad44:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzMWFiM2Q4YTM1NzMzNzNkOGUwMmY2Zjk4ODFmNjIxNTQyOTJhOGI5YWRhZjg5MDFjMzhiMTMyYTQwMmI4NTVlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODVkMjBhNDhlM2ZkOTMxMjM4NGM2ZGJlZWYzYjBhNjBhYmU4NTkzMWQ3YjdkYWQ4YWJmMjIxMDIzY2E1MzM3IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJmMDI0NTVhZmQ3OTExYzA5M2UxNmU4YjYzNGU1NjVlNTMyNmFmM2E3ODc4NTkxM2EzYzFiY2ZmNWMyYmFlYjlhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MiwiZm9sbG93aW5nQ29udGV4dEhhc2giOiIzNzk0ZDAyYTgxMjE5NDRkMTc2ZDI2NWU5YmI5Y2M1OWY2YWI4OTBiY2FkZjhhZWZkZWJkYmJiNGYyZWE4NDQ0In0"
         }
       ]
     },
@@ -131,7 +135,7 @@
       "statement": "Dispatcher::save_settings_with broadcasts saved settings to every backend, clears CDN acceleration when disabled, recomputes ConcurrencyManager HTTP/BT limits from the active scheduler mode and notifies the scheduler, and pushes buffer-pool limits to DiskIoService.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L293-L348",
+          "resource": "repo://crates/limedl-core/src/dispatcher.rs#L296-L351",
           "version": "repo-lines-v1:sha256:ed8e22bd88bc98983080493d87ee4cf3f799625f01cae6c537d16dab1ba4a722:eyJzZWxlY3RlZExpbmVDb3VudCI6NTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjNDkwODBlYjEzNzZkZjcyYWFhMTkzYWEzYTk2NDliYzU1ODUxYmFjNDg4Y2IwMWM4NjI3NDEzZTU2ZDk3NWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwZmM4ZGEwZDk0MTg1OGI4M2M4NjViMDlhMjk4YjliNzM0Zjc0YzhmOTNjNTg3YWQ2NGYwNTU0MGMyYWE0MDAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg0NzMzMDUxM2YxM2IxNGJjMTIxNmZiZDliMDc0Y2VlMDdhOTRmNDc0NzQyNTMyY2JiNDE2MjA3OGM3N2E2NGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFlYmZkNjUxM2ZmOTQ4YjdmZGZjNjU5MWZjNDIxODkzMzg4ZDZiM2E5ODFiOWMyOWU2Zjc2NTQxMTNjMzhkZTAifQ"
         }
       ]
@@ -141,8 +145,8 @@
       "statement": "BackendRegistry::update_all_settings applies settings to every backend but returns only the first error, and list_all merges backend lists and sorts them newest-first.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-core/src/backend_registry/mod.rs#L87-L119",
-          "version": "repo-lines-v1:sha256:6be2939700e395ee8fd3b5ea5ef8d1c30e92bc2af80047263d0e0ce46c13ad66:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzZmQ3Yzk5MTQ2YzljYTVjM2NlOWYxMWJiZGM3Nzg3ZDA3NzM0ZTdkZjNmZWI1NDQyMDdiYzE0YjI1NmEwZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNiZTljNmQ2ZTdkMWNmMTAyYzQ0ZWE0YjU3MmZkNDI4OGMzNDhiODEyNzIyNjQ4ZjczZGQ1YjcyZTQyODhmMDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjljMTk4NTQ1NmFhZTIxMzRlZDc0ZTUwNDBkMTFkMWJjMWRkYjIyMmIyZTVlNzA2M2ZhODdjNTljZGFkYTM3NTEifQ"
+          "resource": "repo://crates/limedl-core/src/backend_registry/mod.rs#L92-L111",
+          "version": "repo-lines-v1:sha256:7aa6514da3a6768b266e5417dcaa1ef7d4daa516de093ff9cffd4dd17db6a496:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyZGRkMzhjZmM1YzI0MTRhNjU5YzJhNThhNzEwZjUxYzk2ZDczNGFlY2U0ZWViMGU0Mzc1YjcwZDJhOWJiOGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg2OTgyNTE3OTI0ZmU4ZDNlMTU2NjcxMTViMWY1YTIwMThlMGQ1NWNlNWEwMDFiMWUyZDVlMzFiOGIyNDEyMmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdhOTVmNDMxMDFlNTllNmQ3NjBjOTNjZTI5M2YwZGZiNDZmNTM4YzA5OGY5ZmRjZTY3ZWVhYTgwOWVlYTUyN2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY3ZGRjNTA4YTI4ZThmOTY5NjFmNDdkNWViZmFiMmZkY2RjMjYyNTQyZWFlNGY5MzVlZmE4MDUwM2UwYTliYzMifQ"
         }
       ]
     },
@@ -151,7 +155,7 @@
       "statement": "The headless daemon force-enables the Aria2 RPC server and sets exit_on_shutdown, whereas the desktop client starts it only when settings.aria2_rpc.enabled is true.",
       "evidence": [
         {
-          "resource": "repo://crates/limedl-native/src/main.rs#L131-L145",
+          "resource": "repo://crates/limedl-native/src/main.rs#L125-L139",
           "version": "repo-lines-v1:sha256:2810f49c601c6bd92abaa4cbeb2e2b15f70f11217459c3d52300648cdd2168e1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFhMjgwM2UwZDBlZDliMTA1YTE5ZjcxMjQ1ZjU2NGM5OThmNDA4NGY2OWIzNTI5NDhkNWFmYTQ1NDBkYmUxMDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk2ZTEwZWU2NDgzNDA2YWI1NmY5ZWY5ZGJmN2QwMDdiZmQwZDg3YzBkNzA1ZDU2ZjBiMjYwNTU2MTk2ZTUzODEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVhMjE5OTFiZjZhNzEyZjNlZjM0MWNhMGUwNjVmYTNkNGQ3MmQ0YWVlNTlhNWNjNDFjZDY2OWNlOTZjNGM2YTIifQ"
         },
         {
@@ -179,10 +183,58 @@
           "version": "repo-lines-v1:sha256:3e435c9153398dd80c4825063c3871ad3d09360c144b387ddc1667350d7f9ece:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdmNGJiMmU1OTA2N2NlY2NjZWMyNGFmODIyZjQ4MzU5ZGE3ZDJjOGU3NTkyYjFkMGYyYThmN2FjMWYwZjEwMDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjExNDExZTEyYmI4ODY5ZmRmY2IxYzVjNzMzMDljZjFiMjMyMDBjMTM4NWYyOTc5NjBkNmE2NjBhMDBjODE0MWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkNDVhNjY3N2IxMWNhOTc4N2YyNWQ4ZDcxMGQ0NjdmMDU5NDQwZTdlMzA1ZDE4MWZhYjI3NWViMWIxMmE4OTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4OTBhMjA3MzNjYTc1NWE5OTVmYzI5MWZmYzY4OGQ4MmRmNzY4MjEwNGQ5MmQ3YzU0ZDViMWY2MzczNGZjNTEifQ"
         }
       ]
+    },
+    {
+      "id": "claim_ff2af2dbac814fad96f9740595c0fcdf",
+      "statement": "SystemContext is the one struct that names types from four engine crates at once (limedl-store's Database, limedl-disk's buffer pool and services, limedl-http's RateLimiter, limedl-types' EventBus), which is why limedl-disk cannot depend on limedl-core: the dependency points the other way.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/context.rs#L38-L100",
+          "version": "repo-lines-v1:sha256:c6dfe97c7c4977facb88e8b8534dd375f192599a54e98067db1aeabb0ae89430:eyJzZWxlY3RlZExpbmVDb3VudCI6NjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyMTUxNjllOTQ3YjJmMTk1OTViNTg2ZDQ0YzE0NWI3NWE5MDFlMDgwNjExY2UwNDMxODViMjJlNTBmNzdmMzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkxMTczZTgzNzUwZmUyMGJjYWE2MjE3NDMyZjcyMTNjOWE3MmNmODY4MGJjYTgxZWE0NmQwOTkxMTU2NjJiZGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c283f7a8018a446bb18a9a212fe76eec",
+      "statement": "limedl-core does not depend on limedl-rpc: the RPC layer sits above the engine as its own crate, and the dependency runs one way (limedl-rpc -> limedl-core), which keeps axum, tower-http and argon2 out of the engine's dependency graph.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/Cargo.toml#L14-L30",
+          "version": "repo-lines-v1:sha256:33ca0e4b1bebc000e361adfeac2f147f09f38a9e734cf9088a6b734068d25fbb:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmNTNiODNkMzczOTNmNGQxZDdiODVhNTIxYTQ4NDJhZjU4MzA3OGM4Y2QzNWQwNzQ4ZmZkMTFhZDZmN2E2NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZmMDdjZDE4NGU3NTBhNjA4NjJlOTA1MzZmMjAwMzYzZjQ5NGZhMGIyYzhjZWQzNDYxMTJhMTdlZGY5MTdiYWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJlMjZkMmI5NmZmNGE3NjYzMjdmZmYyMWJmZjFkYzdlZDU5NTQ0NWZlNGJmYzA4YTg5ODUwNzk3M2Q4Y2ViNDYifQ"
+        },
+        {
+          "resource": "repo://crates/limedl-rpc/Cargo.toml#L14-L22",
+          "version": "repo-lines-v1:sha256:44f15623302cfb972c0ff38536630467d33a39ee030b38f7055e6073475cbbde:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzIzM2ViMmFmZTY2N2FhZDZjZGI0ZTY2YjhiZjg5ZmZiM2M4ZTM5YzJjODQ1MTkwMjRlZWI3MjU3NjA4ZTUxMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWE4M2Y5MmUzNTExOTc2OTM4MjJlOThjOTcyMDUwYTNmOGQzNjc1MDdkZjM5MDgzNzUwODFlMjEwNDUzZGEyYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTIwNzljYTMyYmNlMzYwZDlkMjIxMWI5ZTU3MWJhYTQzOTJiZTRlNjYzZDVhOTRhNDQ5Mzc1ZTU5YWQyMmJkOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZmI2ZWY4NjcyYmQ2MTg5ZTk3YWI5OTgzNjY3MGU5YjVlNzdmNDc1OGM0MWQxNzVmMDE2MDdmOWQzZGMxOTFlOCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_8eb9141a65344e02ada05acd7ca22696",
+      "statement": "CoreSystems is the one function result that names a type from almost every engine crate (limedl-core, limedl-bt, limedl-disk, limedl-http, limedl-engine), which is why bootstrap stays in limedl-core as the top of the engine's dependency graph.",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/bootstrap.rs#L21-L35",
+          "version": "repo-lines-v1:sha256:a20a758a91f18b7308c21d744812fe3340eec564fa317dbfb0eb5145a17d0eea:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMzY5ZDM3MTA0MThjZDkzMWU0MzRlNGM5ZTAwNjRiYmQ0OWVjZTdhYTE0NzZhYmYwYmI3ZTcxNmQ3ZDhjY2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA0NDljYmE5MzM4YzU2YjE1NTE1YjAzZWNlOWFhMzZhOTg3NTkxOTBhZmYwY2M1NDQ5YjU2ODU0MWVlZWM2NzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA3ZDc1NTRiZjEwNDEyZTNlMjNjNTdmYWFmYTIwNDUzOGZlOWZiZjc2MTJlMWUxNDc2YmVmOWExMzkxMDE0OTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e5df786507b84147bde56e4067e8f8f9",
+      "statement": "Shutdown is cooperative: SystemContext carries a CancellationToken for background work, while frontends call BackendRegistry::shutdown_all to await each backend's shutdown().",
+      "evidence": [
+        {
+          "resource": "repo://crates/limedl-core/src/backend_registry/mod.rs#L117-L121",
+          "version": "repo-lines-v1:sha256:9e021b35c9f52c04131574e58e8f5ad9e7cefb3b9c7d6a96c3123912097f4438:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjJhZTFiMzM3YTQyMzJhOGU4MDQ1Zjc4NzMyMjMwYzFkNTM1MGMzOWM3YTgyMjVhMjVkODBjZTcxY2VlMjMxYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDg5M2Y0MGUzNzgxZWI4OTZjODJkMDQ2YTA4MDY3YTExZTM1Y2RmMmYxZGZhZjI2ZmVhOTBiOGRiNjY3NjQxMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTNkNzAxYjQ1ZTlmY2FlY2UzMTBjZjU1YTI2OWI0NmFhNGJhYmE1N2Q5ZjU2ODRkNjJhOTQ5ZWY1MjZhOTg2OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTUyMTYwNGIzNWZjNDBhZjAwY2JhNGVlYTJmZDVlMmMzYWYxODYzYjM5MTE4NWQ3YmY0YmIwOWU3MmQwYzhiMyJ9"
+        },
+        {
+          "resource": "repo://crates/limedl-core/src/context.rs#L26-L27",
+          "version": "repo-lines-v1:sha256:77e690f32c9147bc62c44478e4d5013f28a29f3b42aa9b6cff53482940b2c353:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMGM3ODUzOTIxNTQ0MzRmMDUyMTkwYzE0YWY5MWRlNzFmZDQ4ZmJkNjQyZDJhZjRiMjk0ODEyZDM3Njg1NzM2MCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTk1MjI5NWNmMGIyZTMxYTVjMzRmMDcyY2Y5OGIzODRmMWYzODNmZDhkNzM0NDE0MGJlYWRmYzcwNWFjNDBiNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTg4MTg4OGM3YTYyNGJiNGY3MWFhYWVkMTljZDgyZjQyYTQyZTA4NzFlZTE1MDg4MmE5NDA2NGMzYjU5Mjc4YSJ9"
+        }
+      ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.7.1",
-    "at": "2026-10-07T03:53:23.435Z"
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-25T12:09:48.740Z"
   }
 }

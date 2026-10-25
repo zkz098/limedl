@@ -33,9 +33,6 @@ sources:
   - id: openwiki-source-191c52d830a19ec45ce7e929
     resource: repo://crates/limedl-core/src/url_rewrite/mod.rs
 generated: { by: "pi", at: "2026-10-07T03:53:23.435Z" }
-verified:
-  - by: openwiki/0.7.1
-    at: 2026-10-07T03:53:23.435Z
 ---
 
 # Networking, HTTP Clients and Rate Control

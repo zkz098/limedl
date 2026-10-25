@@ -61,9 +61,6 @@ sources:
   - id: openwiki-source-24da63931d7b260f1749f6ef
     resource: repo://docs/troubleshooting.md
 generated: { by: "pi", at: "2026-10-14T09:19:57.024Z" }
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-14T09:19:57.024Z
 ---
 
 # Native Desktop UI (Slint)
