@@ -266,17 +266,43 @@ job was not already building).
 
 ## Local pre-commit gate
 
-The commands mirror `.github/workflows/ci.yml` one for one (same crate list, same
-features, same nextest version), so a green local run means a green CI run.
+Run `cargo xtask gate --full`. The command lives in `xtask/src/gate.rs` and
+mirrors `.github/workflows/ci.yml` (same crate list, same features, same pinned
+tools), so a green local run means a green CI run. `cargo xtask gate` is the
+~3 minute subset CI turns red on for a code change; `--full` adds the feature
+matrix, `cargo machete`, `cargo deny` and `cargo audit`.
+
+The gate is code, not a command list in a doc, because the list drifted twice:
+it never grew `cargo deny`/`cargo audit` (a push went red on four newly published
+RustSec advisories), and every `--manifest-path crates/limedl-core/Cargo.toml`
+silently skipped the suites of the crates split out of it. `TEST_GROUPS` in the
+gate now has to cover every workspace member and `ci_parity` (run before every
+gate step, and in `xtask::tests::ci_parity_accepts_the_real_workspace`) fails
+when `ci.yml` stops naming one of them. `cargo xtask gate --check-ci` runs only
+that check, offline.
+
+Two host hazards the gate handles, both of which it had to discover itself:
+
+- `cargo run -p xtask` hands its child a `CARGO_PKG_*` block, which flips the
+  argument parser of any cargo subcommand that sniffs "am I being run by cargo?"
+  (`cargo-machete` read `machete` as a directory). The gate scrubs the block
+  before spawning each step.
+- A missing `cargo-<tool>` is reported as **not run**, never as passing, and the
+  summary stops claiming "all green" when any step was skipped.
+
+The details below are what those steps mean and why they stay per-crate.
 
 - Warnings are fatal through `CARGO_BUILD_WARNINGS=deny` (cargo's own
   `build.warnings`, orthogonal to RUSTFLAGS) plus clippy's `-- -D warnings`.
   Deliberately **not** `RUSTFLAGS="-D warnings"`: that variable overrides
   `.cargo/config.toml`'s per-target rustflags (`target-cpu`, `rust-lld`,
   `/FORCE:MULTIPLE`), which CI keeps authoritative with `rustflags: ""`.
-- Tests run **per crate, not `--workspace`**: only `limedl-core`'s tests are
-  meaningful without the `test-utils,aria2-rpc` features, a workspace-wide run
-  would lose them, and it would build the UI crate just to check its flags.
+- Tests run **per crate group, not `--workspace`**: only the engine crates take
+  `test-utils,aria2-rpc`, a workspace-wide run would lose those tests, and it
+  would build the UI crate just to check its flags. The three engine crates
+  (`limedl-types`, `limedl-disk`, `limedl-core`) are always selected together:
+  `--features` binds to `limedl-core` and `--manifest-path` on one of them skips
+  the other two suites.
   `xtask` is in the gate because it holds the release-guard tests
   (`cargo xtask guard` runs in `release.yml`, and its default `--update-rs` path
   broke a release once).

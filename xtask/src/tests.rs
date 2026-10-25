@@ -346,3 +346,107 @@ fn icons_generation_creates_expected_assets() {
 
     fs::remove_dir_all(&dir).ok();
 }
+
+// ---------------------------------------------------------------------------
+// `cargo xtask gate`
+// ---------------------------------------------------------------------------
+
+#[test]
+fn ci_parity_accepts_the_real_workspace() {
+    // The gate's whole reason to exist is that the checks are structural, so
+    // the structure check has to be able to pass on the tree it ships in.
+    gate::ci_parity(&repo_root().unwrap()).expect("gate --check-ci must pass on this tree");
+}
+
+#[test]
+fn ci_parity_names_an_unlisted_workspace_member() {
+    let root = repo_root().unwrap();
+    let mut members: Vec<String> = gate::TEST_GROUPS
+        .iter()
+        .flat_map(|group| group.packages.iter().map(|p| (*p).to_string()))
+        .collect();
+    members.push("limedl-ghost".to_string());
+
+    let err = gate::ci_parity_for_test(&root, &members)
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("limedl-ghost"),
+        "the error has to name the crate that would silently skip its tests: {err}"
+    );
+}
+
+#[test]
+fn ci_parity_rejects_a_stale_group_entry() {
+    let root = repo_root().unwrap();
+    // Every member except `xtask`: its entry in `TEST_GROUPS` is now stale.
+    let members: Vec<String> = gate::TEST_GROUPS
+        .iter()
+        .flat_map(|group| group.packages.iter().map(|p| (*p).to_string()))
+        .filter(|package| package != "xtask")
+        .collect();
+
+    let err = gate::ci_parity_for_test(&root, &members)
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("xtask"),
+        "deleting a crate has to fail until its group entry goes too: {err}"
+    );
+}
+
+#[test]
+fn gate_profiles_are_the_kept_promise() {
+    let quick: Vec<&str> = gate::steps(&gate::Options::default())
+        .iter()
+        .map(|step| step.name)
+        .collect();
+    let full: Vec<&str> = gate::steps(&gate::Options {
+        full: true,
+        keep_going: false,
+    })
+    .iter()
+    .map(|step| step.name)
+    .collect();
+
+    // `--quick` is the ~3 minute loop; it must still cover everything CI turns
+    // red on for a *code* change.
+    assert_eq!(
+        quick.iter().filter(|name| **name == "nextest").count(),
+        gate::TEST_GROUPS.len(),
+        "one nextest step per test group: {quick:?}"
+    );
+    for required in ["fmt", "clippy", "theme", "nextest"] {
+        assert!(quick.contains(&required), "{required} missing from --quick");
+    }
+    for slow in ["hack", "machete", "deny", "audit"] {
+        assert!(
+            !quick.contains(&slow),
+            "{slow} must stay out of --quick (it is what --full adds)"
+        );
+        assert!(full.contains(&slow), "{slow} missing from --full");
+    }
+}
+
+#[test]
+fn gate_scrubs_the_cargo_metadata_block() {
+    // Regression: spawning `cargo machete` from `cargo run -p xtask` used to
+    // hand it `CARGO_PKG_NAME`, which flips cargo-machete's argument parser to
+    // the non-cargo mode and makes it treat `machete` as a directory.
+    let keys = vec![
+        "CARGO_PKG_NAME".to_string(),
+        "CARGO_PKG_VERSION".to_string(),
+        "CARGO_MANIFEST_DIR".to_string(),
+        "CARGO_CRATE_NAME".to_string(),
+        "OUT_DIR".to_string(),
+        "PATH".to_string(),
+        "CARGO".to_string(),
+    ];
+    let scrubbed = gate::cargo_metadata_keys(keys.into_iter());
+    assert!(scrubbed.contains(&"CARGO_PKG_NAME".to_string()));
+    assert!(scrubbed.contains(&"CARGO_MANIFEST_DIR".to_string()));
+    // `CARGO` itself and unrelated variables must survive: cargo-machete needs
+    // `CARGO` set to stay in cargo mode once `CARGO_PKG_NAME` is gone.
+    assert!(!scrubbed.contains(&"CARGO".to_string()));
+    assert!(!scrubbed.contains(&"PATH".to_string()));
+}

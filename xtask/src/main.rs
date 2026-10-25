@@ -45,6 +45,7 @@ use rand::Rng as _;
 
 mod bump_version;
 mod fetch_font;
+mod gate;
 mod i18n;
 mod icons;
 mod manifest;
@@ -175,6 +176,19 @@ enum Command {
         #[arg(long, default_value = fetch_font::DEFAULT_ZIP_URL)]
         zip_url: String,
     },
+    /// Run the pre-commit gate (the same checks `.github/workflows/ci.yml` runs).
+    Gate {
+        /// Also run the slow whole-workspace checks: feature matrix, unused
+        /// deps, license/advisory gate, RustSec audit.
+        #[arg(long)]
+        full: bool,
+        /// Do not stop at the first failing step; report all of them.
+        #[arg(long)]
+        keep_going: bool,
+        /// Only verify that `ci.yml` runs every workspace member's tests, then exit.
+        #[arg(long)]
+        check_ci: bool,
+    },
     /// Bump the workspace version in Cargo.toml, Cargo.lock and website/.
     BumpVersion {
         /// Which version component to increment.
@@ -286,6 +300,18 @@ fn main() -> Result<()> {
             level,
             &bump_version::Options { dry_run, no_push },
         ),
+        Command::Gate {
+            full,
+            keep_going,
+            check_ci,
+        } => {
+            let root = repo_root()?;
+            if check_ci {
+                gate::ci_parity(&root)
+            } else {
+                gate::run(&root, &gate::Options { full, keep_going })
+            }
+        }
         Command::Theme(cmd) => theme::run(cmd),
         Command::I18n(cmd) => i18n::run(cmd),
         Command::GenIcons(cmd) => icons::run(cmd),

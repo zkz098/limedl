@@ -12,6 +12,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 
 | Purpose         | Command                                                                                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Gate (all)      | `cargo xtask gate` · `cargo xtask gate --full` · `cargo xtask gate --check-ci` (see "Pre-commit verification gate")                                   |
 | Test (Rust)     | `cargo nextest run -p limedl-types -p limedl-disk -p limedl-core --features "limedl-core/test-utils,limedl-core/aria2-rpc"` (engine), then `xtask`, `limedl-native`, `limedl-server` (see the gate below)                                                                |
 | Feature matrix  | `cargo hack check --feature-powerset --all-targets --keep-going --manifest-path crates/limedl-core/Cargo.toml`                                                      |
 | Unused deps     | `cargo machete --with-metadata`                                                                                                                                     |
@@ -107,42 +108,48 @@ and fails if **any** test fails, warning is emitted, or error is raised —
 regardless of whether your own diff caused it. Fix all failures, warnings and
 errors before committing, even pre-existing ones.
 
-Run the full gate locally (Windows: init MSVC first). The commands mirror
-`.github/workflows/ci.yml` one for one, so a green local run means a green CI run:
+Run it with one command (Windows: init MSVC first, as above):
 
 ```powershell
-cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
-$env:CARGO_BUILD_WARNINGS="deny"
-$env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
-
-# Formatting first: it is instant, and CI runs it before clippy. `cargo fmt`
-# locally; CI goes through a pinned rustfmt (1.99.0) so a Rust release cannot
-# reformat the tree unasked.
-cargo fmt --all -- --check
-
-cargo clippy --workspace --all-targets -- -D warnings
-
-# The three engine crates go together: a `--manifest-path` on one of them
-# silently skips the other two suites (269 tests at the time of the split).
-cargo nextest run -p limedl-types -p limedl-disk -p limedl-core --features "limedl-core/test-utils,limedl-core/aria2-rpc"
-cargo nextest run --manifest-path xtask/Cargo.toml
-cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
-cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
-
-# CI pins cargo-hack 0.6.45 and cargo-machete 0.9.2 (install-action).
-cargo hack check --feature-powerset --all-targets --keep-going --manifest-path crates/limedl-core/Cargo.toml
-cargo machete --with-metadata
-
-# The theme-token scanner: no new hardcoded hex in `ui/*.slint` components
-# (alpha tints and scheme-identical colors are allowlisted in `xtask/src/theme.rs`).
-cargo xtask theme check
+cargo xtask gate            # ~3 min: fmt, clippy, all test suites, theme check
+cargo xtask gate --full     # + feature matrix, unused deps, license gate, RustSec audit
+cargo xtask gate --check-ci # offline: does ci.yml still run every crate's tests?
+cargo xtask gate --keep-going
 ```
 
-`cargo hack` walks every `limedl-core` feature combination — `--no-default-features`
-(BT engine absent) included — with `CARGO_BUILD_WARNINGS=deny` in force, so a
-warning in *any* combination fails. `cargo machete` runs with
-`--with-metadata`; its false positives are listed with reasons under
-`[package.metadata.cargo-machete]` in the crate that owns them.
+`cargo xtask gate` (xtask/src/gate.rs) is the hand-written command list this
+section used to carry, moved into code so it cannot drift again:
+
+- **The package list comes from `cargo metadata`.** `TEST_GROUPS` must cover
+  every workspace member and `ci.yml` must name each one on a `nextest` /
+  `llvm-cov` line — `ci_parity` (run before every gate, and by
+  `xtask::tests::ci_parity_accepts_the_real_workspace`) fails otherwise. This is
+  not cosmetic: `--manifest-path crates/limedl-core/Cargo.toml` silently skipped
+  269 tests the day `limedl-types` and `limedl-disk` were split out.
+- **CI's environment is applied for you** (`CARGO_BUILD_WARNINGS=deny`, sparse
+  registry protocol), and the `rustfmt` pin is checked: with `1.99.0` installed
+  the gate formats through it exactly like `check-rust` does, otherwise it warns
+  and uses the host toolchain.
+- **It reports the command that failed**, not just a red step, so a failure can
+  be re-run in isolation.
+- **`--full` is the CI-parity profile.** `cargo deny check -W rejected bans
+  licenses sources` and `cargo audit` are part of it — they live only in the
+  `supply-chain` job, and a push has already gone red on four freshly published
+  RustSec advisories that the old command list never ran.
+- **CI does not call the gate.** `.github/workflows/ci.yml` is the authority;
+  the gate mirrors it and `ci_parity` keeps the mirror honest.
+
+What each step means:
+
+- `cargo hack` walks every `limedl-core` feature combination —
+  `--no-default-features` (BT engine absent) included — with
+  `CARGO_BUILD_WARNINGS=deny` in force, so a warning in *any* combination fails.
+- `cargo machete` runs with `--with-metadata`; its false positives are listed
+  with reasons under `[package.metadata.cargo-machete]` in the crate that owns
+  them.
+- `cargo xtask theme check` is the token scanner: no new hardcoded hex in
+  `ui/*.slint` components (alpha tints and scheme-identical colors are
+  allowlisted in `xtask/src/theme.rs`).
 
 See `docs/ci-operations.md` for the cache/RUSTFLAGS contract, the coverage gate
 and the macOS linker exemption.
