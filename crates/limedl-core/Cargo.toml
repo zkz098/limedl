@@ -17,6 +17,7 @@ name = "limedl_core"
 # so `limedl-core --no-default-features` really does drop `irontide` from the
 # graph.
 limedl-types = { path = "../limedl-types", default-features = false }
+limedl-disk = { path = "../limedl-disk", default-features = false }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 reqwest = { workspace = true }
@@ -41,12 +42,10 @@ foldhash = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-fs4 = { workspace = true }
 rand = { workspace = true }
 argon2 = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
 irontide = { workspace = true, optional = true }
-libc = { workspace = true }
 open = { workspace = true }
 quick-xml = { workspace = true }
 # Encoders for the compression test endpoints. Optional and only enabled by
@@ -66,9 +65,24 @@ aria2-rpc = [
     "dep:subtle",
     "bt",
 ]
-test-utils = ["dep:axum", "dep:tower-http", "dep:flate2", "dep:brotli", "dep:zstd"]
+test-utils = [
+    "dep:axum",
+    "dep:tower-http",
+    "dep:flate2",
+    "dep:brotli",
+    "dep:zstd",
+    "limedl-disk/test-utils",
+]
 
 [dev-dependencies]
+# `limedl-disk`'s test seams (`file_ops::fault`, `DownloadBuffer::has_degraded`)
+# sit behind its own `test-utils` feature now that the module is a crate. A
+# dev-dependency entry is what re-creates the old `cfg(test)` behaviour: Cargo
+# unifies features for dev-dependencies, so `cargo test -p limedl-core` turns
+# those seams on while a plain build keeps them out.
+limedl-disk = { path = "../limedl-disk", default-features = false, features = [
+  "test-utils",
+] }
 tempfile = { workspace = true }
 rand = { workspace = true }
 ntest = { workspace = true }

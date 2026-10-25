@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "crates/limedl-core",
+    "crates/limedl-disk",
     "crates/limedl-native",
     "crates/limedl-server",
     "crates/limedl-types",

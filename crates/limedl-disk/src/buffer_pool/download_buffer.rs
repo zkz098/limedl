@@ -649,7 +649,11 @@ impl DownloadBuffer {
     }
 
     /// Wait for any in-progress background flush to complete, discarding its result.
-    #[cfg(test)]
+    ///
+    /// `feature = "test-utils"` as well as `test`: now that this file is its own
+    /// crate, `cfg(test)` is false when `limedl-core`'s tests link it as a
+    /// dependency.
+    #[cfg(any(test, feature = "test-utils"))]
     pub async fn drain_background(&self) {
         match &self.mode {
             BufferMode::Double { flush_handle, .. } => {
@@ -715,7 +719,7 @@ impl DownloadBuffer {
     }
 
     /// Total bytes currently buffered (test-only).
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn len(&self) -> u64 {
         match &self.mode {
             BufferMode::Double {
@@ -728,13 +732,13 @@ impl DownloadBuffer {
     }
 
     /// Whether the buffer is empty (test-only).
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Whether any background flush has degraded (test-only).
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn has_degraded(&self) -> bool {
         match &self.mode {
             BufferMode::Double { error_flag, .. } => error_flag.load(Ordering::Relaxed),

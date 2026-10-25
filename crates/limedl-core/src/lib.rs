@@ -17,11 +17,9 @@ pub mod context;
 pub mod database;
 pub mod dispatcher;
 pub mod download;
-pub mod file_ops;
 pub mod http;
 pub mod http_client_factory;
 pub mod http_executor;
-pub mod io_scheduler;
 pub mod logging;
 pub mod manager;
 pub mod manager_state;
@@ -30,7 +28,6 @@ pub mod persistence;
 pub mod rate_limiter;
 pub mod retry;
 pub mod scheduler;
-pub mod services;
 pub mod speed_tracker;
 pub mod task_lifecycle;
 
@@ -43,19 +40,19 @@ pub use limedl_types::{
 };
 pub use limedl_types::{lock, now_ms};
 
+// Disk/I/O substrate. Re-exported as modules for the same reason as the
+// foundation layer: `crate::file_ops::…` / `crate::buffer_pool::…` keep
+// resolving for the engine and its ~12k lines of tests. `buffer_pool` is now
+// an ordinary public module instead of a `cfg(any(test, feature = "test-utils"))`
+// gate — a crate cannot hide a module from its own dependents.
+pub use limedl_disk::{buffer_pool, file_ops, io_scheduler, services};
+
 #[cfg(any(test, feature = "test-utils"))]
 #[cfg_attr(not(test), allow(dead_code))]
 pub mod aimd;
 
 #[cfg(not(any(test, feature = "test-utils")))]
 mod aimd;
-
-#[cfg(any(test, feature = "test-utils"))]
-#[cfg_attr(not(test), allow(dead_code))]
-pub mod buffer_pool;
-
-#[cfg(not(any(test, feature = "test-utils")))]
-mod buffer_pool;
 
 #[cfg(any(test, feature = "test-utils"))]
 #[cfg_attr(not(test), allow(dead_code))]

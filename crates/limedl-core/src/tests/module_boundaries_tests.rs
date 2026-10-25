@@ -20,10 +20,11 @@
 //! not, and `b -> a` is not either.  Improving the graph never fails this test;
 //! only regressing it does.
 //!
-//! The first crate extraction (`limedl-types`: `types`, `error`, `event_bus`,
-//! `manifest`, `protocol`, `settings`, `url_rewrite`, `checksum`, `slot_guard`,
-//! `platform`) has already happened, so those modules are no longer in this
-//! graph: an upward edge to them is now a compile error instead.
+//! Two crate extractions have already happened, so those modules are no longer
+//! in this graph and an upward edge to them is a compile error instead:
+//! `limedl-types` (`types`, `error`, `event_bus`, `manifest`, `protocol`,
+//! `settings`, `url_rewrite`, `checksum`, `slot_guard`, `platform`) and
+//! `limedl-disk` (`file_ops`, `buffer_pool`, `io_scheduler`, `services`).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
@@ -58,16 +59,8 @@ const ALLOWED_CYCLES: &[&[&str]] = &[];
 /// commit — the stale-entry check below fails otherwise.
 const LAYERS: &[(&str, &[&str])] = &[
     (
-        "limedl-disk / limedl-http",
-        &[
-            "file_ops",
-            "io_scheduler",
-            "buffer_pool",
-            "services",
-            "http",
-            "http_client_factory",
-            "rate_limiter",
-        ],
+        "limedl-http (not extracted yet)",
+        &["http", "http_client_factory", "rate_limiter"],
     ),
     (
         "limedl-store / limedl-testkit",
@@ -444,7 +437,7 @@ fn module_graph(src_root: &Path) -> (BTreeSet<String>, BTreeMap<String, BTreeSet
     let mut files = Vec::new();
     collect_source_files(src_root, &[], &mut files);
 
-    let mut nodes: BTreeSet<String> = files
+    let nodes: BTreeSet<String> = files
         .iter()
         .filter_map(|file| top_level(&file.module).map(str::to_string))
         .collect();
@@ -481,7 +474,10 @@ fn module_graph(src_root: &Path) -> (BTreeSet<String>, BTreeMap<String, BTreeSet
                 .insert(to.to_string());
         }
     }
-    nodes.retain(|node| edges.contains_key(node) || edges.values().any(|t| t.contains(node)));
+    // No pruning: a top-level module with *zero* edges is legitimate now that
+    // the foundation (`limedl-types`) and disk (`limedl-disk`) layers live in
+    // other crates — `test_harness` has nothing left inside this crate to point
+    // at. Dropping it here made it look like a stale `LAYERS` entry.
     (nodes, edges)
 }
 

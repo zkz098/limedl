@@ -1,0 +1,44 @@
+[package]
+name = "limedl-disk"
+version.workspace = true
+description = "Disk and I/O substrate for limedl — buffered writes, the chunk buffer pool, HDD/SSD scheduling and the shared disk services"
+license.workspace = true
+edition = "2024"
+# Workspace-internal, like every other limedl crate.
+publish = false
+
+[lib]
+name = "limedl_disk"
+
+[dependencies]
+# The only limedl crate this layer may name. Everything below it lives in
+# `limedl-types`; everything above it (the HTTP engine, the BT backend) depends
+# on *this* crate, never the other way round — `module_boundaries_tests`
+# enforces the same relation inside the engine and `Cargo.toml` enforces it here.
+limedl-types = { path = "../limedl-types", default-features = false }
+tokio = { workspace = true }
+tracing = { workspace = true }
+parking_lot = { workspace = true }
+bytes = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+foldhash = { workspace = true }
+# Advisory file locks around the coalescing sink.
+fs4 = { workspace = true }
+async-trait = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+# `O_DIRECT`-style advice and `fstatvfs` for the SSD/HDD probe.
+libc = { workspace = true }
+
+[features]
+# Keeps the deterministic write-fault hooks (`file_ops::fault`) and the
+# buffer-pool/queue test seams compiled. `limedl-core` forwards its own
+# `test-utils` here, which is why the moved modules keep their
+# `cfg(any(test, feature = "test-utils"))` gates unchanged.
+default = []
+test-utils = []
+
+[dev-dependencies]
+tempfile = { workspace = true }
+ntest = { workspace = true }

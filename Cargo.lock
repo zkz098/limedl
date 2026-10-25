@@ -3981,10 +3981,9 @@ dependencies = [
  "dashmap",
  "flate2",
  "foldhash 0.2.0",
- "fs4",
  "futures-util",
  "irontide",
- "libc",
+ "limedl-disk",
  "limedl-types",
  "ntest",
  "open",
@@ -4009,6 +4008,25 @@ dependencies = [
  "uuid",
  "xxhash-rust",
  "zstd",
+]
+
+[[package]]
+name = "limedl-disk"
+version = "0.5.5"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "foldhash 0.2.0",
+ "fs4",
+ "libc",
+ "limedl-types",
+ "ntest",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
