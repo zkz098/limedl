@@ -25,7 +25,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
-use ntest::timeout;
 use tempfile::TempDir;
 use tokio::time::sleep;
 
@@ -101,7 +100,6 @@ async fn wait_for_terminal(manager: &DownloadManager, id: &str) -> crate::types:
 /// Baseline: without a fault, feeding the whole file through the SSD ping-pong
 /// buffer yields a byte-identical file.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn ssd_pingpong_no_fault_byte_identical() -> TestResult {
     const TOTAL: u64 = 512 * 1024;
     const HALF: u64 = 64 * 1024;
@@ -143,7 +141,6 @@ async fn ssd_pingpong_no_fault_byte_identical() -> TestResult {
 /// previously written bytes — written data stays at correct offsets and only
 /// the failed batch's region is absent.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn ssd_pingpong_flush_failure_surfaces_error_without_corruption() -> TestResult {
     const TOTAL: u64 = 512 * 1024;
     const HALF: u64 = 64 * 1024;
@@ -211,7 +208,6 @@ async fn ssd_pingpong_flush_failure_surfaces_error_without_corruption() -> TestR
 
 /// Baseline: without a fault, the HDD double-buffer writes a byte-identical file.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn hdd_double_buffer_no_fault_byte_identical() -> TestResult {
     const TOTAL: u64 = 512 * 1024;
     const CHUNK: u64 = 32 * 1024;
@@ -253,7 +249,6 @@ async fn hdd_double_buffer_no_fault_byte_identical() -> TestResult {
 /// HDD double-buffer: a background flush failure is surfaced and never corrupts
 /// previously written bytes.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn hdd_double_buffer_flush_failure_surfaces_error_without_corruption() -> TestResult {
     const TOTAL: u64 = 512 * 1024;
     const CHUNK: u64 = 32 * 1024;
@@ -307,7 +302,6 @@ async fn hdd_double_buffer_flush_failure_surfaces_error_without_corruption() -> 
 /// buffer has a background flush injected to fail mid-transfer. The download
 /// must end in `Failed` — never a silent `Completed` with a corrupt file.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(180_000)]
 async fn pipeline_ssd_buffer_flush_failure_ends_failed() -> TestResult {
     const SIZE: u64 = 96 * 1024 * 1024;
 

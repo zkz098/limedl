@@ -2,7 +2,6 @@
 
 use super::*;
 
-#[timeout(30_000)]
 #[test]
 fn table_has_column_detects_existing_column() {
     let db = Database::open_in_memory().unwrap();
@@ -37,7 +36,6 @@ fn table_has_column_detects_existing_column() {
     );
 }
 
-#[timeout(30_000)]
 #[test]
 fn migration_compat_v1_with_mirror_columns_backfilled() {
     let dir = tempfile::tempdir().unwrap();
@@ -77,7 +75,6 @@ fn migration_compat_v1_with_mirror_columns_backfilled() {
     assert_eq!(db.count_downloads().unwrap(), 1);
 }
 
-#[timeout(30_000)]
 #[test]
 fn migration_compat_v0_fully_backfilled() {
     let dir = tempfile::tempdir().unwrap();
@@ -125,7 +122,6 @@ fn migration_compat_v0_fully_backfilled() {
     assert_eq!(db.count_downloads().unwrap(), 1);
 }
 
-#[timeout(30_000)]
 #[test]
 fn add_column_if_missing_is_idempotent() {
     let conn = Connection::open_in_memory().unwrap();
@@ -141,7 +137,6 @@ fn add_column_if_missing_is_idempotent() {
 /// A database whose schema is ahead of its `user_version` — the state a crash in
 /// the middle of a migration body used to leave behind — must still open, because
 /// every migration body is idempotent and each migration commits atomically.
-#[timeout(30_000)]
 #[test]
 fn partially_applied_migration_is_recovered_on_open() {
     let dir = tempfile::tempdir().unwrap();

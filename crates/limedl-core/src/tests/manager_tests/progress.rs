@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn record_progress_normal_update() {
     let managed = make_managed_with_chunk("dl1", 0, 0, 4_194_304, 0, Some(8_388_608));
 
@@ -22,7 +21,6 @@ async fn record_progress_normal_update() {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn record_progress_chunk_index_beyond_range() {
     let managed = make_managed_with_chunk("dl2", 500, 0, 4_194_304, 100, Some(8_388_608));
 
@@ -39,7 +37,6 @@ async fn record_progress_chunk_index_beyond_range() {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn record_progress_chunk_exceeds_bounds_marks_completed() {
     // Chunk covers 0..1_000_000, currently at 999_500
     let managed = make_managed_with_chunk("dl3", 999_500, 0, 1_000_000, 999_500, Some(10_000_000));
@@ -60,7 +57,6 @@ async fn record_progress_chunk_exceeds_bounds_marks_completed() {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn record_progress_overflow_protection() {
     let managed = make_managed_with_chunk("dl4", u64::MAX, 0, 4_194_304, 0, Some(8_388_608));
 
@@ -73,7 +69,6 @@ async fn record_progress_overflow_protection() {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn record_progress_none_chunk_index_still_updates_snapshot() {
     let managed = make_managed_with_chunk("dl5", 100, 0, 4_194_304, 50, Some(8_388_608));
 
@@ -87,7 +82,6 @@ async fn record_progress_none_chunk_index_still_updates_snapshot() {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn cancellation_outcome_when_canceled() {
     let managed = make_managed("canceled", DownloadState::Canceled, "https://example.com/f");
     let outcome = cancellation_outcome(&managed);
@@ -95,7 +89,6 @@ async fn cancellation_outcome_when_canceled() {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn cancellation_outcome_when_downloading() {
     let managed = make_managed("dl", DownloadState::Downloading, "https://example.com/f");
     let outcome = cancellation_outcome(&managed);
@@ -103,7 +96,6 @@ async fn cancellation_outcome_when_downloading() {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn cancellation_outcome_when_paused() {
     let managed = make_managed("paused", DownloadState::Paused, "https://example.com/f");
     let outcome = cancellation_outcome(&managed);
@@ -111,7 +103,6 @@ async fn cancellation_outcome_when_paused() {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn cancellation_outcome_when_completed() {
     let managed = make_managed("done", DownloadState::Completed, "https://example.com/f");
     let outcome = cancellation_outcome(&managed);
@@ -119,7 +110,6 @@ async fn cancellation_outcome_when_completed() {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn cancellation_chunk_outcome_when_canceled() {
     let managed = make_managed("canceled", DownloadState::Canceled, "https://example.com/f");
     let outcome = cancellation_chunk_outcome(&managed);
@@ -127,7 +117,6 @@ async fn cancellation_chunk_outcome_when_canceled() {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn cancellation_chunk_outcome_when_downloading() {
     let managed = make_managed("dl", DownloadState::Downloading, "https://example.com/f");
     let outcome = cancellation_chunk_outcome(&managed);

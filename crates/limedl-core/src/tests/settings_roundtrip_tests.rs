@@ -1,4 +1,3 @@
-use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::types::SchedulerSettings;
@@ -47,7 +46,6 @@ fn scheduler_defaults_match_serde_defaults() {
 
 /// Verify settings persist to disk and survive restart.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn settings_survive_restart() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -112,7 +110,6 @@ async fn settings_survive_restart() {
 
 /// Verify that bootstrapping without a settings.json produces valid defaults.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn default_settings_are_valid() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");

@@ -1,11 +1,9 @@
-use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::types::{ChecksumMode, DownloadState, StartDownloadRequest, TaskId};
 
 /// Download with correct Blake3 checksum → Completed
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn checksum_correct_completes() {
     let test_server = crate::test_harness::TestServer::new(1024 * 1024).await;
     let url = test_server.file_url_range();
@@ -63,7 +61,6 @@ async fn checksum_correct_completes() {
 
 /// Download with WRONG checksum → Failed
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn checksum_wrong_fails() {
     let test_server = crate::test_harness::TestServer::new(1024 * 1024).await;
     let url = test_server.file_url_range();
@@ -132,7 +129,6 @@ async fn checksum_wrong_fails() {
 
 /// Download without expected_checksum, but server has `.sha256` → Auto-detected & Completed
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn checksum_autodetect_sha256_completes() {
     let test_server = crate::test_harness::TestServer::new(512 * 1024).await;
     let url = format!("{}/file", test_server.addr);
@@ -200,7 +196,6 @@ async fn checksum_autodetect_sha256_completes() {
 
 /// Download with manually provided SHA-256 and no checksum_mode → resolves to Sha256 & Completed
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn checksum_manual_sha256_completes() {
     let test_server = crate::test_harness::TestServer::new(256 * 1024).await;
     let url = format!("{}/file", test_server.addr);
@@ -268,7 +263,6 @@ async fn checksum_manual_sha256_completes() {
 
 /// Test Dispatcher::probe_checksum
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn test_dispatcher_probe_checksum() {
     let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
     let url = format!("{}/file", test_server.addr);

@@ -176,7 +176,6 @@ fn consume_blocking_unlimited_returns_immediately() {
 // ── concurrent stress tests ────────────────────────────
 
 #[tokio::test(flavor = "multi_thread")]
-#[ntest::timeout(15_000)]
 async fn concurrent_token_consumption_no_deadlock() {
     let limiter = Arc::new(init_limiter(1_000_000));
     let mut handles = Vec::with_capacity(10);
@@ -199,7 +198,6 @@ async fn concurrent_token_consumption_no_deadlock() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ntest::timeout(15_000)]
 #[ignore = "flaky: timing-sensitive fairness assertion under parallel CI load"]
 async fn concurrent_token_fairness() {
     let limiter = Arc::new(init_limiter(50_000));
@@ -242,7 +240,6 @@ async fn concurrent_token_fairness() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ntest::timeout(15_000)]
 async fn concurrent_refill_while_consuming() {
     let limiter = Arc::new(init_limiter(100_000));
     let consumed = Arc::new(AtomicU64::new(0));
@@ -305,7 +302,6 @@ async fn concurrent_refill_while_consuming() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ntest::timeout(30_000)]
 async fn concurrent_speed_limit_enforcement_under_load() {
     const LIMIT: u64 = 1_000_000; // 1 MB/s
     const TOLERANCE: f64 = 0.20; // 20% margin (partial token preservation loosens enforcement)
@@ -369,7 +365,6 @@ async fn concurrent_speed_limit_enforcement_under_load() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ntest::timeout(30_000)]
 async fn massive_concurrent_contention() {
     // Very low rate → high contention for scarce tokens
     let limiter = Arc::new(init_limiter(1000));

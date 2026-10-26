@@ -1,11 +1,9 @@
-use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::types::{DownloadState, StartDownloadRequest, TaskId};
 
 /// Start N downloads with max_parallel_tasks=2; verify only 2 run at a time.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn scheduler_respects_max_parallel_tasks() {
     // Use a bandwidth-limited endpoint so downloads stay active long enough to observe
     let test_server = crate::test_harness::TestServer::new(256 * 1024).await;
@@ -93,7 +91,6 @@ async fn scheduler_respects_max_parallel_tasks() {
 /// Submitting many links (e.g. 50 links) at once must succeed for all tasks,
 /// queuing any surplus beyond max_parallel_tasks rather than rejecting them.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn batch_submitting_many_links_succeeds_and_queues() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");

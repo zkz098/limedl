@@ -35,4 +35,3 @@ serde_json = { workspace = true }
 # Hands a real JSON-RPC request to the daemon over TCP; already in the
 # workspace graph as a core dependency.
 reqwest = { workspace = true }
-ntest = { workspace = true }

@@ -1,7 +1,6 @@
 use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
-use ntest::timeout;
 use serde_json::{Value, json};
 use tempfile::TempDir;
 use tokio_tungstenite::connect_async;
@@ -182,7 +181,6 @@ fn is_notification(frame: &Value, method: &str, gid: &str) -> bool {
 
 /// Connect via WebSocket, send addUri, verify response + server-pushed event.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn websocket_add_uri_and_receive_event() {
     // Start a file server so the download has a real URL
     let test_server = limedl_testkit::TestServer::new(256 * 1024).await;
@@ -255,7 +253,6 @@ async fn websocket_add_uri_and_receive_event() {
 /// handler and the engine both broadcasting, which made AriaNg show phantom
 /// state changes.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn websocket_lifecycle_notifications_are_pushed_exactly_once() {
     let test_server = limedl_testkit::TestServer::new(4 * 1024 * 1024).await;
     // Throttled so the task cannot finish between two RPC calls.
@@ -299,7 +296,6 @@ async fn websocket_lifecycle_notifications_are_pushed_exactly_once() {
 /// A finished HTTP download pushes `aria2.onDownloadComplete` (from the
 /// executor's finalize step, not the RPC handler).
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn websocket_pushes_completion_notification() {
     let test_server = limedl_testkit::TestServer::new(64 * 1024).await;
 
@@ -327,7 +323,6 @@ async fn websocket_pushes_completion_notification() {
 
 /// A failed HTTP download pushes `aria2.onDownloadError` exactly once.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn websocket_pushes_error_notification() {
     let (ws_url, shutdown_tx, tmp) = start_ws_server().await;
     let dest_dir = tmp.path().join("output");
@@ -358,7 +353,6 @@ async fn websocket_pushes_error_notification() {
 /// Malformed JSON over the WebSocket must be answered with a JSON-RPC parse
 /// error, not dropped.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn websocket_rejects_malformed_json() {
     let (ws_url, shutdown_tx, _tmp) = start_ws_server().await;
     let mut ws = WsClient::connect(&ws_url).await;
@@ -381,7 +375,6 @@ async fn websocket_rejects_malformed_json() {
 /// BT alert bridge is the *only* emitter of its start notification — the
 /// handler-side broadcast would make AriaNg show the torrent twice.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn websocket_bt_add_pushes_exactly_one_start() {
     let (ws_url, shutdown_tx, tmp) = start_ws_server().await;
     let dest_dir = tmp.path().join("output");
@@ -419,7 +412,6 @@ async fn websocket_bt_add_pushes_exactly_one_start() {
 /// that race with `AddrInUse`, `serve` returns, and AriaNg can no longer talk
 /// to limedl. The replacement must wait the predecessor out and win the port.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn the_replacement_server_waits_out_the_predecessor_and_wins_the_port() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");

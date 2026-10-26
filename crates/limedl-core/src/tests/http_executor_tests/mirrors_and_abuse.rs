@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn github_asset_with_accept_header_downloads_real_bytes() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let temp = tempdir()?;
@@ -63,7 +62,6 @@ async fn github_asset_with_accept_header_downloads_real_bytes() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn github_asset_without_accept_header_gets_metadata_json() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let temp = tempdir()?;
@@ -116,7 +114,6 @@ async fn github_asset_without_accept_header_gets_metadata_json() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn anti_hotlink_403_auto_detects_candidate_referer_and_succeeds() -> TestResult {
     use axum::{
         Router,
@@ -275,7 +272,6 @@ async fn anti_hotlink_403_auto_detects_candidate_referer_and_succeeds() -> TestR
 /// GET is rejected with an HTML "uncommon characteristics" page. The download
 /// must fail with an actionable hint and must NOT fan out Referer probes.
 #[tokio::test]
-#[timeout(30_000)]
 async fn anti_abuse_403_surfaces_actionable_error_without_referer_probes() -> TestResult {
     use axum::{
         Router,
@@ -384,7 +380,6 @@ async fn anti_abuse_403_surfaces_actionable_error_without_referer_probes() -> Te
 /// A plain 403 (empty body, no WAF markers) must keep the generic message and
 /// must not be misreported as an anti-abuse block.
 #[tokio::test]
-#[timeout(30_000)]
 async fn plain_403_keeps_generic_error_message() -> TestResult {
     use axum::{
         Router,

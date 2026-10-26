@@ -2,7 +2,6 @@
 
 use super::*;
 
-#[timeout(30_000)]
 #[test]
 fn concurrent_insert_and_read() {
     let dir = tempfile::tempdir().unwrap();
@@ -38,7 +37,6 @@ fn concurrent_insert_and_read() {
     assert_eq!(db.count_downloads().unwrap(), 1);
 }
 
-#[timeout(30_000)]
 #[test]
 fn concurrent_multiple_writes_different_ids() {
     let dir = tempfile::tempdir().unwrap();
@@ -76,7 +74,6 @@ fn concurrent_multiple_writes_different_ids() {
     }
 }
 
-#[timeout(30_000)]
 #[test]
 fn concurrent_read_write_same_id() {
     let dir = tempfile::tempdir().unwrap();
@@ -133,7 +130,6 @@ fn concurrent_read_write_same_id() {
     assert_eq!(loaded.state, DownloadState::Downloading);
 }
 
-#[timeout(30_000)]
 #[test]
 fn concurrent_load_chunks_while_saving() {
     let dir = tempfile::tempdir().unwrap();

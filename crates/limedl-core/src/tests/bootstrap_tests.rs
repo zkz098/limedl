@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::DownloadManager;
@@ -13,7 +12,6 @@ use crate::types::{StartDownloadRequest, TaskId};
 // Test 1 – bootstrap creates all subsystems
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn bootstrap_smoke() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -45,7 +43,6 @@ async fn bootstrap_smoke() {
 // Test 2 – bootstrap auto-creates directories
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn bootstrap_creates_state_dir() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("nonexistent").join("downloads");
@@ -80,7 +77,6 @@ fn make_manager(state_dir: &std::path::Path) -> Arc<DownloadManager> {
 // Test 3 – find_active_by_url: same URL returns existing ID
 // ---------------------------------------------------------------------------
 #[tokio::test]
-#[timeout(30_000)]
 async fn find_active_by_url_dedup() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -138,7 +134,6 @@ async fn find_active_by_url_dedup() {
 // Test 4 – find_active_by_url: different URLs are independent
 // ---------------------------------------------------------------------------
 #[tokio::test]
-#[timeout(30_000)]
 async fn find_active_by_url_different_urls() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");

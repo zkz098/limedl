@@ -39,4 +39,3 @@ test-utils = []
 
 [dev-dependencies]
 tempfile = { workspace = true }
-ntest = { workspace = true }

@@ -1,10 +1,8 @@
 use super::*;
-use ntest::timeout;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn downloads_full_file() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let body = reqwest::get(server.file_url()).await?.bytes().await?;
@@ -13,7 +11,6 @@ async fn downloads_full_file() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn checksums_match_computed_content() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let body = reqwest::get(server.file_url()).await?.bytes().await?;
@@ -38,7 +35,6 @@ async fn checksums_match_computed_content() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn range_request_returns_correct_bytes() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let range_url = format!("{}/file/range", server.addr);
@@ -61,7 +57,6 @@ async fn range_request_returns_correct_bytes() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn range_bandwidth_endpoint_serves_throttled_ranges() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     // 2 MiB/s → 64 KB chunks take ~32 ms, so a 1000-byte range still waits one tick.
@@ -89,7 +84,6 @@ async fn range_bandwidth_endpoint_serves_throttled_ranges() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn range_bandwidth_endpoint_serves_full_file_without_range() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     // bps = 0 disables the per-chunk delay; this exercises the no-Range path.
@@ -105,7 +99,6 @@ async fn range_bandwidth_endpoint_serves_full_file_without_range() -> TestResult
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn delayed_endpoint_content_matches() -> TestResult {
     let server = TestServer::new(16 * 1024).await;
     let delayed_url = format!("{}/file/delayed/250", server.addr);
@@ -127,7 +120,6 @@ async fn delayed_endpoint_content_matches() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn truncated_endpoint_serves_partial_content() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let truncated_url = format!("{}/file/truncated/512", server.addr);
@@ -142,7 +134,6 @@ async fn truncated_endpoint_serves_partial_content() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn range_shifted_endpoint_serves_shifted_content() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let url = server.file_url_range_shifted(1);
@@ -168,7 +159,6 @@ async fn range_shifted_endpoint_serves_shifted_content() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn range_bitflip_endpoint_corrupts_content() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let url = server.file_url_range_bitflip();

@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn pause_on_paused_task_returns_snapshot_unchanged() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -37,7 +36,6 @@ async fn pause_on_paused_task_returns_snapshot_unchanged() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn cancel_on_completed_task_skips_file_cleanup_and_removes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -68,7 +66,6 @@ async fn cancel_on_completed_task_skips_file_cleanup_and_removes() -> TestResult
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn cancel_on_already_canceled_task_still_removes() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -106,7 +103,6 @@ async fn cancel_on_already_canceled_task_still_removes() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn resume_canceled_task_returns_canceled_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -132,7 +128,6 @@ async fn resume_canceled_task_returns_canceled_error() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn resume_completed_task_returns_not_resumable_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -158,7 +153,6 @@ async fn resume_completed_task_returns_not_resumable_error() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn resume_running_task_returns_already_running_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();

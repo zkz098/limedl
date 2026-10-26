@@ -23,8 +23,6 @@ bytes = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 foldhash = { workspace = true }
-# Advisory file locks around the coalescing sink.
-fs4 = { workspace = true }
 async-trait = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
@@ -51,9 +49,8 @@ default = []
 test-utils = []
 
 [dev-dependencies]
-criterion = { workspace = true }
+divan = { workspace = true }
 tempfile = { workspace = true }
-ntest = { workspace = true }
 
 # The buffer-pool bench drives `DownloadBuffer::new`, which only exists behind
 # `test-utils` (the plain double-buffer constructor is the seam the engine's

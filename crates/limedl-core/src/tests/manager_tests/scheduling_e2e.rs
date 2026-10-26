@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn automatic_mode_prioritizes_larger_file() -> TestResult {
     let big_payload = Arc::new(vec![7_u8; 24 * 1024 * 1024]);
     let small_payload = Arc::new(vec![3_u8; 8 * 1024 * 1024]);
@@ -123,7 +122,6 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn adaptive_mode_increases_threads_on_stable_transfer() -> TestResult {
     let payload = Arc::new(vec![11_u8; 96 * 1024 * 1024]);
     let state = single_file_state("/file.bin", payload, "\"aimd\"", 500);

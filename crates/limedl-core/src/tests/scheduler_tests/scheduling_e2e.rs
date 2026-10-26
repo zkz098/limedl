@@ -5,7 +5,6 @@ use super::*;
 /// Start two files (10 MB and 5 MB) on separate TestServer instances.
 /// The automatic scheduler should allocate more connections to the larger file.
 #[tokio::test]
-#[timeout(180_000)]
 async fn automatic_mode_prioritizes_larger_file() -> TestResult {
     let big_server = TestServer::new(10 * 1024 * 1024).await; // 10 MB
     let small_server = TestServer::new(5 * 1024 * 1024).await; // 5 MB
@@ -71,7 +70,6 @@ async fn automatic_mode_prioritizes_larger_file() -> TestResult {
 /// request ever traverses a real proxy — only the settings gate that used to
 /// disable the tuner is exercised.
 #[tokio::test]
-#[timeout(180_000)]
 async fn adaptive_targets_apply_when_proxy_is_enabled() -> TestResult {
     let server = TestServer::new(16 * 1024 * 1024).await; // 16 MB (multi-chunk)
 
@@ -205,7 +203,6 @@ async fn adaptive_targets_apply_when_proxy_is_enabled() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn automatic_scheduler_respects_single_thread_cap_when_min_per_task_is_four() -> TestResult {
     let (_tmp, manager) = create_manager().await;
 
@@ -303,7 +300,6 @@ async fn allocated_ids(manager: &DownloadManager, ids: &[String]) -> Vec<String>
 /// The tasks are injected paused (no network) so the assertion is deterministic:
 /// only the scheduler moves them.
 #[tokio::test]
-#[timeout(60_000)]
 async fn automatic_active_set_stays_stable_with_many_queued_tasks() -> TestResult {
     let (_tmp, manager) = create_manager().await;
     manager

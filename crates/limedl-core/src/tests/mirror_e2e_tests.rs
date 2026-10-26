@@ -1,4 +1,3 @@
-use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::types::{DownloadState, StartDownloadRequest, TaskId};
@@ -10,7 +9,6 @@ use crate::types::{DownloadState, StartDownloadRequest, TaskId};
 /// spawn_download uses mirror_urls directly as urls_to_try when
 /// mirror_urls is non-empty (the original `url` field is NOT appended).
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn mirror_fallback_on_primary_failure() {
     // A working TestServer that serves as the mirror
     let test_server = crate::test_harness::TestServer::new(1024 * 1024).await;

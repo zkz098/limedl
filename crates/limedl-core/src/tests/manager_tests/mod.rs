@@ -15,7 +15,6 @@ use axum::{
     routing::get,
 };
 use http::header;
-use ntest::timeout;
 use tempfile::tempdir;
 use tokio::time::sleep;
 

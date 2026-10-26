@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_hdd_buffer_degraded_after_clear() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -19,7 +18,6 @@ async fn test_hdd_buffer_degraded_after_clear() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_degraded_flag_detected_by_has_degraded() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -36,7 +34,6 @@ async fn test_degraded_flag_detected_by_has_degraded() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_buffer_chunk_returns_error_when_degraded() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -62,7 +59,6 @@ async fn test_buffer_chunk_returns_error_when_degraded() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_clear_resets_degraded_flag() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -80,7 +76,6 @@ async fn test_clear_resets_degraded_flag() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_flush_all_checks_degraded() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -106,7 +101,6 @@ async fn test_flush_all_checks_degraded() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_degradation_count_always_zero() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -124,7 +118,6 @@ async fn test_degradation_count_always_zero() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_degraded_flag_persists_after_chunk_failure() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -140,7 +133,6 @@ async fn test_degraded_flag_persists_after_chunk_failure() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_drop_clears_degraded_flag() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();

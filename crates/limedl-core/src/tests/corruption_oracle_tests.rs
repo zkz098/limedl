@@ -22,7 +22,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use ntest::timeout;
 use tempfile::TempDir;
 use tokio::time::sleep;
 
@@ -148,7 +147,6 @@ async fn run_oracle_round(server: &TestServer, threads: usize, mode: ChecksumMod
 /// produce a file whose SHA-256 equals the source. Repeated iterations surface
 /// sporadic corruption that a single run would miss.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_threaded_downloads_byte_identical() -> TestResult {
     const SIZES: [u64; 2] = [8 * 1024 * 1024, 17 * 1024 * 1024]; // 2 / 4+1 chunks (ragged tail)
     const THREADS: [usize; 4] = [1, 2, 4, 8];
@@ -169,7 +167,6 @@ async fn oracle_threaded_downloads_byte_identical() -> TestResult {
 /// with SHA-256 of the on-disk bytes regardless of the engine's mode, so this
 /// catches corruption no matter which mode the download used.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_all_checksum_modes_byte_identical() -> TestResult {
     const SIZE: u64 = 17 * 1024 * 1024;
     const THREADS: usize = 4;
@@ -189,7 +186,6 @@ async fn oracle_all_checksum_modes_byte_identical() -> TestResult {
 /// When an explicit expected checksum is supplied and the download is correct,
 /// it must still Complete and the file must match the source.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_with_expected_checksum_completes() -> TestResult {
     const SIZE: u64 = 17 * 1024 * 1024;
     const THREADS: usize = 4;
@@ -222,7 +218,6 @@ async fn oracle_with_expected_checksum_completes() -> TestResult {
 /// multi-threaded download — exercises the off-by-one / partial-last-chunk paths
 /// that are the classic source of silent corruption.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_ragged_tail_multithread() -> TestResult {
     const THREADS: usize = 8;
     const ITERATIONS: u32 = 3;
@@ -240,7 +235,6 @@ async fn oracle_ragged_tail_multithread() -> TestResult {
 /// fails at least one iteration of this run, turning "sometimes wrong" into a
 /// deterministic CI signal.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_soak_small_multithread_repeated() -> TestResult {
     const SIZE: u64 = 8 * 1024 * 1024;
     const THREADS: usize = 8;
@@ -258,7 +252,6 @@ async fn oracle_soak_small_multithread_repeated() -> TestResult {
 /// reports `Completed`, but the assembled file is short. This documents the
 /// "silently discarded bytes" class of the reported bug.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn oracle_short_download_flagged_not_matching_source() -> TestResult {
     const SIZE: u64 = 8 * 1024 * 1024;
     let server = TestServer::new(SIZE).await;

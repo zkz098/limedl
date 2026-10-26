@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(60_000)]
 async fn cancel_download_while_in_progress() -> TestResult {
     let server = TestServer::new(256 * 1024).await;
     let temp = tempdir()?;
@@ -66,7 +65,6 @@ async fn cancel_download_while_in_progress() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(5_000)]
 async fn mark_chunk_released_respects_worker_id() -> TestResult {
     use crate::aimd::AimdState;
     use crate::download::{DownloadCore, ManagedDownload};
@@ -217,7 +215,6 @@ async fn mark_chunk_released_respects_worker_id() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(120_000)]
 async fn tail_sprint_selective_release_completes() -> TestResult {
     use axum::{
         Router,

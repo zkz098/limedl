@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_ssd_pingpong_buffer_creation() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
@@ -19,7 +18,6 @@ async fn test_ssd_pingpong_buffer_creation() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_ssd_pingpong_buffer_chunk_and_flush() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
@@ -42,7 +40,6 @@ async fn test_ssd_pingpong_buffer_chunk_and_flush() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_ssd_pingpong_multiple_offsets() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
@@ -69,7 +66,6 @@ async fn test_ssd_pingpong_multiple_offsets() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_ssd_pingpong_flip_trigger() {
     let half = 1024u64;
     let (_dir, file) = temp_file();
@@ -105,7 +101,6 @@ async fn test_ssd_pingpong_flip_trigger() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_ssd_pingpong_drain_and_clear() {
     let half = 1024u64;
     let (_dir, file) = temp_file();
@@ -137,7 +132,6 @@ async fn test_ssd_pingpong_drain_and_clear() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_ssd_pingpong_error_flag() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
@@ -165,7 +159,6 @@ async fn test_ssd_pingpong_error_flag() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_ssd_pingpong_flush_all_empty() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
@@ -180,7 +173,6 @@ async fn test_ssd_pingpong_flush_all_empty() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_ssd_pingpong_overlapping_writes() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
@@ -201,7 +193,6 @@ async fn test_ssd_pingpong_overlapping_writes() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_ssd_pingpong_flush_all_multiple_times() {
     let (_dir, file) = temp_file();
     let worker = test_io_worker();
@@ -227,7 +218,6 @@ async fn test_ssd_pingpong_flush_all_multiple_times() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_ssd_pingpong_large_chunk_direct_write() {
     let half = 64 * 1024u64;
     let (_dir, file) = temp_file();

@@ -19,10 +19,9 @@ use std::env;
 use std::fs::{self, File};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, Instant};
 
 use bytes::Bytes;
-use criterion::{Criterion, Throughput, criterion_group, criterion_main};
+use divan::Bencher;
 use limedl_disk::buffer_pool::{BufferPool, DownloadBuffer, IoWorker};
 
 // ── Configuration ────────────────────────────────────────────────────────────
@@ -32,6 +31,10 @@ const CHUNK_SIZE: usize = 1024 * 1024; // 1 MB
 const CHUNK_COUNT: u64 = TOTAL_DATA / CHUNK_SIZE as u64;
 /// Number of concurrent streams in the multi-stream benchmark.
 const STREAMS: usize = 4;
+
+fn main() {
+    divan::main();
+}
 
 /// Resolve the target disk path from `BENCH_DISK` or fall back to temp dir.
 fn disk_path() -> String {
@@ -53,10 +56,6 @@ fn unique_temp_name(prefix: &str) -> String {
 }
 
 /// Create the benchmark temp file off the runtime.
-///
-/// `File::create` is a blocking syscall and every benchmark body below runs
-/// inside `rt.block_on`, so it goes to the blocking pool the same way the
-/// direct-write path hands over its writes.
 async fn create_temp_file(path: &str) -> File {
     let path = path.to_owned();
     tokio::task::spawn_blocking(move || File::create(&path).expect("create temp file"))
@@ -72,9 +71,6 @@ async fn remove_temp_file(path: &str) {
 }
 
 /// Drive `streams` tasks that each write their slice of `offsets` through `buffer`.
-///
-/// Shared by the HDD double-buffer and SSD ping-pong legs of the multi-stream
-/// benchmark so both exercise the identical write pattern.
 async fn drive_streams(
     buffer: &Arc<DownloadBuffer>,
     chunk: &Bytes,
@@ -98,286 +94,7 @@ async fn drive_streams(
     }
 }
 
-/// One `iter_custom` body: `iters` rounds of the multi-stream HDD double-buffer path.
-async fn run_multi_stream_hdd(iters: u64, chunk: &Bytes, offsets: &[u64]) -> Duration {
-    let start = Instant::now();
-    for _ in 0..iters {
-        let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
-        let slot = pool.acquire_slot().await;
-        let file_path = unique_temp_name("mshdd");
-        let file = Arc::new(create_temp_file(&file_path).await);
-        let buffer = Arc::new(DownloadBuffer::new(pool.clone(), slot, file.clone()));
-
-        drive_streams(&buffer, chunk, offsets, STREAMS).await;
-        buffer.flush_all().await.unwrap();
-
-        drop(buffer);
-        remove_temp_file(&file_path).await;
-    }
-    start.elapsed()
-}
-
-/// One `iter_custom` body: `iters` rounds of the multi-stream SSD ping-pong path.
-async fn run_multi_stream_ssd(
-    iters: u64,
-    chunk: &Bytes,
-    offsets: &[u64],
-    worker: &IoWorker,
-) -> Duration {
-    let start = Instant::now();
-    for _ in 0..iters {
-        let file_path = unique_temp_name("msssd");
-        let file = Arc::new(create_temp_file(&file_path).await);
-        let buffer = Arc::new(DownloadBuffer::new_local_pingpong_with_worker(
-            4 * 1024 * 1024,
-            file.clone(),
-            std::path::PathBuf::from(&file_path),
-            worker.clone(),
-            None,
-        ));
-
-        drive_streams(&buffer, chunk, offsets, STREAMS).await;
-        buffer.flush_all().await.unwrap();
-
-        drop(buffer);
-        remove_temp_file(&file_path).await;
-    }
-    start.elapsed()
-}
-
-/// One `iter_custom` body: `iters` rounds of unbuffered direct writes (baseline).
-async fn run_multi_stream_direct(iters: u64, chunk: &Bytes, offsets: &[u64]) -> Duration {
-    let start = Instant::now();
-    for _ in 0..iters {
-        let file_path = unique_temp_name("msdirect");
-        let file = Arc::new(create_temp_file(&file_path).await);
-
-        let per_stream = offsets.len() / STREAMS;
-        let mut handles = Vec::with_capacity(STREAMS);
-        for s in 0..STREAMS {
-            let f = file.clone();
-            let c = chunk.clone();
-            let slice: Vec<u64> = offsets[s * per_stream..(s + 1) * per_stream].to_vec();
-            handles.push(tokio::task::spawn_blocking(move || {
-                use std::io::{Seek, SeekFrom, Write};
-                let mut f = f.as_ref().try_clone().expect("try_clone");
-                for offset in slice {
-                    f.seek(SeekFrom::Start(offset)).expect("seek");
-                    f.write_all(&c).expect("write_all");
-                }
-            }));
-        }
-        for h in handles {
-            h.await.unwrap();
-        }
-
-        drop(file);
-        remove_temp_file(&file_path).await;
-    }
-    start.elapsed()
-}
-// ── HDD double-buffer benchmark ─────────────────────────────────────────────
-//
-// Creates a new `BufferPool`, acquires a slot, writes 100 MB via the
-// double-buffer path, then flushes everything to disk. Measures end-to-end
-// latency including the final `flush_all()`.
-
-fn bench_double_hdd(c: &mut Criterion) {
-    let rt = bench_runtime(); // file size irrelevant —just needs runtime
-    let chunk = zero_chunk();
-
-    let mut group = c.benchmark_group("buffer_pool");
-    group.throughput(Throughput::Bytes(TOTAL_DATA));
-
-    group.bench_function("double_hdd", |b| {
-        b.iter_custom(|iters| {
-            rt.block_on(async {
-                let start = Instant::now();
-                for _ in 0..iters {
-                    let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
-                    let slot = pool.acquire_slot().await;
-                    let file_path = unique_temp_name("hdd");
-                    let file = Arc::new(create_temp_file(&file_path).await);
-                    let buffer = DownloadBuffer::new(pool.clone(), slot, file.clone());
-
-                    for i in 0..CHUNK_COUNT {
-                        buffer
-                            .buffer_chunk(i * CHUNK_SIZE as u64, chunk.clone())
-                            .await
-                            .unwrap();
-                    }
-                    buffer.flush_all().await.unwrap();
-
-                    // Drop buffer first so the file handle is closed before we
-                    // try to remove the file (Windows sharing semantics).
-                    drop(buffer);
-                    remove_temp_file(&file_path).await;
-                }
-                start.elapsed()
-            })
-        });
-    });
-
-    group.finish();
-}
-
-// ── SSD local-buffer benchmark ──────────────────────────────────────────────
-//
-// Uses a local ping-pong (double-buffer) to write the same 100 MB payload.
-// This is the production SSD write path. The buffer flushes a half when full;
-// the final `flush_all()` persists any remaining buffered data.
-
-fn bench_local_ssd(c: &mut Criterion) {
-    let rt = bench_runtime();
-    let chunk = zero_chunk();
-
-    let mut group = c.benchmark_group("buffer_pool");
-    group.throughput(Throughput::Bytes(TOTAL_DATA));
-
-    // Dedicated I/O worker thread (production SSD ping-pong path).
-    // Same worker the engine's own tests use; built inline because a
-    // dev-dependency on `limedl-testkit` would be a cycle (it depends on
-    // this crate).
-    let worker = IoWorker::new(std::sync::Arc::new(
-        limedl_disk::io_scheduler::DiskDeviceManager::new(),
-    ));
-
-    group.bench_function("ssd_pingpong", |b| {
-        b.iter_custom(|iters| {
-            rt.block_on(async {
-                let start = Instant::now();
-                for _ in 0..iters {
-                    let file_path = unique_temp_name("ssd");
-                    let file = Arc::new(create_temp_file(&file_path).await);
-                    let buffer = DownloadBuffer::new_local_pingpong_with_worker(
-                        4 * 1024 * 1024,
-                        file.clone(),
-                        std::path::PathBuf::from(&file_path),
-                        worker.clone(),
-                        None,
-                    );
-
-                    for i in 0..CHUNK_COUNT {
-                        buffer
-                            .buffer_chunk(i * CHUNK_SIZE as u64, chunk.clone())
-                            .await
-                            .unwrap();
-                    }
-                    buffer.flush_all().await.unwrap();
-
-                    drop(buffer);
-                    remove_temp_file(&file_path).await;
-                }
-                start.elapsed()
-            })
-        });
-    });
-
-    group.finish();
-}
-
-// ── Direct write baseline (no buffer) ──────────────────────────────────────
-//
-// Writes each 1 MB chunk directly to disk via `spawn_blocking` without any
-// in-memory buffering. This is the baseline —comparing `double_hdd` against
-// this shows the benefit of the double-buffer optimization on HDD.
-
-fn bench_direct_write(c: &mut Criterion) {
-    let rt = bench_runtime();
-    let chunk = zero_chunk();
-
-    let mut group = c.benchmark_group("buffer_pool");
-    group.throughput(Throughput::Bytes(TOTAL_DATA));
-
-    group.bench_function("direct_write", |b| {
-        b.iter_custom(|iters| {
-            rt.block_on(async {
-                let start = Instant::now();
-                for _ in 0..iters {
-                    let file_path = unique_temp_name("direct");
-                    let mut file = create_temp_file(&file_path).await;
-
-                    for i in 0..CHUNK_COUNT {
-                        let offset = i * CHUNK_SIZE as u64;
-                        let data = chunk.clone();
-                        // Pass `file` through `spawn_blocking`: moved in, returned out.
-                        // Sequential writes mean the kernel page cache still helps,
-                        // but there is zero application-level buffering or pipelining.
-                        file = tokio::task::spawn_blocking(move || {
-                            use std::io::{Seek, SeekFrom, Write};
-                            file.seek(SeekFrom::Start(offset)).expect("seek failed");
-                            file.write_all(&data).expect("write_all failed");
-                            file
-                        })
-                        .await
-                        .expect("spawn_blocking failed");
-                    }
-
-                    drop(file);
-                    remove_temp_file(&file_path).await;
-                }
-                start.elapsed()
-            })
-        });
-    });
-
-    group.finish();
-}
-
-// ── Multi-stream random-write benchmark ─────────────────────────────────
-//
-// Simulates 4 concurrent download streams writing 1 MB chunks at
-// interleaved offsets (worst-case seek pattern for HDD).  This is the
-// scenario where the double-buffer's pipelining matters: while one half
-// flushes to disk, the other half receives writes from multiple tasks.
-//
-// Offsets are generated in reverse (99MB →0MB) and distributed roundround-robin
-// across streams so no two successive writes target nearby offsets.
-// Direct-write pays the full seek penalty; double-buffer absorbs it.
-
-fn bench_multi_stream_random(c: &mut Criterion) {
-    let rt = bench_runtime();
-    let chunk = zero_chunk();
-
-    // Pre-compute interleaved offsets: reverse order to maximise seeks.
-    let offsets: Vec<u64> = (0..CHUNK_COUNT)
-        .rev()
-        .map(|i| i * CHUNK_SIZE as u64)
-        .collect();
-
-    let mut group = c.benchmark_group("buffer_pool/multi_stream");
-    group.throughput(Throughput::Bytes(TOTAL_DATA));
-
-    // ── Multi-stream through double-buffer (HDD) ─────────────────────────
-    group.bench_function("double_hdd", |b| {
-        b.iter_custom(|iters| rt.block_on(run_multi_stream_hdd(iters, &chunk, &offsets)));
-    });
-
-    // Multi-stream through SSD ping-pong buffer.
-    // Same worker the engine's own tests use; built inline because a
-    // dev-dependency on `limedl-testkit` would be a cycle (it depends on
-    // this crate).
-    let worker = IoWorker::new(std::sync::Arc::new(
-        limedl_disk::io_scheduler::DiskDeviceManager::new(),
-    ));
-    group.bench_function("ssd_pingpong", |b| {
-        b.iter_custom(|iters| rt.block_on(run_multi_stream_ssd(iters, &chunk, &offsets, &worker)));
-    });
-
-    // ── Multi-stream direct write (baseline) ─────────────────────────────
-    group.bench_function("direct_write", |b| {
-        b.iter_custom(|iters| rt.block_on(run_multi_stream_direct(iters, &chunk, &offsets)));
-    });
-
-    group.finish();
-}
-
-// ── Criterion plumbing ──────────────────────────────────────────────────────
-
 /// Runtime for the async benchmark bodies.
-///
-/// The bench does not need a test server, so it builds its own runtime instead
-/// of pulling `limedl-testkit` in.
 fn bench_runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(4)
@@ -386,11 +103,126 @@ fn bench_runtime() -> tokio::runtime::Runtime {
         .expect("tokio runtime for benchmark")
 }
 
-criterion_group!(
-    benches,
-    bench_direct_write,
-    bench_double_hdd,
-    bench_local_ssd,
-    bench_multi_stream_random,
-);
-criterion_main!(benches);
+// ── HDD double-buffer benchmark ─────────────────────────────────────────────
+
+#[divan::bench]
+fn bench_double_hdd(bencher: Bencher) {
+    let rt = bench_runtime();
+    let chunk = zero_chunk();
+
+    bencher.bench_local(|| {
+        rt.block_on(async {
+            let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
+            let slot = pool.acquire_slot().await;
+            let file_path = unique_temp_name("hdd");
+            let file = Arc::new(create_temp_file(&file_path).await);
+            let buffer = DownloadBuffer::new(pool.clone(), slot, file.clone());
+
+            for i in 0..CHUNK_COUNT {
+                buffer
+                    .buffer_chunk(i * CHUNK_SIZE as u64, chunk.clone())
+                    .await
+                    .unwrap();
+            }
+            buffer.flush_all().await.unwrap();
+
+            drop(buffer);
+            remove_temp_file(&file_path).await;
+        });
+    });
+}
+
+// ── SSD local-buffer benchmark ──────────────────────────────────────────────
+
+#[divan::bench]
+fn bench_local_ssd(bencher: Bencher) {
+    let rt = bench_runtime();
+    let chunk = zero_chunk();
+    let worker = IoWorker::new(std::sync::Arc::new(
+        limedl_disk::io_scheduler::DiskDeviceManager::new(),
+    ));
+
+    bencher.bench_local(|| {
+        rt.block_on(async {
+            let file_path = unique_temp_name("ssd");
+            let file = Arc::new(create_temp_file(&file_path).await);
+            let buffer = DownloadBuffer::new_local_pingpong_with_worker(
+                4 * 1024 * 1024,
+                file.clone(),
+                std::path::PathBuf::from(&file_path),
+                worker.clone(),
+                None,
+            );
+
+            for i in 0..CHUNK_COUNT {
+                buffer
+                    .buffer_chunk(i * CHUNK_SIZE as u64, chunk.clone())
+                    .await
+                    .unwrap();
+            }
+            buffer.flush_all().await.unwrap();
+
+            drop(buffer);
+            remove_temp_file(&file_path).await;
+        });
+    });
+}
+
+// ── Direct write baseline (no buffer) ──────────────────────────────────────
+
+#[divan::bench]
+fn bench_direct_write(bencher: Bencher) {
+    let rt = bench_runtime();
+    let chunk = zero_chunk();
+
+    bencher.bench_local(|| {
+        rt.block_on(async {
+            let file_path = unique_temp_name("direct");
+            let mut file = create_temp_file(&file_path).await;
+
+            for i in 0..CHUNK_COUNT {
+                let offset = i * CHUNK_SIZE as u64;
+                let data = chunk.clone();
+                file = tokio::task::spawn_blocking(move || {
+                    use std::io::{Seek, SeekFrom, Write};
+                    file.seek(SeekFrom::Start(offset)).expect("seek failed");
+                    file.write_all(&data).expect("write_all failed");
+                    file
+                })
+                .await
+                .expect("spawn_blocking failed");
+            }
+
+            drop(file);
+            remove_temp_file(&file_path).await;
+        });
+    });
+}
+
+// ── Multi-stream random-write benchmark ─────────────────────────────────
+
+#[divan::bench]
+fn bench_multi_stream_random(bencher: Bencher) {
+    let rt = bench_runtime();
+    let chunk = zero_chunk();
+    let offsets: Vec<u64> = (0..CHUNK_COUNT)
+        .rev()
+        .map(|i| i * CHUNK_SIZE as u64)
+        .collect();
+
+    bencher.bench_local(|| {
+        rt.block_on(async {
+            let pool = Arc::new(BufferPool::new(256, 64, 4, 2));
+            let slot = pool.acquire_slot().await;
+            let file_path = unique_temp_name("mshdd");
+            let file = Arc::new(create_temp_file(&file_path).await);
+            let buffer = Arc::new(DownloadBuffer::new(pool.clone(), slot, file.clone()));
+
+            drive_streams(&buffer, &chunk, &offsets, STREAMS).await;
+            buffer.flush_all().await.unwrap();
+
+            drop(buffer);
+            remove_temp_file(&file_path).await;
+        });
+    });
+}

@@ -1,7 +1,6 @@
 use super::download_buffer::{BufferMode, FlipTokenGuard};
 use super::*;
 use bytes::Bytes;
-use ntest::timeout;
 use std::fs;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};

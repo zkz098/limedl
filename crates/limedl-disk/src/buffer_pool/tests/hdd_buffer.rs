@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_hdd_buffer_creation() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -16,7 +15,6 @@ async fn test_hdd_buffer_creation() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_hdd_buffer_chunk_small_and_flush() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -34,7 +32,6 @@ async fn test_hdd_buffer_chunk_small_and_flush() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_hdd_buffer_multiple_chunks_and_flush() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -52,7 +49,6 @@ async fn test_hdd_buffer_multiple_chunks_and_flush() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_hdd_buffer_chunk_triggers_flip_and_flush() {
     let pool = Arc::new(BufferPool::new(4, 128, 2, 1));
     let half = pool.half_size();
@@ -95,7 +91,6 @@ async fn test_hdd_buffer_chunk_triggers_flip_and_flush() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_hdd_buffer_large_chunk_direct_write() {
     let pool = Arc::new(BufferPool::new(4, 128, 2, 1));
     let half = pool.half_size();
@@ -114,7 +109,6 @@ async fn test_hdd_buffer_large_chunk_direct_write() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_flush_all_hdd_empty() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -125,7 +119,6 @@ async fn test_flush_all_hdd_empty() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_clear_hdd() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -149,7 +142,6 @@ async fn test_clear_hdd() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_drain_background_hdd() {
     let pool = Arc::new(BufferPool::new(8, 128, 2, 1));
     let half = pool.half_size();
@@ -180,7 +172,6 @@ async fn test_drain_background_hdd() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_zero_size_chunk_hdd() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -196,7 +187,6 @@ async fn test_zero_size_chunk_hdd() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_concurrent_hdd_buffer_chunks() {
     let pool = Arc::new(BufferPool::new(32, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -234,7 +224,6 @@ async fn test_concurrent_hdd_buffer_chunks() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_overlapping_writes_hdd() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -250,7 +239,6 @@ async fn test_overlapping_writes_hdd() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_flush_all_multiple_times_hdd() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -271,7 +259,6 @@ async fn test_flush_all_multiple_times_hdd() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_buffer_after_flush_hdd() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -292,7 +279,6 @@ async fn test_buffer_after_flush_hdd() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_hdd_with_worker_buffer_chunk_and_flush() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -318,7 +304,6 @@ async fn test_hdd_with_worker_buffer_chunk_and_flush() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_hdd_with_worker_multiple_chunks() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();
@@ -344,7 +329,6 @@ async fn test_hdd_with_worker_multiple_chunks() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_background_flush_failure_using_readonly_file() {
     let pool = Arc::new(BufferPool::new(1, 1, 4, 1));
     let dir = tempdir().expect("tempdir");
@@ -417,7 +401,6 @@ async fn test_background_flush_failure_using_readonly_file() {
 }
 
 #[tokio::test]
-#[timeout(30000)]
 async fn test_background_flush_failure_using_readonly_file_with_worker() {
     let pool = Arc::new(BufferPool::new(1, 1, 4, 1));
     let dir = tempdir().expect("tempdir");

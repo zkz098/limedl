@@ -13,7 +13,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::time::Duration;
 
-use ntest::timeout;
 use tempfile::TempDir;
 
 #[cfg(feature = "bt")]
@@ -234,7 +233,6 @@ async fn contract_purge(backend: &dyn DownloadBackend, request: StartDownloadReq
 // ===========================================================================
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn http_contract_start_and_status() -> TestResult {
     let server = crate::test_harness::TestServer::new(1024 * 1024).await;
     let tmp = TempDir::new()?;
@@ -255,7 +253,6 @@ async fn http_contract_start_and_status() -> TestResult {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn http_contract_pause_resume() -> TestResult {
     let server = crate::test_harness::TestServer::new(5 * 1024 * 1024).await;
     let tmp = TempDir::new()?;
@@ -277,7 +274,6 @@ async fn http_contract_pause_resume() -> TestResult {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn http_contract_cancel() -> TestResult {
     let server = crate::test_harness::TestServer::new(1024 * 1024).await;
     let tmp = TempDir::new()?;
@@ -298,7 +294,6 @@ async fn http_contract_cancel() -> TestResult {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn http_contract_list() -> TestResult {
     let server = crate::test_harness::TestServer::new(1024 * 1024).await;
     let tmp = TempDir::new()?;
@@ -320,7 +315,6 @@ async fn http_contract_list() -> TestResult {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn http_contract_remove() -> TestResult {
     let server = crate::test_harness::TestServer::new(1024 * 1024).await;
     let tmp = TempDir::new()?;
@@ -341,7 +335,6 @@ async fn http_contract_remove() -> TestResult {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn http_contract_purge() -> TestResult {
     let server = crate::test_harness::TestServer::new(1024 * 1024).await;
     let tmp = TempDir::new()?;
@@ -404,7 +397,6 @@ async fn make_bt_backend(tmp: &TempDir) -> (IrontideBtBackend, Arc<EventBus>) {
 
 #[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn bt_contract_list_empty() -> TestResult {
     let tmp = TempDir::new()?;
     let (backend, _event_bus) = make_bt_backend(&tmp).await;
@@ -419,7 +411,6 @@ async fn bt_contract_list_empty() -> TestResult {
 
 #[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn bt_contract_update_settings() -> TestResult {
     let tmp = TempDir::new()?;
     let (backend, _event_bus) = make_bt_backend(&tmp).await;
@@ -437,7 +428,6 @@ async fn bt_contract_update_settings() -> TestResult {
 
 #[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn bt_contract_shutdown() -> TestResult {
     let tmp = TempDir::new()?;
     let (backend, _event_bus) = make_bt_backend(&tmp).await;
@@ -455,7 +445,6 @@ async fn bt_contract_shutdown() -> TestResult {
 /// test still takes ~3 s for the irontide alert bridge to settle.
 #[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn bt_contract_start_magnet_and_cancel() -> TestResult {
     let tmp = TempDir::new()?;
     let out_dir = tmp.path().join("bt_out");
@@ -496,7 +485,6 @@ async fn bt_contract_start_magnet_and_cancel() -> TestResult {
 /// the combined cancel-and-remove path for the BT backend.
 #[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn bt_contract_start_magnet_and_remove() -> TestResult {
     let tmp = TempDir::new()?;
     let out_dir = tmp.path().join("bt_out");

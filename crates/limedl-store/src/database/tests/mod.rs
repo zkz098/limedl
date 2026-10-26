@@ -1,4 +1,3 @@
-use ntest::timeout;
 use rusqlite::{Connection, params};
 use std::sync::Arc;
 

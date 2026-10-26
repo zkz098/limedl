@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_release_slot_direct() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let _guard = pool.acquire_slot().await;
@@ -13,7 +12,6 @@ async fn test_release_slot_direct() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_slot_guard_drop_releases_semaphore_permit() {
     let pool = Arc::new(BufferPool::new(1024, 128, 1, 1));
 
@@ -25,7 +23,6 @@ async fn test_slot_guard_drop_releases_semaphore_permit() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_slot_guard_drop_allows_another_acquire() {
     let pool = Arc::new(BufferPool::new(1024, 128, 1, 1));
 
@@ -41,7 +38,6 @@ async fn test_slot_guard_drop_allows_another_acquire() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn slot_guard_drop_releases_permit() {
     let pool = Arc::new(BufferPool::new(1, 64, 1, 64));
 
@@ -58,7 +54,6 @@ async fn slot_guard_drop_releases_permit() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn slot_guard_semaphore_limits_concurrency() {
     let pool = Arc::new(BufferPool::new(1, 64, 1, 64));
 
@@ -96,7 +91,6 @@ async fn slot_guard_semaphore_limits_concurrency() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_download_buffer_drop_releases_slot() {
     let pool = Arc::new(BufferPool::new(1024, 128, 2, 1));
     let (_dir, file) = temp_file();
@@ -116,7 +110,6 @@ async fn test_download_buffer_drop_releases_slot() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_download_buffer_drop_clears_usage() {
     let pool = Arc::new(BufferPool::new(1024, 128, 2, 1));
     let (_dir, file) = temp_file();

@@ -7,27 +7,37 @@
 
 use std::sync::Arc;
 
-use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use divan::Bencher;
 use limedl_http::rate_limiter::RateLimiter;
 
-// ── helpers ──────────────────────────────────────────────────────────────
+fn main() {
+    divan::main();
+}
+
+fn bench_runtime() -> tokio::runtime::Runtime {
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(4)
+        .enable_all()
+        .build()
+        .expect("tokio runtime for benchmark")
+}
 
 // ── 1. Unlimited consume (baseline overhead) ─────────────────────────────
 
-fn bench_consume_unlimited(c: &mut Criterion) {
+#[divan::bench]
+fn bench_consume_unlimited(bencher: Bencher) {
     let rt = bench_runtime();
     let limiter = RateLimiter::default();
 
-    c.bench_function("rate_limiter/consume_unlimited", |b| {
-        b.iter(|| {
-            rt.block_on(limiter.consume(std::hint::black_box(4096)));
-        });
+    bencher.bench_local(|| {
+        rt.block_on(limiter.consume(std::hint::black_box(4096)));
     });
 }
 
 // ── 2. Limited consume (100 MB/s, plentiful budget) ──────────────────────
 
-fn bench_consume_limited(c: &mut Criterion) {
+#[divan::bench]
+fn bench_consume_limited(bencher: Bencher) {
     const RATE: u64 = 100_000_000; // 100 MB/s
 
     let rt = bench_runtime();
@@ -35,62 +45,42 @@ fn bench_consume_limited(c: &mut Criterion) {
     limiter.set_rate(RATE);
     limiter.set_tokens(limiter.capacity() as f64);
 
-    c.bench_function("rate_limiter/consume_limited", |b| {
-        b.iter(|| {
-            rt.block_on(limiter.consume(std::hint::black_box(8192)));
-        });
+    bencher.bench_local(|| {
+        rt.block_on(limiter.consume(std::hint::black_box(8192)));
     });
 }
 
 // ── 3. Rate switching (set_rate) ─────────────────────────────────────────
 
-fn bench_set_rate(c: &mut Criterion) {
+const RATES: [u64; 4] = [1024, 1_048_576, 100_000_000, 0];
+
+#[divan::bench(args = RATES)]
+fn bench_set_rate(rate: u64) {
     let limiter = RateLimiter::default();
-
-    let rates = [1024u64, 1_048_576, 100_000_000, 0];
-
-    let mut group = c.benchmark_group("rate_limiter/set_rate");
-    for rate in &rates {
-        group.bench_with_input(BenchmarkId::from_parameter(rate), rate, |b, &rate| {
-            b.iter(|| {
-                limiter.set_rate(std::hint::black_box(rate));
-            });
-        });
-    }
-    group.finish();
+    limiter.set_rate(std::hint::black_box(rate));
 }
 
 // ── 4. Blocking consume (unlimited + limited) ────────────────────────────
 
-fn bench_consume_blocking(c: &mut Criterion) {
+#[divan::bench]
+fn bench_consume_blocking_unlimited() {
+    let limiter = RateLimiter::default();
+    limiter.consume_blocking(std::hint::black_box(4096));
+}
+
+#[divan::bench]
+fn bench_consume_blocking_limited() {
     const RATE: u64 = 100_000_000;
-
-    // Unlimited
-    {
-        let limiter = RateLimiter::default();
-        c.bench_function("rate_limiter/consume_blocking/unlimited", |b| {
-            b.iter(|| {
-                limiter.consume_blocking(std::hint::black_box(4096));
-            });
-        });
-    }
-
-    // Limited (pre-filled)
-    {
-        let limiter = RateLimiter::default();
-        limiter.set_rate(RATE);
-        limiter.set_tokens(limiter.capacity() as f64);
-        c.bench_function("rate_limiter/consume_blocking/limited", |b| {
-            b.iter(|| {
-                limiter.consume_blocking(std::hint::black_box(4096));
-            });
-        });
-    }
+    let limiter = RateLimiter::default();
+    limiter.set_rate(RATE);
+    limiter.set_tokens(limiter.capacity() as f64);
+    limiter.consume_blocking(std::hint::black_box(4096));
 }
 
 // ── 5. Multi-consumer concurrent throughput ──────────────────────────────
 
-fn bench_multi_consume(c: &mut Criterion) {
+#[divan::bench]
+fn bench_multi_consume(bencher: Bencher) {
     const RATE: u64 = 50_000_000; // 50 MB/s
     const CONCURRENCY: usize = 4;
     const ITERATIONS: usize = 100;
@@ -103,46 +93,20 @@ fn bench_multi_consume(c: &mut Criterion) {
         l
     });
 
-    c.bench_function("rate_limiter/multi_consume", |b| {
-        b.iter(|| {
-            rt.block_on(async {
-                let mut handles = Vec::with_capacity(CONCURRENCY);
-                for _ in 0..CONCURRENCY {
-                    let limiter = limiter.clone();
-                    handles.push(tokio::spawn(async move {
-                        for _ in 0..ITERATIONS {
-                            limiter.consume(std::hint::black_box(4096)).await;
-                        }
-                    }));
-                }
-                for handle in handles {
-                    handle.await.expect("multi-consume task panicked");
-                }
-            });
+    bencher.bench_local(|| {
+        rt.block_on(async {
+            let mut handles = Vec::with_capacity(CONCURRENCY);
+            for _ in 0..CONCURRENCY {
+                let limiter = limiter.clone();
+                handles.push(tokio::spawn(async move {
+                    for _ in 0..ITERATIONS {
+                        limiter.consume(std::hint::black_box(4096)).await;
+                    }
+                }));
+            }
+            for handle in handles {
+                handle.await.expect("multi-consume task panicked");
+            }
         });
     });
 }
-
-// ── criterion registration ───────────────────────────────────────────────
-
-/// Runtime for the async benchmark bodies.
-///
-/// The bench does not need a test server, so it builds its own runtime instead
-/// of pulling `limedl-testkit` in.
-fn bench_runtime() -> tokio::runtime::Runtime {
-    tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(4)
-        .enable_all()
-        .build()
-        .expect("tokio runtime for benchmark")
-}
-
-criterion_group!(
-    benches,
-    bench_consume_unlimited,
-    bench_consume_limited,
-    bench_set_rate,
-    bench_consume_blocking,
-    bench_multi_consume,
-);
-criterion_main!(benches);

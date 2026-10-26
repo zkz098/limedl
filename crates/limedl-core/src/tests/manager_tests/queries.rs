@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn get_summary_nonexistent_id_returns_none() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -19,7 +18,6 @@ async fn get_summary_nonexistent_id_returns_none() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn find_active_by_url_no_match_returns_none() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -37,7 +35,6 @@ async fn find_active_by_url_no_match_returns_none() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn find_active_by_url_match_returns_some() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -64,7 +61,6 @@ async fn find_active_by_url_match_returns_some() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn try_acquire_http_at_capacity_returns_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -89,7 +85,6 @@ async fn try_acquire_http_at_capacity_returns_error() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn try_acquire_bt_at_capacity_returns_error() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -114,7 +109,6 @@ async fn try_acquire_bt_at_capacity_returns_error() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn apply_settings_proxy_change_triggers_client_rebuild() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -141,7 +135,6 @@ async fn apply_settings_proxy_change_triggers_client_rebuild() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn game_mode_setter_and_getter() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -165,7 +158,6 @@ async fn game_mode_setter_and_getter() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn overclock_mode_setter_and_getter() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();

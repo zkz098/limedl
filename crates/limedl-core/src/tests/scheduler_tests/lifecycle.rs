@@ -5,7 +5,6 @@ use super::*;
 /// Start a download with a global speed limit, observe progress, pause,
 /// verify bytes are preserved, resume, and complete.
 #[tokio::test]
-#[timeout(180_000)]
 async fn pause_resume_does_not_lose_progress() -> TestResult {
     let server = TestServer::new(50 * 1024 * 1024).await; // 50 MB
 
@@ -98,7 +97,6 @@ async fn pause_resume_does_not_lose_progress() -> TestResult {
 
 /// Start a download with a significant startup delay, then cancel it mid-flight.
 #[tokio::test]
-#[timeout(180_000)]
 async fn cancel_stops_download() -> TestResult {
     let server = TestServer::new(1024 * 1024).await; // 1 MB
     let url = server.file_url_slow(1000); // 1 s startup delay
@@ -152,7 +150,6 @@ async fn cancel_stops_download() -> TestResult {
 /// Start two downloads, pause one, verify the other continues normally,
 /// resume the paused one, and confirm both complete.
 #[tokio::test]
-#[timeout(180_000)]
 async fn pause_one_download_does_not_affect_other() -> TestResult {
     let server = TestServer::new(5 * 1024 * 1024).await; // 5 MB
 
@@ -266,7 +263,6 @@ async fn pause_one_download_does_not_affect_other() -> TestResult {
 /// Cancel the first and verify the second transitions to Downloading or
 /// Completed.
 #[tokio::test]
-#[timeout(120_000)]
 async fn cancel_one_unblocks_queued() -> TestResult {
     let server = TestServer::new(512 * 1024).await; // 512 KB
 

@@ -18,7 +18,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use ntest::timeout;
 use tempfile::TempDir;
 use tokio::time::sleep;
 
@@ -108,7 +107,6 @@ async fn assert_corrupting_server_is_caught(url: &str, server: &TestServer) -> T
 /// A server that shifts every range's content by 1 byte must be caught as failed
 /// once the expected SHA-256 is supplied.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn range_shifted_server_detected_as_failed() -> TestResult {
     let server = TestServer::new(17 * 1024 * 1024).await;
     assert_corrupting_server_is_caught(&server.file_url_range_shifted(1), &server).await
@@ -117,7 +115,6 @@ async fn range_shifted_server_detected_as_failed() -> TestResult {
 /// A server that bit-flips the first byte of every range must be caught as failed
 /// once the expected SHA-256 is supplied.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn range_bitflip_server_detected_as_failed() -> TestResult {
     let server = TestServer::new(17 * 1024 * 1024).await;
     assert_corrupting_server_is_caught(&server.file_url_range_bitflip(), &server).await
@@ -133,7 +130,6 @@ async fn range_bitflip_server_detected_as_failed() -> TestResult {
 /// behavior later changes to verify against server-supplied headers, update this
 /// test accordingly.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn corrupting_server_without_expected_completes_but_file_is_bad() -> TestResult {
     let server = TestServer::new(17 * 1024 * 1024).await;
     let url = server.file_url_range_shifted(1);

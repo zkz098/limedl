@@ -71,5 +71,4 @@ bt = []
 
 [dev-dependencies]
 tempfile = { workspace = true }
-ntest = { workspace = true }
 axum = { workspace = true }

@@ -38,5 +38,4 @@ brotli = "9"
 zstd = "0.14"
 
 [dev-dependencies]
-ntest = { workspace = true }
 reqwest = { workspace = true }

@@ -466,7 +466,6 @@ fn perform_startup_rotation(
 mod tests {
     use std::time::{Duration, SystemTime};
 
-    use ntest::timeout;
     use tempfile::tempdir;
 
     use super::*;
@@ -486,7 +485,6 @@ mod tests {
             .expect("set modified time");
     }
 
-    #[timeout(30_000)]
     #[test]
     fn resolve_log_file_path_uses_state_dir_or_configured_path() {
         let state = tempdir().expect("tempdir");
@@ -506,7 +504,6 @@ mod tests {
         );
     }
 
-    #[timeout(30_000)]
     #[test]
     fn log_dir_for_creates_the_configured_parent() {
         let tmp = tempdir().expect("tempdir");
@@ -522,7 +519,6 @@ mod tests {
         assert!(dir.is_dir(), "the full parent chain must be created");
     }
 
-    #[timeout(30_000)]
     #[test]
     fn find_rotated_logs_filters_and_sorts_descending() {
         let tmp = tempdir().expect("tempdir");
@@ -558,7 +554,6 @@ mod tests {
     /// Renaming must go from the highest rotation number down. Ascending, the
     /// first rename would clobber `.2.log` before it was moved to `.3.log` and
     /// silently destroy a log file.
-    #[timeout(30_000)]
     #[test]
     fn rotate_startup_logs_shifts_without_losing_content() {
         let tmp = tempdir().expect("tempdir");
@@ -585,7 +580,6 @@ mod tests {
         );
     }
 
-    #[timeout(30_000)]
     #[test]
     fn cleanup_by_count_keeps_exactly_the_limit() {
         let tmp = tempdir().expect("tempdir");
@@ -607,7 +601,6 @@ mod tests {
         assert!(!tmp.path().join("limedl.2.log").exists());
     }
 
-    #[timeout(30_000)]
     #[test]
     fn cleanup_by_age_removes_only_old_files() {
         let tmp = tempdir().expect("tempdir");
@@ -637,7 +630,6 @@ mod tests {
 
     /// Startup rotation is skipped while another process holds the lock, and
     /// runs as soon as it is released.
-    #[timeout(30_000)]
     #[test]
     fn perform_startup_rotation_skips_while_lock_is_held() {
         let tmp = tempdir().expect("tempdir");
@@ -669,7 +661,6 @@ mod tests {
         );
     }
 
-    #[timeout(30_000)]
     #[test]
     fn dynamic_file_writer_honors_enabled_and_survives_open_failure() {
         let tmp = tempdir().expect("tempdir");

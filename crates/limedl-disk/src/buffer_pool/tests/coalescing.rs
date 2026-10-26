@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_drain_background_noop_when_no_background_task() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir, file) = temp_file();

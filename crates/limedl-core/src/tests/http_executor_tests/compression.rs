@@ -112,42 +112,36 @@ async fn assert_decompressed(encoding: &str, threads: usize, expect_compression:
 }
 
 #[tokio::test]
-#[timeout(120_000)]
 async fn gzip_single_stream_is_decompressed() -> TestResult {
     assert_decompressed("gzip", 1, true).await;
     Ok(())
 }
 
 #[tokio::test]
-#[timeout(120_000)]
 async fn brotli_single_stream_is_decompressed() -> TestResult {
     assert_decompressed("brotli", 1, true).await;
     Ok(())
 }
 
 #[tokio::test]
-#[timeout(120_000)]
 async fn zstd_single_stream_is_decompressed() -> TestResult {
     assert_decompressed("zstd", 1, true).await;
     Ok(())
 }
 
 #[tokio::test]
-#[timeout(180_000)]
 async fn gzip_range_download_stays_identity() -> TestResult {
     assert_decompressed("gzip", 4, false).await;
     Ok(())
 }
 
 #[tokio::test]
-#[timeout(180_000)]
 async fn brotli_range_download_stays_identity() -> TestResult {
     assert_decompressed("brotli", 4, false).await;
     Ok(())
 }
 
 #[tokio::test]
-#[timeout(180_000)]
 async fn zstd_range_download_stays_identity() -> TestResult {
     assert_decompressed("zstd", 4, false).await;
     Ok(())

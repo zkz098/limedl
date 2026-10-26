@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn too_many_requests_429_downgrades_to_single_thread_and_succeeds() -> TestResult {
     use axum::{
         Router,

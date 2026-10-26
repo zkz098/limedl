@@ -17,7 +17,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use ntest::timeout;
 use tempfile::tempdir;
 
 use crate::{
@@ -121,7 +120,6 @@ async fn wait_for_terminal(manager: &DownloadManager, id: &str) -> DownloadSnaps
 // ===========================================================================
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn download_recovered_as_paused_after_restart() -> TestResult {
     // Use a bandwidth-limited server so the download makes steady but
     // incomplete progress within our short wait window.
@@ -209,7 +207,6 @@ async fn download_recovered_as_paused_after_restart() -> TestResult {
 // ===========================================================================
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn completed_download_not_changed_on_restart() -> TestResult {
     let (_tmp, manager, server) = create_manager_with_server(1024 * 1024).await; // 1 MB
 
@@ -287,7 +284,6 @@ async fn completed_download_not_changed_on_restart() -> TestResult {
 // ===========================================================================
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn verifying_promoted_to_completed_if_dest_exists() -> TestResult {
     let temp = tempdir()?;
     let state_dir = temp.path().join("state");
@@ -341,7 +337,6 @@ async fn verifying_promoted_to_completed_if_dest_exists() -> TestResult {
 // ===========================================================================
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn chunks_reloaded_for_non_terminal_downloads() -> TestResult {
     let temp = tempdir()?;
     let state_dir = temp.path().join("state");
@@ -422,7 +417,6 @@ async fn chunks_reloaded_for_non_terminal_downloads() -> TestResult {
 /// belong to workers that no longer exist — leaving them in place would make
 /// the resumed run skip those chunks forever.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn downloading_survives_restart_without_stale_claims() -> TestResult {
     let temp = tempdir()?;
     let state_dir = temp.path().join("state");

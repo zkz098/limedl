@@ -84,8 +84,7 @@ axum = { workspace = true }
 
 tempfile = { workspace = true }
 rand = { workspace = true }
-ntest = { workspace = true }
-criterion = { workspace = true }
+divan = { workspace = true }
 # Encoders for the compression test endpoints, needed under `cfg(test)` where
 # the optional normal deps above are not enabled. See the `test-utils` feature.
 

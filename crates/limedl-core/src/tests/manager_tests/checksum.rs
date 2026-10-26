@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn checksum_match_succeeds() -> TestResult {
     let payload = Arc::new(vec![42_u8; 64 * 1024]);
     let state = single_file_state("/file.bin", payload.clone(), "\"chk-good\"", 50);
@@ -65,7 +64,6 @@ async fn checksum_match_succeeds() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn checksum_mismatch_detected() -> TestResult {
     let payload = Arc::new(vec![42_u8; 64 * 1024]);
     let state = single_file_state("/file.bin", payload, "\"chk-bad\"", 50);

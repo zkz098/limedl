@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn single_stream_download_completes_successfully() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let temp = tempdir()?;
@@ -66,7 +65,6 @@ async fn single_stream_download_completes_successfully() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn single_stream_download_with_blake3_checksum_match() -> TestResult {
     let server = TestServer::new(32 * 1024).await;
     let temp = tempdir()?;
@@ -112,7 +110,6 @@ async fn single_stream_download_with_blake3_checksum_match() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn single_stream_checksum_mismatch_fails() -> TestResult {
     let server = TestServer::new(16 * 1024).await;
     let temp = tempdir()?;

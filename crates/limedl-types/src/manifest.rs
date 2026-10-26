@@ -295,11 +295,9 @@ pub fn contiguous_prefix_end(manifest: &Manifest) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use ntest::timeout;
 
     use super::{CHUNK_SIZE, adaptive_chunk_size, plan_chunks};
 
-    #[timeout(30_000)]
     #[test]
     fn plans_stable_chunk_boundaries() {
         let chunks = plan_chunks(Some(16 * 1024 * 1024), true, CHUNK_SIZE);
@@ -311,43 +309,36 @@ mod tests {
         assert_eq!(chunks[3].end, 16 * 1024 * 1024 - 1);
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_zero() {
         assert_eq!(adaptive_chunk_size(0), 4 * 1024 * 1024);
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_4_mib() {
         assert_eq!(adaptive_chunk_size(4 * 1024 * 1024), 4 * 1024 * 1024);
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_16_mib() {
         assert_eq!(adaptive_chunk_size(16 * 1024 * 1024), 4 * 1024 * 1024);
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_17_mib() {
         assert_eq!(adaptive_chunk_size(17 * 1024 * 1024), 4 * 1024 * 1024);
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_256_mib() {
         assert_eq!(adaptive_chunk_size(256 * 1024 * 1024), 4 * 1024 * 1024);
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_257_mib() {
         assert_eq!(adaptive_chunk_size(257 * 1024 * 1024), 8 * 1024 * 1024);
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_4gib_minus_1() {
         assert_eq!(
@@ -356,7 +347,6 @@ mod tests {
         );
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_4gib() {
         assert_eq!(
@@ -365,7 +355,6 @@ mod tests {
         );
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_10_gib() {
         assert_eq!(
@@ -374,7 +363,6 @@ mod tests {
         );
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_16_gib() {
         assert_eq!(
@@ -383,7 +371,6 @@ mod tests {
         );
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_64_gib() {
         assert_eq!(
@@ -392,7 +379,6 @@ mod tests {
         );
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_15gib_boundary() {
         // Just below the 16 GiB boundary → still 32 MiB
@@ -402,7 +388,6 @@ mod tests {
         );
     }
 
-    #[timeout(30_000)]
     #[test]
     fn adaptive_chunk_size_63gib_boundary() {
         // Just below the 64 GiB boundary → still 64 MiB

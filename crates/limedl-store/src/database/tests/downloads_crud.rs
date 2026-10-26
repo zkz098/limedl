@@ -2,7 +2,6 @@
 
 use super::*;
 
-#[timeout(30_000)]
 #[test]
 fn insert_and_get_download_roundtrip() {
     let db = Database::open_in_memory().unwrap();
@@ -26,7 +25,6 @@ fn insert_and_get_download_roundtrip() {
     assert_eq!(loaded.chunks.len(), 1);
 }
 
-#[timeout(30_000)]
 #[test]
 fn insert_or_replace_same_id_replaces() {
     let db = Database::open_in_memory().unwrap();
@@ -44,7 +42,6 @@ fn insert_or_replace_same_id_replaces() {
     assert_eq!(loaded.url, "https://b.com/f2");
 }
 
-#[timeout(30_000)]
 #[test]
 fn get_nonexistent_download_returns_none() {
     let db = Database::open_in_memory().unwrap();
@@ -52,7 +49,6 @@ fn get_nonexistent_download_returns_none() {
     assert!(result.is_none());
 }
 
-#[timeout(30_000)]
 #[test]
 fn delete_download_cascades_to_chunks() {
     let db = Database::open_in_memory().unwrap();
@@ -87,7 +83,6 @@ fn delete_download_cascades_to_chunks() {
     assert_eq!(count_chunks(&db, "del-1"), 0);
 }
 
-#[timeout(30_000)]
 #[test]
 fn delete_nonexistent_does_not_panic() {
     let db = Database::open_in_memory().unwrap();
@@ -95,7 +90,6 @@ fn delete_nonexistent_does_not_panic() {
     assert!(result.is_ok());
 }
 
-#[timeout(30_000)]
 #[test]
 fn insert_then_get_preserves_all_fields() {
     let db = Database::open_in_memory().unwrap();
@@ -197,7 +191,6 @@ fn insert_then_get_preserves_all_fields() {
     );
 }
 
-#[timeout(30_000)]
 #[test]
 fn update_download_modifies_all_fields() {
     let db = Database::open_in_memory().unwrap();
@@ -242,7 +235,6 @@ fn update_download_modifies_all_fields() {
     assert_eq!(loaded.chunks[0].downloaded, 500);
 }
 
-#[timeout(30_000)]
 #[test]
 fn update_download_progress_incremental() {
     let db = Database::open_in_memory().unwrap();
@@ -299,7 +291,6 @@ fn update_download_progress_incremental() {
     assert_eq!(loaded.file_name, "progress.bin");
 }
 
-#[timeout(30_000)]
 #[test]
 fn count_downloads_accurate() {
     let db = Database::open_in_memory().unwrap();
@@ -320,7 +311,6 @@ fn count_downloads_accurate() {
     assert_eq!(db.count_downloads().unwrap(), 0);
 }
 
-#[timeout(30_000)]
 #[test]
 fn null_optionals_roundtrip() {
     let db = Database::open_in_memory().unwrap();
@@ -361,7 +351,6 @@ fn null_optionals_roundtrip() {
 /// `UPDATE` could land afterwards and rewind the row, which makes the next
 /// startup treat a finished download as resumable (and hides the row from
 /// `aria2.tellStopped` once it is evicted from memory).
-#[timeout(30_000)]
 #[test]
 fn progress_update_cannot_downgrade_a_terminal_row() {
     let db = Database::open_in_memory().unwrap();
@@ -389,7 +378,6 @@ fn progress_update_cannot_downgrade_a_terminal_row() {
 
 /// The scheduler's batch shares the guard, and non-terminal rows still take
 /// their progress in the same transaction.
-#[timeout(30_000)]
 #[test]
 fn batch_progress_update_cannot_downgrade_terminal_rows() {
     use crate::database::ProgressBatchEntry;

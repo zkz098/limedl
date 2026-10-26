@@ -7,8 +7,6 @@ use std::{
     path::Path,
 };
 
-use fs4::FileExt;
-
 use tracing;
 
 use super::error::{DownloadError, Result, io_error_with_path};
@@ -456,6 +454,12 @@ unsafe extern "system" {
         previous_state: *mut std::ffi::c_void,
         return_length: *mut u32,
     ) -> i32;
+    fn GetDiskFreeSpaceExW(
+        lp_directory_name: *const u16,
+        lp_free_bytes_available_to_caller: *mut u64,
+        lp_total_number_of_bytes: *mut u64,
+        lp_total_number_of_free_bytes: *mut u64,
+    ) -> i32;
 }
 
 /// Check and acquire `SeManageVolumePrivilege` once per process.
@@ -569,10 +573,48 @@ pub fn set_sparse_file(_file: &File) -> io::Result<()> {
     Ok(())
 }
 
+/// Returns the number of free bytes available to unprivileged users on the volume containing `path`.
+#[cfg(unix)]
+pub fn available_space(path: &Path) -> io::Result<u64> {
+    let stat = rustix::fs::statvfs(path)?;
+    let block_size = if stat.f_frsize > 0 {
+        stat.f_frsize
+    } else {
+        stat.f_bsize
+    };
+    Ok((stat.f_bavail as u64).saturating_mul(block_size as u64))
+}
+
+/// Returns the number of free bytes available to unprivileged users on the volume containing `path`.
+#[cfg(windows)]
+pub fn available_space(path: &Path) -> io::Result<u64> {
+    use std::os::windows::ffi::OsStrExt;
+
+    let mut wide: Vec<u16> = path.as_os_str().encode_wide().collect();
+    wide.push(0);
+
+    let mut free_bytes_available: u64 = 0;
+    let mut total_bytes: u64 = 0;
+    let mut total_free_bytes: u64 = 0;
+
+    let res = unsafe {
+        GetDiskFreeSpaceExW(
+            wide.as_ptr(),
+            &mut free_bytes_available,
+            &mut total_bytes,
+            &mut total_free_bytes,
+        )
+    };
+    if res == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(free_bytes_available)
+}
+
 /// Checks that the destination directory has enough free space for the download.
 /// `required_bytes` is the total file size. We require 10% buffer above that.
 pub fn check_disk_space(destination_dir: &Path, required_bytes: u64) -> Result<()> {
-    let available = fs4::available_space(destination_dir)?;
+    let available = available_space(destination_dir)?;
     let required = required_bytes + required_bytes / 10; // 10% buffer
     if available < required {
         return Err(DownloadError::InsufficientDiskSpace {
@@ -594,7 +636,7 @@ fn reserve_download_space(file: &File, total_size: Option<u64>, dir: Option<&Pat
         return Ok(());
     };
     preallocate_file(file, total_size).map_err(|error| {
-        let available = dir.and_then(|dir| fs4::available_space(dir).ok());
+        let available = dir.and_then(|dir| available_space(dir).ok());
         reservation_error(error, size, available)
     })
 }
@@ -644,6 +686,11 @@ fn preallocate_file(file: &File, total_size: Option<u64>) -> io::Result<()> {
         return Ok(());
     };
 
+    if total_size == 0 {
+        file.set_len(0)?;
+        return Ok(());
+    }
+
     #[cfg(windows)]
     {
         // 1. Try instantaneous SetFileValidData (requires SeManageVolumePrivilege).
@@ -656,18 +703,34 @@ fn preallocate_file(file: &File, total_size: Option<u64>) -> io::Result<()> {
         // 2. Fall back to sparse file mode on Windows to avoid synchronous zero-fill stalls
         // on non-sequential chunk writes.
         let _ = set_sparse_file(file);
+
+        file.set_len(total_size)?;
+        Ok(())
     }
 
-    match file.allocate(total_size) {
-        Ok(()) => Ok(()),
-        Err(error) => match error.raw_os_error() {
-            // 1 = EPERM, 22 = EINVAL, 38 = ENOSYS, 45 = ENOTSUP, 95 = EOPNOTSUPP, 524 = ENOTSUP (glibc)
-            Some(1 | 22 | 38 | 45 | 95 | 524) => {
-                file.set_len(total_size)?;
-                Ok(())
+    #[cfg(not(windows))]
+    {
+        #[cfg(target_os = "linux")]
+        {
+            match rustix::fs::fallocate(file, rustix::fs::FallocateFlags::empty(), 0, total_size) {
+                Ok(()) => Ok(()),
+                Err(error) => {
+                    // 1 = EPERM, 22 = EINVAL, 38 = ENOSYS, 45 = ENOTSUP, 95 = EOPNOTSUPP, 524 = ENOTSUP (glibc)
+                    match error.raw_os_error() {
+                        1 | 22 | 38 | 45 | 95 | 524 => {
+                            file.set_len(total_size)?;
+                            Ok(())
+                        }
+                        _ => Err(io::Error::from(error)),
+                    }
+                }
             }
-            _ => Err(error),
-        },
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            file.set_len(total_size)?;
+            Ok(())
+        }
     }
 }
 

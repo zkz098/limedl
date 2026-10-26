@@ -8,7 +8,6 @@
 use std::time::Duration;
 
 use limedl_server::{Config, RpcOverrides, run_with};
-use ntest::timeout;
 use serde_json::{Value, json};
 
 const SECRET: &str = "integration-secret";
@@ -53,7 +52,6 @@ async fn rpc(client: &reqwest::Client, url: &str, method: &str, params: Value) -
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[timeout(120_000)]
 async fn daemon_serves_rpc_and_stops_on_aria2_shutdown() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let port = free_port().await;

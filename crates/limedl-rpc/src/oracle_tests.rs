@@ -21,7 +21,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use ntest::timeout;
 use serde_json::{Value, json};
 
 use super::e2e_tests::{rpc_call, start_rpc_server_with_secret};
@@ -295,7 +294,6 @@ fn set_of(value: &Value) -> BTreeSet<String> {
 /// `system.listMethods`: limedl must cover every aria2 method except the
 /// documented Metalink gap, and `aria2.multicall` is a limedl-only alias.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_list_methods_diff() {
     let Some(oracle) = Aria2Oracle::start().await else {
         eprintln!("skipping oracle_list_methods_diff: ARIA2_ORACLE_BIN unset");
@@ -333,7 +331,6 @@ async fn oracle_list_methods_diff() {
 
 /// `system.listNotifications` should be an exact match.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_list_notifications_diff() {
     let Some(oracle) = Aria2Oracle::start().await else {
         eprintln!("skipping oracle_list_notifications_diff: ARIA2_ORACLE_BIN unset");
@@ -364,7 +361,6 @@ async fn oracle_list_notifications_diff() {
 /// `getVersion`: both shapes must be `{version: string, enabledFeatures: [string]}`.
 /// The feature lists differ (aria2 advertises Metalink/SFTP/XML-RPC) and are reported.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_get_version_shape() {
     let Some(oracle) = Aria2Oracle::start().await else {
         eprintln!("skipping oracle_get_version_shape: ARIA2_ORACLE_BIN unset");
@@ -416,7 +412,6 @@ async fn oracle_get_version_shape() {
 /// limedl now matches on the wire. Both the object shape and the code are
 /// asserted.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_error_objects() {
     let Some(oracle) = Aria2Oracle::start().await else {
         eprintln!("skipping oracle_error_objects: ARIA2_ORACLE_BIN unset");
@@ -458,7 +453,6 @@ async fn oracle_error_objects() {
 /// Add the same paused HTTP download to both servers and compare the
 /// `tellStatus` key sets.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(180_000)]
 async fn oracle_tell_status_keys() {
     let Some(oracle) = Aria2Oracle::start().await else {
         eprintln!("skipping oracle_tell_status_keys: ARIA2_ORACLE_BIN unset");
@@ -520,7 +514,6 @@ async fn oracle_tell_status_keys() {
 
 /// `getOption` key set — reported only, limedl returns a fixed subset.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(180_000)]
 async fn oracle_get_option_keys() {
     let Some(oracle) = Aria2Oracle::start().await else {
         eprintln!("skipping oracle_get_option_keys: ARIA2_ORACLE_BIN unset");
@@ -567,7 +560,6 @@ async fn oracle_get_option_keys() {
 
 /// `getGlobalOption` key set — reported only.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_get_global_option_keys() {
     let Some(oracle) = Aria2Oracle::start().await else {
         eprintln!("skipping oracle_get_global_option_keys: ARIA2_ORACLE_BIN unset");
@@ -601,7 +593,6 @@ async fn oracle_get_global_option_keys() {
 
 /// `changePosition` must answer with an integer on both servers.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(180_000)]
 async fn oracle_change_position_returns_integer() {
     let Some(oracle) = Aria2Oracle::start().await else {
         eprintln!("skipping oracle_change_position_returns_integer: ARIA2_ORACLE_BIN unset");
@@ -660,7 +651,6 @@ async fn oracle_change_position_returns_integer() {
 /// (including JSON-RPC batch) + WebSocket. Batch is asserted on both servers;
 /// the GET/JSONP gap is reported because limedl deliberately does not serve it.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn oracle_transport_gaps() {
     let Some(oracle) = Aria2Oracle::start().await else {
         eprintln!("skipping oracle_transport_gaps: ARIA2_ORACLE_BIN unset");

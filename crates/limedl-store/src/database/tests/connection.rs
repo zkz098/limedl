@@ -2,14 +2,12 @@
 
 use super::*;
 
-#[timeout(30_000)]
 #[test]
 fn open_in_memory_creates_empty_db() {
     let db = Database::open_in_memory().unwrap();
     assert_eq!(db.count_downloads().unwrap(), 0);
 }
 
-#[timeout(30_000)]
 #[test]
 fn open_creates_new_database_file() {
     let dir = tempfile::tempdir().unwrap();
@@ -25,7 +23,6 @@ fn open_creates_new_database_file() {
     );
 }
 
-#[timeout(30_000)]
 #[test]
 fn insert_and_reopen_preserves_data() {
     let dir = tempfile::tempdir().unwrap();
@@ -52,7 +49,6 @@ fn insert_and_reopen_preserves_data() {
     }
 }
 
-#[timeout(30_000)]
 #[test]
 fn update_persists_across_reopens() {
     let dir = tempfile::tempdir().unwrap();
@@ -108,7 +104,6 @@ fn update_persists_across_reopens() {
     }
 }
 
-#[timeout(30_000)]
 #[test]
 fn delete_persists_across_reopens() {
     let dir = tempfile::tempdir().unwrap();
@@ -153,7 +148,6 @@ fn quarantined_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
         .collect()
 }
 
-#[timeout(30_000)]
 #[test]
 fn a_healthy_database_is_left_alone() {
     let dir = tempfile::tempdir().unwrap();
@@ -178,7 +172,6 @@ fn a_healthy_database_is_left_alone() {
     );
 }
 
-#[timeout(30_000)]
 #[test]
 fn an_unreadable_database_is_quarantined_and_recreated() {
     let dir = tempfile::tempdir().unwrap();
@@ -210,7 +203,6 @@ fn an_unreadable_database_is_quarantined_and_recreated() {
     );
 }
 
-#[timeout(30_000)]
 #[test]
 fn sqlite_reports_a_non_database_file_as_unusable() {
     let dir = tempfile::tempdir().unwrap();
@@ -228,7 +220,6 @@ fn sqlite_reports_a_non_database_file_as_unusable() {
     );
 }
 
-#[timeout(30_000)]
 #[test]
 fn lock_contention_is_never_mistaken_for_corruption() {
     // A second writer holding the file is contention, not corruption: treating

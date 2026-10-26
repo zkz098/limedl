@@ -19,7 +19,6 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use axum::http::StatusCode;
-use ntest::timeout;
 use parking_lot::Mutex as ParkingMutex;
 use reqwest::Body;
 use tokio::sync::Notify;
@@ -209,7 +208,6 @@ fn backoff_delay_attempt_0_is_250ms() {
 /// variability.  Each sleep is small (max ~2 s) so the whole test completes
 /// within a few seconds.
 #[tokio::test]
-#[timeout(120_000)]
 async fn retry_exponential_backoff_timing() -> TestResult {
     let call_times = Arc::new(Mutex::new(Vec::<Instant>::new()));
     let ct = call_times.clone();
@@ -270,7 +268,6 @@ async fn retry_exponential_backoff_timing() -> TestResult {
 /// With `max_retries = 2`, all requests return 503.  After the initial attempt
 /// and 2 retries, the function should return an `InvalidResponse` error.
 #[tokio::test]
-#[timeout(120_000)]
 async fn retry_max_attempts_exhausted() -> TestResult {
     let call_count = Arc::new(Mutex::new(0u32));
     let cc = call_count.clone();
@@ -305,7 +302,6 @@ async fn retry_max_attempts_exhausted() -> TestResult {
 /// The first two requests return 503 (retryable), the third returns 200.
 /// The function should succeed after 2 retries.
 #[tokio::test]
-#[timeout(120_000)]
 async fn retry_succeeds_on_third_attempt() -> TestResult {
     let call_count = Arc::new(Mutex::new(0u32));
     let cc = call_count.clone();
@@ -337,7 +333,6 @@ async fn retry_succeeds_on_third_attempt() -> TestResult {
 ///
 /// Server-error codes (5xx) ARE retryable.
 #[tokio::test]
-#[timeout(60_000)]
 async fn retry_respects_transient_vs_permanent_errors() -> TestResult {
     // ── 4xx is NOT retried ───────────────────────────────────
     let call_count = Arc::new(Mutex::new(0u32));
@@ -408,7 +403,6 @@ async fn retry_respects_transient_vs_permanent_errors() -> TestResult {
 ///
 /// No retries needed — verifies the happy path through [`request_with_retry`].
 #[tokio::test]
-#[timeout(30_000)]
 async fn success_on_first_attempt_real_http() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let client = reqwest::Client::new();
@@ -441,7 +435,6 @@ async fn success_on_first_attempt_real_http() -> TestResult {
 /// [`request_with_retry`] retries on a transient server error and
 /// propagates the final successful response.
 #[tokio::test]
-#[timeout(30_000)]
 async fn real_http_503_retries_then_success() -> TestResult {
     let server = TestServer::new(4096).await;
     let client = reqwest::Client::new();
@@ -487,7 +480,6 @@ async fn real_http_503_retries_then_success() -> TestResult {
 /// With `max_retries = 2`, the function should exhaust retries and return
 /// [`DownloadError::InvalidResponse`].
 #[tokio::test]
-#[timeout(30_000)]
 async fn real_http_503_exhausts_max_retries() -> TestResult {
     let server = TestServer::new(4096).await;
     let client = reqwest::Client::new();
@@ -529,7 +521,6 @@ async fn real_http_503_exhausts_max_retries() -> TestResult {
 /// A 404 response (non-existent path on TestServer) must NOT be retried —
 /// [`classify_download_response`] treats 4xx as [`ResponseDisposition::Invalid`].
 #[tokio::test]
-#[timeout(30_000)]
 async fn real_http_404_does_not_retry() -> TestResult {
     let server = TestServer::new(4096).await;
     let client = reqwest::Client::new();
@@ -570,7 +561,6 @@ async fn real_http_404_does_not_retry() -> TestResult {
 /// [`request_with_retry`], which is a separate code path from HTTP status
 /// retries.
 #[tokio::test]
-#[timeout(30_000)]
 async fn transport_error_retries_and_exhausts() -> TestResult {
     // Build a client with a short timeout so connection-refused
     // errors surface quickly rather than waiting for the OS timeout.
@@ -614,7 +604,6 @@ async fn transport_error_retries_and_exhausts() -> TestResult {
 /// - `aimd.recent_penalty` is set
 /// - `aimd.penalty_count` is incremented
 #[tokio::test]
-#[timeout(30_000)]
 async fn retry_state_is_updated_on_managed_download() -> TestResult {
     let factory = || async { Ok(make_response(503)) };
 
@@ -666,7 +655,6 @@ async fn retry_state_is_updated_on_managed_download() -> TestResult {
 
 /// Verifies that AIMD penalty count increments across multiple retries.
 #[tokio::test]
-#[timeout(30_000)]
 async fn retry_penalty_count_accumulates() -> TestResult {
     let factory = || async { Ok(make_response(503)) };
 

@@ -40,7 +40,6 @@ use crate::types::{
     BtFileStatus, BtPeerInfo, ChecksumMode, DownloadState, StartDownloadRequest, TaskId, TaskKind,
 };
 use foldhash::HashMap;
-use ntest::timeout;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::Duration;
@@ -49,7 +48,6 @@ use tokio::sync::{Mutex, Notify};
 // ── JSON-RPC response serialization ───────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn success_response_serializes_correctly() {
     let resp = JsonRpcResponse {
         jsonrpc: "2.0",
@@ -70,7 +68,6 @@ fn success_response_serializes_correctly() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn error_response_serializes_correctly() {
     let resp = JsonRpcResponse {
         jsonrpc: "2.0",
@@ -95,7 +92,6 @@ fn error_response_serializes_correctly() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn notification_response_omits_id_and_result_and_error() {
     // A notification is a response without an id — valid in JSON-RPC batch context.
     let resp = JsonRpcResponse {
@@ -125,7 +121,6 @@ fn notification_response_omits_id_and_result_and_error() {
 // ── Error codes and factory functions ─────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn make_error_creates_correct_struct() {
     let err = make_error(-32700, "Parse error");
     assert_eq!(err.code, -32700);
@@ -133,7 +128,6 @@ fn make_error_creates_correct_struct() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn make_error_accepts_string_owning_types() {
     let err = make_error(-1, String::from("custom error"));
     assert_eq!(err.code, -1);
@@ -141,7 +135,6 @@ fn make_error_accepts_string_owning_types() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn error_response_parse_error() {
     let resp = error_response(Some(Value::Null), ERR_PARSE, "Parse error");
     assert_eq!(resp.jsonrpc, "2.0");
@@ -153,7 +146,6 @@ fn error_response_parse_error() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn error_response_invalid_request() {
     let resp = error_response(None, ERR_INVALID_REQUEST, "Invalid Request");
     assert_eq!(resp.error.as_ref().unwrap().code, -32600);
@@ -161,28 +153,24 @@ fn error_response_invalid_request() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn error_response_method_not_found() {
     let resp = error_response(None, ERR_METHOD_NOT_FOUND, "Method not found: foo");
     assert_eq!(resp.error.as_ref().unwrap().code, 1);
 }
 
 #[test]
-#[timeout(10_000)]
 fn error_response_invalid_params() {
     let resp = error_response(None, ERR_INVALID_PARAMS, "Missing GID parameter");
     assert_eq!(resp.error.as_ref().unwrap().code, 1);
 }
 
 #[test]
-#[timeout(10_000)]
 fn error_response_internal_error() {
     let resp = error_response(None, ERR_INTERNAL, "Something went wrong");
     assert_eq!(resp.error.as_ref().unwrap().code, 1);
 }
 
 #[test]
-#[timeout(10_000)]
 fn error_response_serializes_to_valid_json() {
     let resp = error_response(Some(json!(42)), ERR_METHOD_NOT_FOUND, "Not found");
     let json_str = serde_json::to_string(&resp).expect("serialize");
@@ -197,7 +185,6 @@ fn error_response_serializes_to_valid_json() {
 // ── success_response factory ──────────────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn success_response_wraps_result_correctly() {
     let result = json!({"gid": "abc123"});
     let resp = success_response(Some(json!(1)), result.clone());
@@ -208,7 +195,6 @@ fn success_response_wraps_result_correctly() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn success_response_with_null_id() {
     let resp = success_response(None, json!("ok"));
     assert!(resp.id.is_none());
@@ -216,7 +202,6 @@ fn success_response_with_null_id() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn success_response_factory_serialization() {
     let resp = success_response(Some(json!(1)), json!("OK"));
     let json_str = serde_json::to_string(&resp).expect("serialize");
@@ -231,7 +216,6 @@ fn success_response_factory_serialization() {
 // ── Stateless handlers ────────────────────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn handle_version_returns_version_info() {
     let result = handle_version();
     assert_eq!(result["version"], env!("CARGO_PKG_VERSION"));
@@ -259,7 +243,6 @@ fn handle_version_returns_version_info() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn handle_list_methods_returns_array() {
     let result = handle_list_methods();
     let methods = result.as_array().expect("should be an array");
@@ -298,7 +281,6 @@ fn handle_list_methods_returns_array() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn handle_list_notifications_returns_array() {
     let result = handle_list_notifications();
     let notifications = result.as_array().expect("should be an array");
@@ -316,7 +298,6 @@ fn handle_list_notifications_returns_array() {
 // ── internal_id_to_gid ────────────────────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn internal_id_to_gid_deterministic() {
     let id = "http:abc-123-def";
     let gid1 = internal_id_to_gid(id);
@@ -325,7 +306,6 @@ fn internal_id_to_gid_deterministic() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn internal_id_to_gid_format() {
     let gid = internal_id_to_gid("http:abc");
     assert_eq!(gid.len(), 16, "GID must be exactly 16 hex characters");
@@ -336,7 +316,6 @@ fn internal_id_to_gid_format() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn internal_id_to_gid_different_inputs() {
     let gid_a = internal_id_to_gid("http:task-A");
     let gid_b = internal_id_to_gid("http:task-B");
@@ -344,7 +323,6 @@ fn internal_id_to_gid_different_inputs() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn internal_id_to_gid_bt_prefix() {
     let gid = internal_id_to_gid("bt:some-torrent-hash");
     assert_eq!(gid.len(), 16);
@@ -352,7 +330,6 @@ fn internal_id_to_gid_bt_prefix() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn internal_id_to_gid_empty_string() {
     // xxh3_64 of empty bytes still produces 16 hex chars
     let gid = internal_id_to_gid("");
@@ -361,7 +338,6 @@ fn internal_id_to_gid_empty_string() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn internal_id_to_gid_unicode() {
     // Unicode inputs should hash deterministically
     let gid = internal_id_to_gid("http:文件下载");
@@ -372,7 +348,6 @@ fn internal_id_to_gid_unicode() {
 // ── JSON-RPC request deserialization ──────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn deserialize_valid_request() {
     let json_str = r#"{"jsonrpc":"2.0","id":1,"method":"aria2.addUri","params":[["http://example.com/file.zip"]]}"#;
     let req: JsonRpcRequest = serde_json::from_str(json_str).expect("deserialize valid request");
@@ -387,7 +362,6 @@ fn deserialize_valid_request() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn deserialize_request_without_id() {
     // Notifications omit the id field
     let json_str =
@@ -400,7 +374,6 @@ fn deserialize_request_without_id() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn deserialize_request_without_params() {
     // Some methods (e.g. system.listMethods) have no params
     let json_str = r#"{"jsonrpc":"2.0","id":2,"method":"system.listMethods"}"#;
@@ -413,7 +386,6 @@ fn deserialize_request_without_params() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn deserialize_request_with_string_id() {
     // JSON-RPC allows string ids
     let json_str = r#"{"jsonrpc":"2.0","id":"req-001","method":"aria2.getVersion"}"#;
@@ -424,7 +396,6 @@ fn deserialize_request_with_string_id() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn deserialize_request_with_null_id() {
     let json_str = r#"{"jsonrpc":"2.0","id":null,"method":"aria2.getVersion"}"#;
     let req: JsonRpcRequest = serde_json::from_str(json_str).expect("deserialize with null id");
@@ -436,7 +407,6 @@ fn deserialize_request_with_null_id() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn deserialize_invalid_json_returns_error() {
     let json_str = r#"{bad json}"#;
     let result: Result<JsonRpcRequest, _> = serde_json::from_str(json_str);
@@ -447,7 +417,6 @@ fn deserialize_invalid_json_returns_error() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn deserialize_non_string_method_returns_error() {
     let json_str = r#"{"jsonrpc":"2.0","id":1,"method":123}"#;
     let result: Result<JsonRpcRequest, _> = serde_json::from_str(json_str);
@@ -455,7 +424,6 @@ fn deserialize_non_string_method_returns_error() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn deserialize_missing_method_returns_error() {
     let json_str = r#"{"jsonrpc":"2.0","id":1}"#;
     let result: Result<JsonRpcRequest, _> = serde_json::from_str(json_str);
@@ -465,7 +433,6 @@ fn deserialize_missing_method_returns_error() {
 // ── state_to_aria2 mapping ────────────────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn state_to_aria2_maps_all_states() {
     use crate::types::DownloadState::*;
     let cases = [
@@ -486,7 +453,6 @@ fn state_to_aria2_maps_all_states() {
 // ── extract_option_* helpers ──────────────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_str_found() {
     let mut map = serde_json::Map::new();
     map.insert("out".to_string(), json!("myfile.zip"));
@@ -495,7 +461,6 @@ fn extract_option_str_found() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_str_missing() {
     let map = serde_json::Map::new();
     let result = extract_option_str(Some(&map), "out");
@@ -503,14 +468,12 @@ fn extract_option_str_missing() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_str_none_options() {
     let result = extract_option_str(None, "out");
     assert_eq!(result, None);
 }
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_usize_found() {
     let mut map = serde_json::Map::new();
     map.insert("split".to_string(), json!("5"));
@@ -519,7 +482,6 @@ fn extract_option_usize_found() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_usize_invalid_value() {
     let mut map = serde_json::Map::new();
     map.insert("split".to_string(), json!("not-a-number"));
@@ -528,7 +490,6 @@ fn extract_option_usize_invalid_value() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_usize_non_string_value() {
     let mut map = serde_json::Map::new();
     map.insert("split".to_string(), json!(42));
@@ -538,7 +499,6 @@ fn extract_option_usize_non_string_value() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_u32_found() {
     let mut map = serde_json::Map::new();
     map.insert("max-tries".to_string(), json!("3"));
@@ -547,7 +507,6 @@ fn extract_option_u32_found() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_u32_invalid_value() {
     let mut map = serde_json::Map::new();
     map.insert("max-tries".to_string(), json!("999999999999")); // overflow u32
@@ -558,7 +517,6 @@ fn extract_option_u32_invalid_value() {
 // ── aria2 request-option passthrough ─────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_headers_array_keeps_valid_and_drops_malformed() {
     let mut map = serde_json::Map::new();
     map.insert(
@@ -570,7 +528,6 @@ fn extract_option_headers_array_keeps_valid_and_drops_malformed() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_headers_single_string() {
     let mut map = serde_json::Map::new();
     map.insert("header".to_string(), json!("Cookie: a=b"));
@@ -581,7 +538,6 @@ fn extract_option_headers_single_string() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn extract_option_headers_missing_or_wrong_type() {
     let map = serde_json::Map::new();
     assert!(extract_option_headers(Some(&map), "header").is_empty());
@@ -592,7 +548,6 @@ fn extract_option_headers_missing_or_wrong_type() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn collect_request_headers_appends_referer() {
     let mut map = serde_json::Map::new();
     map.insert("referer".to_string(), json!("https://example.com/page"));
@@ -601,7 +556,6 @@ fn collect_request_headers_appends_referer() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn collect_request_headers_referer_star_uses_download_url() {
     let mut map = serde_json::Map::new();
     map.insert("referer".to_string(), json!("*"));
@@ -611,7 +565,6 @@ fn collect_request_headers_referer_star_uses_download_url() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn collect_request_headers_explicit_referer_wins() {
     let mut map = serde_json::Map::new();
     map.insert(
@@ -624,7 +577,6 @@ fn collect_request_headers_explicit_referer_wins() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn collect_request_headers_basic_auth() {
     let mut map = serde_json::Map::new();
     map.insert("http-user".to_string(), json!("user"));
@@ -634,7 +586,6 @@ fn collect_request_headers_basic_auth() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn collect_request_headers_explicit_authorization_wins() {
     let mut map = serde_json::Map::new();
     map.insert("header".to_string(), json!(["Authorization: Bearer tok"]));
@@ -645,13 +596,11 @@ fn collect_request_headers_explicit_authorization_wins() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn collect_request_headers_empty_when_no_options() {
     assert!(collect_request_headers(None, "https://example.com/file.bin").is_empty());
 }
 
 #[test]
-#[timeout(10_000)]
 fn parse_checksum_option_supported_types() {
     for (raw, expected_mode) in [
         ("sha-256=ABCDEF", ChecksumMode::Sha256),
@@ -672,7 +621,6 @@ fn parse_checksum_option_supported_types() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn parse_checksum_option_ignores_unsupported_and_malformed() {
     for raw in [
         "md5=abc",
@@ -689,7 +637,6 @@ fn parse_checksum_option_ignores_unsupported_and_malformed() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn find_header_value_is_case_insensitive() {
     let headers = vec![
         "X-A: 1".to_string(),
@@ -705,7 +652,6 @@ fn find_header_value_is_case_insensitive() {
 // ── strip_token helper ────────────────────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn strip_token_removes_token_prefix() {
     let params = vec![json!("token:sekret"), json!("arg1"), json!("arg2")];
     let stripped = strip_token(params);
@@ -715,7 +661,6 @@ fn strip_token_removes_token_prefix() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn strip_token_no_token() {
     let params = vec![json!("arg1"), json!("arg2")];
     let stripped = strip_token(params);
@@ -725,7 +670,6 @@ fn strip_token_no_token() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn strip_token_empty_params() {
     let params: Vec<Value> = vec![];
     let stripped = strip_token(params);
@@ -733,7 +677,6 @@ fn strip_token_empty_params() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn strip_token_non_string_first_param() {
     let params = vec![json!(42), json!("arg1")];
     let stripped = strip_token(params);
@@ -742,7 +685,6 @@ fn strip_token_non_string_first_param() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn strip_token_token_not_at_start() {
     // The function only checks the first param for "token:" prefix
     let params = vec![json!("arg1"), json!("token:sekret")];
@@ -754,28 +696,24 @@ fn strip_token_token_not_at_start() {
 // ── parse_int_param helper ────────────────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn parse_int_param_string_number() {
     let params = vec![json!("42")];
     assert_eq!(parse_int_param(&params, 0), Some(42));
 }
 
 #[test]
-#[timeout(10_000)]
 fn parse_int_param_number() {
     let params = vec![json!(42)];
     assert_eq!(parse_int_param(&params, 0), Some(42));
 }
 
 #[test]
-#[timeout(10_000)]
 fn parse_int_param_out_of_range() {
     let params = vec![json!("hello")];
     assert_eq!(parse_int_param(&params, 0), None);
 }
 
 #[test]
-#[timeout(10_000)]
 fn parse_int_param_missing_index() {
     let params: Vec<Value> = vec![];
     assert_eq!(parse_int_param(&params, 0), None);
@@ -784,7 +722,6 @@ fn parse_int_param_missing_index() {
 // ── peer_info_to_aria2_peer ───────────────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn peer_info_to_aria2_peer_with_port() {
     let peer = BtPeerInfo {
         address: "192.168.1.1:6881".to_string(),
@@ -804,7 +741,6 @@ fn peer_info_to_aria2_peer_with_port() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn peer_info_to_aria2_peer_seeder() {
     let peer = BtPeerInfo {
         address: "10.0.0.1:51413".to_string(),
@@ -820,7 +756,6 @@ fn peer_info_to_aria2_peer_seeder() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn peer_info_to_aria2_peer_no_port() {
     let peer = BtPeerInfo {
         address: "192.168.1.1".to_string(),
@@ -864,7 +799,6 @@ fn make_ctx() -> RpcContext {
 /// `aria2.shutdown` is a no-op handshake for the desktop (a managed subsystem)
 /// but must wake the headless daemon when `exit_on_shutdown` is set.
 #[tokio::test]
-#[timeout(10_000)]
 async fn shutdown_notifies_only_when_exit_on_shutdown_is_set() {
     let mut ctx = make_ctx();
     let notify = ctx.shutdown_notify.clone();
@@ -892,7 +826,6 @@ async fn shutdown_notifies_only_when_exit_on_shutdown_is_set() {
 /// wrong protocol versions, unknown methods and successes must all be wrapped
 /// in a JSON-RPC response rather than dropped.
 #[tokio::test]
-#[timeout(10_000)]
 async fn process_jsonrpc_message_covers_errors_and_success() {
     let ctx = make_ctx();
 
@@ -924,7 +857,6 @@ async fn process_jsonrpc_message_covers_errors_and_success() {
 
 /// A top-level JSON-RPC array is a batch: one response per request element.
 #[tokio::test]
-#[timeout(10_000)]
 async fn batch_request_returns_one_response_per_element() {
     let ctx = make_ctx();
     let body = json!([
@@ -944,7 +876,6 @@ async fn batch_request_returns_one_response_per_element() {
 
 /// A batch of notifications executes but produces no response at all.
 #[tokio::test]
-#[timeout(10_000)]
 async fn batch_of_notifications_produces_no_response() {
     let ctx = make_ctx();
     let body = json!([{"jsonrpc": "2.0", "method": "aria2.pauseAll", "params": []}]).to_string();
@@ -956,7 +887,6 @@ async fn batch_of_notifications_produces_no_response() {
 
 /// An empty array is a single Invalid Request error per the JSON-RPC 2.0 spec.
 #[tokio::test]
-#[timeout(10_000)]
 async fn empty_batch_is_an_invalid_request() {
     let ctx = make_ctx();
     let resp: Value = serde_json::from_str(&process_jsonrpc_message(&ctx, "[]").await)
@@ -968,7 +898,6 @@ async fn empty_batch_is_an_invalid_request() {
 /// result; `aria2.remove` must evict that entry so the cache cannot grow for
 /// the lifetime of the RPC server.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn resolve_gid_scans_backends_and_remove_clears_the_cache() {
     let (_tmp, dm) = limedl_core::testing::make_manager();
     let uuid = uuid::Uuid::from_u128(0xC0FFEE);
@@ -1019,7 +948,6 @@ async fn resolve_gid_scans_backends_and_remove_clears_the_cache() {
 /// aria2 accepts an abbreviated GID when the prefix is unambiguous; limedl must
 /// refuse an ambiguous one rather than guess which task the client meant.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn resolve_gid_accepts_a_unique_prefix_and_refuses_an_ambiguous_one() {
     let (_tmp, dm) = limedl_core::testing::make_manager();
     // 17 GIDs over 16 leading hex digits guarantees two share the first digit.
@@ -1063,7 +991,6 @@ async fn resolve_gid_accepts_a_unique_prefix_and_refuses_an_ambiguous_one() {
 // ── aria2 option/uri helpers ─────────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn classify_aria2_uri_routes_magnets_to_bt() {
     assert_eq!(classify_aria2_uri("magnet:?xt=urn:btih:abc"), TaskKind::Bt);
     assert_eq!(
@@ -1079,7 +1006,6 @@ fn classify_aria2_uri_routes_magnets_to_bt() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn parse_select_file_converts_one_based_indices() {
     assert_eq!(parse_select_file(&json!("1,3")).unwrap(), vec![0, 2]);
     assert_eq!(parse_select_file(&json!(" 2 , 4 ")).unwrap(), vec![1, 3]);
@@ -1095,7 +1021,6 @@ fn parse_select_file_converts_one_based_indices() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn filter_status_keys_keeps_only_requested_fields() {
     let status = json!({
         "gid": "abc",
@@ -1111,7 +1036,6 @@ fn filter_status_keys_keeps_only_requested_fields() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn bt_files_to_aria2_uses_one_based_indices_and_selection() {
     let files = vec![
         BtFileStatus {
@@ -1146,7 +1070,6 @@ fn bt_files_to_aria2_uses_one_based_indices_and_selection() {
 /// `aria2.changeOption` must apply what the engine can change and fail loudly
 /// for everything else instead of silently pretending.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn change_option_applies_pause_and_rejects_unsupported_keys() {
     let (tmp, dm) = limedl_core::testing::make_manager();
     let uuid = uuid::Uuid::from_u128(0xCAFE);
@@ -1193,7 +1116,6 @@ async fn change_option_applies_pause_and_rejects_unsupported_keys() {
 /// Every aria2 lifecycle notification must be published exactly once per
 /// transition — engine and RPC handler must not both emit the same event.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn http_lifecycle_notifications_are_emitted_exactly_once() {
     let server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let (tmp, dm) = limedl_core::testing::make_manager();
@@ -1275,7 +1197,6 @@ fn take_aria2_events(rx: &mut tokio::sync::broadcast::Receiver<DownloadEvent>) -
 /// Only `.torrent` files older than an hour may be cleaned from the aria2
 /// temp directory; fresh torrents and unrelated files must survive.
 #[test]
-#[timeout(10_000)]
 fn cleanup_old_aria2_temp_files_removes_only_stale_torrents() {
     let dir = std::env::temp_dir().join("limedl_aria2");
     std::fs::create_dir_all(&dir).expect("create aria2 temp dir");
@@ -1309,7 +1230,6 @@ fn cleanup_old_aria2_temp_files_removes_only_stale_torrents() {
 // ── split_aria2_tail: client call shapes ──────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn split_aria2_tail_ariang_add_torrent_shape() {
     // AriaNg: `addTorrent(torrent, [], options)`.
     let params = vec![
@@ -1324,7 +1244,6 @@ fn split_aria2_tail_ariang_add_torrent_shape() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn split_aria2_tail_legacy_add_torrent_shape() {
     // limedl's own tests used to send `addTorrent(torrent, options)`.
     let params = vec![json!("base64"), json!({"dir": "/tmp/x"})];
@@ -1335,7 +1254,6 @@ fn split_aria2_tail_legacy_add_torrent_shape() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn split_aria2_tail_add_uri_position() {
     // `addUri(uris, options, position)`.
     let params = vec![json!(["http://a"]), json!({"dir": "/tmp/x"}), json!(0)];
@@ -1346,7 +1264,6 @@ fn split_aria2_tail_add_uri_position() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn split_aria2_tail_full_add_torrent_shape() {
     // `addTorrent(torrent, uris, options, position)`.
     let params = vec![
@@ -1364,7 +1281,6 @@ fn split_aria2_tail_full_add_torrent_shape() {
 // ── bitfield_from_bits ────────────────────────────────────────────────────
 
 #[test]
-#[timeout(10_000)]
 fn bitfield_from_bits_packs_msb_first() {
     // 4 pieces -> one nibble, piece 0 is the highest bit.
     assert_eq!(bitfield_from_bits(&[true, false, true, false]), "a");
@@ -1372,7 +1288,6 @@ fn bitfield_from_bits_packs_msb_first() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn bitfield_from_bits_pads_the_trailing_nibble() {
     // 1 piece -> the single bit is the MSB of the nibble.
     assert_eq!(bitfield_from_bits(&[true]), "8");
@@ -1382,7 +1297,6 @@ fn bitfield_from_bits_pads_the_trailing_nibble() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn bitfield_from_bits_empty_is_empty() {
     assert_eq!(bitfield_from_bits(&[]), "");
 }

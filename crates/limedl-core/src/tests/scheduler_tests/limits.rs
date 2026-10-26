@@ -5,7 +5,6 @@ use super::*;
 /// Start a single download with a 500 KB/s global limit and verify the
 /// measured throughput stays below 2× the limit.
 #[tokio::test]
-#[timeout(300_000)]
 async fn scheduler_respects_global_speed_limit() -> TestResult {
     // Need a file large enough that chunked mode spawns ≥2 workers so the
     // rate limiter receives small stream sub-chunks (64 KB) that fit within
@@ -73,7 +72,6 @@ async fn scheduler_respects_global_speed_limit() -> TestResult {
 /// Uses files >= 8 MB so `supports_parallelism` enables multi‑threaded mode
 /// (default chunk_size = 4 MiB, threshold = 2 chunks).
 #[tokio::test]
-#[timeout(180_000)]
 async fn multi_download_fairness_under_limited_threads() -> TestResult {
     let server = TestServer::new(10 * 1024 * 1024).await; // 10 MB (≥ 8 MB)
 
@@ -160,7 +158,6 @@ async fn multi_download_fairness_under_limited_threads() -> TestResult {
 /// and a 1 MB/s global speed limit so both downloads remain in progress long
 /// enough to observe the scheduler's allocation.
 #[tokio::test]
-#[timeout(180_000)]
 async fn mixed_thread_mode_downloads_coexist() -> TestResult {
     let server = TestServer::new(10 * 1024 * 1024).await; // 10 MB (≥ 8 MB)
 
@@ -289,7 +286,6 @@ async fn mixed_thread_mode_downloads_coexist() -> TestResult {
 /// Two 3 MB downloads share a 500 KB/s global speed limit.  Combined
 /// throughput must not exceed the limit by more than 30 %.
 #[tokio::test]
-#[timeout(120_000)]
 async fn rate_limiter_shared_across_multiple_downloads() -> TestResult {
     let file_size: u64 = 3 * 1024 * 1024; // 3 MB
     let server = TestServer::new(file_size).await;

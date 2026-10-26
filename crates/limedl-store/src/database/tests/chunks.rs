@@ -2,7 +2,6 @@
 
 use super::*;
 
-#[timeout(30_000)]
 #[test]
 fn insert_existing_incremental_chunks() {
     let db = Database::open_in_memory().unwrap();
@@ -56,7 +55,6 @@ fn insert_existing_incremental_chunks() {
     assert_eq!(loaded.chunks[1].end, 999);
 }
 
-#[timeout(30_000)]
 #[test]
 fn progress_empty_chunks_updates_row_only() {
     let db = Database::open_in_memory().unwrap();
@@ -88,7 +86,6 @@ fn progress_empty_chunks_updates_row_only() {
     assert_eq!(loaded.chunks[0].downloaded, 0);
 }
 
-#[timeout(30_000)]
 #[test]
 fn list_returns_all_with_chunks() {
     let db = Database::open_in_memory().unwrap();
@@ -141,7 +138,6 @@ fn list_returns_all_with_chunks() {
     assert_eq!(list[1].chunks.len(), 2);
 }
 
-#[timeout(30_000)]
 #[test]
 fn empty_chunks_persisted_and_loaded() {
     let db = Database::open_in_memory().unwrap();
@@ -152,7 +148,6 @@ fn empty_chunks_persisted_and_loaded() {
     assert!(loaded.chunks.is_empty());
 }
 
-#[timeout(30_000)]
 #[test]
 fn chunk_null_claimed_by_roundtrips() {
     let db = Database::open_in_memory().unwrap();
@@ -176,7 +171,6 @@ fn chunk_null_claimed_by_roundtrips() {
     assert!(loaded.chunks[0].claimed_by.is_none());
 }
 
-#[timeout(30_000)]
 #[test]
 fn list_download_headers_returns_no_chunks() {
     let db = Database::open_in_memory().unwrap();
@@ -224,7 +218,6 @@ fn list_download_headers_returns_no_chunks() {
     );
 }
 
-#[timeout(30_000)]
 #[test]
 fn load_chunks_returns_chunks_on_demand() {
     let db = Database::open_in_memory().unwrap();
@@ -264,7 +257,6 @@ fn load_chunks_returns_chunks_on_demand() {
     assert_eq!(chunks[1].end, 999);
 }
 
-#[timeout(30_000)]
 #[test]
 fn load_chunks_nonexistent_returns_empty() {
     let db = Database::open_in_memory().unwrap();
@@ -272,7 +264,6 @@ fn load_chunks_nonexistent_returns_empty() {
     assert!(chunks.is_empty());
 }
 
-#[timeout(30_000)]
 #[test]
 fn migration_compat_v0_with_chunk_size_backfilled() {
     let dir = tempfile::tempdir().unwrap();
@@ -314,7 +305,6 @@ fn migration_compat_v0_with_chunk_size_backfilled() {
     assert!(loaded.mirror_urls.is_empty(), "mirror_urls should be empty");
 }
 
-#[timeout(30_000)]
 #[test]
 fn chunks_survive_reopen() {
     let dir = tempfile::tempdir().unwrap();

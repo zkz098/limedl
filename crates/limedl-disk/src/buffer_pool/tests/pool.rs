@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_pool_creation_defaults() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     assert_eq!(pool.effective_limit(), 1024 * MB);
@@ -17,7 +16,6 @@ async fn test_pool_creation_defaults() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_pool_creation_custom_limits() {
     let pool = BufferPool::new(512, 64, 8, 2);
     assert_eq!(pool.effective_limit(), 512 * MB);
@@ -27,7 +25,6 @@ async fn test_pool_creation_custom_limits() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_pool_creation_game_mode_on_start() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     assert!(!pool.game_mode());
@@ -41,7 +38,6 @@ async fn test_pool_creation_game_mode_on_start() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_half_size_normal() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     let expected = 1024 * MB / 4 / 2;
@@ -49,7 +45,6 @@ async fn test_half_size_normal() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_half_size_minimum() {
     let pool = BufferPool::new(0, 0, 4, 1);
     assert_eq!(pool.half_size(), 64 * KB);
@@ -59,14 +54,12 @@ async fn test_half_size_minimum() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_half_size_zero_slots() {
     let pool = BufferPool::new(1024, 128, 0, 0);
     assert_eq!(pool.half_size(), 64 * KB);
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_half_size_respects_game_mode() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     let normal = pool.half_size();
@@ -86,7 +79,6 @@ async fn test_half_size_respects_game_mode() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_acquire_slot_increments_active_count() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     assert_eq!(pool.active_slots(), 0);
@@ -101,7 +93,6 @@ async fn test_acquire_slot_increments_active_count() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_acquire_multiple_slots_sequential() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
 
@@ -131,7 +122,6 @@ async fn test_acquire_multiple_slots_sequential() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_acquire_all_slots_and_verify_semaphore_exhausted() {
     let pool = Arc::new(BufferPool::new(1024, 128, 2, 1));
     let _g1 = pool.acquire_slot().await;
@@ -141,7 +131,6 @@ async fn test_acquire_all_slots_and_verify_semaphore_exhausted() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_acquire_blocks_when_all_slots_taken() {
     let pool = Arc::new(BufferPool::new(1024, 128, 1, 1));
     let _g1 = pool.acquire_slot().await;
@@ -170,7 +159,6 @@ async fn test_acquire_blocks_when_all_slots_taken() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_rapid_acquire_release_cycle() {
     let pool = Arc::new(BufferPool::new(1024, 128, 100, 1));
     let mut guards = Vec::new();
@@ -191,7 +179,6 @@ async fn test_rapid_acquire_release_cycle() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_memory_tracking_add_sub_usage() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     assert_eq!(pool.current_usage(), 0);
@@ -210,7 +197,6 @@ async fn test_memory_tracking_add_sub_usage() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_memory_tracking_underflow() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     pool.add_usage(10);
@@ -223,7 +209,6 @@ async fn test_memory_tracking_underflow() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_game_mode_toggle() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     assert!(!pool.game_mode());
@@ -240,7 +225,6 @@ async fn test_game_mode_toggle() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_game_mode_active_slots_unaffected() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let _g1 = pool.acquire_slot().await;
@@ -253,7 +237,6 @@ async fn test_game_mode_active_slots_unaffected() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_update_limits() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     assert_eq!(pool.effective_limit(), 1024 * MB);
@@ -273,7 +256,6 @@ async fn test_update_limits() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_update_limits_affects_half_size() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     let original = pool.half_size();
@@ -284,7 +266,6 @@ async fn test_update_limits_affects_half_size() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_queued_count_basic() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     assert_eq!(pool.queued_count(), 0);
@@ -295,7 +276,6 @@ async fn test_queued_count_basic() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_game_mode_transition_with_held_slots() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
 
@@ -317,7 +297,6 @@ async fn test_game_mode_transition_with_held_slots() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_game_mode_affects_new_buffers_only() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
 
@@ -336,7 +315,6 @@ async fn test_game_mode_affects_new_buffers_only() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_pool_usage_tracked_across_multiple_buffers() {
     let pool = Arc::new(BufferPool::new(1024, 128, 4, 1));
     let (_dir1, file1) = temp_file();
@@ -358,7 +336,6 @@ async fn test_pool_usage_tracked_across_multiple_buffers() {
 }
 
 #[tokio::test]
-#[timeout(10000)]
 async fn test_max_slots_matches_effective_max_parallel() {
     let pool = BufferPool::new(1024, 128, 4, 1);
     assert_eq!(pool.max_slots(), pool.effective_max_parallel());

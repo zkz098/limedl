@@ -11,7 +11,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use base64::Engine;
-use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::Aria2RpcServer;
@@ -225,7 +224,6 @@ pub(super) async fn rpc_post_raw(
 
 /// Full lifecycle: addUri → tellStatus → tellActive → dedup → getVersion
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn aria2_add_uri_lifecycle_and_dedup() {
     let test_server = crate::test_harness::TestServer::new(1024 * 1024).await;
     // Throttled on purpose. `aria2.addUri` only dedups against a *non-terminal*
@@ -415,7 +413,6 @@ async fn aria2_add_uri_lifecycle_and_dedup() {
 
 /// Test that addUri with missing URIs returns error.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn aria2_add_uri_missing_uris_returns_error() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -439,7 +436,6 @@ async fn aria2_add_uri_missing_uris_returns_error() {
 
 /// Test aria2.getGlobalStat returns expected counters.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn aria2_global_stat_returns_counters() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -464,7 +460,6 @@ async fn aria2_global_stat_returns_counters() {
 
 /// `aria2.addUri` must forward `header` / `referer` options to the HTTP layer.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn aria2_add_uri_forwards_headers_to_http_requests() {
     use axum::{
         Router,
@@ -553,7 +548,6 @@ async fn aria2_add_uri_forwards_headers_to_http_requests() {
 
 /// Multiple URIs are treated as an ordered mirror list (aria2 semantics).
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn aria2_add_uri_multiple_uris_use_mirror_fallback() {
     let test_server = crate::test_harness::TestServer::new(512 * 1024).await;
     let mirror_url = test_server.file_url_range();
@@ -603,7 +597,6 @@ async fn aria2_add_uri_multiple_uris_use_mirror_fallback() {
 
 /// `pause` / `unpause` / `pauseAll` / `unpauseAll` / `remove` on a live task.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_pause_unpause_bulk_and_remove_lifecycle() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     // Throttled so the task cannot reach a terminal state between two RPC calls.
@@ -680,7 +673,6 @@ async fn aria2_pause_unpause_bulk_and_remove_lifecycle() {
 /// `tellStopped` / `getFiles` / `getUris` / `getPeers` / `getOption` /
 /// `getGlobalOption` / `changeGlobalOption` must return aria2-shaped payloads.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_query_methods_return_aria2_shapes() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let file_url = test_server.file_url_bandwidth(32 * 1024);
@@ -854,7 +846,6 @@ async fn aria2_query_methods_return_aria2_shapes() {
 /// A completed task is listed by `tellStopped` and cleared by
 /// `purgeDownloadResult`.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_purge_download_result_clears_tell_stopped() {
     let test_server = crate::test_harness::TestServer::new(256 * 1024).await;
     let file_url = test_server.file_url_range();
@@ -927,7 +918,6 @@ async fn aria2_purge_download_result_clears_tell_stopped() {
 /// `system.multicall` batches calls and wraps each result the way aria2 does:
 /// `[value]` on success, `[{"code","message"}]` on failure.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_multicall_batches_calls_and_wraps_errors() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let file_url = test_server.file_url_bandwidth(32 * 1024);
@@ -991,7 +981,6 @@ async fn aria2_multicall_batches_calls_and_wraps_errors() {
 /// single calls and by multicall. The read-only `system.listMethods` /
 /// `system.listNotifications` are intentionally anonymous, as in aria2.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_secret_token_gates_every_method() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let file_url = test_server.file_url_bandwidth(32 * 1024);
@@ -1101,7 +1090,6 @@ async fn aria2_secret_token_gates_every_method() {
 /// `secret` is ignored, and a valid token still reaches the handler with its
 /// arguments intact (the `token:` element is stripped before dispatch).
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_per_client_tokens_authenticate_independently() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let file_url = test_server.file_url_bandwidth(32 * 1024);
@@ -1191,7 +1179,6 @@ async fn aria2_per_client_tokens_authenticate_independently() {
 /// Per-client mode with no configured clients must reject everyone rather than
 /// silently degrading to anonymous access.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn aria2_per_client_mode_without_clients_fails_closed() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server_with_clients(Vec::new()).await;
     let client = reqwest::Client::new();
@@ -1213,7 +1200,6 @@ async fn aria2_per_client_mode_without_clients_fails_closed() {
 /// errors (`-32700` / `-32600`) over HTTP, not as a dropped connection or a
 /// 500.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn aria2_transport_rejects_malformed_and_wrong_version_requests() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -1247,7 +1233,6 @@ async fn aria2_transport_rejects_malformed_and_wrong_version_requests() {
 /// echoed back, everything else is refused, and unparsable configuration falls
 /// back to localhost-only instead of allowing everybody.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn aria2_server_cors_follows_configured_origins() {
     let client = reqwest::Client::new();
 
@@ -1350,7 +1335,6 @@ async fn aria2_server_cors_follows_configured_origins() {
 /// A port conflict must surface as an error from `serve` instead of a silent
 /// no-op (the desktop only logs it, but the server layer has to report it).
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn aria2_server_reports_a_port_conflict() {
     let blocker = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -1382,7 +1366,6 @@ async fn aria2_server_reports_a_port_conflict() {
 /// `aria2.removeDownloadResult` drops one stopped result, and rejects tasks
 /// that are still active (aria2 semantics).
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_remove_download_result_deletes_one_stopped_task() {
     let test_server = crate::test_harness::TestServer::new(256 * 1024).await;
     let file_url = test_server.file_url_range();
@@ -1498,7 +1481,6 @@ async fn aria2_remove_download_result_deletes_one_stopped_task() {
 /// `aria2.changeOption` drives the live task (pause) and fails loudly for
 /// options the engine cannot change at runtime.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_change_option_pause_and_rejections() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let file_url = test_server.file_url_bandwidth(32 * 1024);
@@ -1563,7 +1545,6 @@ async fn aria2_change_option_pause_and_rejections() {
 
 /// aria2's `keys` parameter filters the status object per entry.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_keys_filter_status_fields() {
     let test_server = crate::test_harness::TestServer::new(4 * 1024 * 1024).await;
     let file_url = test_server.file_url_bandwidth(32 * 1024);
@@ -1623,7 +1604,6 @@ async fn aria2_keys_filter_status_fields() {
 /// `aria2.getUris` must list every candidate (primary + mirrors), not just the
 /// URL currently in use.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_get_uris_lists_all_candidates() {
     let test_server = crate::test_harness::TestServer::new(512 * 1024).await;
     let mirror_url = test_server.file_url_range();
@@ -1666,7 +1646,6 @@ async fn aria2_get_uris_lists_all_candidates() {
 /// Terminal downloads evicted from the in-memory map must stay visible through
 /// the database until they are purged or individually removed.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(180_000)]
 async fn aria2_evicted_terminal_downloads_stay_queryable() {
     let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
 
@@ -1774,7 +1753,6 @@ async fn aria2_evicted_terminal_downloads_stay_queryable() {
 
 /// A magnet link added through `aria2.addUri` must be routed to the BT backend.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_add_uri_accepts_magnet_as_bt() {
     let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -1816,7 +1794,6 @@ async fn aria2_add_uri_accepts_magnet_as_bt() {
 
 /// `aria2.addTorrent` validates the payload before touching the engine.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn aria2_add_torrent_rejects_invalid_base64() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -1897,7 +1874,6 @@ async fn wait_for_bt_selection(
 /// list through `getFiles`/`tellStatus`, and apply the options the engine can
 /// actually change at runtime (`select-file`, per-torrent speed limits).
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_add_torrent_serves_bt_files_and_options() {
     let fixture = crate::bt_backend::fixtures::multi_file_torrent_bytes();
     let expected_hash = crate::bt_backend::irontide::core::torrent_from_bytes(&fixture)
@@ -2056,7 +2032,6 @@ async fn aria2_add_torrent_serves_bt_files_and_options() {
 /// GID would be a cache hit and the database fallbacks in `remove_download_result`
 /// / `purge_download_result` would never run.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(180_000)]
 async fn aria2_evicted_results_are_removable_without_a_cached_gid() {
     let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
 
@@ -2193,7 +2168,6 @@ async fn aria2_evicted_results_are_removable_without_a_cached_gid() {
 /// client and warn the UI instead of looking like a no-op; the notification
 /// list is part of the client handshake and must be complete.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn aria2_shutdown_warns_the_ui_and_notifications_are_listed() {
     let (rpc_url, shutdown_tx, _tmp, core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -2249,7 +2223,6 @@ async fn aria2_shutdown_warns_the_ui_and_notifications_are_listed() {
 /// the destination of an `addUri` that omits `dir` — the file must land there
 /// with exactly the bytes the server served.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_change_global_option_applies_default_dir_and_validates() {
     let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
 
@@ -2402,7 +2375,6 @@ async fn aria2_change_global_option_applies_default_dir_and_validates() {
 /// A single-file `.torrent` has no per-file entries in its metadata; aria2
 /// still expects one entry in `files`, synthesized from `name`/`length`.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn aria2_add_torrent_single_file_reports_one_entry() {
     let fixture = crate::bt_backend::fixtures::single_file_torrent_bytes();
     let expected_hash = crate::bt_backend::irontide::core::torrent_from_bytes(&fixture)
@@ -2465,7 +2437,6 @@ async fn aria2_add_torrent_single_file_reports_one_entry() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn e2e_add_metalink_creates_downloads_and_reports_status() {
     let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
     let url1 = test_server.file_url();

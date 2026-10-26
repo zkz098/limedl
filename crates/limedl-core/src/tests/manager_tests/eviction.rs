@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn evict_completed_removes_oldest_terminal_entries() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();

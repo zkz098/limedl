@@ -24,7 +24,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use ntest::timeout;
 use tempfile::TempDir;
 use tokio::time::sleep;
 
@@ -210,7 +209,6 @@ async fn run_multi_thread_resume() -> TestResult {
 /// require the final on-disk bytes to match — exercises tearing down chunk workers
 /// mid-flight and re-claiming the same chunks on resume.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn resume_mid_chunk_multithread_preserves_bytes() -> TestResult {
     run_multi_thread_resume().await
 }
@@ -219,7 +217,6 @@ async fn resume_mid_chunk_multithread_preserves_bytes() -> TestResult {
 /// reliably observed, then resume and verify byte-identity. Exercises re-claiming
 /// partially-written chunks without overlap or gaps.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn resume_after_mid_pause_preserves_bytes() -> TestResult {
     run_fraction_resume(0.55).await
 }
@@ -227,7 +224,6 @@ async fn resume_after_mid_pause_preserves_bytes() -> TestResult {
 /// Pause near completion (tail-chunk re-claim), then resume and verify byte-identity.
 /// An off-by-one in the leftover offset is most likely to corrupt the final bytes here.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(120_000)]
 async fn resume_after_late_pause_preserves_bytes() -> TestResult {
     run_fraction_resume(0.9).await
 }

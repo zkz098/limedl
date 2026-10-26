@@ -10,7 +10,6 @@
 
 use std::sync::Arc;
 
-use ntest::timeout;
 use tempfile::tempdir;
 
 use crate::backend_registry::BackendRegistry;
@@ -38,7 +37,6 @@ use crate::testing::{inject_download, make_dispatcher, make_manager, subscribe};
 // Test: dispatcher.cancel emits DownloadEvent::Updated
 // ---------------------------------------------------------------------------
 #[tokio::test]
-#[timeout(10_000)]
 async fn dispatcher_cancel_emits_updated() -> TestResult {
     let (_tmp, dm) = make_manager();
     let (eb, dispatcher) = make_dispatcher(dm.clone());
@@ -72,7 +70,6 @@ async fn dispatcher_cancel_emits_updated() -> TestResult {
 // Test: dispatcher.remove emits DownloadEvent::Updated
 // ---------------------------------------------------------------------------
 #[tokio::test]
-#[timeout(10_000)]
 async fn dispatcher_remove_emits_updated() -> TestResult {
     let (_tmp, dm) = make_manager();
     let (eb, dispatcher) = make_dispatcher(dm.clone());
@@ -105,7 +102,6 @@ async fn dispatcher_remove_emits_updated() -> TestResult {
 // Test: dispatcher.purge emits DownloadEvent::Updated
 // ---------------------------------------------------------------------------
 #[tokio::test]
-#[timeout(10_000)]
 async fn dispatcher_purge_emits_updated() -> TestResult {
     let (_tmp, dm) = make_manager();
     let (eb, dispatcher) = make_dispatcher(dm.clone());
@@ -138,7 +134,6 @@ async fn dispatcher_purge_emits_updated() -> TestResult {
 // Test: dispatcher.pause emits DownloadEvent::Updated
 // ---------------------------------------------------------------------------
 #[tokio::test]
-#[timeout(10_000)]
 async fn dispatcher_pause_emits_updated() -> TestResult {
     let (_tmp, dm) = make_manager();
     let (eb, dispatcher) = make_dispatcher(dm.clone());
@@ -297,7 +292,6 @@ fn make_full_dispatcher(
 
 /// `resume` changes state and must publish the resulting snapshot.
 #[tokio::test]
-#[timeout(10_000)]
 async fn dispatcher_resume_emits_updated() -> TestResult {
     let (_tmp, dm) = make_manager();
     let (eb, dispatcher) = make_dispatcher(dm.clone());
@@ -353,7 +347,6 @@ async fn dispatcher_resume_emits_updated() -> TestResult {
 
 /// `set_priority` must reach the backend and publish the refreshed snapshot.
 #[tokio::test]
-#[timeout(10_000)]
 async fn dispatcher_set_priority_emits_updated() -> TestResult {
     let (_tmp, dm) = make_manager();
     let (eb, dispatcher) = make_dispatcher(dm.clone());
@@ -383,7 +376,6 @@ async fn dispatcher_set_priority_emits_updated() -> TestResult {
 /// `status`/`list` read through the registry, and `has_active_downloads`
 /// aggregates every backend's state.
 #[tokio::test]
-#[timeout(10_000)]
 async fn dispatcher_status_list_and_active_aggregation() -> TestResult {
     let (_tmp, dm) = make_manager();
     let (_eb, dispatcher) = make_dispatcher(dm.clone());
@@ -425,7 +417,6 @@ async fn dispatcher_status_list_and_active_aggregation() -> TestResult {
 /// `open_in_explorer` forwards to the backend; with no existing destination it
 /// must fail instead of launching anything.
 #[tokio::test]
-#[timeout(10_000)]
 async fn dispatcher_open_in_explorer_without_a_location_errors() -> TestResult {
     let (_tmp, dm) = make_manager();
     let (_eb, dispatcher) = make_dispatcher(dm.clone());
@@ -439,7 +430,6 @@ async fn dispatcher_open_in_explorer_without_a_location_errors() -> TestResult {
 
 /// A minimal dispatcher (no services) must fail closed rather than panic.
 #[tokio::test]
-#[timeout(10_000)]
 async fn dispatcher_without_optional_services_reports_errors() -> TestResult {
     let event_bus = Arc::new(EventBus::new(16));
     let dispatcher = Dispatcher::new(Arc::new(BackendRegistry::new()), event_bus);
@@ -472,7 +462,6 @@ async fn dispatcher_without_optional_services_reports_errors() -> TestResult {
 /// `save_settings` is the single sync point for runtime limits: concurrency
 /// caps, buffer-pool sizing and persisted settings must all move together.
 #[tokio::test]
-#[timeout(30_000)]
 async fn dispatcher_save_settings_syncs_concurrency_and_buffer_pool() -> TestResult {
     let tmp = tempdir()?;
     let (dispatcher, concurrency, pool, _cdn) = make_full_dispatcher(tmp.path());
@@ -551,7 +540,6 @@ async fn dispatcher_save_settings_syncs_concurrency_and_buffer_pool() -> TestRes
 /// Saving with CDN acceleration disabled must tear the accelerator down, not
 /// just persist the flag.
 #[tokio::test]
-#[timeout(30_000)]
 async fn dispatcher_save_settings_disabling_cdn_clears_the_accelerator() -> TestResult {
     let tmp = tempdir()?;
     let (dispatcher, _concurrency, _pool, cdn) = make_full_dispatcher(tmp.path());
@@ -586,7 +574,6 @@ async fn dispatcher_save_settings_disabling_cdn_clears_the_accelerator() -> Test
 /// URL-rewrite rules feed mirror resolution, and a URL with no matching rule
 /// still resolves to itself.
 #[tokio::test]
-#[timeout(30_000)]
 async fn dispatcher_resolve_mirror_urls_applies_enabled_rules() -> TestResult {
     let tmp = tempdir()?;
     let (dispatcher, _concurrency, _pool, _cdn) = make_full_dispatcher(tmp.path());
@@ -636,7 +623,6 @@ async fn dispatcher_resolve_mirror_urls_applies_enabled_rules() -> TestResult {
 /// Tracker list fetching normalizes the remote text and surfaces transport
 /// failures instead of returning a partial list.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn dispatcher_fetch_tracker_list_normalizes_remote_text() -> TestResult {
     use axum::{Router, routing::get};
 
@@ -677,7 +663,6 @@ async fn dispatcher_fetch_tracker_list_normalizes_remote_text() -> TestResult {
 
 /// `probe_checksum` without an explicit file name must derive it from the URL.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn dispatcher_probe_checksum_derives_the_name_from_the_url() -> TestResult {
     let server = crate::test_harness::TestServer::new(64 * 1024).await;
     let event_bus = Arc::new(EventBus::new(16));
@@ -694,7 +679,6 @@ async fn dispatcher_probe_checksum_derives_the_name_from_the_url() -> TestResult
 /// "BT backend not registered" error.
 #[cfg(feature = "bt")]
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn dispatcher_bt_facade_reaches_a_registered_backend() -> TestResult {
     use crate::bt_backend::LazyBtBackend;
     use crate::types::TaskKind;

@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn start_returns_before_http_probe_finishes() -> TestResult {
     let payload = Arc::new(vec![19_u8; 1024 * 1024]);
     let state = single_file_state("/slow.bin", payload, "\"slow-start\"", 800);

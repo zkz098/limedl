@@ -3,7 +3,6 @@
 use super::*;
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn start_rejects_unsupported_scheme() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -38,7 +37,6 @@ async fn start_rejects_unsupported_scheme() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn start_rejects_empty_destination_dir() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -75,7 +73,6 @@ async fn start_rejects_empty_destination_dir() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn start_rejects_relative_destination_dir() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();
@@ -112,7 +109,6 @@ async fn start_rejects_relative_destination_dir() -> TestResult {
 }
 
 #[tokio::test]
-#[timeout(30_000)]
 async fn start_rejects_checksum_mode_mismatch() -> TestResult {
     let temp = tempdir()?;
     std::fs::create_dir_all(temp.path().join("state").join("logs")).ok();

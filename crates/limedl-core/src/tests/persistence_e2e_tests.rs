@@ -1,4 +1,3 @@
-use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::database::Database;
@@ -6,7 +5,6 @@ use crate::types::{DownloadState, StartDownloadRequest, TaskId};
 
 /// Verify that a download started before "crash" reappears after restart.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn download_survives_restart() {
     // Use a bandwidth-limited server so the download makes steady but
     // incomplete progress within our short wait window.

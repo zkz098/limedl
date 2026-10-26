@@ -20,7 +20,6 @@
 use std::time::Duration;
 
 use base64::Engine;
-use ntest::timeout;
 use serde_json::json;
 
 use super::e2e_tests::{rpc_call, start_rpc_server, start_rpc_server_with_secret, wait_for_status};
@@ -81,7 +80,6 @@ fn index_in_waiting(resp: &serde_json::Value, gid: &str) -> Option<usize> {
 /// `system.listMethods` must be exactly the implemented set, and every
 /// advertised method must route (its error must not be method-not-found).
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn interop_list_methods_matches_the_routed_surface() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -126,7 +124,6 @@ async fn interop_list_methods_matches_the_routed_surface() {
 /// each result is a single-element array. A two-element `[null, value]` wrapper
 /// would be read as a failure by AriaNg.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn interop_ariang_multicall_shape() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server_with_secret(Some("s3cr3t")).await;
     let client = reqwest::Client::new();
@@ -164,7 +161,6 @@ async fn interop_ariang_multicall_shape() {
 /// AriaNg's `addTorrent([torrent, [], options])` shape must keep the options.
 /// Reading `params[1]` as the options object used to drop `dir`/`out`/`pause`.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn interop_ariang_add_torrent_shape_keeps_options() {
     let fixture = crate::bt_backend::fixtures::single_file_torrent_bytes();
     let encoded = base64::engine::general_purpose::STANDARD.encode(&fixture);
@@ -196,7 +192,6 @@ async fn interop_ariang_add_torrent_shape_keeps_options() {
 /// The legacy `addTorrent([torrent, options])` shape (used by limedl's own
 /// tests) must keep working alongside the aria2/AriaNg shape.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn interop_add_torrent_legacy_shape_keeps_options() {
     let fixture = crate::bt_backend::fixtures::single_file_torrent_bytes();
     let encoded = base64::engine::general_purpose::STANDARD.encode(&fixture);
@@ -224,7 +219,6 @@ async fn interop_add_torrent_legacy_shape_keeps_options() {
 
 /// AriaNg's `addUri([urls, options])` shape keeps `dir`/`out`.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn interop_add_uri_shape_keeps_options() {
     let test_server = crate::test_harness::TestServer::new(256 * 1024).await;
     let url = test_server.file_url_bandwidth(64 * 1024);
@@ -260,7 +254,6 @@ async fn interop_add_uri_shape_keeps_options() {
 /// The default `tellStatus` object must carry aria2's always-present keys, and
 /// must expose the HTTP piece map once the download has started.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn interop_tell_status_http_field_schema() {
     // Must exceed 2× the 4 MiB chunk size for the engine to plan a piece map.
     let test_server = crate::test_harness::TestServer::new(16 * 1024 * 1024).await;
@@ -343,7 +336,6 @@ async fn interop_tell_status_http_field_schema() {
 /// A BitTorrent `tellStatus` keeps `infoHash`/`numSeeders`/`seeder` at the top
 /// level and a metadata `bittorrent` object, matching aria2.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn interop_tell_status_bt_field_schema() {
     let fixture = crate::bt_backend::fixtures::single_file_torrent_bytes();
     let expected_hash = crate::bt_backend::irontide::core::torrent_from_bytes(&fixture)
@@ -406,7 +398,6 @@ async fn interop_tell_status_bt_field_schema() {
 // ── getServers / changeUri / changePosition ───────────────────────────────
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn interop_get_servers_and_change_uri() {
     let test_server = crate::test_harness::TestServer::new(512 * 1024).await;
     let primary = test_server.file_url_range();
@@ -500,7 +491,6 @@ async fn interop_get_servers_and_change_uri() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(90_000)]
 async fn interop_change_position_returns_the_real_index() {
     let test_server = crate::test_harness::TestServer::new(256 * 1024).await;
     let base = test_server.file_url_bandwidth(64 * 1024);
@@ -569,7 +559,6 @@ async fn interop_change_position_returns_the_real_index() {
 /// subsystem, so it acknowledges instead of exiting), and `getVersion` must
 /// carry the aria2 handshake keys.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn interop_shutdown_handshake() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -587,7 +576,6 @@ async fn interop_shutdown_handshake() {
 /// `getVersion` must describe limedl, not copy aria2's feature list. This is the
 /// report the Tier 2 oracle compares against.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn interop_get_version_is_truthful() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -635,7 +623,6 @@ async fn interop_get_version_is_truthful() {
 /// know about; the response must therefore answer AriaNg's whole key set (from
 /// its `aria2Options.js`) with aria2-style string values.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn interop_get_global_option_covers_ariang_keys() {
     let (rpc_url, shutdown_tx, _tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -667,7 +654,6 @@ async fn interop_get_global_option_covers_ariang_keys() {
 /// The same contract for a single task: `getOption` answers every key AriaNg's
 /// task dialog reads (`aria2TaskAvailableOptions`).
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 async fn interop_get_option_covers_ariang_task_keys() {
     let test_server = crate::test_harness::TestServer::new(64 * 1024).await;
     let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;

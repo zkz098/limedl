@@ -19,8 +19,6 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use ntest::timeout;
-
 use crate::cdn::accelerator::AccelState;
 use crate::cdn::service::CdnService;
 use crate::event_bus::{DownloadEvent, EventBus};
@@ -32,7 +30,6 @@ type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Syn
 // Test: monitor_test emits CdnProgress + CdnComplete when test finishes Ready
 // ---------------------------------------------------------------------------
 #[tokio::test]
-#[timeout(30_000)]
 async fn monitor_test_emits_progress_and_complete_ready() -> TestResult {
     let event_bus = Arc::new(EventBus::new(1024));
     let mut rx = event_bus.subscribe();
@@ -184,7 +181,6 @@ async fn monitor_test_emits_progress_and_complete_ready() -> TestResult {
 // Test: monitor_test handles error state correctly
 // ---------------------------------------------------------------------------
 #[tokio::test]
-#[timeout(30_000)]
 async fn monitor_test_emits_complete_on_error() -> TestResult {
     let event_bus = Arc::new(EventBus::new(1024));
     let mut rx = event_bus.subscribe();

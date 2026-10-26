@@ -47,5 +47,4 @@ tokio-tungstenite = { workspace = true }
 limedl-core = { path = "../limedl-core", features = ["test-utils"] }
 limedl-testkit = { path = "../limedl-testkit" }
 tempfile = { workspace = true }
-ntest = { workspace = true }
 reqwest = { workspace = true }

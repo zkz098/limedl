@@ -2,19 +2,18 @@ use std::fs;
 use std::io::{self, ErrorKind};
 use std::path::Path;
 
-use ntest::timeout;
 use tempfile::tempdir;
 
 use super::{
-    check_disk_space, cleanup_finalizing_paths, files_have_same_content, finalize_temp_file,
-    open_download_file, preallocate_file, reservation_error, reset_download_file, set_sparse_file,
-    unique_finalizing_path, write_all_at, write_all_vectored_at, write_coalesced_entries,
+    available_space, check_disk_space, cleanup_finalizing_paths, files_have_same_content,
+    finalize_temp_file, open_download_file, preallocate_file, reservation_error,
+    reset_download_file, set_sparse_file, unique_finalizing_path, write_all_at,
+    write_all_vectored_at, write_coalesced_entries,
 };
 use crate::error::DownloadError;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
-#[timeout(30_000)]
 #[test]
 fn open_download_file_sizes_known_length() -> TestResult {
     let temp = tempdir()?;
@@ -26,7 +25,6 @@ fn open_download_file_sizes_known_length() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn reset_download_file_restores_target_length() -> TestResult {
     let temp = tempdir()?;
@@ -40,7 +38,6 @@ fn reset_download_file_restores_target_length() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn write_after_preallocation_preserves_file() -> TestResult {
     let temp = tempdir()?;
@@ -55,7 +52,6 @@ fn write_after_preallocation_preserves_file() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn finalize_temp_file_refuses_to_overwrite_destination() -> TestResult {
     let temp = tempdir()?;
@@ -72,7 +68,6 @@ fn finalize_temp_file_refuses_to_overwrite_destination() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn finalize_temp_file_moves_completed_download() -> TestResult {
     let temp = tempdir()?;
@@ -87,7 +82,6 @@ fn finalize_temp_file_moves_completed_download() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn finalize_temp_file_accepts_existing_identical_destination() -> TestResult {
     let temp = tempdir()?;
@@ -105,11 +99,10 @@ fn finalize_temp_file_accepts_existing_identical_destination() -> TestResult {
 
 // ── check_disk_space ──────────────────────────────
 
-#[timeout(30_000)]
 #[test]
 fn check_disk_space_insufficient() -> TestResult {
     let temp = tempdir()?;
-    let available = fs4::available_space(temp.path())?;
+    let available = available_space(temp.path())?;
 
     // Request more than available (incl. 10% buffer) → error
     let required_bytes = available + 1;
@@ -135,7 +128,6 @@ fn check_disk_space_insufficient() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn check_disk_space_sufficient() -> TestResult {
     let temp = tempdir()?;
@@ -149,7 +141,6 @@ fn check_disk_space_sufficient() -> TestResult {
 
 // ── preallocate_file ──────────────────────────────
 
-#[timeout(30_000)]
 #[test]
 fn preallocate_file_skips_on_none() -> TestResult {
     let temp = tempdir()?;
@@ -165,7 +156,6 @@ fn preallocate_file_skips_on_none() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn preallocate_file_fails_on_readonly_fd() -> TestResult {
     let temp = tempdir()?;
@@ -194,7 +184,6 @@ const GIB: u64 = 1024 * 1024 * 1024;
 /// A volume that refuses the file itself has to read differently from one that
 /// is merely full: "free up space" is useless advice against a size limit that
 /// does not move no matter how much is deleted.
-#[timeout(30_000)]
 #[test]
 fn reservation_error_reports_a_per_file_size_limit() {
     let too_large = io::Error::from(ErrorKind::FileTooLarge);
@@ -216,7 +205,6 @@ fn reservation_error_reports_a_per_file_size_limit() {
 
 /// The two neighbours of that case keep their own error, and nothing is claimed
 /// about a volume whose free space could not be read at all.
-#[timeout(30_000)]
 #[test]
 fn reservation_error_keeps_space_shortage_and_unrelated_failures() {
     let disk_full = io::Error::from(ErrorKind::StorageFull);
@@ -242,7 +230,6 @@ fn reservation_error_keeps_space_shortage_and_unrelated_failures() {
 
 // ── write_all_at ──────────────────────────────────
 
-#[timeout(30_000)]
 #[test]
 fn write_all_at_empty_buffer_succeeds() -> TestResult {
     let temp = tempdir()?;
@@ -255,7 +242,6 @@ fn write_all_at_empty_buffer_succeeds() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn write_all_at_fails_on_readonly_fd() -> TestResult {
     let temp = tempdir()?;
@@ -277,7 +263,6 @@ fn write_all_at_fails_on_readonly_fd() -> TestResult {
 
 // ── finalize_temp_file cross-device ───────────────
 
-#[timeout(30_000)]
 #[test]
 fn finalize_temp_file_cross_device_copy() -> TestResult {
     // Find a second writable volume to trigger CrossesDevices fallback
@@ -351,7 +336,6 @@ fn assert_no_staging_files(dir: &Path, destination_name: &str) {
 /// file is left behind. On a same-device rename this is trivial; on the copy
 /// fallback a short write or an early rename would leave a truncated file
 /// behind the user's final name.
-#[timeout(60_000)]
 #[cfg(unix)]
 #[test]
 fn finalize_temp_file_cross_device_copy_is_byte_identical() -> TestResult {
@@ -386,7 +370,6 @@ fn finalize_temp_file_cross_device_copy_is_byte_identical() -> TestResult {
 /// When the cross-device fallback cannot even create its staging file, the
 /// finalize must fail without touching the source or the destination: a failed
 /// publish may never lose the only copy of the data.
-#[timeout(60_000)]
 #[cfg(unix)]
 #[test]
 fn finalize_temp_file_cross_device_keeps_source_when_staging_is_exhausted() -> TestResult {
@@ -427,7 +410,6 @@ fn finalize_temp_file_cross_device_keeps_source_when_staging_is_exhausted() -> T
 
 // ── files_have_same_content ───────────────────────
 
-#[timeout(30_000)]
 #[test]
 fn files_have_same_content_different_sizes() -> TestResult {
     let temp = tempdir()?;
@@ -440,7 +422,6 @@ fn files_have_same_content_different_sizes() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn files_have_same_content_same_size_different() -> TestResult {
     let temp = tempdir()?;
@@ -453,7 +434,6 @@ fn files_have_same_content_same_size_different() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn files_have_same_content_identical() -> TestResult {
     let temp = tempdir()?;
@@ -469,7 +449,6 @@ fn files_have_same_content_identical() -> TestResult {
 
 // ── unique_finalizing_path ────────────────────────
 
-#[timeout(30_000)]
 #[test]
 fn unique_finalizing_path_no_existing_files() -> TestResult {
     let temp = tempdir()?;
@@ -483,7 +462,6 @@ fn unique_finalizing_path_no_existing_files() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn unique_finalizing_path_without_extension() -> TestResult {
     let temp = tempdir()?;
@@ -498,7 +476,6 @@ fn unique_finalizing_path_without_extension() -> TestResult {
 
 // ── cleanup_finalizing_paths ────────────────────
 
-#[timeout(30_000)]
 #[test]
 fn cleanup_finalizing_paths_removes_matching() -> TestResult {
     let temp = tempdir()?;
@@ -523,7 +500,6 @@ fn cleanup_finalizing_paths_removes_matching() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn cleanup_finalizing_paths_no_parent() -> TestResult {
     // A path with no parent (empty) should hit the early-return and be a no-op
@@ -531,7 +507,6 @@ fn cleanup_finalizing_paths_no_parent() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn cleanup_finalizing_paths_read_dir_fails() -> TestResult {
     // Non-existent parent directory → read_dir fails → error returned
@@ -543,7 +518,6 @@ fn cleanup_finalizing_paths_read_dir_fails() -> TestResult {
 
 // ── unique_finalizing_path exhaustion ──────────
 
-#[timeout(30_000)]
 #[test]
 fn unique_finalizing_path_exhaustion() -> TestResult {
     let temp = tempdir()?;
@@ -570,7 +544,6 @@ fn unique_finalizing_path_exhaustion() -> TestResult {
 
 // ── write_all_vectored_at & sparse tests ──────────
 
-#[timeout(30_000)]
 #[test]
 fn write_all_vectored_at_multiple_slices() -> TestResult {
     let temp = tempdir()?;
@@ -586,7 +559,6 @@ fn write_all_vectored_at_multiple_slices() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn write_all_vectored_at_empty_and_single() -> TestResult {
     let temp = tempdir()?;
@@ -605,7 +577,6 @@ fn write_all_vectored_at_empty_and_single() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn open_download_file_sparse_and_high_offset_write() -> TestResult {
     let temp = tempdir()?;
@@ -635,7 +606,6 @@ fn open_download_file_sparse_and_high_offset_write() -> TestResult {
     Ok(())
 }
 
-#[timeout(30_000)]
 #[test]
 fn set_sparse_file_on_regular_file() -> TestResult {
     let temp = tempdir()?;
@@ -652,7 +622,6 @@ fn set_sparse_file_on_regular_file() -> TestResult {
 }
 
 #[test]
-#[timeout(10_000)]
 fn write_coalesced_entries_coalesces_contiguous_ranges() {
     let dir = tempdir().expect("temp dir");
     let path = dir.path().join("test.bin");
@@ -671,7 +640,6 @@ fn write_coalesced_entries_coalesces_contiguous_ranges() {
 }
 
 #[test]
-#[timeout(10_000)]
 fn write_coalesced_entries_keeps_disjoint_ranges_disjoint() {
     let dir = tempdir().expect("temp dir");
     let path = dir.path().join("test.bin");

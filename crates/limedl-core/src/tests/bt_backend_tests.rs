@@ -11,7 +11,6 @@
 
 use std::sync::Arc;
 
-use ntest::timeout;
 use tempfile::TempDir;
 
 use crate::bootstrap::bootstrap;
@@ -22,7 +21,6 @@ use crate::types::{AppSettings, StartDownloadRequest};
 // Test 1 – Arc pointer identity (same allocation, not just same value)
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn bt_max_concurrent_arc_pointer_identity() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -46,7 +44,6 @@ async fn bt_max_concurrent_arc_pointer_identity() {
 // Test 3 – BT backend initializes with zero runtime status
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn bt_backend_initializes_with_zero_runtime_status() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -67,7 +64,6 @@ async fn bt_backend_initializes_with_zero_runtime_status() {
 // Test 4 – BT backend settings propagate after apply_settings
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn bt_backend_settings_propagate_after_apply_settings() {
     use crate::lock;
 
@@ -119,7 +115,6 @@ async fn bt_backend_settings_propagate_after_apply_settings() {
 // Test 5 – BT backend get_torrent_files returns error for unknown hash
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn bt_backend_get_torrent_files_returns_error_for_unknown() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -138,7 +133,6 @@ async fn bt_backend_get_torrent_files_returns_error_for_unknown() {
 // Test 6 – task operations wait for the background engine warm-up
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn bt_task_ops_await_the_background_warm_up() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -165,7 +159,6 @@ async fn bt_task_ops_await_the_background_warm_up() {
 // Test 7 – lightweight mode keeps the engine unloaded with no work
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn lightweight_mode_does_not_warm_the_engine_up_without_work() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");

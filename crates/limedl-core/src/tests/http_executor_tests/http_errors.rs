@@ -6,7 +6,6 @@ use super::*;
 /// transparently.  The downloader should complete successfully at the final
 /// destination after following a 301 redirect.
 #[tokio::test]
-#[timeout(30_000)]
 async fn http_301_redirect_follows_and_completes() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let temp = tempdir()?;
@@ -60,7 +59,6 @@ async fn http_301_redirect_follows_and_completes() -> TestResult {
 
 /// Same as above but with HTTP 302 redirect (Found).
 #[tokio::test]
-#[timeout(30_000)]
 async fn http_302_redirect_follows_and_completes() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let temp = tempdir()?;
@@ -123,7 +121,6 @@ async fn http_302_redirect_follows_and_completes() -> TestResult {
 /// TODO: Ideally the executor could fall back to single-stream download on
 ///       416, similar to how it falls back on 200 OK for range requests.
 #[tokio::test]
-#[timeout(30_000)]
 async fn http_416_range_not_satisfiable_fails() -> TestResult {
     let server = TestServer::new(16 * 1024 * 1024); // 16 MiB — large enough for parallel
     let server = server.await;
@@ -179,7 +176,6 @@ async fn http_416_range_not_satisfiable_fails() -> TestResult {
 /// with a connection error.  This verifies the error handling path in the
 /// executor and retry logic.
 #[tokio::test]
-#[timeout(60_000)]
 async fn connection_refused_fails_gracefully() -> TestResult {
     // Use an address:port that nothing is listening on.
     let bad_url = "http://127.0.0.1:18763/non-existent-file";
@@ -246,7 +242,6 @@ async fn connection_refused_fails_gracefully() -> TestResult {
 /// ambiguity — unlike a non-routable TEST-NET address which may either
 /// timeout or refuse depending on the local network stack.
 #[tokio::test]
-#[timeout(30_000)]
 async fn unreachable_host_fails_gracefully() -> TestResult {
     // Use an address:port that nothing is listening on (connection refused,
     // fast failure).  Port 18763 is an arbitrary high ephemeral port.
@@ -301,7 +296,6 @@ async fn unreachable_host_fails_gracefully() -> TestResult {
 /// back to single-stream mode and reads until the stream ends.  The download
 /// should complete successfully with the full content.
 #[tokio::test]
-#[timeout(30_000)]
 async fn no_content_length_chunked_download_completes() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let temp = tempdir()?;
@@ -366,7 +360,6 @@ async fn no_content_length_chunked_download_completes() -> TestResult {
 /// does not cross-check against received bytes or detect truncation by the
 /// server.
 #[tokio::test]
-#[timeout(30_000)]
 async fn wrong_content_length_truncates_completed_download() -> TestResult {
     let server = TestServer::new(64 * 1024).await;
     let temp = tempdir()?;
@@ -437,7 +430,6 @@ async fn wrong_content_length_truncates_completed_download() -> TestResult {
 /// connection reset) must seamlessly recover by resuming from the durable
 /// offset rather than failing the task with "error decoding response body".
 #[tokio::test]
-#[timeout(30_000)]
 async fn stream_interruption_resumes_and_completes() -> TestResult {
     use axum::{
         Router,

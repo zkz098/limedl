@@ -1,4 +1,3 @@
-use ntest::timeout;
 use std::sync::Arc;
 use tempfile::TempDir;
 
@@ -6,7 +5,6 @@ use crate::cdn::CdnAccelerator;
 
 /// CDN settings survive save → restart → load cycle.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn cdn_settings_survive_restart() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -57,7 +55,6 @@ async fn cdn_settings_survive_restart() {
 
 /// CdnAccelerator lifecycle: init from settings → active → clear → idle.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn cdn_accelerator_init_and_clear() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -107,7 +104,6 @@ async fn cdn_accelerator_init_and_clear() {
 
 /// Disabling CDN clears the active IP from settings.
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(30_000)]
 async fn cdn_disable_clears_active_ip() {
     let tmp = TempDir::new().unwrap();
     let state_dir = tmp.path().join("downloads");
@@ -161,7 +157,6 @@ async fn cdn_disable_clears_active_ip() {
 /// `#[ignore]` so it doesn't run in CI by default. Run manually with:
 ///   cargo test --features test-utils -- cdn_acceleration_triggers --include-ignored
 #[tokio::test(flavor = "multi_thread")]
-#[timeout(60_000)]
 #[ignore = "requires network access (DNS lookup for Cloudflare domains)"]
 async fn cdn_acceleration_triggers_for_cloudflare_domain() {
     use crate::types::{StartDownloadRequest, TaskId};

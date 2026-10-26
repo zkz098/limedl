@@ -29,8 +29,7 @@ default = []
 test-utils = []
 
 [dev-dependencies]
-criterion = { workspace = true }
-ntest = { workspace = true }
+divan = { workspace = true }
 futures-util = { workspace = true }
 # `http::tests` builds `reqwest`-shaped responses out of `axum::http`.
 axum = { workspace = true }

@@ -4,6 +4,8 @@
 [profile.default]
 # Retry failed tests up to 2 times to handle timing-sensitive tests under heavy CPU/IO contention
 retries = 2
+slow-timeout = { period = "30s", terminate-after = 2 }
 
 [profile.ci]
 retries = 2
+slow-timeout = { period = "30s", terminate-after = 2 }
