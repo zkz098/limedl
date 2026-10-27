@@ -200,6 +200,10 @@ async fn queries_use_metadata_when_the_torrent_has_it() {
     // `included` is derived from file priorities, so the selection survives a
     // run-state change.
     backend.pause(info_hash).await.expect("pause");
+    assert!(
+        backend.get_peers(info_hash).expect("peers").is_empty(),
+        "a paused torrent has no active peers"
+    );
     let paused_files = backend.get_torrent_files(info_hash).expect("files");
     assert!(
         paused_files.iter().all(|f| f.included),

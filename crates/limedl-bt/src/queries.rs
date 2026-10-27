@@ -92,10 +92,17 @@ impl IrontideBtBackend {
         {
             return Err(DownloadError::NotFound);
         }
-        let snapshot = self
+        let snapshot = match self
             .api
             .api_peer_stats(TorrentIdOrHash::Hash(info_hash), Default::default())
-            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+        {
+            Ok(s) => s,
+            Err(_) => {
+                // If the torrent is not live (e.g. initializing, paused, or stopped),
+                // it currently has no active peers.
+                return Ok(Vec::new());
+            }
+        };
 
         let mut peers = Vec::with_capacity(snapshot.peers.len());
         for (addr, p) in snapshot.peers {
