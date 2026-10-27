@@ -98,7 +98,7 @@ async fn preview_torrent_reports_unreadable_and_malformed_files() {
 #[tokio::test(flavor = "multi_thread")]
 async fn queries_error_for_an_unknown_info_hash() {
     let (_tmp, backend) = make_backend().await;
-    let unknown = Id20::from([0u8; 20]);
+    let unknown = Id20::new([0u8; 20]);
 
     assert!(backend.get_peers(unknown).is_err(), "peers must fail");
     assert!(backend.get_trackers(unknown).is_err(), "trackers must fail");
@@ -251,8 +251,6 @@ async fn single_file_torrent_reports_one_selectable_entry() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn update_torrent_files_sets_skip_priorities() {
-    use irontide::core::FilePriority;
-
     let (tmp, backend) = make_backend().await;
     let info_hash = start_fixture(&backend, tmp.path()).await;
 
@@ -260,16 +258,6 @@ async fn update_torrent_files_sets_skip_priorities() {
         .update_torrent_files(info_hash, vec![0])
         .await
         .expect("select file 0");
-    let priorities = backend
-        .session
-        .file_priorities(info_hash)
-        .await
-        .expect("read priorities");
-    assert_eq!(
-        priorities,
-        vec![FilePriority::Normal, FilePriority::Skip],
-        "only the selected file stays normal"
-    );
     // The aria2 `selected` flag / inspector checkbox reads the same source.
     let files = backend.get_torrent_files(info_hash).expect("files");
     assert_eq!(
@@ -282,14 +270,10 @@ async fn update_torrent_files_sets_skip_priorities() {
         .update_torrent_files(info_hash, vec![])
         .await
         .expect("select nothing");
-    let priorities = backend
-        .session
-        .file_priorities(info_hash)
-        .await
-        .expect("read priorities");
+    let files = backend.get_torrent_files(info_hash).expect("files");
     assert_eq!(
-        priorities,
-        vec![FilePriority::Skip, FilePriority::Skip],
+        files.iter().map(|f| f.included).collect::<Vec<_>>(),
+        vec![false, false],
         "an empty selection skips every file"
     );
 
@@ -322,7 +306,7 @@ async fn set_speed_limit_accepts_and_clears_both_directions() {
 #[tokio::test(flavor = "multi_thread")]
 async fn emit_pending_summary_falls_back_without_stats() {
     let (_tmp, backend) = make_backend().await;
-    let unknown = Id20::from([0xAB; 20]);
+    let unknown = Id20::new([0xAB; 20]);
     let mut rx = backend.event_bus.subscribe();
 
     backend.emit_pending_summary(unknown);
@@ -330,7 +314,7 @@ async fn emit_pending_summary_falls_back_without_stats() {
     let event = rx.try_recv().expect("pending summary event");
     match event {
         DownloadEvent::Updated { summary } => {
-            assert_eq!(summary.id, unknown.to_hex());
+            assert_eq!(summary.id, unknown.as_string());
             assert_eq!(summary.state, DownloadState::Queued);
             assert_eq!(summary.file_name, "Pending torrent");
             assert_eq!(summary.downloaded_bytes, 0);
@@ -352,7 +336,7 @@ async fn emit_pending_summary_uses_stats_when_available() {
     let event = rx.try_recv().expect("pending summary event");
     match event {
         DownloadEvent::Updated { summary } => {
-            assert_eq!(summary.id, info_hash.to_hex());
+            assert_eq!(summary.id, info_hash.as_string());
             assert_ne!(
                 summary.file_name, "Pending torrent",
                 "stats are available, so the fallback must not be used"

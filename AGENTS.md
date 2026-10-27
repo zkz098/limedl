@@ -37,7 +37,7 @@ limedl/
 ├── crates/limedl-engine/ # HTTP engine: chunk executor, scheduler, CDN, metalink, task lifecycle
 ├── crates/limedl-rpc/    # Aria2 JSON-RPC + WebSocket server (axum); sits *above* the engine
 ├── crates/limedl-testkit/# Test-only HTTP harness (deterministic content, fault injection)
-├── crates/limedl-bt/     # BitTorrent backend (irontide); the only crate that names the engine
+├── crates/limedl-bt/     # BitTorrent backend (librqbit); the only crate that names the engine
 ├── crates/limedl-core/   # Engine + orchestration (lib: limedl_core): HTTP executor, scheduler, CDN, BT, Aria2 RPC
 ├── crates/limedl-native/ # Lightweight native desktop UI based on Slint
 ├── crates/limedl-server/ # Headless daemon: Aria2 JSON-RPC over the engine (NAS/server)
@@ -48,7 +48,7 @@ The engine is split: `limedl-types`, `limedl-disk`, `limedl-store`,
 `limedl-http`, `limedl-engine`, `limedl-bt`, `limedl-rpc` (above the facade —
 `limedl-core` does not depend on it) and `limedl-testkit` (test-only).
 `limedl-bt` is an *optional* dependency, so `--no-default-features` still builds
-an engine with no BitTorrent protocol and no `irontide` in the graph. `limedl-core` keeps a `pub use` shim per
+an engine with no BitTorrent protocol and no `librqbit` in the graph. `limedl-core` keeps a `pub use` shim per
 module (`pub use limedl_types::{types, error, …}`) so every historical path —
 including the ~12k lines of tests in `src/tests/` — still resolves; the remaining
 `LAYERS` in `crates/limedl-core/src/tests/module_boundaries_tests.rs` remains as

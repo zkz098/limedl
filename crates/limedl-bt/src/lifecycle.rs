@@ -1,15 +1,17 @@
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use irontide::core::Id20;
-use irontide::prelude::*;
+use librqbit::api::TorrentIdOrHash;
+use librqbit::dht::Id20;
+use librqbit::{AddTorrent, AddTorrentOptions};
 
-use super::IrontideBtBackend;
+use super::{IrontideBtBackend, PendingMagnet};
 use crate::error::{DownloadError, Result, io_error_with_path};
 use crate::slot_guard::DownloadSlotGuard;
 use crate::types::{
-    ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary, Priority, StartDownloadRequest,
-    TaskKind, ThreadMode,
+    BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState, DownloadSummary, Priority,
+    StartDownloadRequest, TaskKind, ThreadMode,
 };
 use crate::{lock, now_ms};
 
@@ -18,19 +20,26 @@ impl IrontideBtBackend {
 
     /// Fetch bytes from a URL using the configured HTTP client (with proxy support).
     pub async fn fetch_url_bytes(&self, url: &str) -> Result<Vec<u8>> {
-        // Clone the client out of the lock before awaiting: `parking_lot`'s guard
-        // is not `Send` and must not be held across the request.
         let client = { self.http_client.read().clone() };
-        let resp =
-            client.get(url).send().await.map_err(|e| {
-                DownloadError::TorrentNetwork(format!("failed to fetch torrent: {e}"))
-            })?;
-        resp.bytes().await.map(|b| b.to_vec()).map_err(|e| {
-            DownloadError::TorrentNetwork(format!("failed to read torrent bytes: {e}"))
-        })
+        let resp = client.get(url).send().await.map_err(|e| {
+            DownloadError::TorrentNetwork(format!("failed to fetch .torrent URL {url}: {e}"))
+        })?;
+
+        if !resp.status().is_success() {
+            return Err(DownloadError::TorrentNetwork(format!(
+                "HTTP {} fetching .torrent URL {url}",
+                resp.status()
+            )));
+        }
+
+        let bytes = resp.bytes().await.map_err(|e| {
+            DownloadError::TorrentNetwork(format!("failed to read .torrent response {url}: {e}"))
+        })?;
+
+        Ok(bytes.to_vec())
     }
-    /// Try to acquire a BT download slot.
-    /// Fails with `TooManyConcurrentDownloads` if at capacity.
+
+    /// Try to acquire a slot for a new BT download.
     fn try_acquire_bt_slot(&self) -> Result<DownloadSlotGuard> {
         let max = self.max_concurrent_bt.load(Ordering::Acquire);
         let counter = &self.active_bt_count;
@@ -58,7 +67,7 @@ impl IrontideBtBackend {
             ));
         }
 
-        // Determine the effective download directory.
+        // Determine effective download directory
         let dest_dir = if request.destination_dir.trim().is_empty() {
             self.default_output_dir.clone()
         } else {
@@ -74,130 +83,219 @@ impl IrontideBtBackend {
             p
         };
 
-        // Build AddTorrentParams from source.
-        let params = if source.to_ascii_lowercase().starts_with("magnet:") {
-            let magnet = irontide::core::Magnet::parse(source).map_err(|e| {
-                DownloadError::TorrentInvalidData(format!("invalid magnet link: {e}"))
-            })?;
-            AddTorrentParams::from_magnet(magnet)
-        } else if source.starts_with("http://") || source.starts_with("https://") {
-            // Fetch .torrent from URL (with proxy support)
-            let bytes = self.fetch_url_bytes(source).await?;
-            AddTorrentParams::from_bytes(bytes)
-        } else {
-            AddTorrentParams::from_file(source)
+        let is_magnet = source.to_ascii_lowercase().starts_with("magnet:")
+            || (source.len() == 40 && source.chars().all(|c| c.is_ascii_hexdigit()));
+
+        let mut opts = AddTorrentOptions {
+            output_folder: Some(dest_dir.to_string_lossy().to_string()),
+            paused: request.start_paused,
+            overwrite: true,
+            ..Default::default()
         };
 
-        let params = params.download_dir(&dest_dir);
-
-        // Apply start-paused if requested
-        let params = if request.start_paused {
-            params.paused(true)
-        } else {
-            params
-        };
-
-        // Acquire a concurrent BT download slot (throttle)
-        let _guard = self.try_acquire_bt_slot()?;
-
-        let info_hash = params
-            .add_to(&self.session)
-            .await
-            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+        if let Some(indices) = request.selected_file_indices {
+            opts.only_files = Some(indices.into_iter().collect());
+        }
 
         // Apply custom trackers from user settings
         let bt_settings = lock(&self.bt_settings).clone();
         if !bt_settings.tracker_list.trim().is_empty() {
-            for tracker in bt_settings.tracker_list.lines() {
-                let tracker = tracker.trim();
-                if tracker.is_empty() {
-                    continue;
-                }
-                let _ = self
-                    .session
-                    .add_tracker(info_hash, tracker.to_string())
-                    .await;
+            let trackers: Vec<String> = bt_settings
+                .tracker_list
+                .lines()
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty())
+                .collect();
+            if !trackers.is_empty() {
+                opts.trackers = Some(trackers);
             }
         }
+
+        if is_magnet {
+            let magnet_str = if source.len() == 40 && source.chars().all(|c| c.is_ascii_hexdigit())
+            {
+                format!("magnet:?xt=urn:btih:{source}")
+            } else {
+                source.to_string()
+            };
+
+            let magnet = librqbit::Magnet::parse(&magnet_str).map_err(|e| {
+                DownloadError::TorrentInvalidData(format!("invalid magnet link: {e}"))
+            })?;
+            let info_hash = magnet.as_id20().ok_or_else(|| {
+                DownloadError::TorrentInvalidData("magnet link missing BTv1 infohash".into())
+            })?;
+
+            if self.task_map.contains_key(&info_hash) {
+                return Ok(info_hash);
+            }
+
+            let _guard = self.try_acquire_bt_slot()?;
+            let now = now_ms();
+            self.task_map.insert(info_hash, info_hash);
+            self.torrent_created_at.insert(info_hash, now);
+            self.bt_slot_guards.insert(info_hash, _guard);
+
+            let paused = Arc::new(AtomicBool::new(request.start_paused));
+            let session = self.session.clone();
+            let pending_map = self.pending_magnets.clone();
+            let paused_flag = paused.clone();
+            let magnet_source = magnet_str.clone();
+
+            let bg_task = tokio::spawn(async move {
+                let add_torrent = AddTorrent::from_url(magnet_source);
+                match session.add_torrent(add_torrent, Some(opts)).await {
+                    Ok(res) => {
+                        pending_map.remove(&info_hash);
+                        if let Some(h) = res.into_handle()
+                            && paused_flag.load(Ordering::Acquire)
+                        {
+                            let _ = session.pause(&h).await;
+                        }
+                    }
+                    Err(e) => {
+                        let ih_str = info_hash.as_string();
+                        tracing::debug!("magnet resolution ended for {ih_str}: {e}");
+                    }
+                }
+            });
+
+            self.pending_magnets.insert(
+                info_hash,
+                PendingMagnet {
+                    info_hash,
+                    magnet_url: magnet_str,
+                    name: magnet.name.unwrap_or_else(|| info_hash.as_string()),
+                    destination_path: dest_dir.to_string_lossy().to_string(),
+                    created_at_ms: now,
+                    paused,
+                    abort_handle: bg_task.abort_handle(),
+                },
+            );
+
+            self.emit_pending_summary(info_hash);
+            tracing::info!("librqbit: started magnet {}", info_hash.as_string());
+            return Ok(info_hash);
+        }
+
+        let bytes = if source.starts_with("http://") || source.starts_with("https://") {
+            self.fetch_url_bytes(source).await?
+        } else {
+            tokio::fs::read(source).await.map_err(|e| {
+                DownloadError::TorrentIo(format!("failed to read torrent file: {e}"))
+            })?
+        };
+
+        let add_torrent = AddTorrent::from_bytes(bytes);
+
+        // Acquire concurrent download slot
+        let _guard = self.try_acquire_bt_slot()?;
+
+        let res = self
+            .session
+            .add_torrent(add_torrent, Some(opts))
+            .await
+            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+
+        let handle = res
+            .into_handle()
+            .ok_or_else(|| DownloadError::Torrent("failed to add torrent".into()))?;
+
+        let info_hash = handle.info_hash();
 
         self.task_map.insert(info_hash, info_hash);
         self.torrent_created_at.insert(info_hash, now_ms());
-        // Store the guard so it lives for the torrent's lifetime
         self.bt_slot_guards.insert(info_hash, _guard);
 
-        // Apply global download speed limit if configured
-        if self.global_speed_limit_bps > 0 {
-            let _ = self
-                .session
-                .set_download_limit(info_hash, self.global_speed_limit_bps)
-                .await;
-        }
-
-        // Apply selected file priorities if given
-        if let Some(indices) = &request.selected_file_indices
-            && let Ok(files) = self.session.torrent_file(info_hash).await
-            && let Some(meta) = files
-        {
-            let file_count = meta.info.files.map_or(1, |f| f.len());
-            for i in 0..file_count {
-                let priority = if indices.contains(&i) {
-                    irontide::core::FilePriority::Normal
-                } else {
-                    irontide::core::FilePriority::Skip
-                };
-                let _ = self.session.set_file_priority(info_hash, i, priority).await;
-            }
-        }
-
-        // Emit a pending summary so the frontend shows the task immediately.
         self.emit_pending_summary(info_hash);
 
-        tracing::info!("irontide: started torrent {}", info_hash.to_hex());
+        tracing::info!("librqbit: started torrent {}", info_hash.as_string());
         Ok(info_hash)
     }
 
     pub async fn pause(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
-        self.session
-            .pause_torrent(info_hash)
-            .await
-            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+        if let Some(handle) = self.session.get(TorrentIdOrHash::Hash(info_hash)) {
+            self.session
+                .pause(&handle)
+                .await
+                .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+            let snapshot = self.status(info_hash).await?;
+            return Ok(DownloadSnapshot {
+                state: DownloadState::Paused,
+                speed_bytes_per_second: None,
+                upload_speed_bytes_per_second: None,
+                upload_status: Some(BtUploadStatus::Paused),
+                updated_at_ms: now_ms(),
+                ..snapshot
+            });
+        }
 
-        self.status(info_hash).await
+        if let Some(pending) = self.pending_magnets.get(&info_hash) {
+            pending.paused.store(true, Ordering::Release);
+            return Ok(self.pending_snapshot(&pending, DownloadState::Paused));
+        }
+
+        Err(DownloadError::NotFound)
     }
 
     pub async fn resume(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
-        self.session
-            .resume_torrent(info_hash)
-            .await
-            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+        if let Some(handle) = self.session.get(TorrentIdOrHash::Hash(info_hash)) {
+            self.session
+                .unpause(&handle)
+                .await
+                .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+            let snapshot = self.status(info_hash).await?;
+            return Ok(DownloadSnapshot {
+                updated_at_ms: now_ms(),
+                ..snapshot
+            });
+        }
 
-        self.status(info_hash).await
+        if let Some(pending) = self.pending_magnets.get(&info_hash) {
+            pending.paused.store(false, Ordering::Release);
+            return Ok(self.pending_snapshot(&pending, DownloadState::Queued));
+        }
+
+        Err(DownloadError::NotFound)
     }
 
     pub async fn cancel(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
-        // Try to get status, but proceed even if it fails (torrent might already be gone).
-        let snapshot = self
-            .status(info_hash)
-            .await
-            .unwrap_or_else(|_| build_canceled_snapshot(&info_hash));
-        let _ = self.session.remove_torrent(info_hash).await;
+        let snapshot = match self.status(info_hash).await {
+            Ok(s) => DownloadSnapshot {
+                state: DownloadState::Canceled,
+                speed_bytes_per_second: None,
+                upload_speed_bytes_per_second: None,
+                upload_status: None,
+                updated_at_ms: now_ms(),
+                ..s
+            },
+            Err(_) => build_canceled_snapshot(&info_hash),
+        };
+
+        if let Some((_, p)) = self.pending_magnets.remove(&info_hash) {
+            p.abort_handle.abort();
+        }
+        let _ = self
+            .session
+            .delete(TorrentIdOrHash::Hash(info_hash), false)
+            .await;
+
         self.bt_slot_guards.remove(&info_hash);
         self.task_map.remove(&info_hash);
         self.torrent_created_at.remove(&info_hash);
-
-        Ok(DownloadSnapshot {
-            state: DownloadState::Canceled,
-            updated_at_ms: now_ms(),
-            ..snapshot
-        })
+        Ok(snapshot)
     }
 
     pub async fn remove(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
         let snapshot = self.status(info_hash).await?;
-        self.session
-            .remove_torrent(info_hash)
-            .await
-            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+        if let Some((_, p)) = self.pending_magnets.remove(&info_hash) {
+            p.abort_handle.abort();
+        }
+        let _ = self
+            .session
+            .delete(TorrentIdOrHash::Hash(info_hash), false)
+            .await;
+
         self.bt_slot_guards.remove(&info_hash);
         self.task_map.remove(&info_hash);
         self.torrent_created_at.remove(&info_hash);
@@ -206,10 +304,14 @@ impl IrontideBtBackend {
 
     pub async fn purge(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
         let snapshot = self.status(info_hash).await?;
-        self.session
-            .remove_torrent_with_files(info_hash)
-            .await
-            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
+        if let Some((_, p)) = self.pending_magnets.remove(&info_hash) {
+            p.abort_handle.abort();
+        }
+        let _ = self
+            .session
+            .delete(TorrentIdOrHash::Hash(info_hash), true)
+            .await;
+
         self.bt_slot_guards.remove(&info_hash);
         self.task_map.remove(&info_hash);
         self.torrent_created_at.remove(&info_hash);
@@ -261,31 +363,84 @@ impl IrontideBtBackend {
     }
 
     pub async fn status(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
-        let stats = self
-            .session
-            .torrent_stats(info_hash)
-            .await
-            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
-        Ok(self.stats_to_snapshot(&info_hash, &stats))
+        if let Some(handle) = self.session.get(TorrentIdOrHash::Hash(info_hash)) {
+            let stats = handle.stats();
+            return Ok(self.stats_to_snapshot(&info_hash, &stats));
+        }
+
+        if let Some(pending) = self.pending_magnets.get(&info_hash) {
+            let state = if pending.paused.load(Ordering::Acquire) {
+                DownloadState::Paused
+            } else {
+                DownloadState::Queued
+            };
+            return Ok(self.pending_snapshot(&pending, state));
+        }
+
+        Err(DownloadError::NotFound)
+    }
+
+    fn pending_snapshot(&self, pending: &PendingMagnet, state: DownloadState) -> DownloadSnapshot {
+        let now = now_ms();
+        DownloadSnapshot {
+            id: pending.info_hash.as_string(),
+            kind: TaskKind::Bt,
+            state,
+            created_at_ms: pending.created_at_ms,
+            updated_at_ms: now,
+            url: pending.magnet_url.clone(),
+            final_url: pending.magnet_url.clone(),
+            file_name: pending.name.clone(),
+            destination_path: pending.destination_path.clone(),
+            temp_path: self.state_dir.to_string_lossy().to_string(),
+            total_bytes: None,
+            downloaded_bytes: 0,
+            supports_ranges: false,
+            connection_count: 0,
+            thread_mode: ThreadMode::Fixed,
+            requested_thread_count: None,
+            desired_thread_count: None,
+            allocated_thread_count: None,
+            adaptive_profile: None,
+            thread_note: Some("BT task resolving metadata".into()),
+            checksum: None,
+            expected_checksum: None,
+            checksum_mode: ChecksumMode::None,
+            etag: None,
+            last_modified: None,
+            error: None,
+            speed_bytes_per_second: None,
+            eta_seconds: None,
+            uploaded_bytes: Some(0),
+            upload_speed_bytes_per_second: None,
+            peer_count: None,
+            upload_status: Some(if state == DownloadState::Paused {
+                BtUploadStatus::Paused
+            } else {
+                BtUploadStatus::Idle
+            }),
+            info_hash: Some(pending.info_hash.as_string()),
+            priority: Priority::Normal,
+            cdn_accelerated: false,
+            cdn_node_ip: None,
+            chunks: vec![],
+            seed_count: None,
+            leech_count: None,
+            download_limit_bps: None,
+            upload_limit_bps: None,
+            mirror_url: None,
+            degraded: false,
+            disk_type: None,
+            flushing: false,
+        }
     }
 
     pub async fn list(&self) -> Result<Vec<DownloadSummary>> {
-        let info_hashes = self
-            .session
-            .list_torrents()
-            .await
-            .map_err(|e| DownloadError::Torrent(e.to_string()))?;
-
-        let mut summaries = Vec::with_capacity(info_hashes.len());
-        for info_hash in &info_hashes {
-            match self.session.torrent_stats(*info_hash).await {
-                Ok(stats) => {
-                    let snapshot = self.stats_to_snapshot(info_hash, &stats);
-                    summaries.push(DownloadSummary::from(&snapshot));
-                }
-                Err(e) => {
-                    tracing::warn!("irontide: failed to get stats for {info_hash}: {e}");
-                }
+        let mut summaries = Vec::new();
+        let hashes: Vec<Id20> = self.task_map.iter().map(|e| *e.key()).collect();
+        for info_hash in hashes {
+            if let Ok(snapshot) = self.status(info_hash).await {
+                summaries.push(DownloadSummary::from(&snapshot));
             }
         }
 
@@ -296,16 +451,16 @@ impl IrontideBtBackend {
 
 // NOTE: When adding fields to DownloadSnapshot, update this function.
 fn build_canceled_snapshot(info_hash: &Id20) -> DownloadSnapshot {
-    let id = info_hash.to_hex();
+    let id = info_hash.as_string();
     let now = now_ms();
     DownloadSnapshot {
-        id,
+        id: id.clone(),
         kind: TaskKind::Bt,
         state: DownloadState::Canceled,
         created_at_ms: now,
         updated_at_ms: now,
-        url: String::new(),
-        final_url: String::new(),
+        url: id.clone(),
+        final_url: id,
         file_name: String::new(),
         destination_path: String::new(),
         temp_path: String::new(),
@@ -331,7 +486,7 @@ fn build_canceled_snapshot(info_hash: &Id20) -> DownloadSnapshot {
         upload_speed_bytes_per_second: None,
         peer_count: None,
         upload_status: None,
-        info_hash: Some(info_hash.to_hex()),
+        info_hash: Some(info_hash.as_string()),
         priority: Priority::Normal,
         cdn_accelerated: false,
         cdn_node_ip: None,

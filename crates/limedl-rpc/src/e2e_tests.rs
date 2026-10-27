@@ -1876,10 +1876,7 @@ async fn wait_for_bt_selection(
 #[tokio::test(flavor = "multi_thread")]
 async fn aria2_add_torrent_serves_bt_files_and_options() {
     let fixture = crate::bt_backend::fixtures::multi_file_torrent_bytes();
-    let expected_hash = crate::bt_backend::irontide::core::torrent_from_bytes(&fixture)
-        .expect("the shared BT fixture must parse")
-        .info_hash
-        .to_hex();
+    let expected_hash = crate::bt_backend::fixtures::torrent_info_hash(&fixture);
 
     let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();
@@ -2377,10 +2374,7 @@ async fn aria2_change_global_option_applies_default_dir_and_validates() {
 #[tokio::test(flavor = "multi_thread")]
 async fn aria2_add_torrent_single_file_reports_one_entry() {
     let fixture = crate::bt_backend::fixtures::single_file_torrent_bytes();
-    let expected_hash = crate::bt_backend::irontide::core::torrent_from_bytes(&fixture)
-        .expect("the single-file fixture must parse")
-        .info_hash
-        .to_hex();
+    let expected_hash = crate::bt_backend::fixtures::torrent_info_hash(&fixture);
 
     let (rpc_url, shutdown_tx, tmp, _core) = start_rpc_server().await;
     let client = reqwest::Client::new();

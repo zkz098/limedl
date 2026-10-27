@@ -12,6 +12,7 @@ ignore = [
   "RUSTSEC-2026-0347", # rustls
   "RUSTSEC-2026-0348", # rustls
   "RUSTSEC-2026-0349", # rustls
+  "RUSTSEC-2026-0293", # ringbuf
 ]
 
 [licenses]

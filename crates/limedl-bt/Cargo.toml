@@ -1,7 +1,7 @@
 [package]
 name = "limedl-bt"
 version.workspace = true
-description = "BitTorrent backend for limedl, backed by the irontide engine"
+description = "BitTorrent backend for limedl, backed by the librqbit engine"
 license.workspace = true
 edition = "2024"
 # Workspace-internal, like every other limedl crate.
@@ -11,10 +11,8 @@ publish = false
 name = "limedl_bt"
 
 [dependencies]
-# The BitTorrent engine: pinned exactly (`=1.7.0`) in the workspace table, and
-# this crate is the only place it is named. Before this split it sat under
-# `limedl-types` (through `TaskId::Bt(Id20)`), which meant every limedl crate
-# built 100+ crates of DHT/peer-wire/`aws-lc` whether it wanted BT or not.
+# The BitTorrent engine: librqbit in the workspace table, and
+# this crate is the only place it is named.
 limedl-types = { path = "../limedl-types", default-features = false, features = [
   "bt",
 ] }
@@ -22,7 +20,7 @@ limedl-store = { path = "../limedl-store", default-features = false, features = 
   "bt",
 ] }
 limedl-http = { path = "../limedl-http", default-features = false }
-irontide = { workspace = true }
+librqbit = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 parking_lot = { workspace = true }

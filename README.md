@@ -5,7 +5,7 @@ Fast multi-protocol download manager — HTTP, BitTorrent, with CDN acceleration
 ## Features
 
 - **HTTP downloads** — chunked parallel downloading with adaptive concurrency (AIMD), automatic retry, mirror failover, and resumable transfers
-- **BitTorrent** — full-featured BT client via irontide engine (DHT, UPnP, PEX, LSD, magnet links, .torrent files)
+- **BitTorrent** — full-featured BT client via librqbit engine (DHT, UPnP, PEX, LSD, magnet links, .torrent files)
 - **CDN acceleration** — Cloudflare IP probing and DNS rewriting for faster downloads
 - **Aria2 RPC** — Aria2-compatible JSON-RPC 2.0 API enables integration with AriaNg, Motrix, and other frontends
 - **Buffer pool** — HDD double-buffer / SSD write-combining tuned to your disk type
@@ -14,22 +14,7 @@ Fast multi-protocol download manager — HTTP, BitTorrent, with CDN acceleration
 
 ### BitTorrent engine status
 
-limedl's BT backend is built on **irontide**, pinned to one exact release (`irontide = "=1.7.0"`)
-and locked by `Cargo.lock`.
-
-- Upstream's git repository (`codeberg.org/alan090/irontide`) was **removed in 2026** and no public
-git copy survives (Software Heritage has no origin for it), so crates.io is the only remaining
-source of truth: the published 1.7.0 tarballs, checksummed in `Cargo.lock`.
-- The author's current forge (`git.alangaudet.dev`) does not host it. His project page says the
-engine was "reopened for a 2.0 correctness recovery" and that fixes on the recovery branch are
-**unpublished**; the defects listed there that touch limedl are pure-v2 torrent identity, v2-swarm
-handshakes on hybrid torrents, pad-file accounting and resume.
-- The pin is exact so an unreviewed 1.8/2.0 cannot arrive through `cargo update`: the BT backend in
-`crates/limedl-core/src/bt_backend/` depends on a wide slice of the engine API (session methods,
-session settings, alert stream), and moving off 1.7.0 is a migration, not a version bump.
-- **Status: no fork.** We build the published 1.7.0 as-is. Vendoring a source snapshot, patching the
-engine locally, or replacing it wholesale (e.g. librqbit) are separate decisions to be taken
-deliberately — the engine is frozen, so those options stay open rather than decay.
+limedl's BT backend is built on **librqbit** (`9.0.1`), an actively maintained, high-performance BitTorrent engine written in Rust (Apache-2.0).
 
 ## Platforms
 

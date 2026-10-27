@@ -14,7 +14,7 @@ async fn upload_policy_unpauses_when_limits_are_cleared() {
         settings.upload_limit_bytes = 0;
         settings.upload_ratio_limit = 0.0;
     }
-    let info_hash = Id20::from([0x11; 20]);
+    let info_hash = Id20::new([0x11; 20]);
     backend.paused_by_limit.insert(info_hash, ());
     let mut rx = backend.event_bus.subscribe();
 
@@ -94,7 +94,7 @@ async fn upload_policy_ignores_stats_errors_for_unknown_torrents() {
     }
     // A task the engine does not know: `torrent_stats` fails and the sweep must
     // log-and-continue instead of pausing or panicking.
-    let unknown = Id20::from([0x22; 20]);
+    let unknown = Id20::new([0x22; 20]);
     backend.task_map.insert(unknown, unknown);
 
     let backend = Arc::new(backend);

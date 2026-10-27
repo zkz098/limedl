@@ -1,6 +1,6 @@
-//! Irontide-based BitTorrent backend implementation.
+//! Librqbit-based BitTorrent backend implementation.
 //!
-//! This backend uses the `irontide` crate as the underlying BT engine,
+//! This backend uses the `librqbit` crate as the underlying BT engine.
 
 pub mod alerts;
 pub mod anti_leech;
@@ -19,10 +19,9 @@ pub use lazy::LazyBtBackend;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 
 use async_trait::async_trait;
-use irontide::core::Id20;
 use parking_lot::{Mutex, RwLock};
 
 // The layers below, imported at this crate root so the moved modules kept their
@@ -33,11 +32,9 @@ use limedl_http::http_client_factory;
 use limedl_store::database;
 use limedl_types::{error, event_bus, lock, now_ms, platform, protocol, slot_guard, types};
 
-/// The engine this backend drives, re-exported for the engine's own tests: they
-/// parse fixture `.torrent` bytes to check the info-hash the backend reports,
-/// and that has to be the *same* irontide the backend used. Re-exporting keeps
-/// `irontide` named in exactly one `Cargo.toml`.
-pub use irontide;
+/// The engine this backend drives, re-exported for callers/tests.
+pub use librqbit;
+pub use librqbit::dht::Id20;
 
 use crate::error::DownloadError;
 use crate::error::Result;
@@ -49,57 +46,58 @@ use crate::types::{
     TaskId,
 };
 
-/// Translate an irontide info-hash into the foundation layer's [`InfoHash`].
-///
-/// `TaskId::Bt` carries `limedl_types::types::InfoHash`, not `Id20`, so that the
-/// BitTorrent engine is not a dependency of `limedl-types` (and therefore of
-/// every limedl crate). These two functions are the *only* place the two id
-/// types meet; everywhere else the engine speaks `Id20` and the rest of the
-/// engine speaks `InfoHash`.
-///
-/// They cannot be `impl From<Id20> for InfoHash`: both types are foreign here,
-/// so the orphan rule rejects it.
+/// Translate a librqbit info-hash into the foundation layer's [`InfoHash`].
 pub fn info_hash_from_engine(id: Id20) -> InfoHash {
-    InfoHash::from(*id.as_bytes())
+    InfoHash::from(id.0)
 }
 
 /// Translate a foundation-layer [`InfoHash`] back into the engine's `Id20`.
 pub fn info_hash_to_engine(hash: &InfoHash) -> Id20 {
-    Id20::from(*hash.as_bytes())
+    Id20::new(*hash.as_bytes())
 }
 
 /// Compute an Aria2-compatible GID from an info hash.
 pub fn internal_id_to_gid(info_hash: &Id20) -> String {
-    let hex = info_hash.to_hex();
+    let hex = info_hash.as_string();
     let hash = xxhash_rust::xxh3::xxh3_64(hex.as_bytes());
     format!("{:016x}", hash)
 }
 
 // ---------------------------------------------------------------------------
-//  IrontideBtBackend — irontide-backed BT backend
+//  IrontideBtBackend (RqbitBtBackend) — librqbit-backed BT backend
 // ---------------------------------------------------------------------------
 
-/// Irontide-based BitTorrent backend (production, 35 BEPs).
-///
-/// Each torrent is tracked by its raw info-hash hex string (no prefix).
-/// Metadata resolution is handled automatically by irontide (for magnet links),
-/// so there is no separate "pending" phase — the info hash is known immediately.
+/// A magnet link currently resolving metadata in the background.
+#[derive(Debug, Clone)]
+pub struct PendingMagnet {
+    pub info_hash: Id20,
+    pub magnet_url: String,
+    pub name: String,
+    pub destination_path: String,
+    pub created_at_ms: u64,
+    pub paused: Arc<AtomicBool>,
+    pub abort_handle: tokio::task::AbortHandle,
+}
+
+/// Librqbit-based BitTorrent backend.
 pub struct IrontideBtBackend {
-    /// The irontide session handle.
-    pub(crate) session: irontide::session::SessionHandle,
+    /// The librqbit session handle.
+    pub(crate) session: Arc<librqbit::Session>,
+    /// High-level API facade for queries.
+    pub(crate) api: librqbit::api::Api,
     /// Directory for state / resume files.
     pub(crate) state_dir: PathBuf,
     /// Default download output directory.
     pub(crate) default_output_dir: PathBuf,
     /// Mirrored BT settings (shared with the alert bridge).
-    /// Read by `limedl-core`'s BT integration tests to assert the settings the
-    /// backend was constructed with.
     pub bt_settings: Arc<Mutex<crate::types::BtSettings>>,
     /// Central event bus for publishing download events to subscribers and frontend.
     pub(crate) event_bus: Arc<EventBus>,
     /// Map of info hash → info hash (used as a set of active torrents).
     pub(crate) task_map: Arc<FastDashMap<Id20, Id20>>,
-    /// Join handle for the alert bridge background task.
+    /// Magnet links currently resolving metadata asynchronously.
+    pub(crate) pending_magnets: Arc<FastDashMap<Id20, PendingMagnet>>,
+    /// Join handle for the state monitor / alert bridge background task.
     pub(crate) alert_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Join handle for the upload policy background task.
     pub(crate) upload_policy_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
@@ -107,17 +105,11 @@ pub struct IrontideBtBackend {
     pub(crate) anti_leech_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Anti-leech: IP → ban-expiry-ms for peers we banned. (Ban action only.)
     pub(crate) banned_leechers: Arc<FastDashMap<IpAddr, u64>>,
-    /// Anti-leech: info-hash → original upload-slot count before the loop capped
-    /// it (LimitSlots action only), used to restore slots once leechers clear.
+    /// Anti-leech: info-hash → original upload-slot count before the loop capped it.
     pub(crate) anti_leech_slot_state: Arc<FastDashMap<Id20, usize>>,
-    /// Blocklist: key (`enabled:path`) of the last successfully applied IP
-    /// filter, so we don't reload/rewrite the filter on every settings save.
+    /// Blocklist: key (`enabled:path`) of the last successfully applied IP filter.
     pub(crate) applied_blocklist_key: Arc<Mutex<Option<String>>>,
     /// Reusable HTTP client with proxy support for `.torrent` URL fetches.
-    ///
-    /// Always present and rebuilt by `apply_settings` when proxy / UA settings
-    /// change, so torrent fetches follow the same proxy as the download engine.
-    /// The `RwLock` is shared across clones so a rebuild is visible everywhere.
     pub(crate) http_client: Arc<RwLock<reqwest::Client>>,
     /// Global download speed limit (bytes/sec) from AppSettings.
     pub(crate) global_speed_limit_bps: u64,
@@ -128,7 +120,6 @@ pub struct IrontideBtBackend {
     /// Active BT download counter (shared with DownloadManager for global throttle).
     pub(crate) active_bt_count: Arc<AtomicUsize>,
     /// Maximum concurrent BT downloads allowed.
-    /// Read by `limedl-core`'s BT integration tests (concurrency assertion).
     pub max_concurrent_bt: Arc<AtomicUsize>,
     /// Guards holding BT download slots for active torrents.
     pub(crate) bt_slot_guards: Arc<FastDashMap<Id20, DownloadSlotGuard>>,
@@ -136,15 +127,20 @@ pub struct IrontideBtBackend {
     pub(crate) torrent_created_at: Arc<FastDashMap<Id20, u64>>,
 }
 
+/// Backwards-compatibility alias for the backend.
+pub type RqbitBtBackend = IrontideBtBackend;
+
 impl Clone for IrontideBtBackend {
     fn clone(&self) -> Self {
         Self {
             session: self.session.clone(),
+            api: self.api.clone(),
             state_dir: self.state_dir.clone(),
             default_output_dir: self.default_output_dir.clone(),
             bt_settings: self.bt_settings.clone(),
             event_bus: self.event_bus.clone(),
             task_map: self.task_map.clone(),
+            pending_magnets: self.pending_magnets.clone(),
             alert_task: self.alert_task.clone(),
             upload_policy_task: self.upload_policy_task.clone(),
             anti_leech_task: self.anti_leech_task.clone(),

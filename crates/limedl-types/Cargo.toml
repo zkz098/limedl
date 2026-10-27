@@ -52,8 +52,8 @@ base64 = { workspace = true }
 dashmap = { workspace = true }
 foldhash = { workspace = true }
 # No BitTorrent engine here on purpose: `TaskId::Bt` carries this crate's own
-# `InfoHash([u8; 20])`, and `bt_backend` converts to/from `irontide::core::Id20`
-# at the one boundary that talks to the engine. Adding `irontide` back would put
+# `InfoHash([u8; 20])`, and `bt_backend` converts to/from `librqbit::dht::Id20`
+# at the one boundary that talks to the engine. Adding `librqbit` back would put
 # 100+ crates of DHT/peer-wire/`aws-lc` under every limedl crate.
 
 [features]

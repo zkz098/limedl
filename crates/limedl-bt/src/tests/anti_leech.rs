@@ -126,7 +126,7 @@ async fn anti_leech_disabled_loop_cleans_up_bans_and_slot_caps() {
     backend.bt_settings.lock().anti_leech_enabled = false;
 
     let banned_ip = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 7));
-    let capped_hash = Id20::from([7u8; 20]);
+    let capped_hash = Id20::new([7u8; 20]);
     backend
         .banned_leechers
         .insert(banned_ip, crate::now_ms() + 60_000);

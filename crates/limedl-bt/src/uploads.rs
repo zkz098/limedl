@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use irontide::core::Id20;
+use librqbit::api::TorrentIdOrHash;
+use librqbit::dht::Id20;
 use parking_lot::Mutex;
 
 use crate::types::FastDashMap;
@@ -39,7 +40,7 @@ impl IrontideBtBackend {
 
 /// Background loop that periodically enforces upload limits per-torrent.
 async fn upload_policy_loop(
-    session: irontide::session::SessionHandle,
+    session: Arc<librqbit::Session>,
     bt_settings: Arc<Mutex<crate::types::BtSettings>>,
     task_map: Arc<FastDashMap<Id20, Id20>>,
     paused_by_limit: Arc<FastDashMap<Id20, ()>>,
@@ -47,53 +48,44 @@ async fn upload_policy_loop(
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
-    tracing::info!("irontide upload policy loop started");
+    tracing::info!("librqbit upload policy loop started");
 
     loop {
         interval.tick().await;
 
         let settings = lock(&bt_settings).clone();
         if settings.upload_limit_bytes == 0 && settings.upload_ratio_limit == 0.0 {
-            // If limits were cleared, un-pause any previously paused torrents.
             if !paused_by_limit.is_empty() {
-                let to_unpause: Vec<Id20> = paused_by_limit.iter().map(|e| *e.key()).collect();
                 paused_by_limit.clear();
-                for ih in &to_unpause {
-                    let _ = session.set_upload_limit(*ih, 0).await;
-                }
             }
             continue;
         }
 
         for entry in task_map.iter() {
             let info_hash = *entry.key();
-            match session.torrent_stats(info_hash).await {
-                Ok(stats) => {
-                    let limit_reached = settings.upload_limit_bytes > 0
-                        && stats.uploaded >= settings.upload_limit_bytes;
-                    let ratio_reached = settings.upload_ratio_limit > 0.0
-                        && stats.total_done > 0
-                        && (stats.uploaded as f64)
-                            >= stats.total_done as f64 * settings.upload_ratio_limit;
+            let Some(handle) = session.get(TorrentIdOrHash::Hash(info_hash)) else {
+                continue;
+            };
 
-                    if (limit_reached || ratio_reached)
-                        && settings.pause_upload_when_limit_reached
-                        && paused_by_limit.get(&info_hash).is_none()
-                    {
-                        paused_by_limit.insert(info_hash, ());
-                        let _ = session.set_upload_limit(info_hash, 1).await;
-                    } else if !(limit_reached || ratio_reached)
-                        && paused_by_limit.get(&info_hash).is_some()
-                    {
-                        // Was previously paused; un-pause by removing the rate cap.
-                        // irontide treats 0 as unlimited.
-                        paused_by_limit.remove(&info_hash);
-                        let _ = session.set_upload_limit(info_hash, 0).await;
-                    }
+            let stats = handle.stats();
+            let limit_reached = settings.upload_limit_bytes > 0
+                && stats.uploaded_bytes >= settings.upload_limit_bytes;
+            let ratio_reached = settings.upload_ratio_limit > 0.0
+                && stats.progress_bytes > 0
+                && (stats.uploaded_bytes as f64)
+                    >= stats.progress_bytes as f64 * settings.upload_ratio_limit;
+
+            if (limit_reached || ratio_reached)
+                && settings.pause_upload_when_limit_reached
+                && paused_by_limit.get(&info_hash).is_none()
+            {
+                paused_by_limit.insert(info_hash, ());
+                if stats.finished {
+                    let _ = session.pause(&handle).await;
                 }
-                Err(e) => {
-                    tracing::trace!("upload policy: stats error for {info_hash}: {e}");
-                }
+            } else if !(limit_reached || ratio_reached) && paused_by_limit.get(&info_hash).is_some()
+            {
+                paused_by_limit.remove(&info_hash);
             }
         }
     }

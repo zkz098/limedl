@@ -1,22 +1,16 @@
-use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::path::PathBuf;
-use std::str::FromStr;
+pub use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::time::Duration;
 
-use irontide::core::{FileTreeNode, Id20, Id32, InfoDictV2, InfoHashes};
+use librqbit::dht::Id20;
 
 use super::IrontideBtBackend;
-use super::alerts::extract_info_hash;
-use super::anti_leech::peer_is_leecher;
+use super::alerts::{BtEvent, extract_info_hash};
+use super::anti_leech::{LeecherPeerInfo, peer_is_leecher};
 use super::internal_id_to_gid;
 use super::queries::sanitize_peer_client;
-use super::snapshot::{
-    StateHelpers, build_peer_flags, estimate_eta, map_state, preview_entries_from_meta,
-    v1_file_entries,
-};
+use super::snapshot::{StateHelpers, build_peer_flags, estimate_eta, map_state};
 use crate::event_bus::EventBus;
 pub use crate::fixtures::{
     multi_file_torrent_bytes, single_file_torrent_bytes, write_single_file_torrent_fixture,
@@ -27,42 +21,22 @@ use crate::types::{
     AppSettings, DownloadState, DownloadSummary, StartDownloadRequest, TaskId, TaskKind,
 };
 
-// ── map_state ──────────────────────────────────────────────────────────
+// ── peer_is_leecher (anti-leech) ───────────────────────────────────────
 
-// ── build_peer_flags ───────────────────────────────────────────────────
-
-fn make_peer() -> irontide::session::PeerInfo {
-    irontide::session::PeerInfo {
-        addr: SocketAddr::from_str("127.0.0.1:6881").unwrap(),
-        client: String::new(),
+fn make_peer() -> LeecherPeerInfo {
+    LeecherPeerInfo {
+        addr: "127.0.0.1:6881".to_string(),
+        client_name: None,
+        upload_only: false,
         peer_choking: false,
-        peer_interested: false,
         am_choking: false,
-        am_interested: false,
         download_rate: 0,
         upload_rate: 0,
-        num_pieces: 0,
-        source: irontide::session::PeerSource::Tracker,
-        supports_fast: false,
-        upload_only: false,
-        snubbed: false,
-        connected_duration_secs: 0,
-        num_pending_requests: 0,
-        num_incoming_requests: 0,
-        is_optimistic: false,
-        is_encrypted: false,
-        uses_utp: false,
-        uses_holepunch: false,
-        in_flight_requests: 0,
-        target_pipeline_depth: 0,
-        relevance: 0.0,
-        connection_kind: irontide::session::PeerConnectionKind::Tcp,
         progress: 0.0,
-        country_code: None,
+        fetched_bytes: 0,
+        uploaded_bytes: 0,
     }
 }
-
-// ── peer_is_leecher (anti-leech) ───────────────────────────────────────
 
 const GRACE: u64 = 300;
 const RATIO: f64 = 0.1;
@@ -74,7 +48,7 @@ fn make_leech_candidate(
     download_rate: u64,
     upload_rate: u64,
     progress: f32,
-) -> irontide::session::PeerInfo {
+) -> LeecherPeerInfo {
     let mut peer = make_peer();
     peer.peer_choking = peer_choking;
     peer.am_choking = am_choking;
@@ -82,68 +56,6 @@ fn make_leech_candidate(
     peer.upload_rate = upload_rate;
     peer.progress = progress;
     peer
-}
-
-// ── estimate_eta ───────────────────────────────────────────────────────
-
-// ── extract_info_hash ──────────────────────────────────────────────────
-
-// ── v1_file_entries / preview_entries_from_meta ────────────────────────
-
-// ═══════════════════════════════════════════════════════════════════════
-//  Additional extract_info_hash variants
-// ═══════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════
-//  preview_entries_from_meta — Hybrid and V2
-// ═══════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════
-//  v1_file_entries — additional edge cases
-// ═══════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════
-//  internal_id_to_gid
-// ═══════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════
-//  StateHelpers::is_terminal
-// ═══════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════
-//  map_state — complex state transition combinations
-// ═══════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════
-//  Builder config mapping tests — verify BtSettings → irontide builder
-// ═══════════════════════════════════════════════════════════════════════
-
-/// Create a minimal irontide session for testing.
-async fn make_test_session() -> (tempfile::TempDir, irontide::session::SessionHandle) {
-    let tmp = tempfile::tempdir().expect("tempdir");
-    let dl_dir = tmp.path().join("dl");
-    std::fs::create_dir_all(&dl_dir).expect("create dl_dir");
-    let resume_dir = tmp.path().join("resume");
-    std::fs::create_dir_all(&resume_dir).expect("create resume_dir");
-
-    let irontide_settings = irontide::session::Settings {
-        resume_data_dir: Some(resume_dir),
-        ..Default::default()
-    };
-    let session = irontide::ClientBuilder::from_settings(irontide_settings)
-        .listen_port(0)
-        .enable_dht(false)
-        .enable_lsd(false)
-        .enable_upnp(false)
-        .enable_natpmp(false)
-        .enable_ipv6(false)
-        .enable_pex(false)
-        .enable_utp(false)
-        .download_dir(&dl_dir)
-        .start()
-        .await
-        .expect("create irontide session");
-    (tmp, session)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

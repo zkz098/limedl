@@ -51,7 +51,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use irontide::core::Id20;
+use librqbit::dht::Id20;
 use parking_lot::{Mutex, RwLock};
 
 use super::{IrontideBtBackend, info_hash_from_engine, info_hash_to_engine};
@@ -557,12 +557,13 @@ impl LazyBtBackend {
         lock(&self.settings).bt.lightweight_mode
     }
 
-    /// Whether irontide has any `.resume` file on disk.
-    ///
-    /// `irontide::resume_file::scan_resume_dir` reads `<resume_dir>/torrents`,
-    /// so the probe mirrors that layout without paying for a session.
+    /// Whether the BT backend has any resume file on disk.
     fn resume_files_present(&self) -> bool {
-        let torrents_dir = self.state_dir.join("resume").join("torrents");
+        let resume_dir = self.state_dir.join("resume");
+        if resume_dir.join("session.json").exists() {
+            return true;
+        }
+        let torrents_dir = resume_dir.join("torrents");
         std::fs::read_dir(torrents_dir)
             .map(|entries| {
                 entries.flatten().any(|entry| {
@@ -941,7 +942,7 @@ mod tests {
             .await
             .expect("list must not fail before warm-up");
         assert!(list.is_empty());
-        assert!(backend.get_peers(Id20::from([7u8; 20])).unwrap().is_empty());
+        assert!(backend.get_peers(Id20::new([7u8; 20])).unwrap().is_empty());
 
         let status = backend.runtime_status();
         assert!(!status.connected, "not-ready status must be disconnected");

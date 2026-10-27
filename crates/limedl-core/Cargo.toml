@@ -14,7 +14,7 @@ name = "limedl_core"
 
 [dependencies]
 # `default-features = false`: `limedl-types` has no default features on purpose,
-# so `limedl-core --no-default-features` really does drop `irontide` from the
+# so `limedl-core --no-default-features` really does drop `librqbit` from the
 # graph.
 limedl-types = { path = "../limedl-types", default-features = false }
 limedl-disk = { path = "../limedl-disk", default-features = false }

@@ -56,3 +56,11 @@ pub fn write_single_file_torrent_fixture(dir: &std::path::Path) -> PathBuf {
     std::fs::write(&path, single_file_torrent_bytes()).expect("write single-file torrent fixture");
     path
 }
+
+/// Compute info hash (hex string) for a torrent file's bytes.
+pub fn torrent_info_hash(bytes: &[u8]) -> String {
+    librqbit::torrent_from_bytes(bytes)
+        .expect("valid torrent bytes")
+        .info_hash
+        .as_string()
+}

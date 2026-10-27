@@ -1,41 +1,49 @@
-use irontide::core::Id20;
+use librqbit::TorrentStats;
+use librqbit::dht::Id20;
 
 use crate::now_ms;
 use crate::types::{
     BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState, Priority, TaskKind, ThreadMode,
-    TorrentFileEntry,
 };
 
 impl super::IrontideBtBackend {
-    /// Build a `DownloadSnapshot` from irontide stats.
-    pub fn stats_to_snapshot(
-        &self,
-        info_hash: &Id20,
-        stats: &irontide::session::TorrentStats,
-    ) -> DownloadSnapshot {
+    /// Build a `DownloadSnapshot` from librqbit stats.
+    pub fn stats_to_snapshot(&self, info_hash: &Id20, stats: &TorrentStats) -> DownloadSnapshot {
         let now = now_ms();
-        let state = map_state(&stats.state);
-        // Use `downloaded` (all payload bytes) instead of `total_done`
-        // (only verified pieces) so the frontend shows smooth progress
-        // instead of 0B until each multi-MB piece is fully verified.
-        let downloaded = stats.downloaded;
-        let peer_count = stats.peers_connected;
-        // Use `total_wanted` to reflect only the files selected for download,
-        // not the full torrent size when file priorities are active.
-        let total = stats.total_wanted;
+        let state = map_state(stats);
+        let downloaded = stats.progress_bytes;
+        let total = stats.total_bytes;
+        let peer_count = stats
+            .live
+            .as_ref()
+            .map(|l| l.snapshot.peer_stats.live as usize)
+            .unwrap_or(0);
 
         // Only show speed when not in a terminal state
-        let speed = (stats.download_payload_rate > 0).then_some(stats.download_payload_rate as f64);
-        let upload_speed =
-            (stats.upload_payload_rate > 0).then_some(stats.upload_payload_rate as f64);
+        let speed = stats
+            .live
+            .as_ref()
+            .map(|l| l.download_speed.as_bytes() as f64)
+            .filter(|&s| s > 0.0);
+        let upload_speed = stats
+            .live
+            .as_ref()
+            .map(|l| l.upload_speed.as_bytes() as f64)
+            .filter(|&s| s > 0.0);
+
+        let file_name = self
+            .session
+            .get(librqbit::api::TorrentIdOrHash::Hash(*info_hash))
+            .and_then(|h| h.name())
+            .unwrap_or_else(|| info_hash.as_string());
 
         DownloadSnapshot {
-            id: info_hash.to_hex(),
+            id: info_hash.as_string(),
             kind: TaskKind::Bt,
             state,
-            url: info_hash.to_hex(),
-            final_url: info_hash.to_hex(),
-            file_name: stats.name.clone(),
+            url: info_hash.as_string(),
+            final_url: info_hash.as_string(),
+            file_name,
             destination_path: self.default_output_dir.to_string_lossy().to_string(),
             temp_path: self.state_dir.to_string_lossy().to_string(),
             total_bytes: Some(total),
@@ -47,24 +55,20 @@ impl super::IrontideBtBackend {
             desired_thread_count: None,
             allocated_thread_count: None,
             adaptive_profile: None,
-            thread_note: Some(String::from("BT task managed by irontide")),
+            thread_note: Some(String::from("BT task managed by librqbit")),
             checksum: None,
             expected_checksum: None,
             checksum_mode: ChecksumMode::None,
             etag: None,
             last_modified: None,
-            error: if stats.error.is_empty() {
-                None
-            } else {
-                Some(stats.error.clone())
-            },
+            error: stats.error.clone(),
             speed_bytes_per_second: if state.is_terminal() { None } else { speed },
             eta_seconds: if state.is_terminal() {
                 None
             } else {
                 estimate_eta(total, downloaded, speed)
             },
-            uploaded_bytes: Some(stats.uploaded),
+            uploaded_bytes: Some(stats.uploaded_bytes),
             upload_speed_bytes_per_second: if state.is_terminal() {
                 None
             } else {
@@ -77,12 +81,12 @@ impl super::IrontideBtBackend {
                 } else {
                     match state {
                         DownloadState::Paused => BtUploadStatus::Paused,
-                        _ if stats.upload_payload_rate > 0 => BtUploadStatus::Uploading,
+                        _ if upload_speed.unwrap_or(0.0) > 0.0 => BtUploadStatus::Uploading,
                         _ => BtUploadStatus::Idle,
                     }
                 }
             }),
-            info_hash: Some(info_hash.to_hex()),
+            info_hash: Some(info_hash.as_string()),
             created_at_ms: self
                 .torrent_created_at
                 .get(info_hash)
@@ -92,8 +96,8 @@ impl super::IrontideBtBackend {
             cdn_accelerated: false,
             cdn_node_ip: None,
             chunks: vec![],
-            seed_count: Some(stats.num_seeds as u64),
-            leech_count: Some(stats.num_peers.saturating_sub(stats.num_seeds) as u64),
+            seed_count: None,
+            leech_count: None,
             download_limit_bps: None,
             upload_limit_bps: None,
             mirror_url: None,
@@ -109,78 +113,33 @@ impl super::IrontideBtBackend {
 //  Helper functions
 // ---------------------------------------------------------------------------
 
-/// Map an irontide `TorrentState` to our `DownloadState`.
-pub fn map_state(state: &irontide::session::TorrentState) -> DownloadState {
-    use irontide::session::TorrentState;
-    match state {
-        TorrentState::Downloading => DownloadState::Downloading,
-        TorrentState::Seeding | TorrentState::Complete => DownloadState::Completed,
-        TorrentState::Paused => DownloadState::Paused,
-        TorrentState::Checking => DownloadState::Verifying,
-        TorrentState::FetchingMetadata | TorrentState::Queued => DownloadState::Queued,
-        TorrentState::Stopped => DownloadState::Canceled,
-        TorrentState::Sharing => DownloadState::Downloading,
+/// Map librqbit `TorrentStats` to our `DownloadState`.
+pub fn map_state(stats: &TorrentStats) -> DownloadState {
+    use librqbit::TorrentStatsState;
+    if stats.finished {
+        return DownloadState::Completed;
+    }
+    match &stats.state {
+        TorrentStatsState::Live => DownloadState::Downloading,
+        TorrentStatsState::Paused => DownloadState::Paused,
+        TorrentStatsState::Initializing { paused: true } => DownloadState::Paused,
+        TorrentStatsState::Initializing { paused: false } => DownloadState::Verifying,
+        TorrentStatsState::Error => DownloadState::Failed,
     }
 }
 
-/// Build a human-readable flags string from irontide peer info.
-pub fn build_peer_flags(peer: &irontide::session::PeerInfo) -> String {
-    let mut flags = String::with_capacity(8);
-    if peer.is_encrypted {
-        flags.push('E');
-    }
-    if peer.uses_utp {
-        flags.push('u');
-    }
-    if peer.supports_fast {
-        flags.push('F');
-    }
-    if peer.upload_only {
-        flags.push('U');
-    }
-    if peer.snubbed {
-        flags.push('S');
-    }
-    if peer.am_choking {
-        flags.push('c');
-    }
-    if peer.peer_interested {
-        flags.push('I');
+/// Build a human-readable flags string from peer connection kind.
+pub fn build_peer_flags(conn_kind: Option<impl std::fmt::Debug>) -> String {
+    let mut flags = String::with_capacity(4);
+    if let Some(conn) = conn_kind {
+        let s = format!("{conn:?}");
+        if s.contains("Utp") {
+            flags.push('u');
+        } else if s.contains("Tcp") {
+            flags.push('T');
+        }
     }
     flags
-}
-
-/// Extract file entries from parsed torrent metadata for preview.
-pub fn preview_entries_from_meta(meta: &irontide::core::TorrentMeta) -> Vec<TorrentFileEntry> {
-    match meta {
-        irontide::core::TorrentMeta::V1(v1) => v1_file_entries(v1),
-        irontide::core::TorrentMeta::Hybrid(v1, _) => v1_file_entries(v1),
-        irontide::core::TorrentMeta::V2(_) => vec![TorrentFileEntry {
-            index: 0,
-            path: String::from("v2-torrent"),
-            size: 0,
-        }],
-    }
-}
-
-pub fn v1_file_entries(v1: &irontide::core::TorrentMetaV1) -> Vec<TorrentFileEntry> {
-    if let Some(ref file_list) = v1.info.files {
-        file_list
-            .iter()
-            .enumerate()
-            .map(|(i, f)| TorrentFileEntry {
-                index: i,
-                path: f.path.join("/"),
-                size: f.length,
-            })
-            .collect()
-    } else {
-        vec![TorrentFileEntry {
-            index: 0,
-            path: v1.info.name.clone(),
-            size: v1.info.length.unwrap_or(0),
-        }]
-    }
 }
 
 /// Estimate remaining time from total, downloaded, and speed.
