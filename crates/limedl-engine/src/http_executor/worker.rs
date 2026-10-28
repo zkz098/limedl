@@ -6,7 +6,7 @@ use reqwest::Response;
 
 #[cfg(test)]
 use super::WORK_STEAL_MIN_SPLIT_SIZE;
-use super::{BatchLimiter, ProgressThrottle, RequestBudget};
+use super::{BatchLimiter, MICRO_BATCH_MAX_INTERVAL, ProgressThrottle, RequestBudget};
 use crate::buffer_pool::DownloadBuffer;
 use crate::checksum::hash_slices;
 use crate::database::Database;
@@ -711,6 +711,7 @@ impl ChunkWorkerCtx {
         let mut stream = response.bytes_stream();
         let mut local_buf = Vec::with_capacity(MICRO_BATCH_SIZE);
         let mut batch_start_offset = *current;
+        let mut last_flush = std::time::Instant::now();
 
         while let Some(bytes) = tokio::select! {
             _ = self.token.cancelled() => {
@@ -767,7 +768,9 @@ impl ChunkWorkerCtx {
             local_buf.extend_from_slice(&to_write);
             *current += to_write.len() as u64;
 
-            if local_buf.len() >= MICRO_BATCH_SIZE {
+            if local_buf.len() >= MICRO_BATCH_SIZE
+                || (!local_buf.is_empty() && last_flush.elapsed() >= MICRO_BATCH_MAX_INTERVAL)
+            {
                 let coalesced = Bytes::from(std::mem::replace(
                     &mut local_buf,
                     Vec::with_capacity(MICRO_BATCH_SIZE),
@@ -775,6 +778,7 @@ impl ChunkWorkerCtx {
                 self.write_bytes(batch_start_offset, &coalesced).await?;
                 record_progress_on_managed(&self.managed, Some(chunk_idx), coalesced.len() as u64);
                 batch_start_offset = *current;
+                last_flush = std::time::Instant::now();
             }
 
             if reached_dynamic_end {
@@ -799,6 +803,9 @@ impl ChunkWorkerCtx {
             let coalesced = Bytes::from(std::mem::take(&mut local_buf));
             self.write_bytes(batch_start_offset, &coalesced).await?;
             record_progress_on_managed(&self.managed, Some(chunk_idx), coalesced.len() as u64);
+            throttle
+                .tick(&self.db, self.manager.as_ref(), &self.managed)
+                .await?;
         }
 
         Ok(SegmentBody::Exhausted)

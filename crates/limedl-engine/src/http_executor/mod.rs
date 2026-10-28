@@ -45,6 +45,14 @@ const TAIL_SPRINT_STALL_WINDOW_SECS: u64 = 8;
 const TAIL_SPRINT_MIN_SPLIT_SIZE: u64 = 1024 * 1024;
 /// Work Stealing: minimum remaining bytes of an active chunk to qualify for splitting (2 MiB).
 const WORK_STEAL_MIN_SPLIT_SIZE: u64 = 2 * 1024 * 1024;
+/// Maximum time uncommitted received bytes may sit in the micro-batch buffer
+/// before being flushed to disk and credited to progress tracking.
+///
+/// Keeps telemetry (`SpeedTracker`, 2.0s sliding window with 200ms buckets) and
+/// AIMD throughput sampling (2.0s scheduler tick) smooth and continuous on slow
+/// or high-latency transoceanic links, while preserving 128 KiB micro-batching
+/// efficiency on high-speed links.
+const MICRO_BATCH_MAX_INTERVAL: Duration = Duration::from_millis(200);
 
 /// The path whose device the write buffer targets.
 ///

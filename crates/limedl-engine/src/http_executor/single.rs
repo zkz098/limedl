@@ -4,8 +4,9 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 
 use super::{
-    BatchLimiter, HttpExecutor, ProgressThrottle, RequestBudget, build_write_buffer,
-    check_disk_space_periodically, finish_buffer_flush, flush_write_buffer, wait_or_stop,
+    BatchLimiter, HttpExecutor, MICRO_BATCH_MAX_INTERVAL, ProgressThrottle, RequestBudget,
+    build_write_buffer, check_disk_space_periodically, finish_buffer_flush, flush_write_buffer,
+    wait_or_stop,
 };
 use crate::buffer_pool::DownloadBuffer;
 use crate::download::{ManagedDownload, RunOutcome, cancellation_outcome, record_durable_bytes};
@@ -258,6 +259,7 @@ impl SingleRun<'_> {
         let mut stream = response.bytes_stream();
         let mut local_buf = Vec::with_capacity(SINGLE_MICRO_BATCH_SIZE);
         let mut batch_start_offset = *absolute_offset;
+        let mut last_flush = Instant::now();
         let mut stream_error = None;
         while let Some(chunk) = tokio::select! {
             _ = self.token.cancelled() => {
@@ -291,13 +293,16 @@ impl SingleRun<'_> {
             local_buf.extend_from_slice(&chunk);
             *absolute_offset += chunk.len() as u64;
 
-            if local_buf.len() >= SINGLE_MICRO_BATCH_SIZE {
+            if local_buf.len() >= SINGLE_MICRO_BATCH_SIZE
+                || (!local_buf.is_empty() && last_flush.elapsed() >= MICRO_BATCH_MAX_INTERVAL)
+            {
                 let bytes = Bytes::from(std::mem::replace(
                     &mut local_buf,
                     Vec::with_capacity(SINGLE_MICRO_BATCH_SIZE),
                 ));
                 self.flush_run(batch_start_offset, &bytes).await?;
                 batch_start_offset = *absolute_offset;
+                last_flush = Instant::now();
             }
         }
 
