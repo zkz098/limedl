@@ -608,7 +608,7 @@ fn aria2_global_options(settings: &crate::types::AppSettings) -> serde_json::Map
         // bittorrent
         ("bt-detach-seed-only", flag(false)),
         ("bt-enable-hook-after-hash-check", flag(true)),
-        ("bt-enable-lpd", flag(bt.enable_lsd)),
+        ("bt-enable-lpd", flag(false)),
         ("bt-exclude-tracker", String::new()),
         ("bt-external-ip", String::new()),
         ("bt-force-encryption", flag(false)),
@@ -635,7 +635,7 @@ fn aria2_global_options(settings: &crate::types::AppSettings) -> serde_json::Map
         ("dht-message-timeout", "10".to_string()),
         ("enable-dht", flag(bt.dht_enabled)),
         ("enable-dht6", flag(bt.dht_enabled && bt.enable_ipv6)),
-        ("enable-peer-exchange", flag(bt.enable_pex)),
+        ("enable-peer-exchange", flag(true)),
         ("follow-torrent", flag(true)),
         ("listen-port", listen_port.clone()),
         (
@@ -828,9 +828,6 @@ pub async fn handle_change_global_option(
     // BitTorrent options that map onto `BtSettings`.
     if let Some(enabled) = options.get("enable-dht").and_then(|v| v.as_str()) {
         settings.bt.dht_enabled = enabled == "true";
-    }
-    if let Some(enabled) = options.get("enable-peer-exchange").and_then(|v| v.as_str()) {
-        settings.bt.enable_pex = enabled == "true";
     }
     if let Some(peers) = options.get("bt-max-peers").and_then(|v| v.as_str())
         && let Ok(max_peers) = peers.parse::<u32>()

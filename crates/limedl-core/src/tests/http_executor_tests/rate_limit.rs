@@ -170,7 +170,7 @@ async fn too_many_requests_429_downgrades_to_single_thread_and_succeeds() -> Tes
     assert_eq!(status.downloaded_bytes, file_size as u64);
     assert_eq!(
         status.thread_note.as_deref(),
-        Some("单线程（429 限流降级）"),
+        Some(crate::download::thread_notes::RATE_LIMIT_DEGRADED),
         "thread_note should reflect 429 downgrade"
     );
 

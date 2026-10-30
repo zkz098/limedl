@@ -83,6 +83,18 @@ export component SettingsTabBt inherits ScrollView {
                     unit_text: @tr("peers");
                 }
             }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Max Active Downloads:"); color: Theme.c9ca3af; font-size: 12px;
+                    Tooltip {
+                        FormTip { text: @tr("Maximum number of auto-managed active downloads"); }
+                    } }
+                UnitInput {
+                    text <=> root.settings_form.bt_max_downloads;
+                    placeholder: "5";
+                    unit_text: @tr("tasks");
+                }
+            }
         }
 
         Rectangle { height: 1px; background: Theme.c1a1e26; }
@@ -101,41 +113,10 @@ export component SettingsTabBt inherits ScrollView {
             VerticalLayout {
                 alignment: space-between;
                 spacing: 2px;
-                Text { text: "NAT-PMP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
-                ToggleSwitch {
-                    checked: root.settings_form.bt_natpmp_enabled;
-                    toggled => { root.settings_form.bt_natpmp_enabled = !root.settings_form.bt_natpmp_enabled; }
-                }
-            }
-            VerticalLayout {
-                alignment: space-between;
-                spacing: 2px;
                 Text { text: "IPv6"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
                 ToggleSwitch {
                     checked: root.settings_form.bt_ipv6_enabled;
                     toggled => { root.settings_form.bt_ipv6_enabled = !root.settings_form.bt_ipv6_enabled; }
-                }
-            }
-        }
-
-        HorizontalLayout {
-            spacing: 12px;
-            VerticalLayout {
-                alignment: space-between;
-                spacing: 2px;
-                Text { text: "PEX"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
-                ToggleSwitch {
-                    checked: root.settings_form.bt_pex_enabled;
-                    toggled => { root.settings_form.bt_pex_enabled = !root.settings_form.bt_pex_enabled; }
-                }
-            }
-            VerticalLayout {
-                alignment: space-between;
-                spacing: 2px;
-                Text { text: "LSD"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
-                ToggleSwitch {
-                    checked: root.settings_form.bt_lsd_enabled;
-                    toggled => { root.settings_form.bt_lsd_enabled = !root.settings_form.bt_lsd_enabled; }
                 }
             }
             VerticalLayout {
@@ -145,34 +126,6 @@ export component SettingsTabBt inherits ScrollView {
                 ToggleSwitch {
                     checked: root.settings_form.bt_utp_enabled;
                     toggled => { root.settings_form.bt_utp_enabled = !root.settings_form.bt_utp_enabled; }
-                }
-            }
-        }
-
-        HorizontalLayout {
-            spacing: 12px;
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Encryption Mode:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."); }
-                    } }
-                CustomSelect {
-                    model: [@tr("Enabled"), @tr("Disabled"), @tr("Forced")];
-                    current-index <=> root.settings_form.bt_encryption_mode_idx;
-                    height: 36px;
-                }
-            }
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Pre-allocation Mode:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."); }
-                    } }
-                CustomSelect {
-                    model: [@tr("None (sparse)"), @tr("Full (zero-fill)")];
-                    current-index <=> root.settings_form.bt_preallocate_mode_idx;
-                    height: 36px;
                 }
             }
         }
@@ -223,44 +176,6 @@ export component SettingsTabBt inherits ScrollView {
                     padding-top: 14px;
 
                     Text { text: @tr("Queuing & Rate Limits"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
-        HorizontalLayout {
-            spacing: 12px;
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Max Active Downloads:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("Maximum number of auto-managed active downloads"); }
-                    } }
-                UnitInput { text <=> root.settings_form.bt_max_downloads; placeholder: "3"; unit_text: @tr("tasks"); }
-            }
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Max Active Seeds:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("Maximum number of auto-managed active seeds"); }
-                    } }
-                UnitInput { text <=> root.settings_form.bt_max_seeds; placeholder: "5"; unit_text: @tr("tasks"); }
-            }
-        }
-        HorizontalLayout {
-            spacing: 12px;
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Max Torrents:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("Maximum total number of torrents allowed"); }
-                    } }
-                UnitInput { text <=> root.settings_form.bt_max_torrents; placeholder: "100"; unit_text: @tr("tasks"); }
-            }
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Active Limit:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("Hard limit on total active torrents (downloading + seeding + checking)"); }
-                    } }
-                UnitInput { text <=> root.settings_form.bt_active_limit; placeholder: "500"; unit_text: @tr("tasks"); }
-            }
-        }
         HorizontalLayout {
             spacing: 12px;
             VerticalLayout {
@@ -409,132 +324,6 @@ export component SettingsTabBt inherits ScrollView {
                     FormTip { text: @tr("Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."); }
                 } }
             CustomTextInput { text <=> root.settings_form.bt_blocklist_path; placeholder: "C:/path/to/blocklist.dat"; }
-        }
-
-        Rectangle { height: 1px; background: Theme.c1a1e26; }
-
-        Text { text: @tr("Engine Tuning"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
-        HorizontalLayout {
-            spacing: 12px;
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Seed Choking:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."); }
-                    } }
-                CustomSelect {
-                    model: [@tr("Fastest Upload First"), @tr("Round Robin"), @tr("Anti-Leech First")];
-                    current-index <=> root.settings_form.bt_seed_choking_algorithm_idx;
-                    height: 36px;
-                }
-            }
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Choking Algorithm:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."); }
-                    } }
-                CustomSelect {
-                    model: [@tr("Fixed Slots"), @tr("Rate Based")];
-                    current-index <=> root.settings_form.bt_choking_algorithm_idx;
-                    height: 36px;
-                }
-            }
-        }
-        HorizontalLayout {
-            spacing: 12px;
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Max Upload Slots per Torrent:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("Maximum concurrent unchoke slots per torrent."); }
-                    } }
-                UnitInput { text <=> root.settings_form.bt_max_upload_slots_per_torrent; placeholder: "4"; unit_text: @tr("slots"); }
-            }
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Smart Ban Threshold (1-100):"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("Hash-failure involvements before a peer is automatically banned."); }
-                    } }
-                UnitInput { text <=> root.settings_form.bt_smart_ban_max_failures; placeholder: "3"; unit_text: @tr("failures"); }
-            }
-        }
-        HorizontalLayout {
-            alignment: space-between;
-            VerticalLayout {
-                spacing: 2px;
-                Text { text: @tr("Smart Ban Parole"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
-                    Tooltip {
-                        FormTip { text: @tr("Re-download a failed piece from an uninvolved peer to attribute the fault before striking."); }
-                    } }
-                Text { text: @tr("Isolate suspicious peers before permanent ban to prevent false positives"); color: #6b7280; font-size: 11px; }
-            }
-            ToggleSwitch {
-                checked: root.settings_form.bt_smart_ban_parole;
-                toggled => { root.settings_form.bt_smart_ban_parole = !root.settings_form.bt_smart_ban_parole; }
-            }
-        }
-        HorizontalLayout {
-            spacing: 12px;
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("Ban Duration after Eviction:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("Seconds an evicted (non-contributing) peer is blocked from reconnecting."); }
-                    } }
-                UnitInput { text <=> root.settings_form.bt_eviction_ban_duration_secs; placeholder: "600"; unit_text: @tr("secs"); }
-            }
-            VerticalLayout {
-                spacing: 4px;
-                Text { text: @tr("No Data Contribution Timeout:"); color: Theme.c9ca3af; font-size: 12px;
-                    Tooltip {
-                        FormTip { text: @tr("Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard."); }
-                    } }
-                UnitInput { text <=> root.settings_form.bt_data_contribution_timeout_secs; placeholder: "60"; unit_text: @tr("secs"); }
-            }
-        }
-
-        Rectangle { height: 1px; background: Theme.c1a1e26; }
-
-        HorizontalLayout {
-            spacing: 12px;
-            VerticalLayout {
-                alignment: space-between;
-                spacing: 2px;
-                Text { text: @tr("Fast Extension"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
-                ToggleSwitch {
-                    checked: root.settings_form.bt_enable_fast_extension;
-                    toggled => { root.settings_form.bt_enable_fast_extension = !root.settings_form.bt_enable_fast_extension; }
-                }
-            }
-            VerticalLayout {
-                alignment: space-between;
-                spacing: 2px;
-                Text { text: @tr("Holepunch"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
-                ToggleSwitch {
-                    checked: root.settings_form.bt_enable_holepunch;
-                    toggled => { root.settings_form.bt_enable_holepunch = !root.settings_form.bt_enable_holepunch; }
-                }
-            }
-            VerticalLayout {
-                alignment: space-between;
-                spacing: 2px;
-                Text { text: @tr("WebSeed"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
-                ToggleSwitch {
-                    checked: root.settings_form.bt_enable_web_seed;
-                    toggled => { root.settings_form.bt_enable_web_seed = !root.settings_form.bt_enable_web_seed; }
-                }
-            }
-            VerticalLayout {
-                alignment: space-between;
-                spacing: 2px;
-                Text { text: @tr("SuperSeed"); color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
-                ToggleSwitch {
-                    checked: root.settings_form.bt_enable_super_seeding;
-                    toggled => { root.settings_form.bt_enable_super_seeding = !root.settings_form.bt_enable_super_seeding; }
-                }
-            }
         }
 
         Rectangle { height: 1px; background: Theme.c1a1e26; }

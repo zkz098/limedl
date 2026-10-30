@@ -1,6 +1,5 @@
 use limedl_core::types::{
-    AdaptiveProfile, AppSettings, BtAntiLeechAction, BtChokingAlgorithm, BtEncryptionMode,
-    BtPreallocateMode, BtSeedChokingAlgorithm, ChunkSizeStrategy, CloseBehavior, ColorMode,
+    AdaptiveProfile, AppSettings, BtAntiLeechAction, ChunkSizeStrategy, CloseBehavior, ColorMode,
     DoubleClickOnCompleted, DoubleClickOnUncompleted, SchedulerMode, ThemeColor,
 };
 
@@ -328,35 +327,14 @@ fn apply_bt_network(settings: &mut AppSettings, form: &SettingsFormData) {
     // 允许清空
     settings.bt.tracker_list_url = form.tracker_url.trim().to_string();
     settings.bt.upnp_enabled = form.bt_upnp_enabled;
-    settings.bt.enable_natpmp = form.bt_natpmp_enabled;
     settings.bt.enable_ipv6 = form.bt_ipv6_enabled;
-    settings.bt.enable_pex = form.bt_pex_enabled;
-    settings.bt.enable_lsd = form.bt_lsd_enabled;
     settings.bt.enable_utp = form.bt_utp_enabled;
-    match combo::value_at(combo::ENCRYPTION_MODES, form.bt_encryption_mode_idx) {
-        "disabled" => settings.bt.encryption_mode = BtEncryptionMode::Disabled,
-        "forced" => settings.bt.encryption_mode = BtEncryptionMode::Forced,
-        _ => settings.bt.encryption_mode = BtEncryptionMode::Enabled,
-    }
-    match combo::value_at(combo::PREALLOC_MODES, form.bt_preallocate_mode_idx) {
-        "full" => settings.bt.preallocate_mode = BtPreallocateMode::Full,
-        _ => settings.bt.preallocate_mode = BtPreallocateMode::None,
-    }
 }
 
 /// Task/connection/bandwidth caps and the remaining transfer toggles.
 fn apply_bt_limits(settings: &mut AppSettings, form: &SettingsFormData) {
-    if let Some(v) = parse_u32(&form.bt_max_downloads) {
+    if let Some(v) = parse_positive_u32(&form.bt_max_downloads) {
         settings.bt.max_downloads = v.clamp(1, 1000);
-    }
-    if let Some(v) = parse_u32(&form.bt_max_seeds) {
-        settings.bt.max_seeds = v.clamp(0, 1000);
-    }
-    if let Some(v) = parse_u32(&form.bt_max_torrents) {
-        settings.bt.max_torrents = v.clamp(1, 10000);
-    }
-    if let Some(v) = parse_u32(&form.bt_active_limit) {
-        settings.bt.active_limit = v.clamp(1, 10000);
     }
     if let Some(v) = parse_kib(&form.bt_global_download_rate_limit_kb) {
         settings.bt.global_download_rate_limit = v;
@@ -364,10 +342,6 @@ fn apply_bt_limits(settings: &mut AppSettings, form: &SettingsFormData) {
     if let Some(v) = parse_kib(&form.bt_global_upload_rate_limit_kb) {
         settings.bt.global_upload_rate_limit = v;
     }
-    settings.bt.enable_fast_extension = form.bt_enable_fast_extension;
-    settings.bt.enable_holepunch = form.bt_enable_holepunch;
-    settings.bt.enable_web_seed = form.bt_enable_web_seed;
-    settings.bt.enable_super_seeding = form.bt_enable_super_seeding;
     settings.bt.pause_upload_when_limit_reached = form.bt_pause_upload_when_limit;
     if let Some(v) = parse_kib(&form.bt_upload_limit_kb) {
         settings.bt.upload_limit_bytes = v;
@@ -398,32 +372,10 @@ fn apply_bt_anti_leech(settings: &mut AppSettings, form: &SettingsFormData) {
     }
 }
 
-/// Blocklist, choking algorithms, smart-ban and eviction timers.
+/// Blocklist configuration.
 fn apply_bt_advanced(settings: &mut AppSettings, form: &SettingsFormData) {
     settings.bt.blocklist_enabled = form.bt_blocklist_enabled;
     settings.bt.blocklist_path = form.bt_blocklist_path.trim().to_string();
-    match combo::value_at(combo::SEED_CHOKING, form.bt_seed_choking_algorithm_idx) {
-        "round_robin" => settings.bt.seed_choking_algorithm = BtSeedChokingAlgorithm::RoundRobin,
-        "anti_leech" => settings.bt.seed_choking_algorithm = BtSeedChokingAlgorithm::AntiLeech,
-        _ => settings.bt.seed_choking_algorithm = BtSeedChokingAlgorithm::FastestUpload,
-    }
-    match combo::value_at(combo::CHOKING_ALGOS, form.bt_choking_algorithm_idx) {
-        "rate_based" => settings.bt.choking_algorithm = BtChokingAlgorithm::RateBased,
-        _ => settings.bt.choking_algorithm = BtChokingAlgorithm::FixedSlots,
-    }
-    if let Some(v) = parse_positive_u32(&form.bt_max_upload_slots_per_torrent) {
-        settings.bt.max_upload_slots_per_torrent = v.clamp(1, 64);
-    }
-    if let Some(v) = parse_positive_u32(&form.bt_smart_ban_max_failures) {
-        settings.bt.smart_ban_max_failures = v.clamp(1, 100);
-    }
-    settings.bt.smart_ban_parole = form.bt_smart_ban_parole;
-    if let Some(v) = parse_u64(&form.bt_eviction_ban_duration_secs) {
-        settings.bt.eviction_ban_duration_secs = v;
-    }
-    if let Some(v) = parse_u64(&form.bt_data_contribution_timeout_secs) {
-        settings.bt.data_contribution_timeout_secs = v;
-    }
 }
 
 /// Parse a trimmed text field as `u32`, ignoring invalid input.

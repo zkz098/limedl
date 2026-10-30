@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use librqbit::dht::Id20;
 
-use super::IrontideBtBackend;
+use super::RqbitBtBackend;
 use crate::event_bus::DownloadEvent;
 use crate::lock;
 use crate::types::{DownloadProgress, DownloadSummary};
@@ -43,7 +43,7 @@ struct TorrentLastState {
     error: bool,
 }
 
-impl IrontideBtBackend {
+impl RqbitBtBackend {
     /// Spawn the state monitor bridge that tracks task status changes and forwards
     /// relevant events to the frontend / Aria2 RPC channel.
     pub async fn setup_alert_bridge(self: &Arc<Self>) {
@@ -146,7 +146,7 @@ impl IrontideBtBackend {
 }
 
 /// Background loop that periodically monitors librqbit torrent states and emits progress.
-async fn state_monitor_loop(weak: Weak<IrontideBtBackend>) {
+async fn state_monitor_loop(weak: Weak<RqbitBtBackend>) {
     let mut check_interval = tokio::time::interval(Duration::from_millis(500));
     check_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 

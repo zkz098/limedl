@@ -6,7 +6,7 @@
 //! cheap place to read BT rows from without paying for session startup.
 //!
 //! This table is a **cache**, not the source of truth: the engine refreshes it
-//! from `IrontideBtBackend::list()` whenever it is running, and the rows are
+//! from `RqbitBtBackend::list()` whenever it is running, and the rows are
 //! served (with volatile transfer metrics zeroed) only while the engine is
 //! down. Store the serialized `DownloadSummary` instead of a wide typed schema
 //! so a new summary field never requires a migration.

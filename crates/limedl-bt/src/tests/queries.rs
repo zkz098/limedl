@@ -20,7 +20,7 @@ fn magnet_request(dn: &str) -> StartDownloadRequest {
 }
 
 /// Add the fixture `.torrent` (metadata present, no network) to `backend`.
-async fn start_fixture(backend: &IrontideBtBackend, tmp: &std::path::Path) -> Id20 {
+async fn start_fixture(backend: &RqbitBtBackend, tmp: &std::path::Path) -> Id20 {
     let path = write_torrent_fixture(tmp);
     backend
         .start(StartDownloadRequest {

@@ -314,16 +314,18 @@ fn resolve_no_parallelism_returns_fixed_single() {
     assert_eq!(profile, None);
 }
 
+use crate::download::thread_notes;
+
 #[test]
 fn thread_note_no_parallelism() {
     let note = thread_note(false, ThreadMode::Fixed, None);
-    assert_eq!(note, Some(String::from("单线程（服务器不支持分段）")));
+    assert_eq!(note.as_deref(), Some(thread_notes::NO_PARALLEL_SUPPORT));
 }
 
 #[test]
 fn thread_note_fixed() {
     let note = thread_note(true, ThreadMode::Fixed, None);
-    assert_eq!(note, Some(String::from("固定线程")));
+    assert_eq!(note.as_deref(), Some(thread_notes::FIXED_THREADS));
 }
 
 #[test]
@@ -333,13 +335,13 @@ fn thread_note_adaptive_conservative() {
         ThreadMode::Adaptive,
         Some(AdaptiveProfile::Conservative),
     );
-    assert_eq!(note, Some(String::from("自适应 / 保守")));
+    assert_eq!(note.as_deref(), Some(thread_notes::ADAPTIVE_CONSERVATIVE));
 }
 
 #[test]
 fn thread_note_adaptive_balanced() {
     let note = thread_note(true, ThreadMode::Adaptive, Some(AdaptiveProfile::Balanced));
-    assert_eq!(note, Some(String::from("自适应 / 平衡")));
+    assert_eq!(note.as_deref(), Some(thread_notes::ADAPTIVE_BALANCED));
 }
 
 #[test]
@@ -349,7 +351,7 @@ fn thread_note_adaptive_aggressive() {
         ThreadMode::Adaptive,
         Some(AdaptiveProfile::Aggressive),
     );
-    assert_eq!(note, Some(String::from("自适应 / 激进")));
+    assert_eq!(note.as_deref(), Some(thread_notes::ADAPTIVE_AGGRESSIVE));
 }
 
 #[test]

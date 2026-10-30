@@ -1,8 +1,5 @@
 use super::*;
-use crate::types::{
-    BtChokingAlgorithm, BtPortRange, BtSeedChokingAlgorithm, MatchType, ReplacementMode,
-    default_http_user_agent,
-};
+use crate::types::{BtPortRange, MatchType, ReplacementMode, default_http_user_agent};
 use std::io::Write;
 use tempfile::tempdir;
 
@@ -468,42 +465,23 @@ fn test_normalize_bt_valid_port_range_and_settings_ok() {
 #[test]
 fn test_normalize_bt_engine_tuning_roundtrip() {
     let input = BtSettings {
-        seed_choking_algorithm: BtSeedChokingAlgorithm::AntiLeech,
-        choking_algorithm: BtChokingAlgorithm::RateBased,
-        max_upload_slots_per_torrent: 8,
         max_peers_per_torrent: 256,
-        smart_ban_max_failures: 5,
-        smart_ban_parole: false,
-        eviction_ban_duration_secs: 1200,
-        data_contribution_timeout_secs: 30,
         ..BtSettings::default()
     };
     let result = normalize_bt_settings(input).unwrap();
-    assert_eq!(
-        result.seed_choking_algorithm,
-        BtSeedChokingAlgorithm::AntiLeech
-    );
-    assert_eq!(result.choking_algorithm, BtChokingAlgorithm::RateBased);
-    assert_eq!(result.max_upload_slots_per_torrent, 8);
     assert_eq!(result.max_peers_per_torrent, 256);
-    assert_eq!(result.smart_ban_max_failures, 5);
-    assert!(!result.smart_ban_parole);
-    assert_eq!(result.eviction_ban_duration_secs, 1200);
-    assert_eq!(result.data_contribution_timeout_secs, 30);
 }
 
 #[test]
 fn test_normalize_bt_engine_tuning_clamped() {
     let input = BtSettings {
-        max_upload_slots_per_torrent: 0,
         max_peers_per_torrent: 99999,
-        data_contribution_timeout_secs: 999999,
+        max_downloads: 99999,
         ..BtSettings::default()
     };
     let result = normalize_bt_settings(input).unwrap();
-    assert_eq!(result.max_upload_slots_per_torrent, 1);
     assert_eq!(result.max_peers_per_torrent, 4096);
-    assert_eq!(result.data_contribution_timeout_secs, 86_400);
+    assert_eq!(result.max_downloads, 1000);
 }
 
 #[test]

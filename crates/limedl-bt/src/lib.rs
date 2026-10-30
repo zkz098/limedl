@@ -64,7 +64,7 @@ pub fn internal_id_to_gid(info_hash: &Id20) -> String {
 }
 
 // ---------------------------------------------------------------------------
-//  IrontideBtBackend (RqbitBtBackend) — librqbit-backed BT backend
+//  RqbitBtBackend — librqbit-backed BT backend
 // ---------------------------------------------------------------------------
 
 /// A magnet link currently resolving metadata in the background.
@@ -80,7 +80,7 @@ pub struct PendingMagnet {
 }
 
 /// Librqbit-based BitTorrent backend.
-pub struct IrontideBtBackend {
+pub struct RqbitBtBackend {
     /// The librqbit session handle.
     pub(crate) session: Arc<librqbit::Session>,
     /// High-level API facade for queries.
@@ -128,9 +128,10 @@ pub struct IrontideBtBackend {
 }
 
 /// Backwards-compatibility alias for the backend.
-pub type RqbitBtBackend = IrontideBtBackend;
+#[deprecated(note = "use RqbitBtBackend instead")]
+pub type IrontideBtBackend = RqbitBtBackend;
 
-impl Clone for IrontideBtBackend {
+impl Clone for RqbitBtBackend {
     fn clone(&self) -> Self {
         Self {
             session: self.session.clone(),
@@ -164,7 +165,7 @@ impl Clone for IrontideBtBackend {
 // ---------------------------------------------------------------------------
 
 #[async_trait]
-impl DownloadBackend for IrontideBtBackend {
+impl DownloadBackend for RqbitBtBackend {
     async fn start(&self, request: StartDownloadRequest) -> Result<TaskId> {
         let info_hash = self.start(request).await?;
         Ok(TaskId::Bt(info_hash_from_engine(info_hash)))

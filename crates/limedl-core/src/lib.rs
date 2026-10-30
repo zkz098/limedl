@@ -10,7 +10,7 @@
 pub mod backend_registry;
 pub mod bootstrap;
 // `bt_backend` is a crate now; re-exporting it under the old module name keeps
-// `crate::bt_backend::{IrontideBtBackend, LazyBtBackend, info_hash_to_engine, …}`
+// `crate::bt_backend::{RqbitBtBackend, LazyBtBackend, info_hash_to_engine, …}`
 // resolving for the dispatcher, the Aria2 layer and the test tree.
 #[cfg(feature = "bt")]
 pub use limedl_bt as bt_backend;
@@ -65,7 +65,10 @@ pub use limedl_testkit as test_harness;
 
 pub use backend_registry::BackendRegistry;
 #[cfg(feature = "bt")]
-pub use bt_backend::{IrontideBtBackend, LazyBtBackend};
+#[allow(deprecated)]
+pub use bt_backend::IrontideBtBackend;
+#[cfg(feature = "bt")]
+pub use bt_backend::{LazyBtBackend, RqbitBtBackend};
 pub use cdn::{CdnAccelerator, CdnService, CdnTestOutcome};
 pub use checksum::{calculate_checksum, calculate_checksum_with_progress};
 pub use context::SystemContext;

@@ -306,6 +306,7 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
 
     Ok(BtSettings {
         lightweight_mode: settings.lightweight_mode,
+        max_downloads: settings.max_downloads.clamp(1, 1000),
         dht_enabled: settings.dht_enabled,
         tracker_list,
         tracker_list_url,
@@ -326,14 +327,7 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
         },
         anti_leech_ban_secs: settings.anti_leech_ban_secs,
         anti_leech_max_upload_slots: settings.anti_leech_max_upload_slots.max(1),
-        seed_choking_algorithm: settings.seed_choking_algorithm,
-        choking_algorithm: settings.choking_algorithm,
-        max_upload_slots_per_torrent: settings.max_upload_slots_per_torrent.clamp(1, 64),
         max_peers_per_torrent: settings.max_peers_per_torrent.clamp(1, 4096),
-        smart_ban_max_failures: settings.smart_ban_max_failures.clamp(1, 100),
-        smart_ban_parole: settings.smart_ban_parole,
-        eviction_ban_duration_secs: settings.eviction_ban_duration_secs.min(604_800),
-        data_contribution_timeout_secs: settings.data_contribution_timeout_secs.min(86_400),
         blocklist_enabled: settings.blocklist_enabled,
         blocklist_path: settings.blocklist_path.trim().to_string(),
         upnp_enabled: settings.upnp_enabled,
@@ -341,23 +335,10 @@ fn normalize_bt_settings(settings: BtSettings) -> Result<BtSettings> {
         listen_port: settings
             .listen_port
             .filter(|&p| (1024..=65535).contains(&p)),
-        enable_natpmp: settings.enable_natpmp,
         enable_ipv6: settings.enable_ipv6,
-        enable_pex: settings.enable_pex,
-        enable_lsd: settings.enable_lsd,
         enable_utp: settings.enable_utp,
-        enable_fast_extension: settings.enable_fast_extension,
-        enable_holepunch: settings.enable_holepunch,
-        enable_web_seed: settings.enable_web_seed,
-        enable_super_seeding: settings.enable_super_seeding,
         global_download_rate_limit: settings.global_download_rate_limit,
         global_upload_rate_limit: settings.global_upload_rate_limit,
-        preallocate_mode: settings.preallocate_mode,
-        encryption_mode: settings.encryption_mode,
-        max_downloads: settings.max_downloads,
-        max_seeds: settings.max_seeds,
-        max_torrents: settings.max_torrents,
-        active_limit: settings.active_limit,
     })
 }
 

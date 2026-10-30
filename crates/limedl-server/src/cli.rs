@@ -33,7 +33,7 @@ pub struct Cli {
     pub rpc_listen: Option<String>,
 
     /// TCP port for the Aria2 RPC listener.
-    #[arg(long, value_name = "PORT")]
+    #[arg(long, visible_alias = "rpc-listen-port", value_name = "PORT")]
     pub rpc_port: Option<u16>,
 
     /// Shared secret required as `token:<secret>` on every request.
@@ -53,7 +53,7 @@ pub struct Cli {
     /// Default download directory. Overrides and persists the setting, because
     /// some aria2 clients omit `dir` and a headless first run has no Downloads
     /// folder to fall back to.
-    #[arg(long, value_name = "PATH")]
+    #[arg(long, visible_alias = "dir", value_name = "PATH")]
     pub download_dir: Option<String>,
 
     /// Log level override (also controls the on-disk log file).
@@ -137,5 +137,20 @@ mod tests {
         );
         assert_eq!(cli.download_dir.as_deref(), Some("/srv/downloads"));
         assert_eq!(cli.log_level, Some(LogLevelArg::Debug));
+    }
+
+    #[test]
+    fn cli_accepts_aria2c_aliases() {
+        let cli = Cli::try_parse_from([
+            "limedl-server",
+            "--dir",
+            "/srv/aria2-downloads",
+            "--rpc-listen-port",
+            "6800",
+        ])
+        .expect("aliases must parse");
+
+        assert_eq!(cli.download_dir.as_deref(), Some("/srv/aria2-downloads"));
+        assert_eq!(cli.rpc_port, Some(6800));
     }
 }

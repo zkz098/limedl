@@ -8,10 +8,9 @@ use crate::i18n::{self, Language};
 use super::combo;
 use super::enums::{
     adaptive_profile_to_str, anti_leech_action_to_str, aria2_auth_mode_to_str,
-    background_opacity_to_str, checksum_to_str, choking_to_str, chunk_strategy_to_str,
-    close_behavior_to_str, color_mode_to_str, double_click_completed_to_str,
-    double_click_uncompleted_to_str, encryption_to_str, log_level_to_str, preallocate_to_str,
-    proxy_mode_to_str, queue_sort_strategy_to_str, scheduler_mode_to_str, seed_choking_to_str,
+    background_opacity_to_str, checksum_to_str, chunk_strategy_to_str, close_behavior_to_str,
+    color_mode_to_str, double_click_completed_to_str, double_click_uncompleted_to_str,
+    log_level_to_str, proxy_mode_to_str, queue_sort_strategy_to_str, scheduler_mode_to_str,
     theme_color_to_str,
 };
 
@@ -280,6 +279,7 @@ pub fn app_settings_to_form(
         ),
         // BT 基础 + 进阶
         bt_lightweight_mode: settings.bt.lightweight_mode,
+        bt_max_downloads: SharedString::from(settings.bt.max_downloads.to_string()),
         dht_enabled: settings.bt.dht_enabled,
         listen_port: SharedString::from(
             settings
@@ -291,29 +291,10 @@ pub fn app_settings_to_form(
         max_bt_connections: SharedString::from(settings.bt.max_peers_per_torrent.to_string()),
         tracker_url: SharedString::from(&settings.bt.tracker_list_url),
         bt_upnp_enabled: settings.bt.upnp_enabled,
-        bt_natpmp_enabled: settings.bt.enable_natpmp,
         bt_ipv6_enabled: settings.bt.enable_ipv6,
-        bt_pex_enabled: settings.bt.enable_pex,
-        bt_lsd_enabled: settings.bt.enable_lsd,
         bt_utp_enabled: settings.bt.enable_utp,
-        bt_encryption_mode_idx: combo::idx_of(
-            combo::ENCRYPTION_MODES,
-            &encryption_to_str(settings.bt.encryption_mode),
-        ),
-        bt_preallocate_mode_idx: combo::idx_of(
-            combo::PREALLOC_MODES,
-            &preallocate_to_str(settings.bt.preallocate_mode),
-        ),
-        bt_max_downloads: SharedString::from(settings.bt.max_downloads.to_string()),
-        bt_max_seeds: SharedString::from(settings.bt.max_seeds.to_string()),
-        bt_max_torrents: SharedString::from(settings.bt.max_torrents.to_string()),
-        bt_active_limit: SharedString::from(settings.bt.active_limit.to_string()),
         bt_global_download_rate_limit_kb: SharedString::from(bt_dl_kb),
         bt_global_upload_rate_limit_kb: SharedString::from(bt_ul_kb),
-        bt_enable_fast_extension: settings.bt.enable_fast_extension,
-        bt_enable_holepunch: settings.bt.enable_holepunch,
-        bt_enable_web_seed: settings.bt.enable_web_seed,
-        bt_enable_super_seeding: settings.bt.enable_super_seeding,
         bt_pause_upload_when_limit: settings.bt.pause_upload_when_limit_reached,
         bt_upload_limit_kb: SharedString::from(if settings.bt.upload_limit_bytes > 0 {
             (settings.bt.upload_limit_bytes / 1024).to_string()
@@ -348,27 +329,6 @@ pub fn app_settings_to_form(
         ),
         bt_blocklist_enabled: settings.bt.blocklist_enabled,
         bt_blocklist_path: SharedString::from(&settings.bt.blocklist_path),
-        bt_seed_choking_algorithm_idx: combo::idx_of(
-            combo::SEED_CHOKING,
-            &seed_choking_to_str(settings.bt.seed_choking_algorithm),
-        ),
-        bt_choking_algorithm_idx: combo::idx_of(
-            combo::CHOKING_ALGOS,
-            &choking_to_str(settings.bt.choking_algorithm),
-        ),
-        bt_max_upload_slots_per_torrent: SharedString::from(
-            settings.bt.max_upload_slots_per_torrent.to_string(),
-        ),
-        bt_smart_ban_max_failures: SharedString::from(
-            settings.bt.smart_ban_max_failures.to_string(),
-        ),
-        bt_smart_ban_parole: settings.bt.smart_ban_parole,
-        bt_eviction_ban_duration_secs: SharedString::from(
-            settings.bt.eviction_ban_duration_secs.to_string(),
-        ),
-        bt_data_contribution_timeout_secs: SharedString::from(
-            settings.bt.data_contribution_timeout_secs.to_string(),
-        ),
         // IO 基线
         io_buffer_limit_mb: SharedString::from(settings.io_baseline.buffer_limit_mb.to_string()),
         io_game_mode_buffer_mb: SharedString::from(

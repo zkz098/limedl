@@ -389,13 +389,17 @@ impl TaskLifecycle {
             core.snapshot.supports_ranges = false;
             core.snapshot.desired_thread_count = Some(1);
             core.snapshot.allocated_thread_count = Some(1);
-            core.snapshot.thread_note = Some(String::from("单线程（服务器不支持分段）"));
+            core.snapshot.thread_note = Some(String::from(
+                crate::download::thread_notes::NO_PARALLEL_SUPPORT,
+            ));
             core.manifest.connection_count = 1;
             core.manifest.supports_ranges = false;
             core.manifest.chunks.clear();
             core.manifest.desired_thread_count = Some(1);
             core.manifest.allocated_thread_count = Some(1);
-            core.manifest.thread_note = Some(String::from("单线程（服务器不支持分段）"));
+            core.manifest.thread_note = Some(String::from(
+                crate::download::thread_notes::NO_PARALLEL_SUPPORT,
+            ));
         }
     }
 

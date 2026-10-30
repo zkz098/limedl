@@ -8,15 +8,15 @@ use crate::types::FastDashMap;
 
 use librqbit::dht::Id20;
 
-use super::IrontideBtBackend;
+use super::RqbitBtBackend;
 use crate::error::Result;
 use crate::event_bus::EventBus;
 use crate::http_client_factory::build_http_client;
 use crate::lock;
 use crate::types::AppSettings;
 
-impl IrontideBtBackend {
-    /// Create a new librqbit session and wrap it in an `IrontideBtBackend`.
+impl RqbitBtBackend {
+    /// Create a new librqbit session and wrap it in an `RqbitBtBackend`.
     pub async fn new(
         settings: &AppSettings,
         state_dir: PathBuf,

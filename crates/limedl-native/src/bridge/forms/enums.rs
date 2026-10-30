@@ -1,10 +1,9 @@
 //! Enum <-> persisted-string conversions for the settings form.
 
 use limedl_core::types::{
-    AdaptiveProfile, Aria2AuthMode, BackgroundOpacityPreset, BtAntiLeechAction, BtChokingAlgorithm,
-    BtEncryptionMode, BtPreallocateMode, BtSeedChokingAlgorithm, ChecksumMode, ChunkSizeStrategy,
-    CloseBehavior, ColorMode, DoubleClickOnCompleted, DoubleClickOnUncompleted, LogLevel,
-    ProxyMode, QueueSortStrategy, SchedulerMode, ThemeColor,
+    AdaptiveProfile, Aria2AuthMode, BackgroundOpacityPreset, BtAntiLeechAction, ChecksumMode,
+    ChunkSizeStrategy, CloseBehavior, ColorMode, DoubleClickOnCompleted, DoubleClickOnUncompleted,
+    LogLevel, ProxyMode, QueueSortStrategy, SchedulerMode, ThemeColor,
 };
 use slint::SharedString;
 
@@ -129,19 +128,7 @@ pub(crate) fn str_to_log_level(s: &str) -> Option<LogLevel> {
         _ => None,
     }
 }
-pub(crate) fn encryption_to_str(m: BtEncryptionMode) -> SharedString {
-    SharedString::from(match m {
-        BtEncryptionMode::Enabled => "enabled",
-        BtEncryptionMode::Disabled => "disabled",
-        BtEncryptionMode::Forced => "forced",
-    })
-}
-pub(crate) fn preallocate_to_str(m: BtPreallocateMode) -> SharedString {
-    SharedString::from(match m {
-        BtPreallocateMode::None => "none",
-        BtPreallocateMode::Full => "full",
-    })
-}
+
 pub(crate) fn background_opacity_to_str(v: &BackgroundOpacityPreset) -> SharedString {
     SharedString::from(match v {
         BackgroundOpacityPreset::Default => "default",
@@ -174,18 +161,5 @@ pub(crate) fn anti_leech_action_to_str(v: BtAntiLeechAction) -> SharedString {
     SharedString::from(match v {
         BtAntiLeechAction::Ban => "ban",
         BtAntiLeechAction::LimitSlots => "limit_slots",
-    })
-}
-pub(crate) fn seed_choking_to_str(v: BtSeedChokingAlgorithm) -> SharedString {
-    SharedString::from(match v {
-        BtSeedChokingAlgorithm::FastestUpload => "fastest_upload",
-        BtSeedChokingAlgorithm::RoundRobin => "round_robin",
-        BtSeedChokingAlgorithm::AntiLeech => "anti_leech",
-    })
-}
-pub(crate) fn choking_to_str(v: BtChokingAlgorithm) -> SharedString {
-    SharedString::from(match v {
-        BtChokingAlgorithm::FixedSlots => "fixed_slots",
-        BtChokingAlgorithm::RateBased => "rate_based",
     })
 }

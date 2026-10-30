@@ -77,14 +77,14 @@ async fn bt_backend_settings_propagate_after_apply_settings() {
     {
         let bt = core.bt_backend.bt_settings();
         assert!(bt.dht_enabled, "DHT enabled by default");
-        assert!(bt.enable_pex, "PEX enabled by default");
+        assert!(bt.enable_utp, "uTP enabled by default");
         assert!(!bt.upnp_enabled, "UPnP disabled by default");
     }
 
     // Apply new settings through the backend directly
     let mut settings = AppSettings::default();
     settings.bt.dht_enabled = false;
-    settings.bt.enable_pex = false;
+    settings.bt.enable_utp = false;
     settings.bt.upnp_enabled = true;
     core.bt_backend.apply_settings(&settings);
 
@@ -92,7 +92,7 @@ async fn bt_backend_settings_propagate_after_apply_settings() {
     {
         let bt = core.bt_backend.bt_settings();
         assert!(!bt.dht_enabled, "dht_enabled should be false after apply");
-        assert!(!bt.enable_pex, "enable_pex should be false after apply");
+        assert!(!bt.enable_utp, "enable_utp should be false after apply");
         assert!(bt.upnp_enabled, "upnp_enabled should be true after apply");
     }
     {

@@ -559,7 +559,9 @@ async fn handle_worker_outcome(
                 core.manifest.desired_thread_count = Some(1);
                 core.manifest.allocated_thread_count = Some(1);
                 core.manifest.connection_count = 1;
-                core.manifest.thread_note = Some(String::from("单线程（429 限流降级）"));
+                core.manifest.thread_note = Some(String::from(
+                    crate::download::thread_notes::RATE_LIMIT_DEGRADED,
+                ));
                 core.manifest.error = None;
                 core.manifest.updated_at_ms = now_ms();
                 core.sync_snapshot_from_manifest();

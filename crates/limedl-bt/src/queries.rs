@@ -6,7 +6,7 @@ use librqbit::api::TorrentIdOrHash;
 use librqbit::dht::Id20;
 use librqbit::{AddTorrent, AddTorrentOptions, AddTorrentResponse};
 
-use super::IrontideBtBackend;
+use super::RqbitBtBackend;
 use super::snapshot::build_peer_flags;
 use crate::error::{DownloadError, Result};
 use crate::event_bus::DownloadEvent;
@@ -17,7 +17,7 @@ use crate::types::{
     TorrentFileEntry,
 };
 
-impl IrontideBtBackend {
+impl RqbitBtBackend {
     pub fn set_speed_limit(
         &self,
         _info_hash: Id20,

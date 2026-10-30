@@ -274,25 +274,13 @@ settings_form_fields! {
     bool  dht_enabled = flip;
     u16   listen_port (ListenPort) = "13";
     u32   max_bt_connections (MaxPeersPerTorrent) = "13";
+    u32   bt_max_downloads (BtMaxDownloads) = "13";
     str   tracker_url = "http://tracker.invalid/announce";
     bool  bt_upnp_enabled = flip;
-    bool  bt_natpmp_enabled = flip;
     bool  bt_ipv6_enabled = flip;
-    bool  bt_pex_enabled = flip;
-    bool  bt_lsd_enabled = flip;
     bool  bt_utp_enabled = flip;
-    idx   bt_encryption_mode_idx = flip;
-    idx   bt_preallocate_mode_idx = flip;
-    u32   bt_max_downloads (BtMaxDownloads) = "13";
-    u32   bt_max_seeds (BtMaxSeeds) = "13";
-    u32   bt_max_torrents (BtMaxTorrents) = "13";
-    u32   bt_active_limit (BtActiveLimit) = "13";
     u64   bt_global_download_rate_limit_kb (BtGlobalDownloadRateLimit) = "13";
     u64   bt_global_upload_rate_limit_kb (BtGlobalUploadRateLimit) = "13";
-    bool  bt_enable_fast_extension = flip;
-    bool  bt_enable_holepunch = flip;
-    bool  bt_enable_web_seed = flip;
-    bool  bt_enable_super_seeding = flip;
 
     // ── BT 做种与反吸血 ──
     bool  bt_pause_upload_when_limit = flip;
@@ -307,15 +295,6 @@ settings_form_fields! {
     u32   bt_anti_leech_max_upload_slots (BtAntiLeechMaxUploadSlots) = "13";
     bool  bt_blocklist_enabled = flip;
     str   bt_blocklist_path = "sentinel-blocklist";
-
-    // ── BT 引擎调优 ──
-    idx   bt_seed_choking_algorithm_idx = flip;
-    idx   bt_choking_algorithm_idx = flip;
-    u32   bt_max_upload_slots_per_torrent (BtMaxUploadSlotsPerTorrent) = "13";
-    u32   bt_smart_ban_max_failures (BtSmartBanMaxFailures) = "13";
-    bool  bt_smart_ban_parole = flip;
-    u64   bt_eviction_ban_duration_secs (BtEvictionBanDurationSecs) = "13";
-    u64   bt_data_contribution_timeout_secs (BtDataContributionTimeoutSecs) = "13";
 
     // ── IO 基线 ──
     u64   io_buffer_limit_mb (IoBufferLimitMb) = "2001";

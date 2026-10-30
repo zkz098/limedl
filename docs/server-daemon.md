@@ -71,11 +71,11 @@ same secret as the RPC key. The default port is `6800`.
 | --- | --- |
 | `--data-dir <PATH>` | Base directory holding `settings.json`, `downloads.db` and torrent state. Falls back to `$LIMEDL_DATA_DIR`, then the platform data directory. |
 | `--rpc-listen <ADDR>` | Listener address. `0.0.0.0` exposes it on the network. Default `127.0.0.1`. |
-| `--rpc-port <PORT>` | Listener port. Default `6800`. |
+| `--rpc-port <PORT>` (alias: `--rpc-listen-port`) | Listener port. Default `6800`. |
 | `--rpc-secret <TOKEN>` | Shared secret; every request must carry `token:<TOKEN>`. Also read from `$LIMEDL_RPC_SECRET`. |
 | `--rpc-allow-origin-all` | Emit `Access-Control-Allow-Origin: *`. Needed when AriaNg is served from a *different* origin. |
 | `--rpc-allow-origin <ORIGIN>` | Add one allowed origin; repeatable. |
-| `--download-dir <PATH>` | Default download directory. Persisted to `settings.json`, because some aria2 clients omit `dir`. |
+| `--download-dir <PATH>` (alias: `--dir`) | Default download directory. Persisted to `settings.json`, because some aria2 clients omit `dir`. |
 | `--log-level <LEVEL>` | `trace` / `debug` / `info` / `warn` / `error`. |
 
 Every flag overrides `settings.json` for that run only, except `--download-dir`,

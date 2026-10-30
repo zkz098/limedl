@@ -6,7 +6,7 @@ use librqbit::api::TorrentIdOrHash;
 use librqbit::dht::Id20;
 use librqbit::{AddTorrent, AddTorrentOptions};
 
-use super::{IrontideBtBackend, PendingMagnet};
+use super::{PendingMagnet, RqbitBtBackend};
 use crate::error::{DownloadError, Result, io_error_with_path};
 use crate::slot_guard::DownloadSlotGuard;
 use crate::types::{
@@ -15,7 +15,7 @@ use crate::types::{
 };
 use crate::{lock, now_ms};
 
-impl IrontideBtBackend {
+impl RqbitBtBackend {
     // ── Private helpers ────────────────────────────────────────────────
 
     /// Fetch bytes from a URL using the configured HTTP client (with proxy support).

@@ -6,7 +6,7 @@
 //!
 //! Currently tested:
 //! - [`DownloadManager`] (HTTP) — full lifecycle
-//! - [`IrontideBtBackend`] (BitTorrent) — offline smoke tests + #[ignore] network test
+//! - [`RqbitBtBackend`] (BitTorrent) — offline smoke tests + #[ignore] network test
 
 use std::sync::Arc;
 #[cfg(feature = "bt")]
@@ -16,7 +16,7 @@ use std::time::Duration;
 use tempfile::TempDir;
 
 #[cfg(feature = "bt")]
-use crate::IrontideBtBackend;
+use crate::RqbitBtBackend;
 #[cfg(feature = "bt")]
 use crate::types::AppSettings;
 use crate::{
@@ -355,12 +355,12 @@ async fn http_contract_purge() -> TestResult {
 }
 
 // ===========================================================================
-//  BT backend (IrontideBtBackend) smoke tests
+//  BT backend (RqbitBtBackend) smoke tests
 // ===========================================================================
 
-/// Create a minimal [`IrontideBtBackend`] with all network features disabled.
+/// Create a minimal [`RqbitBtBackend`] with all network features disabled.
 #[cfg(feature = "bt")]
-async fn make_bt_backend(tmp: &TempDir) -> (IrontideBtBackend, Arc<EventBus>) {
+async fn make_bt_backend(tmp: &TempDir) -> (RqbitBtBackend, Arc<EventBus>) {
     let state_dir = tmp.path().join("bt_state");
     let out_dir = tmp.path().join("bt_out");
     std::fs::create_dir_all(&state_dir).expect("create bt_state dir");
@@ -374,14 +374,11 @@ async fn make_bt_backend(tmp: &TempDir) -> (IrontideBtBackend, Arc<EventBus>) {
     // Disable every network feature so the session starts without I/O
     settings.bt.dht_enabled = false;
     settings.bt.upnp_enabled = false;
-    settings.bt.enable_natpmp = false;
     settings.bt.enable_ipv6 = false;
-    settings.bt.enable_pex = false;
-    settings.bt.enable_lsd = false;
     settings.bt.enable_utp = false;
     settings.bt.listen_port = Some(0); // OS-assigned ephemeral port
 
-    let backend = IrontideBtBackend::new(
+    let backend = RqbitBtBackend::new(
         &settings,
         state_dir,
         out_dir,

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use librqbit::dht::Id20;
 
-use super::IrontideBtBackend;
+use super::RqbitBtBackend;
 use super::alerts::{BtEvent, extract_info_hash};
 use super::anti_leech::{LeecherPeerInfo, peer_is_leecher};
 use super::internal_id_to_gid;
@@ -59,19 +59,19 @@ fn make_leech_candidate(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  IrontideBtBackend — DownloadBackend trait implementation tests
+//  RqbitBtBackend — DownloadBackend trait implementation tests
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// These tests exercise the IrontideBtBackend wrapper struct's DownloadBackend
+// These tests exercise the RqbitBtBackend wrapper struct's DownloadBackend
 // trait implementation (start/pause/resume/cancel/remove/purge/status/list/
-// shutdown), NOT the raw irontide session (tested above).
+// shutdown), NOT the raw session.
 //
 // Tests that require real network (DHT/tracker) are marked #[ignore].
 //
 // ── Helpers ────────────────────────────────────────────────────────────
 
-/// Create a minimal IrontideBtBackend with all network features disabled.
-async fn make_backend() -> (tempfile::TempDir, IrontideBtBackend) {
+/// Create a minimal RqbitBtBackend with all network features disabled.
+async fn make_backend() -> (tempfile::TempDir, RqbitBtBackend) {
     let tmp = tempfile::tempdir().expect("tempdir");
     let state_dir = tmp.path().join("state");
     std::fs::create_dir_all(&state_dir).expect("create state_dir");
@@ -81,15 +81,9 @@ async fn make_backend() -> (tempfile::TempDir, IrontideBtBackend) {
     let mut settings = AppSettings::default();
     // Disable all network features so the session starts without I/O.
     settings.bt.dht_enabled = false;
-    settings.bt.enable_lsd = false;
     settings.bt.upnp_enabled = false;
-    settings.bt.enable_natpmp = false;
     settings.bt.enable_ipv6 = false;
-    settings.bt.enable_pex = false;
     settings.bt.enable_utp = false;
-    settings.bt.enable_holepunch = false;
-    settings.bt.enable_fast_extension = false;
-    settings.bt.enable_web_seed = false;
     // Let OS assign an ephemeral port to avoid conflicts in parallel runs.
     settings.bt.listen_port = Some(0);
 
@@ -97,7 +91,7 @@ async fn make_backend() -> (tempfile::TempDir, IrontideBtBackend) {
     let active_bt_count = Arc::new(AtomicUsize::new(0));
     let max_concurrent_bt = Arc::new(AtomicUsize::new(5));
 
-    let backend = IrontideBtBackend::new(
+    let backend = RqbitBtBackend::new(
         &settings,
         state_dir,
         dl_dir,
@@ -106,16 +100,16 @@ async fn make_backend() -> (tempfile::TempDir, IrontideBtBackend) {
         max_concurrent_bt,
     )
     .await
-    .expect("create IrontideBtBackend");
+    .expect("create RqbitBtBackend");
 
     (tmp, backend)
 }
 
-/// Create an IrontideBtBackend with network features enabled (DHT, PEX, uTP).
+/// Create an RqbitBtBackend with network features enabled (DHT, PEX, uTP).
 ///
 /// Used by #[ignore] network tests that actually need to discover peers.
 /// Keep the listen port as OS-assigned (0) to avoid port conflicts.
-async fn make_network_backend() -> (tempfile::TempDir, IrontideBtBackend) {
+async fn make_network_backend() -> (tempfile::TempDir, RqbitBtBackend) {
     let tmp = tempfile::tempdir().expect("tempdir");
     let state_dir = tmp.path().join("state");
     std::fs::create_dir_all(&state_dir).expect("create state_dir");
@@ -125,7 +119,6 @@ async fn make_network_backend() -> (tempfile::TempDir, IrontideBtBackend) {
     let mut settings = AppSettings::default();
     // Enable network features needed for actual peer discovery
     settings.bt.dht_enabled = true;
-    settings.bt.enable_pex = true;
     settings.bt.enable_utp = true;
     // Let OS assign an ephemeral port to avoid conflicts in parallel runs.
     settings.bt.listen_port = Some(0);
@@ -134,7 +127,7 @@ async fn make_network_backend() -> (tempfile::TempDir, IrontideBtBackend) {
     let active_bt_count = Arc::new(AtomicUsize::new(0));
     let max_concurrent_bt = Arc::new(AtomicUsize::new(5));
 
-    let backend = IrontideBtBackend::new(
+    let backend = RqbitBtBackend::new(
         &settings,
         state_dir,
         dl_dir,
@@ -143,7 +136,7 @@ async fn make_network_backend() -> (tempfile::TempDir, IrontideBtBackend) {
         max_concurrent_bt,
     )
     .await
-    .expect("create IrontideBtBackend with network");
+    .expect("create RqbitBtBackend with network");
 
     (tmp, backend)
 }

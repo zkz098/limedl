@@ -67,6 +67,8 @@ pub struct BtFileStatus {
 }
 
 /// Preallocation strategy for torrent files.
+#[allow(deprecated)]
+#[deprecated(note = "Unused in librqbit BT engine")]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtPreallocateMode {
@@ -78,6 +80,8 @@ pub enum BtPreallocateMode {
 }
 
 /// Protocol encryption (MSE/PE) mode.
+#[allow(deprecated)]
+#[deprecated(note = "Unused in librqbit BT engine")]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtEncryptionMode {
@@ -108,6 +112,8 @@ pub enum BtAntiLeechAction {
 }
 
 /// Seed-mode choking algorithm (engine tuning).
+#[allow(deprecated)]
+#[deprecated(note = "Unused in librqbit BT engine")]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtSeedChokingAlgorithm {
@@ -121,6 +127,8 @@ pub enum BtSeedChokingAlgorithm {
 }
 
 /// Top-level unchoke-slot algorithm (engine tuning).
+#[allow(deprecated)]
+#[deprecated(note = "Unused in librqbit BT engine")]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BtChokingAlgorithm {
@@ -133,7 +141,7 @@ pub enum BtChokingAlgorithm {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtSettings {
-    /// Lightweight BT mode: keep the irontide session unloaded while idle.
+    /// Lightweight BT mode: keep the BT session unloaded while idle.
     ///
     /// When enabled the engine is not warmed up at launch and is shut down
     /// again once every torrent is paused; it is started on demand when there
@@ -142,6 +150,9 @@ pub struct BtSettings {
     /// warms up at launch and stays up for the whole process lifetime.
     #[serde(default)]
     pub lightweight_mode: bool,
+    /// Maximum concurrent BT downloads.
+    #[serde(default = "default_max_downloads")]
+    pub max_downloads: u32,
     #[serde(default = "default_true")]
     pub dht_enabled: bool,
     #[serde(default)]
@@ -175,32 +186,10 @@ pub struct BtSettings {
     #[serde(default = "default_anti_leech_max_upload_slots")]
     pub anti_leech_max_upload_slots: u32,
 
-    // -- Engine tuning (passed through to the irontide choker/peer manager) --
-    /// Seed-mode choking algorithm.
-    #[serde(default)]
-    pub seed_choking_algorithm: BtSeedChokingAlgorithm,
-    /// Top-level unchoke-slot algorithm.
-    #[serde(default)]
-    pub choking_algorithm: BtChokingAlgorithm,
-    /// Maximum upload (unchoke) slots per torrent.
-    #[serde(default = "default_max_upload_slots_per_torrent")]
-    pub max_upload_slots_per_torrent: u32,
+    // -- Engine tuning --
     /// Maximum peer connections per torrent.
     #[serde(default = "default_max_peers_per_torrent")]
     pub max_peers_per_torrent: u32,
-    /// Hash-failure involvements before the engine auto-bans a peer (smart ban).
-    #[serde(default = "default_smart_ban_max_failures")]
-    pub smart_ban_max_failures: u32,
-    /// Use parole to isolate the offending peer before striking (smart ban).
-    #[serde(default = "default_true")]
-    pub smart_ban_parole: bool,
-    /// Seconds an evicted peer is blocked from reconnecting before it may rejoin.
-    #[serde(default = "default_eviction_ban_duration_secs")]
-    pub eviction_ban_duration_secs: u64,
-    /// Seconds without receiving piece data before the engine disconnects a
-    /// peer (0 = disabled). Helps drop under-contributing peers.
-    #[serde(default = "default_data_contribution_timeout_secs")]
-    pub data_contribution_timeout_secs: u64,
 
     // -- IP blocklist (反吸血黑名单) --
     /// Master switch for loading a peer IP blocklist into the session.
@@ -218,69 +207,25 @@ pub struct BtSettings {
     /// TCP listen port. None = OS assigns.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub listen_port: Option<u16>,
-    /// Enable NAT-PMP/PCP port mapping.
-    #[serde(default = "default_true")]
-    pub enable_natpmp: bool,
     /// Enable IPv6 dual-stack.
     #[serde(default = "default_true")]
     pub enable_ipv6: bool,
-
-    // -- Discovery protocols --
-    /// Peer Exchange (BEP 11).
-    #[serde(default = "default_true")]
-    pub enable_pex: bool,
-    /// Local Service Discovery (BEP 14).
-    #[serde(default = "default_true")]
-    pub enable_lsd: bool,
     /// µTP micro transport protocol (BEP 29).
     #[serde(default = "default_true")]
     pub enable_utp: bool,
-    /// Fast Extension (BEP 6).
-    #[serde(default = "default_true")]
-    pub enable_fast_extension: bool,
-    /// Holepunch (BEP 55).
-    #[serde(default = "default_true")]
-    pub enable_holepunch: bool,
-    /// HTTP Web Seed support.
-    #[serde(default = "default_true")]
-    pub enable_web_seed: bool,
-    /// Super seeding mode (BEP 16). Default OFF.
-    #[serde(default)]
-    pub enable_super_seeding: bool,
 
     // -- Global rate limits (bytes/sec, 0 = unlimited) --
     #[serde(default)]
     pub global_download_rate_limit: u64,
     #[serde(default)]
     pub global_upload_rate_limit: u64,
-
-    // -- Disk & security --
-    /// File preallocation strategy. (irontide only)
-    #[serde(default)]
-    pub preallocate_mode: BtPreallocateMode,
-    /// Protocol encryption mode. (irontide only)
-    #[serde(default)]
-    pub encryption_mode: BtEncryptionMode,
-
-    // -- Queue strategy --
-    /// Max auto-managed active downloads. (irontide only)
-    #[serde(default = "default_max_downloads")]
-    pub max_downloads: u32,
-    /// Max auto-managed active seed tasks. (irontide only)
-    #[serde(default = "default_max_seeds")]
-    pub max_seeds: u32,
-    /// Max total torrents. (irontide only)
-    #[serde(default = "default_max_torrents")]
-    pub max_torrents: u32,
-    /// Hard limit on total active torrents (downloading + seeding + checking). (irontide only)
-    #[serde(default = "default_active_limit")]
-    pub active_limit: u32,
 }
 
 impl Default for BtSettings {
     fn default() -> Self {
         Self {
             lightweight_mode: false,
+            max_downloads: default_max_downloads(),
             dht_enabled: true,
             tracker_list: String::new(),
             tracker_list_url: default_tracker_list_url(),
@@ -293,36 +238,16 @@ impl Default for BtSettings {
             anti_leech_ratio: default_anti_leech_ratio(),
             anti_leech_ban_secs: default_anti_leech_ban_secs(),
             anti_leech_max_upload_slots: default_anti_leech_max_upload_slots(),
-            seed_choking_algorithm: BtSeedChokingAlgorithm::default(),
-            choking_algorithm: BtChokingAlgorithm::default(),
-            max_upload_slots_per_torrent: default_max_upload_slots_per_torrent(),
             max_peers_per_torrent: default_max_peers_per_torrent(),
-            smart_ban_max_failures: default_smart_ban_max_failures(),
-            smart_ban_parole: true,
-            eviction_ban_duration_secs: default_eviction_ban_duration_secs(),
-            data_contribution_timeout_secs: default_data_contribution_timeout_secs(),
             blocklist_enabled: false,
             blocklist_path: String::new(),
             upnp_enabled: false,
             listen_port_range: None,
             listen_port: None,
-            enable_natpmp: true,
             enable_ipv6: true,
-            enable_pex: true,
-            enable_lsd: true,
             enable_utp: true,
-            enable_fast_extension: true,
-            enable_holepunch: true,
-            enable_web_seed: true,
-            enable_super_seeding: false,
             global_download_rate_limit: 0,
             global_upload_rate_limit: 0,
-            preallocate_mode: BtPreallocateMode::default(),
-            encryption_mode: BtEncryptionMode::default(),
-            max_downloads: default_max_downloads(),
-            max_seeds: default_max_seeds(),
-            max_torrents: default_max_torrents(),
-            active_limit: default_active_limit(),
         }
     }
 }
@@ -340,31 +265,10 @@ pub(crate) fn default_anti_leech_max_upload_slots() -> u32 {
     4
 }
 
-pub(crate) fn default_max_upload_slots_per_torrent() -> u32 {
-    4
-}
 pub(crate) fn default_max_peers_per_torrent() -> u32 {
     128
 }
-pub(crate) fn default_smart_ban_max_failures() -> u32 {
-    3
-}
-pub(crate) fn default_eviction_ban_duration_secs() -> u64 {
-    600
-}
-pub(crate) fn default_data_contribution_timeout_secs() -> u64 {
-    60
-}
 
 pub(crate) fn default_max_downloads() -> u32 {
-    3
-}
-pub(crate) fn default_max_seeds() -> u32 {
     5
-}
-pub(crate) fn default_max_torrents() -> u32 {
-    100
-}
-pub(crate) fn default_active_limit() -> u32 {
-    500
 }

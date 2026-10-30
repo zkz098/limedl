@@ -485,7 +485,9 @@ impl DownloadManager {
             ));
         }
 
-        let thread_note = Some(String::from("等待服务器响应"));
+        let thread_note = Some(String::from(
+            crate::download::thread_notes::WAITING_FOR_RESPONSE,
+        ));
         let now = now_ms();
 
         let mut manifest = Manifest {

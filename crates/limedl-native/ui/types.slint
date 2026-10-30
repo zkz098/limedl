@@ -252,28 +252,16 @@ export struct SettingsFormData {
     scheduler_retry_backoff_jitter_percent: string,
     // ── BT 网络（基础 + 进阶） ──
     bt_lightweight_mode: bool,
+    bt_max_downloads: string,
     dht_enabled: bool,
     listen_port: string,
     max_bt_connections: string, // maxPeersPerTorrent
     tracker_url: string,
     bt_upnp_enabled: bool,
-    bt_natpmp_enabled: bool,
     bt_ipv6_enabled: bool,
-    bt_pex_enabled: bool,
-    bt_lsd_enabled: bool,
     bt_utp_enabled: bool,
-    bt_encryption_mode_idx: int, // index into combo::ENCRYPTION_MODES (enabled/disabled/forced)
-    bt_preallocate_mode_idx: int, // index into combo::PREALLOC_MODES (none/full)
-    bt_max_downloads: string,
-    bt_max_seeds: string,
-    bt_max_torrents: string,
-    bt_active_limit: string,
     bt_global_download_rate_limit_kb: string,
     bt_global_upload_rate_limit_kb: string,
-    bt_enable_fast_extension: bool,
-    bt_enable_holepunch: bool,
-    bt_enable_web_seed: bool,
-    bt_enable_super_seeding: bool,
     // BT 做种与反吸血
     bt_pause_upload_when_limit: bool,
     bt_upload_limit_kb: string,
@@ -286,14 +274,6 @@ export struct SettingsFormData {
     bt_anti_leech_max_upload_slots: string,
     bt_blocklist_enabled: bool,
     bt_blocklist_path: string,
-    // BT 引擎调优
-    bt_seed_choking_algorithm_idx: int, // index into combo::SEED_CHOKING (fastest_upload/round_robin/anti_leech)
-    bt_choking_algorithm_idx: int, // index into combo::CHOKING_ALGOS (fixed_slots/rate_based)
-    bt_max_upload_slots_per_torrent: string,
-    bt_smart_ban_max_failures: string,
-    bt_smart_ban_parole: bool,
-    bt_eviction_ban_duration_secs: string,
-    bt_data_contribution_timeout_secs: string,
     // ── IO 基线 ──
     io_buffer_limit_mb: string,
     io_game_mode_buffer_mb: string,

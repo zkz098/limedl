@@ -6,7 +6,7 @@ use crate::types::{
     BtUploadStatus, ChecksumMode, DownloadSnapshot, DownloadState, Priority, TaskKind, ThreadMode,
 };
 
-impl super::IrontideBtBackend {
+impl super::RqbitBtBackend {
     /// Build a `DownloadSnapshot` from librqbit stats.
     pub fn stats_to_snapshot(&self, info_hash: &Id20, stats: &TorrentStats) -> DownloadSnapshot {
         let now = now_ms();
@@ -37,6 +37,14 @@ impl super::IrontideBtBackend {
             .and_then(|h| h.name())
             .unwrap_or_else(|| info_hash.as_string());
 
+        let destination_path = self
+            .api
+            .api_torrent_details(librqbit::api::TorrentIdOrHash::Hash(*info_hash))
+            .ok()
+            .map(|d| d.output_folder)
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| self.default_output_dir.to_string_lossy().to_string());
+
         DownloadSnapshot {
             id: info_hash.as_string(),
             kind: TaskKind::Bt,
@@ -44,7 +52,7 @@ impl super::IrontideBtBackend {
             url: info_hash.as_string(),
             final_url: info_hash.as_string(),
             file_name,
-            destination_path: self.default_output_dir.to_string_lossy().to_string(),
+            destination_path,
             temp_path: self.state_dir.to_string_lossy().to_string(),
             total_bytes: Some(total),
             downloaded_bytes: downloaded,

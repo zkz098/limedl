@@ -64,21 +64,31 @@ pub fn resolve_thread_settings(
         },
     }
 }
+pub mod thread_notes {
+    pub const RATE_LIMIT_DEGRADED: &str = "单线程（429 限流降级）";
+    pub const NO_PARALLEL_SUPPORT: &str = "单线程（服务器不支持分段）";
+    pub const FIXED_THREADS: &str = "固定线程";
+    pub const ADAPTIVE_CONSERVATIVE: &str = "自适应 / 保守";
+    pub const ADAPTIVE_BALANCED: &str = "自适应 / 平衡";
+    pub const ADAPTIVE_AGGRESSIVE: &str = "自适应 / 激进";
+    pub const WAITING_FOR_RESPONSE: &str = "等待服务器响应";
+}
+
 pub fn thread_note(
     supports_parallel: bool,
     thread_mode: ThreadMode,
     adaptive_profile: Option<AdaptiveProfile>,
 ) -> Option<String> {
     if !supports_parallel {
-        return Some(String::from("单线程（服务器不支持分段）"));
+        return Some(String::from(thread_notes::NO_PARALLEL_SUPPORT));
     }
 
     match thread_mode {
-        ThreadMode::Fixed => Some(String::from("固定线程")),
+        ThreadMode::Fixed => Some(String::from(thread_notes::FIXED_THREADS)),
         ThreadMode::Adaptive => adaptive_profile.map(|profile| match profile {
-            AdaptiveProfile::Conservative => String::from("自适应 / 保守"),
-            AdaptiveProfile::Balanced => String::from("自适应 / 平衡"),
-            AdaptiveProfile::Aggressive => String::from("自适应 / 激进"),
+            AdaptiveProfile::Conservative => String::from(thread_notes::ADAPTIVE_CONSERVATIVE),
+            AdaptiveProfile::Balanced => String::from(thread_notes::ADAPTIVE_BALANCED),
+            AdaptiveProfile::Aggressive => String::from(thread_notes::ADAPTIVE_AGGRESSIVE),
         }),
     }
 }

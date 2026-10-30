@@ -7,10 +7,10 @@ use parking_lot::Mutex;
 
 use crate::types::FastDashMap;
 
-use super::IrontideBtBackend;
+use super::RqbitBtBackend;
 use crate::lock;
 
-impl IrontideBtBackend {
+impl RqbitBtBackend {
     pub fn spawn_upload_policy_loop(self: Arc<Self>) {
         // Cancel any existing loop
         let handle = {

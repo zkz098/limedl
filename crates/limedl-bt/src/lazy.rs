@@ -1,6 +1,6 @@
-//! Lazy startup wrapper around [`IrontideBtBackend`].
+//! Lazy startup wrapper around [`RqbitBtBackend`].
 //!
-//! Creating the irontide session is not cheap: it binds TCP/uTP sockets, starts
+//! Creating the BitTorrent session is not cheap: it binds TCP/uTP sockets, starts
 //! DHT/LSD, loads resume data from disk, applies engine tuning and parses the
 //! IP blocklist. Doing all of that inline in `bootstrap()` delayed app startup
 //! (window creation) by the whole engine startup.
@@ -54,7 +54,7 @@ use async_trait::async_trait;
 use librqbit::dht::Id20;
 use parking_lot::{Mutex, RwLock};
 
-use super::{IrontideBtBackend, info_hash_from_engine, info_hash_to_engine};
+use super::{RqbitBtBackend, info_hash_from_engine, info_hash_to_engine};
 use crate::database::Database;
 use crate::error::{DownloadError, Result};
 use crate::event_bus::{DownloadEvent, EventBus};
@@ -130,7 +130,7 @@ pub struct LazyBtBackend {
     ///
     /// A `parking_lot` lock (not an async one) so [`Self::engine_if_ready`] can
     /// stay synchronous on latency-sensitive read paths.
-    engine: RwLock<Option<Arc<IrontideBtBackend>>>,
+    engine: RwLock<Option<Arc<RqbitBtBackend>>>,
     /// Serializes engine creation and teardown so a restart can never race a
     /// shutdown into binding the same listen port twice.
     lifecycle: tokio::sync::Mutex<()>,
@@ -299,7 +299,7 @@ impl LazyBtBackend {
     /// Returns the cached startup error when a previous attempt failed. Racing
     /// callers are deduplicated by the lifecycle mutex, and a concurrent idle
     /// shutdown is waited out before a fresh session is created.
-    pub async fn engine(&self) -> Result<Arc<IrontideBtBackend>> {
+    pub async fn engine(&self) -> Result<Arc<RqbitBtBackend>> {
         if let Some(message) = lock(&self.startup_error).clone() {
             return Err(DownloadError::Torrent(message));
         }
@@ -395,7 +395,7 @@ impl LazyBtBackend {
     }
 
     /// The engine, if it is already running. Never blocks.
-    pub fn engine_if_ready(&self) -> Option<Arc<IrontideBtBackend>> {
+    pub fn engine_if_ready(&self) -> Option<Arc<RqbitBtBackend>> {
         if self.shutting_down.load(Ordering::Acquire) {
             return None;
         }
@@ -563,21 +563,36 @@ impl LazyBtBackend {
         if resume_dir.join("session.json").exists() {
             return true;
         }
-        let torrents_dir = resume_dir.join("torrents");
-        std::fs::read_dir(torrents_dir)
-            .map(|entries| {
-                entries.flatten().any(|entry| {
-                    entry.path().extension().and_then(std::ffi::OsStr::to_str) == Some("resume")
+        let has_json_in = |dir: &std::path::Path| -> bool {
+            std::fs::read_dir(dir)
+                .map(|entries| {
+                    entries.flatten().any(|entry| {
+                        entry.path().extension().and_then(std::ffi::OsStr::to_str) == Some("json")
+                    })
                 })
-            })
-            .unwrap_or(false)
+                .unwrap_or(false)
+        };
+        has_json_in(&resume_dir) || has_json_in(&resume_dir.join("torrents"))
     }
 
-    /// Create the irontide session and its background loops.
-    async fn create_engine(&self) -> Result<Arc<IrontideBtBackend>> {
+    /// Clean up legacy `.resume` files left by older engines (e.g. irontide).
+    fn prune_legacy_resume_files(dir: &std::path::Path) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(std::ffi::OsStr::to_str) == Some("resume") {
+                    let _ = std::fs::remove_file(path);
+                }
+            }
+        }
+    }
+
+    /// Create the BT session and its background loops.
+    async fn create_engine(&self) -> Result<Arc<RqbitBtBackend>> {
+        Self::prune_legacy_resume_files(&self.state_dir.join("resume"));
         let settings = lock(&self.settings).clone();
         let engine = Arc::new(
-            IrontideBtBackend::new(
+            RqbitBtBackend::new(
                 &settings,
                 self.state_dir.clone(),
                 self.default_output_dir.clone(),
@@ -638,7 +653,7 @@ impl LazyBtBackend {
     }
 
     /// Store `engine.list()` into the index, replacing the previous snapshot.
-    async fn sync_index_with(&self, engine: &Arc<IrontideBtBackend>) {
+    async fn sync_index_with(&self, engine: &Arc<RqbitBtBackend>) {
         match engine.list().await {
             Ok(summaries) => self.store_index(summaries).await,
             Err(e) => tracing::debug!("BT index sync skipped: {e}"),
@@ -661,7 +676,7 @@ impl LazyBtBackend {
     /// alert bridge subscribes, so without this the restored rows would only
     /// appear on the next 2 s progress tick (or never, if the bridge was not
     /// yet subscribed when the desktop UI bound its listener).
-    async fn refresh_index_and_publish(&self, engine: &Arc<IrontideBtBackend>) {
+    async fn refresh_index_and_publish(&self, engine: &Arc<RqbitBtBackend>) {
         let summaries = match engine.list().await {
             Ok(summaries) => summaries,
             Err(e) => {
@@ -860,15 +875,9 @@ mod tests {
     fn offline_settings() -> AppSettings {
         let mut settings = AppSettings::default();
         settings.bt.dht_enabled = false;
-        settings.bt.enable_lsd = false;
         settings.bt.upnp_enabled = false;
-        settings.bt.enable_natpmp = false;
         settings.bt.enable_ipv6 = false;
-        settings.bt.enable_pex = false;
         settings.bt.enable_utp = false;
-        settings.bt.enable_holepunch = false;
-        settings.bt.enable_fast_extension = false;
-        settings.bt.enable_web_seed = false;
         settings.bt.listen_port = Some(0);
         settings
     }
@@ -1023,7 +1032,7 @@ mod tests {
         backend.db.clear_bt_tasks().expect("clear index");
         let resume_dir = backend.state_dir.join("resume").join("torrents");
         std::fs::create_dir_all(&resume_dir).expect("create resume dir");
-        std::fs::write(resume_dir.join("some.resume"), b"data").expect("write resume file");
+        std::fs::write(resume_dir.join("some.json"), b"{}").expect("write resume file");
         assert!(backend.has_unfinished_tasks());
 
         backend.shutdown().await;
@@ -1132,5 +1141,24 @@ mod tests {
         assert!(backend.wait_for_warmup().await);
 
         backend.shutdown().await;
+    }
+
+    #[test]
+    fn test_prune_legacy_resume_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        let resume_dir = tmp.path().join("resume");
+        std::fs::create_dir_all(&resume_dir).unwrap();
+        let legacy_file = resume_dir.join("legacy_task.resume");
+        let json_file = resume_dir.join("session.json");
+        std::fs::write(&legacy_file, b"legacy data").unwrap();
+        std::fs::write(&json_file, b"{}").unwrap();
+
+        assert!(legacy_file.exists());
+        assert!(json_file.exists());
+
+        LazyBtBackend::prune_legacy_resume_files(&resume_dir);
+
+        assert!(!legacy_file.exists(), "legacy .resume file must be pruned");
+        assert!(json_file.exists(), "valid .json resume file must be kept");
     }
 }

@@ -58,7 +58,7 @@ on a module it cannot classify, and on an entry that no longer exists.
 All Rust crates use edition 2024.
 
 - **Events**: `EventBus` is a `tokio::sync::broadcast` channel; each adapter (Slint desktop, Aria2 RPC) subscribes independently.
-- **Routing**: `BackendRegistry` routes by `TaskId` prefix (`http:` → `DownloadManager`, `bt:` → `IrontideBtBackend`); `Dispatcher` is the frontend-facing facade.
+- **Routing**: `BackendRegistry` routes by `TaskId` prefix (`http:` → `DownloadManager`, `bt:` → `RqbitBtBackend`); `Dispatcher` is the frontend-facing facade.
 - **UI tests**: two layers in `crates/limedl-native` — in-process `src/ui_tests/` (part of the normal gate; `.slint` ids are the contract) and the MCP server (see `docs/manual-smoke-testing.md`).
 
 ## Releases

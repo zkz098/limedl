@@ -370,7 +370,7 @@ fn test_format_bytes() {
 
 #[test]
 fn test_combo_idx_and_value_roundtrip() {
-    let cases: [(&[&str], &str); 20] = [
+    let cases: [(&[&str], &str); 16] = [
         (&combo::COLOR_MODES, "dark"),
         (&combo::THEME_COLORS, "sky"),
         (&combo::OPACITY_PRESETS, "frosted"),
@@ -383,11 +383,7 @@ fn test_combo_idx_and_value_roundtrip() {
         (&combo::SCHEDULER_MODES, "traditional"),
         (&combo::ADAPTIVE_PROFILES, "balanced"),
         (&combo::CHUNK_STRATEGIES, "fixed"),
-        (&combo::ENCRYPTION_MODES, "forced"),
-        (&combo::PREALLOC_MODES, "full"),
         (&combo::ANTI_LEECH_ACTIONS, "limit_slots"),
-        (&combo::SEED_CHOKING, "round_robin"),
-        (&combo::CHOKING_ALGOS, "rate_based"),
         (&combo::LOG_LEVELS, "warn"),
         (&combo::QUEUE_SORT_STRATEGIES, "shortest_job_first"),
         (&combo::EXPERT_PRESETS, "lan_ultra"),

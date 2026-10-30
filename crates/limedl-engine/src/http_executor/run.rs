@@ -390,14 +390,16 @@ fn apply_probe_to_manifest(
     }
     manifest.desired_thread_count = threads.desired;
     manifest.adaptive_profile_snapshot = threads.profile;
-    if manifest.thread_note.as_deref() != Some("单线程（429 限流降级）") {
+    if manifest.thread_note.as_deref() != Some(crate::download::thread_notes::RATE_LIMIT_DEGRADED) {
         manifest.thread_note =
             crate::download::thread_note(supports_parallel, threads.mode, threads.profile);
     }
     manifest.updated_at_ms = now_ms();
     manifest.error = None;
     if !supports_parallel {
-        manifest.thread_note = Some(String::from("单线程（服务器不支持分段）"));
+        manifest.thread_note = Some(String::from(
+            crate::download::thread_notes::NO_PARALLEL_SUPPORT,
+        ));
         manifest.desired_thread_count = Some(1);
     }
     core.sync_snapshot_from_manifest();

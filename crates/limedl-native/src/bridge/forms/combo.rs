@@ -15,11 +15,7 @@ pub const ADAPTIVE_PROFILES: [&str; 3] = ["conservative", "balanced", "aggressiv
 pub const CHUNK_STRATEGIES: [&str; 2] = ["adaptive", "fixed"];
 pub const QUEUE_SORT_STRATEGIES: [&str; 3] = ["priority_first", "shortest_job_first", "fifo"];
 pub const EXPERT_PRESETS: [&str; 4] = ["custom", "lan_ultra", "stealth", "lossy_network"];
-pub const ENCRYPTION_MODES: [&str; 3] = ["enabled", "disabled", "forced"];
-pub const PREALLOC_MODES: [&str; 2] = ["none", "full"];
 pub const ANTI_LEECH_ACTIONS: [&str; 2] = ["ban", "limit_slots"];
-pub const SEED_CHOKING: [&str; 3] = ["fastest_upload", "round_robin", "anti_leech"];
-pub const CHOKING_ALGOS: [&str; 2] = ["fixed_slots", "rate_based"];
 pub const LOG_LEVELS: [&str; 5] = ["trace", "debug", "info", "warn", "error"];
 /// Aria2 RPC authentication schemes; index order matches the settings combo.
 pub const ARIA2_AUTH_MODES: [&str; 2] = ["single", "per_client"];

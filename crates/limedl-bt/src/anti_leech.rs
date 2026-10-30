@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 
 use crate::types::FastDashMap;
 
-use super::IrontideBtBackend;
+use super::RqbitBtBackend;
 use crate::event_bus::{DownloadEvent, EventBus};
 use crate::lock;
 use crate::types::{BtAntiLeechAction, BtSettings};
@@ -104,7 +104,7 @@ pub fn peer_is_leecher(
     false
 }
 
-impl IrontideBtBackend {
+impl RqbitBtBackend {
     pub fn spawn_anti_leech_loop(self: Arc<Self>) {
         let handle = {
             let mut slot = lock(&self.anti_leech_task);

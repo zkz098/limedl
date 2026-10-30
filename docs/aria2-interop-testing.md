@@ -177,7 +177,7 @@ choices, not bugs; each one is documented where it is implemented.
 | Area | limedl behaviour | Why |
 | --- | --- | --- |
 | `changePosition` | maps the requested index onto the three priority levels and returns the **real** resulting index | limedl's queue is `(priority, created_at)`, not positional. Arbitrary drags among >3 same-priority tasks collapse. |
-| BT `tellStatus.dir` / `getOption.dir` | report the BT backend's default output dir, not the per-task `dir` | the BT backend does not track a per-task output dir yet |
+| BT `tellStatus.dir` / `getOption.dir` | reports the torrent's destination directory (`output_folder`), falling back to default output dir | aligned with HTTP task behavior |
 | `addTorrent` `out` / `select-file` | parsed but not applied at start for BT | use `aria2.changeOption` after metadata; `select-file` at start needs a BT-backend change |
 | `errorCode` | `"0"` (no error) or `"1"` (failure) | limedl does not persist aria2 exit-status codes; the reason stays in `errorMessage` |
 | `tellStatus` piece map | `numPieces` / `pieceLength` / `bitfield` appear once chunks are planned | aria2 always emits `numPieces`/`pieceLength`; limedl only has them after the range probe |
