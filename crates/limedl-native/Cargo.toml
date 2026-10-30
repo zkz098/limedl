@@ -108,7 +108,7 @@ notify-rust = "4"
 # This only affects Linux (gtk/ashpd dependencies live under that target's cfg),
 # so Windows and macOS dependency graphs and behaviour are unchanged.
 rfd = { version = "0.17", default-features = false, features = ["xdg-portal", "wayland"] }
-arboard = "3.6"
+arboard = "3.7"
 # The tray icon is the only bitmap this crate decodes: a 32x32 RGBA PNG compiled
 # in with `include_bytes!` (`src/tray.rs`). `png` is the codec `image` already
 # links, so this removes *our* dependency on `image`'s container/format dispatch,
