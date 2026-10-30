@@ -115,13 +115,14 @@ export component PrimaryButton inherits Rectangle {
 
 export component SecondaryButton inherits Rectangle {
     in property <string> text;
+    in property <string> tooltip: "";
     in property <image> icon;
     in property <bool> active: false;
     in property <bool> enabled: true;
     callback clicked();
 
     accessible-role: button;
-    accessible-label: root.text;
+    accessible-label: root.tooltip != "" ? root.tooltip : root.text;
     accessible-enabled: root.enabled;
 
     background: !root.enabled ? Theme.c15181e : (root.active ? Theme.c26331a : (ta.has_hover ? (ta.pressed ? Theme.c20242c : Theme.c252b34) : Theme.c1a1d23));

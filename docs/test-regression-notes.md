@@ -27,6 +27,16 @@ When adding UI test cases, aim at these directions:
   horizontal scroll to reach them. Fixed by collapsing the pills below
   `bt_pills_min_width` (1280 px) in `appwindow.slint`; `layout.rs` now drives
   `bt_status_visible` and pins the breakpoint in both locales.
+- On low-resolution or scaled displays (e.g. 720p/768p at 125% DPI scale where a
+  maximized window has work area ~1024x540), Windows forces the window to the
+  monitor work area, bypassing `min-width: 1100px` and `min-height: 660px`. The
+  toolbar secondary buttons ("Pause All", "Resume All", "Clear Completed")
+  pushed `New Task` off-screen, and the left sidebar cut off the "Settings" and
+  "Labs" buttons at the bottom. Fixed by collapsing secondary toolbar button text
+  below 1200 px (or below 1360 px when BT status pills are visible) while retaining
+  tooltips, and giving the left sidebar responsive vertical spacing plus a
+  `ScrollView` so Settings and Labs always remain reachable. `layout.rs` pins the
+  1024x540 / 1024x576 work area in both zh-CN and en-US.
 - The new-task dialog modal had a fixed height (600 px when
   `preview_state == "ready"`), while an expanded torrent file list is taller.
   Fixed by putting the dialog body in a `ScrollView` so the footer

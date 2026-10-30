@@ -34,6 +34,48 @@ const MIN_SIZE: (f32, f32) = (1100.0, 660.0);
 const PREFERRED_SIZE: (f32, f32) = (1280.0, 800.0);
 
 #[test]
+fn the_chrome_fits_on_small_work_areas_and_maximized_windows() {
+    for bt_visible in [false, true] {
+        with_ui(|ui| {
+            ui.window.set_bt_status_visible(bt_visible);
+            // Low-resolution or scaled displays (e.g. 720p/768p at 125% DPI scaling
+            // where a maximized window has work area ~1024x540).
+            for (w, h) in [(1024.0, 540.0), (1024.0, 576.0)] {
+                ui.set_window_size(w, h);
+                for id in CHROME {
+                    ui.assert_inside_window(id);
+                }
+                for id in [
+                    "MainWindow::btn_pause_all",
+                    "MainWindow::btn_resume_all",
+                    "MainWindow::btn_clear_completed",
+                ] {
+                    ui.assert_inside_window(id);
+                }
+            }
+        });
+
+        with_language(Language::EnUs, |ui| {
+            ui.window.set_bt_status_visible(bt_visible);
+            for (w, h) in [(1024.0, 540.0), (1024.0, 576.0)] {
+                ui.set_window_size(w, h);
+                for id in CHROME {
+                    ui.assert_inside_window(id);
+                }
+                for id in [
+                    "MainWindow::btn_pause_all",
+                    "MainWindow::btn_resume_all",
+                    "MainWindow::btn_clear_completed",
+                ] {
+                    ui.assert_inside_window(id);
+                }
+            }
+            crate::i18n::apply_translation(Language::ZhCn);
+        });
+    }
+}
+
+#[test]
 fn the_chrome_fits_the_window_at_the_default_and_the_minimum_size() {
     with_ui(|ui| {
         ui.set_window_size(PREFERRED_SIZE.0, PREFERRED_SIZE.1);

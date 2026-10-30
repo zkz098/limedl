@@ -489,12 +489,16 @@ export component MainWindow inherits Window {
             border-color: Theme.c20242d;
             border-width: 1px;
 
-            VerticalLayout {
-                padding-top: 20px;
-                padding-bottom: 18px;
-                padding-left: 16px;
-                padding-right: 16px;
-                spacing: 18px;
+            ScrollView {
+                width: 100%;
+                height: 100%;
+
+                VerticalLayout {
+                    padding-top: root.height < 660px ? 12px : 20px;
+                    padding-bottom: root.height < 660px ? 12px : 18px;
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    spacing: root.height < 660px ? 10px : 18px;
 
                 // App Brand
                 HorizontalLayout {
@@ -783,6 +787,7 @@ export component MainWindow inherits Window {
                 }
             }
         }
+    }
 
         // Right Main Content
         VerticalLayout {
@@ -948,19 +953,22 @@ export component MainWindow inherits Window {
                         }
 
                         btn_pause_all := SecondaryButton {
-                            text: @tr("Pause All");
+                            text: root.width >= (root.bt_status_visible ? 1360px : 1200px) ? @tr("Pause All") : "";
+                            tooltip: @tr("Pause All");
                             icon: @image-url("assets/icons/pause-line.svg");
                             clicked => { root.pause_all(); }
                         }
 
                         btn_resume_all := SecondaryButton {
-                            text: @tr("Resume All");
+                            text: root.width >= (root.bt_status_visible ? 1360px : 1200px) ? @tr("Resume All") : "";
+                            tooltip: @tr("Resume All");
                             icon: @image-url("assets/icons/play-line.svg");
                             clicked => { root.resume_all(); }
                         }
 
                         btn_clear_completed := SecondaryButton {
-                            text: @tr("Clear Completed");
+                            text: root.width >= (root.bt_status_visible ? 1360px : 1200px) ? @tr("Clear Completed") : "";
+                            tooltip: @tr("Clear Completed");
                             icon: @image-url("assets/icons/eraser-line.svg");
                             clicked => { root.clear_completed(); }
                         }
