@@ -62,7 +62,6 @@ jobs:
           # `--success-output=final` prints the gap report captured from passing
           # tests; nextest otherwise hides it and the run would be a silent pass.
           cargo nextest run \
-            --manifest-path crates/limedl-core/Cargo.toml \
-            --features "test-utils,aria2-rpc" \
-            -E 'test(/aria2_rpc::oracle_tests::/)' \
+            -p limedl-rpc \
+            -E 'test(/oracle_tests::/)' \
             --success-output=final
