@@ -68,6 +68,7 @@ esac
 ASSET="limedl-native-v${VERSION}-linux-${ARCH_LABEL}.deb"
 
 STAGE="$(mktemp -d)"
+chmod 0755 "$STAGE"
 trap 'rm -rf "$STAGE"' EXIT
 
 # ── 1. Executables ───────────────────────────────────────────────────────────

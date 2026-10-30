@@ -56,6 +56,7 @@ PACKAGE_NAME="limedl-native"
 ASSET="limedl-native-v${VERSION}-linux-${ARCH_LABEL}-portable.tar.gz"
 
 STAGE="$(mktemp -d)"
+chmod 0755 "$STAGE"
 trap 'rm -rf "$STAGE"' EXIT
 
 mkdir -p "$STAGE/$PACKAGE_NAME"

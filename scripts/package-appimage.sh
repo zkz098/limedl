@@ -60,6 +60,7 @@ fi
 ASSET="limedl-native-v${VERSION}-linux-${ARCH_LABEL}.AppImage"
 
 APPDIR="$(mktemp -d)"
+chmod 0755 "$APPDIR"
 trap 'rm -rf "$APPDIR"' EXIT
 
 # ── 1. Executables ───────────────────────────────────────────────────────────
@@ -113,6 +114,10 @@ fi
 
 mkdir -p "$OUT_DIR"
 rm -f "$OUT_DIR/$ASSET"
+
+# Ensure AppDir permissions satisfy appimagetool (readable and executable by all).
+chmod -R a+rX "$APPDIR"
+chmod a+rx "$APPDIR/AppRun"
 
 # --appimage-extract-and-run allows running inside containers / CI without FUSE.
 ARCH="$ARCH_LABEL" "$APPIMAGETOOL" --appimage-extract-and-run "$APPDIR" "$OUT_DIR/$ASSET"
