@@ -17,7 +17,7 @@ limedl provides full HTTP POST and WebSocket duplex endpoints compliant with Ari
 - **WebSocket**: `ws://127.0.0.1:6800/jsonrpc`
 
 ### Authentication Mechanisms
-limedl supports two authentication modes, passed as the first element of the RPC `params` array as `"token:<SECRET>"` per the aria2 standard (required on all calls, including nested calls in `system.multicall`):
+limedl supports two authentication modes. The first element of the RPC `params` array is `"token:<SECRET>"` per the aria2 standard. Every business method requires it except `system.listMethods` and `system.listNotifications`; `system.multicall` / `aria2.multicall` carries no outer token, while each nested call must carry its own:
 
 1. **Shared Secret Token**: A single global passphrase configured in Settings.
 2. **Per-Client Tokens**: Isolated tokens issued for specific clients (e.g. AriaNg, browser extensions), stored locally using strong **Argon2** password hashing.
@@ -112,7 +112,7 @@ Fetches real-time global transfer rates and task counts.
 
 ---
 
-### 4. `aria2.tellStatus` — Inspect Single Task Status
+### 5. `aria2.tellStatus` — Inspect Single Task Status
 Queries progress, downloaded byte count, and chunk bitfields.
 
 **Sample Request**:
@@ -134,24 +134,33 @@ The optional third parameter `keys` restricts the returned fields (supported; BT
 
 ### 6. Task Control & Extended Methods
 
-limedl implements all 36 standard Aria2 RPC methods plus `system.listNotifications`, and also provides the `aria2.multicall` alias (37 methods in total):
+limedl implements 34 `aria2.*` methods and 3 `system.*` methods (37 in total). `system.listMethods` returns the authoritative list. The table below covers the common control/query methods; `addUri`, `addTorrent`, and `addMetalink` are documented above:
 
 | Method | Parameters | Description |
 | :--- | :--- | :--- |
-| `aria2.addMetalink` | `([secret], metalink, [options], [pos])` | Parses and adds Metalink 4.0/3.0 multi-mirror task. |
-| `aria2.pause` / `forcePause` | `([secret], gid)` | Pauses or force-pauses the specified active task. |
-| `aria2.unpause` / `unpauseAll` | `([secret], gid)` | Resumes the specified paused task / all tasks. |
-| `aria2.remove` / `forceRemove` | `([secret], gid)` | Cancels and removes the task. |
-| `aria2.tellActive` | `([secret], [keys])` | Returns a list of currently active downloads. |
-| `aria2.tellWaiting`| `([secret], offset, num, [keys])` | Returns tasks waiting in the queue. |
-| `aria2.tellStopped`| `([secret], offset, num, [keys])` | Returns completed or stopped tasks (including results evicted from memory). |
+| `aria2.addMetalink` | `([secret], metalink, [options], [pos])` | Parses and adds a Metalink 4.0/3.0 multi-mirror task. |
+| `aria2.pause` / `aria2.forcePause` | `([secret], gid)` | Pauses or force-pauses the specified active task. |
+| `aria2.pauseAll` / `aria2.forcePauseAll` | `([secret])` | Pauses all tasks / force-pauses all tasks. |
+| `aria2.unpause` / `aria2.unpauseAll` | `([secret], gid)` / `([secret])` | Resumes one paused task / all tasks. |
+| `aria2.remove` / `aria2.forceRemove` | `([secret], gid)` | Cancels and removes the task. |
+| `aria2.tellActive` | `([secret], [keys])` | Returns currently active downloads. |
+| `aria2.tellWaiting` | `([secret], offset, num, [keys])` | Returns tasks waiting in the queue. |
+| `aria2.tellStopped` | `([secret], offset, num, [keys])` | Returns completed or stopped tasks (including results evicted from memory). |
+| `aria2.getFiles` / `aria2.getUris` | `([secret], gid)` | Returns the real file list / URI list. |
+| `aria2.getPeers` / `aria2.getServers` | `([secret], gid)` | Returns BT peers / connected servers. |
+| `aria2.getSessionInfo` | `([secret])` | Returns the session ID. |
+| `aria2.saveSession` | `([secret])` | Requests a session save (limedl persists task state). |
 | `aria2.changeOption` | `([secret], gid, options)` | Changes live task options (`pause`, BT `select-file`, rate limits). |
-| `aria2.getOption` / `getGlobalOption` | `([secret], [gid])` | Queries task or global options (fully aligned with AriaNg key sets). |
-| `aria2.changePosition` | `([secret], gid, pos, how)` | Reorders a waiting task in the queue. |
-| `aria2.removeDownloadResult` | `([secret], gid)` | Removes a single stopped result, keeping its files. |
-| `aria2.purgeDownloadResult`| `([secret])` | Clears finished tasks from history. |
-| `aria2.getVersion` | `([secret])` | Returns engine version and enabled features (truthfully advertises `GZip`, `Brotli`, `Zstd`, `Metalink`, `BitTorrent`). |
-| `system.multicall` / `aria2.multicall`| `([calls])` | Batches multiple RPC calls into a single round-trip. |
+| `aria2.changeGlobalOption` | `([secret], options)` | Changes global options. |
+| `aria2.getOption` / `getGlobalOption` | `([secret], [gid])` | Queries task or global options (aligned with AriaNg key sets). |
+| `aria2.changePosition` | `([secret], gid, pos, how)` | Reorders a waiting task. |
+| `aria2.changeUri` | `([secret], gid, fileIndex, delUris, addUris, [position])` | Replaces URIs of a task. |
+| `aria2.removeDownloadResult` | `([secret], gid)` | Removes one stopped result, keeping its files. |
+| `aria2.purgeDownloadResult` | `([secret])` | Clears finished tasks from history. |
+| `aria2.getVersion` | `([secret])` | Returns engine version and enabled features (`Async DNS`, `BitTorrent`, `GZip`, `Brotli`, `Zstd`, `Metalink`). |
+| `aria2.shutdown` / `aria2.forceShutdown` | `([secret])` | Requests shutdown; the desktop client ignores it, `limedl-server` exits. |
+| `system.listMethods` / `system.listNotifications` | `()` | Lists all methods / notifications (no token required). |
+| `system.multicall` / `aria2.multicall` | `([calls])` | Batches calls; every nested call carries its own token. |
 
 ---
 

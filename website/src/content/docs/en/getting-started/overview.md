@@ -10,7 +10,7 @@ description: Learn about limedl design principles, architecture, core advantages
 The project was created to address longstanding pain points across download tooling: commercial downloaders bloated with advertisements, aggressive telemetry, and paywalled speeds; as well as popular open-source alternatives that rely on Electron—frequently consuming 300MB+ of idle RAM and causing disk I/O freezes under multi-gigabit connections.
 
 :::tip[In a Nutshell]
-limedl combines an **uncompromising pure Rust engine** with a **sub-100ms cold startup native Slint GUI**, delivering HTTP AIMD adaptive concurrency, complete BitTorrent protocol support, proprietary Cloudflare CDN edge probing, and 100% Aria2 RPC ecosystem compatibility.
+limedl combines an **uncompromising pure Rust engine** with a **sub-100ms cold startup native Slint GUI**, delivering HTTP AIMD adaptive concurrency, complete BitTorrent protocol support, built-in Cloudflare/Fastly/custom CDN edge probing, and 100% Aria2 RPC ecosystem compatibility.
 :::
 
 ---
@@ -46,61 +46,45 @@ There is no need to abandon existing browser extensions or scripts. limedl embed
 
 ## Architecture Topology
 
-limedl is organized as a single-track Rust workspace, cleanly decoupling the headless core engine from native desktop presentation:
+limedl is organized as a multi-crate Rust workspace that separates the engine, frontends, and tooling:
 
 ```
 limedl Workspace
-├── crates/limedl-core/       # Headless Rust engine (zero UI dependencies)
-│   ├── manager.rs            # DownloadManager orchestration & task lifecycle
-│   ├── scheduler.rs          # AIMD thread balancing & allocation engine
-│   ├── http_executor.rs      # HTTP Range probing & concurrent chunk workers
-│   ├── bt_backend/           # BitTorrent subsystem (pinned irontide 1.7.0)
-│   ├── cdn/                  # Cloudflare edge screening & DNS rewrite
-│   ├── buffer_pool.rs        # SSD write-combining & HDD double buffering
-│   ├── file_ops/             # Disk space pre-allocation & atomic finalization
-│   ├── checksum/             # Blake3 / SHA-256 / SHA-512 validation
-│   ├── rate_limiter/         # Token bucket global speed limiter & schedule
-│   └── aria2_rpc.rs          # Aria2 JSON-RPC 2.0 compatible server
-│
-├── crates/limedl-native/     # Native desktop client (Slint + FemtoVG rendering)
-│   ├── main.rs               # Application bootstrapping & event loop
-│   ├── bridge/               # Rust model to Slint UI property mapper
-│   ├── handlers/             # UI callback dispatchers
-│   ├── update.rs             # Hybrid Minisign + ML-DSA-65 post-quantum self-update
-│   └── ui/                   # Slint component definitions & theme tokens
-│
-├── crates/limedl-server/     # Headless daemon (NAS / soft routers / Docker)
-│   ├── main.rs               # CLI parsing, signals & single-instance lock
-│   └── daemon.rs             # Async Aria2 JSON-RPC 2.0 daemon service
-│
-└── xtask/                    # Repository tooling: PQC keys, dual-signing & release gates
+├── crates/limedl-types/      # Domain types, settings, events, manifest, Backend trait
+├── crates/limedl-disk/       # File operations, buffer pool, I/O scheduling
+├── crates/limedl-store/      # SQLite persistence, Alt-Svc cache
+├── crates/limedl-http/       # HTTP clients, rate limiter
+├── crates/limedl-engine/     # HTTP executor, scheduler, CDN, Metalink, lifecycle
+├── crates/limedl-bt/         # librqbit BitTorrent backend
+├── crates/limedl-rpc/        # Aria2 JSON-RPC / WebSocket server
+├── crates/limedl-testkit/    # Test-only HTTP harness
+├── crates/limedl-core/       # Facade: Dispatcher / BackendRegistry / bootstrap
+├── crates/limedl-native/     # Slint + FemtoVG desktop client
+├── crates/limedl-server/     # Headless daemon (NAS / routers / Docker)
+└── xtask/                    # Keys, dual-signing, build and release gates
 ```
 
-### Data Flow Diagram
+### Data Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Presentation Layer (Slint Native UI)     │
-│       [Cards/Table View]  [New Task]  [Settings]  [CDN Labs]│
+│            Presentation (Slint UI / limedl-server)          │
+│      [Task List]  [New Task]  [Settings]  [CDN Labs]        │
 └───────────────────────┬───────────────────▲─────────────────┘
-                        │ UI Callbacks      │ Model Update
-                        ▼                   │ (UI Repaint)
-┌─────────────────────────────────────────────────────────────┐
-│                limedl-native Bridge / Handlers              │
-└───────────────────────┬───────────────────▲─────────────────┘
-                        │ API Invocations   │ EventBus Sub
+                        │ API Calls         │ EventBus Sub
                         ▼                   │ (Broadcast)
 ┌─────────────────────────────────────────────────────────────┐
-│                 limedl-core Dispatcher                      │
+│          limedl-core Facade (Dispatcher / Registry)         │
 ├─────────────────────────────────────────────────────────────┤
 │   BackendRegistry (Protocol Router)                         │
-│      ├─ [http: prefix] ──► DownloadManager (AIMD Chunking)  │
-│      └─ [bt: prefix]   ──► IrontideBtBackend (DHT & Swarms) │
+│      ├─ [http: prefix] ──► DownloadManager (limedl-core)    │
+│      └─ [bt: prefix]   ──► RqbitBtBackend (limedl-bt)       │
 ├─────────────────────────────────────────────────────────────┤
-│   Core Subsystems:                                          │
-│   • BufferPool (I/O Buffer)      • Database (SQLite WAL)    │
-│   • CdnAccelerator (IP Probing)  • RateLimiter (Tokens)     │
-│   • Aria2RpcServer (Port 6800)   • FileOps (Pre-allocation) │
+│   Shared infrastructure:                                    │
+│   • limedl-disk  BufferPool / FileOps                       │
+│   • limedl-store SQLite / Alt-Svc                           │
+│   • limedl-http  Client / token bucket limiter              │
+│   • limedl-types Settings / events / domain types           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -116,8 +100,8 @@ limedl Workspace
 | **Idle Memory Footprint** | **~35 to 50 MB** | 180 ~ 350 MB+ | 250 ~ 450 MB+ | < 20 MB |
 | **Concurrency Strategy** | **AIMD Dynamic Adaptive** | Fixed threads / paywalled | Fixed thread count | Fixed thread count |
 | **Storage Protection** | **SSD Combining + HDD Ping-Pong** | Generic unbuffered | Basic stream write | Standard buffering |
-| **CDN Edge Acceleration** | **Integrated Cloudflare Probing** | None (Private P2P only) | None | None |
-| **BitTorrent Engine** | **Irontide (DHT/PEX/LSD)** | Proprietary P2P | Aria2 BT implementation | Native Aria2 BT |
+| **CDN Edge Acceleration** | **Cloudflare / Fastly / custom providers** | None (Private P2P only) | None | None |
+| **BitTorrent Engine** | **librqbit (DHT/PEX/LSD)** | Proprietary P2P | Aria2 BT implementation | Native Aria2 BT |
 | **Aria2 RPC Ecosystem** | **100% Native Compliant** | Unsupported | Self as GUI wrapper | Protocol definer |
 | **License & Cleanliness** | **GPL-3.0 (Zero Ads/Telemetry)** | Proprietary closed-source | MIT Open Source | GPL-2.0 Open Source |
 

@@ -22,7 +22,7 @@ Depending on your operating system, the binary is located at:
   - `/Applications/limedl.app/Contents/MacOS/limedl-native`
 - **Linux**:
   - Portable: `./limedl-native`
-  - AppImage: `./limedl-native-v0.5.0-linux-x86_64.AppImage`
+  - AppImage: `./limedl-native-v*-linux-x86_64.AppImage`
   - DEB: Globally accessible via `/usr/bin/limedl-native`
 
 ---
@@ -37,9 +37,10 @@ limedl-native [OPTIONS] [PAYLOAD]
 
 | Flag | Description | Typical Use Case |
 | :--- | :--- | :--- |
-| `--hidden` | Silent launch. Minimizes directly to the system tray without raising the main window. | Autostart on boot, headless background daemons, or NAS usage. |
-| `-h`, `--help` | Prints help documentation. | Quick reference for CLI usage. |
-| `-V`, `--version` | Displays current client version. | CI scripts and version checks. |
+| `--hidden` / `-hidden` | Silent launch. Minimizes directly to the system tray without raising the main window. | Autostart on boot, headless background daemons, or NAS usage. |
+| `--minimized` | Alias for `--hidden`. | Compatibility with scripts that pass `--minimized`. |
+
+The CLI only recognizes these silent-launch flags; every other argument is treated as a payload. The client version is shown on the in-app About page.
 
 ### Supported Payload Formats
 
@@ -71,7 +72,13 @@ limedl-native "D:\Downloads\fedora-workstation.meta4"
 
 #### 5. Native limedl:// Deep Link
 ```bash
-limedl-native "limedl://download?url=https://example.com/file.zip&filename=file.zip"
+limedl-native "limedl://download?url=https%3A%2F%2Fexample.com%2Ffile.zip"
+```
+
+#### 6. Paste an aria2c Command
+The new-task dialog and clipboard monitor understand common `aria2c` flags (`-x/--split`, `--header`, `--referer`, `--checksum`, `-d/--dir`, `-o/--out`, and more). A whole command can also be passed through the CLI:
+```bash
+limedl-native "aria2c -x 16 --referer https://example.com/page https://example.com/file.zip"
 ```
 
 ---
@@ -102,17 +109,17 @@ Allows custom websites or internal intranets to trigger limedl directly.
 
 **URL Scheme Structure**:
 ```text
-limedl://download?url=<ENCODED_URL>&filename=<OPTIONAL_NAME>&referer=<OPTIONAL_REFERER>
+limedl://download?url=<ENCODED_URL>
 ```
 
 **Query Parameters**:
 - `url` *(Required)*: URL-encoded direct download link.
-- `filename` *(Optional)*: Suggested target filename.
-- `referer` *(Optional)*: Custom HTTP Referer header for protected hosts.
+
+> Only the exact `download?url=` form is parsed today; additional parameters such as `filename` and `referer` are not implemented. To set a custom filename or Referer, fill them in the new-task dialog after the link opens, or use an `aria2c` command payload instead.
 
 **HTML Integration Example**:
 ```html
-<a href="limedl://download?url=https%3A%2F%2Fexample.com%2Fbigfile.zip&filename=demo.zip">
+<a href="limedl://download?url=https%3A%2F%2Fexample.com%2Fbigfile.zip">
   Download with limedl
 </a>
 ```

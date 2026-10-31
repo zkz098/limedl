@@ -22,7 +22,7 @@ description: 掌握 limedl 的命令行调用参数、静默启动、单实例 I
   - `/Applications/limedl.app/Contents/MacOS/limedl-native`
 - **Linux**:
   - 便携包：解压后的 `./limedl-native`
-  - AppImage：`./limedl-native-v0.5.0-linux-x86_64.AppImage`
+  - AppImage：`./limedl-native-v*-linux-x86_64.AppImage`
   - DEB 安装后：系统全局命令 `limedl-native`（软链至 `/usr/bin/limedl-native`）
 
 ---
@@ -37,9 +37,10 @@ limedl-native [OPTIONS] [PAYLOAD]
 
 | 参数标志 | 说明 | 典型应用场景 |
 | :--- | :--- | :--- |
-| `--hidden` | 静默启动。直接最小化至系统托盘，不弹出主窗口。 | 配合操作系统开机启动项、自动化常驻服务或 NAS 后台挂机。 |
-| `-h`, `--help` | 打印命令行帮助信息。 | 快速查阅支持的参数列表。 |
-| `-V`, `--version` | 输出当前客户端版本号。 | CI 脚本或自动化工具核对版本。 |
+| `--hidden` / `-hidden` | 静默启动。直接最小化至系统托盘，不弹出主窗口。 | 配合操作系统开机启动项、自动化常驻服务或 NAS 后台挂机。 |
+| `--minimized` | `--hidden` 的等价别名。 | 兼容习惯使用 `--minimized` 的脚本。 |
+
+当前 CLI 只识别上述静默参数，其余参数会被当作载荷处理；客户端版本号可在大厅左下角的“关于”页查看。
 
 ### 支持的载荷类型 (Payload)
 
@@ -71,7 +72,13 @@ limedl-native "D:\Downloads\fedora-workstation.meta4"
 
 #### 5. 提交 limedl:// 原生深度链接
 ```bash
-limedl-native "limedl://download?url=https://example.com/file.zip&filename=file.zip"
+limedl-native "limedl://download?url=https%3A%2F%2Fexample.com%2Ffile.zip"
+```
+
+#### 6. 粘贴 aria2c 命令行
+新建任务弹窗与剪贴板监听都能识别常见的 `aria2c` 参数（`-x/--split`、`--header`、`--referer`、`--checksum`、`-d/--dir`、`-o/--out` 等）；也可以通过 CLI 传入整条命令：
+```bash
+limedl-native "aria2c -x 16 --referer https://example.com/page https://example.com/file.zip"
 ```
 
 ---
@@ -102,17 +109,17 @@ limedl 内置了基于平台特性的高可靠单实例与进程间通信（IPC�
 
 **语法格式**：
 ```text
-limedl://download?url=<ENCODED_URL>&filename=<OPTIONAL_NAME>&referer=<OPTIONAL_REFERER>
+limedl://download?url=<ENCODED_URL>
 ```
 
 **参数说明**：
 - `url` *(必填)*：经 URL Encode 编码的目标资源真实下载链接。
-- `filename` *(可选)*：预设保存的文件名。
-- `referer` *(可选)*：防盗链所需的 HTTP Referer 标头。
+
+> 目前深度链接只解析精确的 `download?url=` 形式；`filename`、`referer` 等附加参数尚未实现。需要自定义文件名或 Referer 时，请让链接打开新建任务弹窗后再填写，或改用 `aria2c` 命令行载荷。
 
 **HTML 网页调用示例**：
 ```html
-<a href="limedl://download?url=https%3A%2F%2Fexample.com%2Fbigfile.zip&filename=demo.zip">
+<a href="limedl://download?url=https%3A%2F%2Fexample.com%2Fbigfile.zip">
   使用 limedl 极速下载
 </a>
 ```

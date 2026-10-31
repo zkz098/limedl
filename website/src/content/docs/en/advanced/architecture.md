@@ -11,29 +11,27 @@ limedl is engineered around a **pure Rust 2024 single-track** philosophy. Over i
 
 ## Workspace Layout
 
-The repository is structured as a tightly focused Rust workspace:
+limedl is a multi-crate Rust workspace. The engine is split by responsibility, and frontends go through the facade:
 
 ```
 limedl/
-├── crates/limedl-core/     # Headless pure Rust multi-protocol engine (no UI dependencies)
-├── crates/limedl-native/   # Slint-based native desktop client (FemtoVG hardware backend)
-├── crates/limedl-server/   # Headless daemon (Aria2 JSON-RPC server for NAS / routers / Docker)
-└── xtask/                  # Repository maintenance tooling (PQC dual-signing & release gates)
+├── crates/limedl-types/    # Domain types, settings, errors, events, manifest, DownloadBackend
+├── crates/limedl-disk/     # file_ops, buffer_pool, io_scheduler
+├── crates/limedl-store/    # SQLite task/chunk/manifest store, Alt-Svc cache
+├── crates/limedl-http/     # HTTP client factory, identity encoding, rate limiter
+├── crates/limedl-engine/   # HTTP executor, scheduler, CDN, Metalink, task lifecycle
+├── crates/limedl-bt/       # librqbit BT backend (the only crate naming the engine)
+├── crates/limedl-rpc/      # Aria2 JSON-RPC + WebSocket server (above the engine)
+├── crates/limedl-testkit/  # Test-only HTTP harness
+├── crates/limedl-core/     # Facade: Dispatcher, BackendRegistry, DownloadManager, bootstrap
+├── crates/limedl-native/   # Slint desktop client (FemtoVG renderer)
+├── crates/limedl-server/   # Headless daemon (NAS / routers / Docker)
+└── xtask/                  # Build/release tooling: keys, dual-signing, gates
 ```
 
-### 1. `limedl-core` (The Download Engine)
-- **Responsibilities**: Task orchestration, AIMD concurrency scheduling, HTTP range probing and chunking, BitTorrent swarms (irontide), Metalink 4.0/3.0 mirror selection, Cloudflare CDN probing, hardware-aware buffer pools, SQLite persistence, and the Aria2 JSON-RPC 2.0 server.
-- **Characteristics**: Built purely on Tokio's asynchronous runtime with zero UI dependencies.
-
-### 2. `limedl-native` (Native Slint Client)
-- **Responsibilities**: Native declarative UI built with **Slint** on top of FemtoVG rendering. Handles window geometry persistence, single-instance mutexes, system tray menus, power locks (preventing sleep during active downloads), desktop notifications, and cryptographic in-app updates.
-- **In-Memory IPC**: The client and core engine reside in the **same OS process**. All interactions occur via direct Rust function invocations, eliminating cross-process network serialization.
-
-### 3. `limedl-server` (Headless Server Daemon)
-- **Responsibilities**: Lightweight daemon for NAS appliances, soft routers, Linux servers, and Docker containers. Shares the same underlying download engine and exposes compliant Aria2 JSON-RPC 2.0 with per-client token authentication.
-
-### 4. `xtask` (Security & Release Guard)
-- **Responsibilities**: Generates Minisign Ed25519 and ML-DSA-65 keypairs, signs release artifacts, and verifies that CI builds strictly match client-embedded public keys prior to publishing.
+- `limedl-core` is a compatibility facade: it keeps `Dispatcher`, `DownloadManager`, `bootstrap`, and historical `pub use` paths, while HTTP execution, scheduling, CDN, and Metalink live in `limedl-engine` and BitTorrent lives in `limedl-bt`.
+- `limedl-rpc` sits above the engine/facade; `limedl-core` does not depend on it. Each frontend decides whether to start RPC.
+- Each frontend links the engine into its own process and calls it through Rust functions, with no cross-process serialization.
 
 ---
 
@@ -55,34 +53,35 @@ limedl/
        [TaskId with "http:"] │              │ [TaskId with "bt:"]
                              ▼              ▼
                 ┌──────────────────┐  ┌──────────────────┐
-                │ DownloadManager  │  │IrontideBtBackend │
-                │ (HTTP/HTTPS AIMD)│  │ (BitTorrent P2P) │
+                │ DownloadManager  │  │  RqbitBtBackend  │
+                │ (limedl-core)    │  │ (limedl-bt)      │
                 └────────┬─────────┘  └────────┬─────────┘
                          │                     │
                          └──────────┬──────────┘
                                     │
                                     ▼
                 ┌────────────────────────────────────────┐
-                │ Shared Infrastructure:                 │
-                │ • BufferPool (SSD Combine / HDD Ping)  │
-                │ • Database (SQLite WAL Atomic Store)   │
-                │ • RateLimiter (Token Bucket Limiter)   │
-                │ • SettingsService (Single Source Truth)│
-                │ • EventBus (Tokio Broadcast Channel)   │
+                │ Shared infrastructure:                 │
+                │ • limedl-disk  BufferPool / FileOps    │
+                │ • limedl-store SQLite / Alt-Svc        │
+                │ • limedl-http  Client / token bucket   │
+                │ • limedl-types Settings / events       │
                 └────────────────────────────────────────┘
 ```
 
 ### 1. Protocol Routing via BackendRegistry
 limedl standardizes all operations under the `DownloadBackend` trait:
 - Every task receives a globally unique `TaskId`.
-- TaskIds are prefixed semantically: `http:<uuid>` routes to `DownloadManager`, while `bt:<infohash>` routes to `IrontideBtBackend`.
-- The `Dispatcher` facade exposes uniform CRUD methods (`start`, `pause`, `resume`, `cancel`, `remove`), hiding protocol-specific mechanics from the UI.
+- TaskIds are prefixed semantically: `http:<uuid>` routes to `DownloadManager`, while `bt:<infohash>` routes to `RqbitBtBackend`.
+- The `Dispatcher` facade exposes uniform lifecycle methods (`start`, `pause`, `resume`, `cancel`, `remove`), hiding protocol-specific mechanics from the UI.
 
-### 2. Zero-Sized Type (ZST) Actors
-To prevent memory cycles or deadlock hazards in complex asynchronous flows, `DownloadManager` delegates work to three ZST actors:
-- **HttpExecutor**: Functional methods for metadata probing, range request generation, and byte stream reads.
-- **Scheduler**: An autonomous background task executing every 2 seconds to evaluate AIMD throughput states and dynamically balance worker threads.
-- **TaskLifecycle**: Coordinates file cleanup, progress calculation, and database transitions.
+### 2. Three Sibling Actors
+To prevent memory cycles or deadlock hazards in complex asynchronous flows, `DownloadManager` delegates execution to three sibling actors:
+- **HttpExecutor**: a zero-sized type handling metadata probing, range requests, and byte-stream reads.
+- **Scheduler**: an autonomous background task that runs every 2 seconds to evaluate AIMD throughput and rebalance worker threads.
+- **TaskLifecycle**: coordinates state transitions, file cleanup, progress accounting, and database persistence.
+
+Scheduler and TaskLifecycle own runtime state; they are not zero-sized types.
 
 ---
 

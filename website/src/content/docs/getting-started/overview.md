@@ -46,61 +46,45 @@ limedl 借鉴现代网络传输算法，实现了 **AIMD（Additive Increase Mul
 
 ## 架构拓扑概览
 
-limedl 采用单轨化 Rust 工作空间（Workspace）组织代码，严格分离无界面引擎与交互前端：
+limedl 采用多 crate 的 Rust 工作空间（Workspace），严格分离引擎、前端与工具：
 
 ```
 limedl Workspace
-├── crates/limedl-core/       # 纯 Rust 多协议下载核心引擎 (无 GUI 依赖)
-│   ├── manager.rs            # DownloadManager 任务编排与调度
-│   ├── scheduler.rs          # AIMD 线程池动态均衡与调度器
-│   ├── http_executor.rs      # HTTP Range 分块探测与并发拉取
-│   ├── bt_backend/           # BitTorrent 内核 (基于 Irontide 1.7.0)
-│   ├── cdn/                  # Cloudflare CDN 边缘测速与 DNS 重写
-│   ├── buffer_pool.rs        # SSD 写入合并与 HDD 双缓冲池
-│   ├── file_ops/             # 空间预分配与原子文件最终化
-│   ├── checksum/             # Blake3 / SHA-256 / SHA-512 校验器
-│   ├── rate_limiter/         # 全局令牌桶限速与计划表
-│   └── aria2_rpc.rs          # Aria2 JSON-RPC 2.0 兼容服务
-│
-├── crates/limedl-native/     # 原生桌面客户端 (Slint + FemtoVG 渲染)
-│   ├── main.rs               # 应用入口、单实例控制、托盘集成与事件循环
-│   ├── bridge/               # Rust 数据结构到 Slint UI 模型的映射层
-│   ├── handlers/             # 任务、设置、实验室与更新事件处理器
-│   ├── update.rs             # 基于 Minisign + ML-DSA-65 后量子双验签的自更新
-│   └── ui/                   # Slint 声明式组件与主题系统
-│
-├── crates/limedl-server/     # 无头服务端守护进程 (NAS / 软路由 / Docker)
-│   ├── main.rs               # CLI 参数解析、信号处理与单实例文件锁
-│   └── daemon.rs             # 纯异步 Aria2 JSON-RPC 2.0 守护服务
-│
-└── xtask/                    # 仓库运维工具：后量子密钥、双签名与发布防篡改门禁
+├── crates/limedl-types/      # 领域类型、设置、事件、manifest、Backend trait
+├── crates/limedl-disk/       # 文件操作、缓冲池、I/O 调度
+├── crates/limedl-store/      # SQLite 持久化、Alt-Svc 缓存
+├── crates/limedl-http/       # HTTP 客户端、限速器
+├── crates/limedl-engine/     # HTTP executor、scheduler、CDN、Metalink、生命周期
+├── crates/limedl-bt/         # librqbit BitTorrent 后端
+├── crates/limedl-rpc/        # Aria2 JSON-RPC / WebSocket 服务
+├── crates/limedl-testkit/    # 测试用 HTTP 夹具（仅测试）
+├── crates/limedl-core/       # 门面：Dispatcher / BackendRegistry / bootstrap
+├── crates/limedl-native/     # Slint + FemtoVG 桌面客户端
+├── crates/limedl-server/     # 无头守护进程 (NAS / 软路由 / Docker)
+└── xtask/                    # 密钥、双签名、构建与发布门禁
 ```
 
 ### 数据交互流向
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    用户交互层 (Slint Native UI)               │
-│      [卡片/表格视图]  [新建任务]  [设置中心]  [实验室 CDN]       │
-└───────────────────────┬───────────────────▲─────────────────┘
-                        │ UI Callbacks      │ Model Update
-                        ▼                   │ (UI 重绘)
-┌─────────────────────────────────────────────────────────────┐
-│                limedl-native Bridge / Handlers              │
+│              用户交互层 (Slint Native UI / limedl-server)     │
+│      [任务列表]  [新建任务]  [设置中心]  [实验室 CDN]          │
 └───────────────────────┬───────────────────▲─────────────────┘
                         │ API 调用          │ EventBus 订阅
                         ▼                   │ (广播通知)
 ┌─────────────────────────────────────────────────────────────┐
-│                 limedl-core 调度核心 (Dispatcher)            │
+│            limedl-core 门面 (Dispatcher / Registry)          │
 ├─────────────────────────────────────────────────────────────┤
 │   BackendRegistry (协议路由分发)                             │
-│      ├─ [http: 前缀] ──► DownloadManager (AIMD + 分块下载)   │
-│      └─ [bt: 前缀]   ──► IrontideBtBackend (DHT + P2P 群集)  │
+│      ├─ [http: 前缀] ──► DownloadManager (limedl-core)       │
+│      └─ [bt: 前缀]   ──► RqbitBtBackend (limedl-bt)          │
 ├─────────────────────────────────────────────────────────────┤
-│   底层基础设施:                                              │
-│   • BufferPool (I/O 缓冲池)      • Database (SQLite WAL)    │
-│   • CdnAccelerator (IP 优选)     • RateLimiter (令牌桶)      │
-│   • Aria2RpcServer (兼容 RPC)    • FileOps (空间预分配)     │
+│   共享基础设施:                                              │
+│   • limedl-disk  BufferPool / FileOps                       │
+│   • limedl-store SQLite / Alt-Svc                           │
+│   • limedl-http  客户端 / 令牌桶限速                         │
+│   • limedl-types 设置 / 事件 / 领域类型                       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -118,8 +102,8 @@ limedl Workspace
 | **空闲内存占用** | **约 35 ~ 50 MB** | 180 ~ 350 MB+ | 250 ~ 450 MB+ | < 20 MB |
 | **并发策略** | **AIMD 动态自适应调度** | 固定线程 / 付费加速 | 固定连接数 | 固定连接数 (需手动配) |
 | **磁盘 I/O 保护** | **SSD 写合并 + HDD 双缓冲** | 无明显介质优化 (常发热) | 基础顺序写，千兆易卡顿 | 基础缓冲配置 |
-| **CDN 探针加速** | **内建 Cloudflare IP 优选** | 无 (依赖官方专有 P2P) | 无 | 无 |
-| **BitTorrent 支持** | **Irontide (DHT/PEX/LSD)** | 商业专有 (部分协议受限) | Aria2 BT (DHT 性能一般) | 原生支持 |
+| **CDN 探针加速** | **Cloudflare / Fastly / 自定义 Provider** | 无 (依赖官方专有 P2P) | 无 | 无 |
+| **BitTorrent 支持** | **librqbit (DHT/PEX/LSD)** | 商业专有 (部分协议受限) | Aria2 BT (DHT 性能一般) | 原生支持 |
 | **Aria2 生态兼容** | **原生完整兼容 (6800)** | 不支持 | 自身作为前端包装 | 标准定义者 |
 | **纯净与开源协议** | **GPL-3.0 无广告零遥测** | 商业闭源、开屏弹窗与广告 | MIT 开源 | GPL-2.0 开源 |
 

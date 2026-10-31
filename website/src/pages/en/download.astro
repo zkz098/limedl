@@ -21,14 +21,14 @@ const downloads = [
       {
         name: 'Portable Archive (.zip)',
         type: 'Portable',
-        desc: 'No installation required. Extracts and stores all data locally in the application folder.',
+        desc: 'No installation required. Data defaults to %LOCALAPPDATA%\\limedl; set LIMEDL_DATA_DIR for a fully portable setup.',
         file: `limedl-native-${version}-windows-x86_64-portable.zip`,
         url: `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64-portable.zip`,
       },
       {
         name: 'MSIX Modern App (.msix)',
         type: 'Sandboxed',
-        desc: 'Windows 10/11 modern sandboxed package with isolated permissions and clean uninstall.',
+        desc: 'Windows 10/11 modern sandboxed package with isolated permissions and clean uninstall; updates are delivered through Microsoft Store.',
         file: `limedl-native-${version}-windows-x86_64.msix`,
         url: `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64.msix`,
       },
@@ -83,7 +83,7 @@ const downloads = [
 
 <Layout
   title="Download limedl - Cross-Platform Native Client"
-  description="Download official pre-built native binaries of limedl for Windows, macOS (Apple Silicon), and Linux with Minisign verification."
+  description="Download official pre-built native binaries of limedl for Windows, macOS (Apple Silicon), and Linux with Minisign + ML-DSA-65 dual-signature verification."
   lang="en"
 >
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
@@ -96,7 +96,7 @@ const downloads = [
         Download limedl Desktop Client
       </h1>
       <p class="text-slate-400 text-base">
-        All release packages are built with GitHub Actions CI and secured by Minisign signatures.
+        All release packages are built with GitHub Actions CI and dual-signed with Minisign (Ed25519) and ML-DSA-65.
       </p>
     </div>
 
@@ -219,7 +219,7 @@ const downloads = [
         <h3 class="text-lg font-bold text-white">Security & Checksum Verification</h3>
       </div>
       <p class="text-sm text-slate-400 leading-relaxed">
-        To guarantee authenticity, each binary artifact is dual-signed with <code class="text-lime-300">.sig</code> (Minisign Ed25519) and <code class="text-lime-300">.pqc.sig</code> (ML-DSA-65 Post-Quantum Cryptography) alongside SHA256 hashes.
+        To guarantee authenticity, each binary artifact is dual-signed with <code class="text-lime-300">.sig</code> (Minisign Ed25519) and <code class="text-lime-300">.pqc.sig</code> (ML-DSA-65 Post-Quantum Cryptography) alongside SHA256 hashes; the ML-DSA-65 public key and independent verification steps are in the <a href="/en/getting-started/installation/" class="text-lime-400 hover:text-lime-300 underline">installation guide</a>.
       </p>
 
       <div class="space-y-3">

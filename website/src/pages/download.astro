@@ -21,14 +21,14 @@ const downloads = [
       {
         name: '绿色便携版 (Portable .zip)',
         type: '便携',
-        desc: '无需安装，解压即用。所有数据与配置均存储在当前目录中。',
+        desc: '无需安装，解压即用。数据默认存储于 %LOCALAPPDATA%\\limedl；设置 LIMEDL_DATA_DIR 可实现完全随身便携。',
         file: `limedl-native-${version}-windows-x86_64-portable.zip`,
         url: `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64-portable.zip`,
       },
       {
         name: 'MSIX 现代安全包 (.msix)',
         type: '沙箱',
-        desc: 'Windows 10/11 现代沙箱应用安装包，具备纯净卸载与权限隔离。',
+        desc: 'Windows 10/11 现代沙箱应用安装包，具备纯净卸载与权限隔离；后续更新由 Microsoft Store 提供。',
         file: `limedl-native-${version}-windows-x86_64.msix`,
         url: `${baseReleaseUrl}/limedl-native-${version}-windows-x86_64.msix`,
       },
@@ -83,7 +83,7 @@ const downloads = [
 
 <Layout
   title="下载 limedl - 全平台桌面客户端"
-  description="获取适用于 Windows、macOS (Apple Silicon) 与 Linux 系统的 limedl 官方安全安装包与便携绿色版，支持 Minisign 密码学验签。"
+  description="获取适用于 Windows、macOS (Apple Silicon) 与 Linux 系统的 limedl 官方安全安装包与便携绿色版，支持 Minisign + ML-DSA-65 混合双签名验签。"
   lang="zh-CN"
 >
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
@@ -96,7 +96,7 @@ const downloads = [
         下载 limedl 桌面客户端
       </h1>
       <p class="text-slate-400 text-base">
-        所有安装包均通过 GitHub Actions 自动化构建并由 Minisign 密码学签名，保障零篡改与绝对纯净。
+        所有安装包均通过 GitHub Actions 自动化构建，并由 Minisign (Ed25519) 与 ML-DSA-65 双签名，保障零篡改与绝对纯净。
       </p>
     </div>
 
@@ -219,7 +219,7 @@ const downloads = [
         <h3 class="text-lg font-bold text-white">安全与哈希校验指南</h3>
       </div>
       <p class="text-sm text-slate-400 leading-relaxed">
-        为确保你下载的文件未经第三方篡改，每个版本均在 Release 资产中附带 <code class="text-lime-300">.sig</code>（Minisign Ed25519）与 <code class="text-lime-300">.pqc.sig</code>（ML-DSA-65 后量子密码学）双签名与 SHA256 哈希清单。
+        为确保你下载的文件未经第三方篡改，每个版本均在 Release 资产中附带 <code class="text-lime-300">.sig</code>（Minisign Ed25519）与 <code class="text-lime-300">.pqc.sig</code>（ML-DSA-65 后量子密码学）双签名与 SHA256 哈希清单；ML-DSA-65 公钥与独立验签方法见<a href="/getting-started/installation/" class="text-lime-400 hover:text-lime-300 underline">安装指南</a>。
       </p>
 
       <div class="space-y-3">

@@ -43,6 +43,7 @@ Windows 平台提供三种分发格式，满足不同场景的使用偏好：
 
 ### 3. MSIX 现代安全包 (.msix)
 - **特性**：利用 Windows 现代应用容器封装，享受安全沙箱保护、纯净卸载无残留、与 Windows 10/11 系统深度集成。
+- **更新方式**：MSIX 版本通过 **Microsoft Store** 更新；应用内自动更新仅适用于 Setup.exe 与便携版。
 
 ---
 
@@ -140,6 +141,12 @@ RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7
 minisign -Vm limedl-native-v0.6.1-windows-x86_64-setup.exe -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
 ```
 若终端输出 `Signature and comment signature verified`，说明文件未受任何篡改且确实由官方流水线签名产出。
+
+### 3. ML-DSA-65 后量子签名
+
+每个工件同时带有 `.pqc.sig`（内容为 `untrusted comment: ml-dsa-65 signature` 加一行 base64 签名）。官方 ML-DSA-65 公钥以标准 base64 发布在 [`/limedl-pqc-pubkey.b64`](/limedl-pqc-pubkey.b64)（解码后为 1952 字节原始公钥）。
+
+独立复核时，对下载文件的原始字节使用 FIPS 204 ML-DSA-65 验证，上下文（context）为 `limedl-artifact`；`latest-native.json` 的上下文为 `limedl-manifest`。limedl 客户端在应用内更新时会自动执行这一校验，普通用户无需手动操作。
 
 ---
 

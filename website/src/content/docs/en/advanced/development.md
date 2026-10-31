@@ -68,30 +68,15 @@ cargo build -p limedl-native --profile native-release
 
 limedl enforces strict CI rules: any compiler warning, Clippy lint, or test failure will fail the pull request pipeline.
 
-Before committing and pushing your code, run the full verification gate locally:
+Before committing and pushing, run the repository gate:
 
-```powershell
-# 1. Environment configuration
-$env:CARGO_BUILD_WARNINGS = "deny"
-$env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL = "sparse"
-
-# 2. Workspace-wide Clippy static analysis (-D warnings)
-cargo clippy --workspace --all-targets -- -D warnings
-
-# 3. Unit and integration tests for download engine and RPC
-cargo nextest run --manifest-path crates/limedl-core/Cargo.toml --features "test-utils,aria2-rpc"
-
-# 4. Tooling and release guard tests
-cargo nextest run --manifest-path xtask/Cargo.toml
-
-# 5. Desktop client test suite
-cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
-
-# 6. Headless server test suite
-cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
+```bash
+cargo xtask gate            # fmt + clippy + doc + all tests + theme, ~4 minutes
+cargo xtask gate --full     # adds feature matrix, unused deps, license and RustSec audit
+cargo xtask gate --check-ci # offline check that ci.yml still runs every crate's tests
 ```
 
-All checks must pass cleanly (green) before committing and pushing.
+The gate applies CI's environment itself (`CARGO_BUILD_WARNINGS=deny`, sparse registry) and reports the exact command that failed. On Windows, initialize MSVC first. Fix every warning, Clippy lint, or failing test before committing.
 
 ---
 

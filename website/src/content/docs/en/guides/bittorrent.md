@@ -1,11 +1,11 @@
 ---
 title: BitTorrent Tuning
-description: Deep dive into the embedded Irontide BitTorrent engine, supported BEP protocol standards, magnet resolution, and NAT traversal
+description: Deep dive into the embedded librqbit BitTorrent engine, supported BEP protocol standards, magnet resolution, and NAT traversal
 ---
 
 # BitTorrent Protocol & Tuning
 
-limedl deeply integrates a modern, pure Rust BitTorrent engine (**Irontide**), offering exhaustive compliance with P2P protocol specifications while ensuring maximum throughput, minimal RAM overhead, and reliable NAT traversal.
+limedl deeply integrates a modern, pure Rust BitTorrent engine (**librqbit**), offering exhaustive compliance with P2P protocol specifications while ensuring maximum throughput, minimal RAM overhead, and reliable NAT traversal.
 
 ---
 
@@ -22,8 +22,7 @@ limedl strictly follows the official BitTorrent Enhancement Proposals (BEP):
 | **BEP 11** | Peer Exchange (PEX) | Directly exchanges lists of known active peers among participants in a swarm, significantly accelerating discovery. |
 | **BEP 14** | Local Peer Discovery (LSD) | Multicast discovery across the local subnet. Peers connected to the same switch or router transfer data at full gigabit/10GbE local speeds. |
 | **BEP 15** | UDP Tracker Protocol | Compact, low-overhead UDP communication with trackers to prevent socket exhaustion. |
-| **UPnP / NAT-PMP** | Auto Port Forwarding | Automatically requests external inbound port mapping on compatible home routers, transforming NAT clients into fully connectable peers. |
-| **MSE / PE** | Stream Encryption | Negotiates stream encryption to thwart ISP deep packet inspection (DPI) and traffic throttling. |
+| **UPnP** | Auto Port Forwarding | Requests external inbound port mappings on UPnP-capable routers; enable it in Settings (off by default). |
 
 ---
 
@@ -66,31 +65,31 @@ Network connectability is the single biggest determinant of BitTorrent performan
 ### 1. Enable Router UPnP
 - Access your router's admin panel (typically `192.168.1.1` or `192.168.0.1`).
 - Under "Advanced" or "NAT Forwarding", ensure **UPnP** is toggled **On**.
-- limedl automatically registers port mapping (default port `6881`). Being connectable from the public internet drastically expands your available peer pool.
+- With UPnP enabled in Settings, limedl requests port mappings at startup. Leave the listen port empty for an OS-assigned port, or pin a value such as 6881. Inbound connectivity from the public internet drastically expands the peer pool.
 
 ### 2. Maintain a High-Quality Public Tracker List
 While DHT works autonomously, providing healthy public trackers accelerates the discovery of seeds for rare or obscure torrents.
 
-In **Settings -> BitTorrent -> Public Trackers**, paste curated tracker URLs (one per line). limedl automatically injects these trackers into every new torrent and magnet task.
+In **Settings -> BitTorrent -> Public tracker list URL**, provide a subscription URL serving a plain-text tracker list (one announce URL per line). limedl fetches the list and injects those trackers into every new torrent and magnet task; a maintained list URL is built in by default.
 
 ### 3. Upload Throttling & Seeding Ratios
 On asymmetric consumer broadband connections (such as fiber with asymmetric upload), maxing out your upload bandwidth will choke TCP ACK packets, causing downstream download speeds to plummet and increasing web browsing latency.
 
 - **Upload Speed Limit**: In **Settings -> Speed Limits**, cap the global upload limit at **70% ~ 80%** of your line's maximum physical upload rate.
-- **Seeding Ratio**: Default is `1.0`. Once uploaded bytes equal downloaded bytes, seeding concludes automatically, striking a balance between community sharing and resource conservation.
+- **Seeding Ratio**: Defaults to `0` (unlimited). Set `1.0` to stop seeding once uploaded bytes equal the downloaded amount; 1.0–2.0 is a typical range.
 
 ### 4. Enable Lightweight BT Mode for Idle Efficiency (`bt.lightweightMode`)
 For users who primarily download HTTP/HTTPS resources, keeping the DHT routing table and listen sockets active consumes background memory.
 Enable **Lightweight BT Mode** under **Settings -> BitTorrent**:
-- The Irontide engine will not pre-warm on application launch;
+- The librqbit engine will not pre-warm on application launch;
 - Once all torrents are paused or completed with no active seeding, the engine automatically unloads its session from memory;
 - Torrent records remain visible and resumable via the SQLite `bt_tasks` cache;
 - Submitting a new magnet or resuming a task immediately awakens the engine within milliseconds.
 
 ---
 
-## Anti-Leech & Corrupted Block Safeguards
+## Anti-Leech Safeguards
 
-limedl incorporates defensive algorithms against malicious or defective peers:
-- **Client Anomaly Detection**: Detects spoofed client IDs and peers that intentionally discard upload requests.
-- **Circuit-Breaking on Bad Hashes**: If a peer repeatedly delivers data chunks that fail hash verification, the engine drops the connection and temporarily blacklists the peer to conserve downstream bandwidth.
+limedl includes defensive handling for abusive peers:
+- **Leech Detection**: Uses a grace period, a give-back ratio, and upload/download rates to flag peers that only download, or that hold upload slots without reciprocating.
+- **Throttle or Ban**: Configure it to reduce the peer's upload slots or ban it temporarily (auto-unban after 3600 seconds by default). Data integrity itself is protected by BT piece hashes.

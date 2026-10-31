@@ -42,6 +42,7 @@ Windows users can choose from three distribution formats based on their deployme
 
 ### 3. MSIX Modern Package (.msix)
 - **Features**: Packaged using Windows modern app containerization, offering strict sandbox security, zero residual uninstallation, and seamless Windows 10/11 system integration.
+- **Updates**: MSIX builds update through **Microsoft Store**; in-app self-update applies to the Setup.exe and portable builds only.
 
 ---
 
@@ -136,6 +137,12 @@ Verify signature:
 minisign -Vm limedl-native-v0.6.1-windows-x86_64-setup.exe -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
 ```
 If verified, the command outputs `Signature and comment signature verified`.
+
+### 3. ML-DSA-65 Post-Quantum Signature
+
+Every artifact also ships a `.pqc.sig` file (`untrusted comment: ml-dsa-65 signature` followed by one line of base64). The official ML-DSA-65 public key is published in standard base64 at [`/limedl-pqc-pubkey.b64`](/limedl-pqc-pubkey.b64) (1952 raw bytes after decoding).
+
+To verify independently, run a FIPS 204 ML-DSA-65 verification over the exact artifact bytes with the context `limedl-artifact`; `latest-native.json` uses the context `limedl-manifest`. The limedl client performs this check automatically during in-app updates, so regular users do not need to verify it manually.
 
 ---
 

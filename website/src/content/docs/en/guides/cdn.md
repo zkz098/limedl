@@ -1,6 +1,6 @@
 ---
 title: CDN Acceleration
-description: In-depth guide to limedl Cloudflare CDN edge probing, intelligent IP selection, and transport-level DNS rewriting
+description: In-depth guide to limedl Cloudflare / Fastly / custom CDN edge probing, intelligent IP selection, and transport-level DNS rewriting
 ---
 
 # CDN Acceleration
@@ -18,13 +18,13 @@ limedl features a proprietary **CDN Probe Acceleration System** that combines co
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ 1. Host Recognition                                         │
-│    Detects if the incoming URL is hosted on Cloudflare CDN  │
+│    Detects if the URL belongs to the selected CDN provider  │
 └──────────────────────────────┬──────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ 2. Concurrent Latency Screening (Screening Phase)           │
-│    Fires rapid TCP/TLS handshakes across Cloudflare CIDRs   │
+│    Fires rapid TCP/TLS handshakes across provider CIDRs     │
 │    Filters out high-latency and unstable edge nodes         │
 └──────────────────────────────┬──────────────────────────────┘
                                │
@@ -58,15 +58,15 @@ As a result, connections remain 100% compliant with standard TLS verification, g
 ## Using the CDN Probe in the Desktop Client
 
 ### Step 1: Open the Labs Panel
-Open the **Settings** dialog from the left sidebar and switch to the **Labs** tab, then select the **CDN Acceleration** section.
+Open the **Settings** dialog from the left sidebar and switch to the **Labs** tab, then select the **CDN Network Optimization** section.
 
 ![CDN Probe Settings Screenshot](../../../../assets/settings-cdn-probe.png)
 
 ### Step 2: Run the Benchmark
 Click the **"Start Test"** button:
-- The `CdnAccelerator` state machine in the background acquires official IP blocks and executes concurrent connection tests.
+- The `CdnAccelerator` state machine in the background loads the selected provider's IP blocks and executes concurrent connection tests.
 - Real-time progress is broadcast over the internal `EventBus` directly to the UI.
-- Once finished, candidates are ranked by score, detailing **IP Address**, **Round-Trip Latency**, **Packet Loss**, and **Measured Throughput (MB/s)**.
+- Once finished, candidates are ranked by score, detailing **IP Address**, **TCP Latency**, and **Measured Throughput (MB/s)**.
 
 ### Step 3: Apply the Optimized Node
 Select the highest-performing IP (marked with a green recommended badge) and click **"Apply IP"**:
@@ -75,21 +75,15 @@ Select the highest-performing IP (marked with a green recommended badge) and cli
 
 ---
 
-## Custom Clean IP Lists
+## Choosing and Customizing a CDN Provider
 
-Depending on your internet service provider (ISP) and regional peering arrangements, specific IP blocks may perform better than others.
+The Labs CDN panel supports three providers:
 
-limedl allows power users to supply custom IP lists:
-1. In the Labs panel, switch to the **"Custom IP Pool"** view;
-2. Enter pre-tested clean IPs or CIDR notation blocks (one per line):
-   ```text
-   104.16.24.1
-   104.18.32.10
-   162.159.130.0/24
-   ```
-3. Save the list; future probes will evaluate and rank your custom pool with priority.
+- **Cloudflare** (default): built-in Anycast ranges and test URL;
+- **Fastly**: Fastly's static ranges and test URL;
+- **Custom**: supply your own test URL plus IPv4 / IPv6 CIDR lists (one per line), for self-hosted Anycast or third-party CDNs.
 
----
+Re-run the speed test after switching providers; an applied node from the previous provider is not migrated automatically. A test consumes roughly 20–50 MB of traffic. After applying a node, only domains that fall inside the selected provider's ranges use acceleration; other domains keep normal DNS.
 
 ## URL Rewrite Rules for Mirror Acceleration
 

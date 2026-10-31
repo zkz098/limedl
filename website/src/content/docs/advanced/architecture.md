@@ -11,29 +11,27 @@ limedl 采用了纯 **Rust 2024** 单轨化（Single-Track）设计。在架构�
 
 ## 整体工作空间架构
 
-limedl 代码库由三个高度解耦的子项目构成：
+limedl 是一个多 crate 的 Rust 工作区。引擎按职责拆分，前端只通过门面访问：
 
 ```
 limedl/
-├── crates/limedl-core/     # 纯 Rust 多协议下载引擎 (无任何 GUI 依赖)
-├── crates/limedl-native/   # 基于 Slint 的原生桌面应用 (FemtoVG 硬件渲染)
-├── crates/limedl-server/   # 无头服务端守护进程 (面向 NAS / 软路由 / Docker 的 Aria2 RPC 服务)
-└── xtask/                  # 构建期与发布期工具：后量子密钥、双签名防篡改门禁
+├── crates/limedl-types/    # 领域类型、设置、错误、事件、manifest、DownloadBackend
+├── crates/limedl-disk/     # file_ops、buffer_pool、io_scheduler
+├── crates/limedl-store/    # SQLite 任务/分片/manifest 与 Alt-Svc 缓存
+├── crates/limedl-http/     # HTTP client factory、identity 编码、限速器
+├── crates/limedl-engine/   # HTTP executor、scheduler、CDN、Metalink、task lifecycle
+├── crates/limedl-bt/       # librqbit BT 后端（唯一命名 BT 引擎的 crate）
+├── crates/limedl-rpc/      # Aria2 JSON-RPC + WebSocket 服务（位于引擎之上）
+├── crates/limedl-testkit/  # 测试用 HTTP 夹具（仅测试依赖）
+├── crates/limedl-core/     # 门面：Dispatcher、BackendRegistry、DownloadManager、bootstrap
+├── crates/limedl-native/   # 基于 Slint 的桌面客户端（FemtoVG 渲染）
+├── crates/limedl-server/   # 无头守护进程（NAS / 软路由 / Docker）
+└── xtask/                  # 构建与发布工具：密钥、双签名、门禁
 ```
 
-### 1. `limedl-core`（核心下载引擎）
-- **职责**：任务编排、自适应并发调度、HTTP 探测与动态分块、BitTorrent P2P 蜂窝连接、Metalink 4.0/3.0 镜像优选、Cloudflare CDN 探针测速、磁盘缓冲池 I/O、SQLite 任务持久化与 Aria2 JSON-RPC 2.0 服务端。
-- **特性**：纯异步（基于 Tokio 异步运行时），完全无界面相关依赖。
-
-### 2. `limedl-native`（原生交互桌面客户端）
-- **职责**：基于现代声明式 GUI 框架 **Slint** 打造，使用 FemtoVG 原生渲染后端。负责窗口几何持久化、单实例互斥与 IPC 接管、系统托盘、操作系统电源休眠抑制、通知与密码学自更新。
-- **与引擎通信**：客户端与 `limedl-core` 处于**同一个操作系统进程中**。所有业务调用直接通过内存函数分发，彻底消除了跨进程或基于本地 HTTP 的序列化开销。
-
-### 3. `limedl-server`（无头服务端守护进程）
-- **职责**：面向 NAS、软路由、Linux 服务器与 Docker 容器。以轻量纯异步守护进程运行，共享底层核心引擎并暴露标准 Aria2 JSON-RPC 2.0 接口，支持多客户端独立 Token 与优雅停机。
-
-### 4. `xtask`（安全与构建守卫）
-- **职责**：在发布流水线中管理 Minisign 与 ML-DSA-65 密钥对，并对所有跨平台产物执行密码学双签名；在 CI 阶段通过 `cargo xtask guard` 严格校验签名私钥与客户端内置公钥的一致性，防止软件供应链污染。
+- `limedl-core` 是兼容门面：保留 `Dispatcher`、`DownloadManager`、`bootstrap` 与历史 `pub use` 路径，实际 HTTP 执行、调度、CDN、Metalink 在 `limedl-engine`，BT 在 `limedl-bt`。
+- `limedl-rpc` 位于引擎/门面之上，`limedl-core` 不依赖它；桌面端与无头服务端各自决定是否启动 RPC。
+- `limedl-native` 与 `limedl-server` 各自在自己的进程中直接链接引擎，通过 Rust 函数调用，没有跨进程序列化开销。
 
 ---
 
@@ -55,34 +53,35 @@ limedl/
        [TaskId 以 "http:" 开头]│              │[TaskId 以 "bt:" 开头]
                              ▼              ▼
                 ┌──────────────────┐  ┌──────────────────┐
-                │ DownloadManager  │  │IrontideBtBackend │
-                │ (HTTP/HTTPS 并发)│  │ (BitTorrent 内核) │
+                │ DownloadManager  │  │  RqbitBtBackend  │
+                │ (limedl-core)    │  │ (limedl-bt)      │
                 └────────┬─────────┘  └────────┬─────────┘
                          │                     │
                          └──────────┬──────────┘
                                     │
                                     ▼
                 ┌────────────────────────────────────────┐
-                │ 共享底层基础设施:                       │
-                │ • BufferPool (SSD 写合并 / HDD 双缓冲) │
-                │ • Database (SQLite WAL 模式原子存储)   │
-                │ • RateLimiter (全局高精度令牌桶)       │
-                │ • SettingsService (单一真实源配置)     │
-                │ • EventBus (广播通道)                  │
+                │ 共享基础设施:                          │
+                │ • limedl-disk  BufferPool / FileOps    │
+                │ • limedl-store SQLite / Alt-Svc        │
+                │ • limedl-http  客户端 / 令牌桶限速     │
+                │ • limedl-types 设置 / 事件 / 类型       │
                 └────────────────────────────────────────┘
 ```
 
 ### 1. 协议路由机制 (BackendRegistry)
 limedl 统一定义了 `DownloadBackend` trait：
 - 系统生成的每个任务均拥有全局唯一的 `TaskId`；
-- `TaskId` 自带语义前缀：以 `http:` 开头的任务交由 `DownloadManager` 处理，以 `bt:` 开头的任务路由至 `IrontideBtBackend`；
-- 外层 `Dispatcher` 统一暴露启动、暂停、恢复、取消、移除等生命周期方法，屏蔽了具体底层协议差异。
+- `TaskId` 自带语义前缀：以 `http:` 开头的任务交由 `DownloadManager` 处理，以 `bt:` 开头的任务路由至 `RqbitBtBackend`；
+- 外层 `Dispatcher` 统一暴露启动、暂停、恢复、取消、移除等生命周期方法，屏蔽具体协议差异。
 
-### 2. ZST Actor 无锁任务编排
-为了避免在复杂的多任务异步编排中出现循环引用或死锁，`DownloadManager` 拆分为了 3 个零尺寸类型（ZST）Actor：
-- **HttpExecutor**：纯函数式处理元数据探测、Range 请求头生成与网络流提取；
-- **Scheduler**：独立的后台调度协程，每 2 秒运行一次，评估 AIMD 吞吐量状态机并重新分配线程预算；
-- **TaskLifecycle**：负责文件清理、进度计算与数据库状态推进。
+### 2. 三个并列 Actor
+为了避免复杂异步编排中的循环引用与死锁，`DownloadManager` 将执行职责拆成三个并列 Actor：
+- **HttpExecutor**：零尺寸类型，负责元数据探测、Range 请求与网络流提取；
+- **Scheduler**：独立的后台调度协程，每 2 秒评估 AIMD 吞吐量并重新分配线程预算；
+- **TaskLifecycle**：负责状态推进、文件清理、进度计算与数据库持久化。
+
+Scheduler 与 TaskLifecycle 各自持有运行状态，不是零尺寸类型。
 
 ---
 
