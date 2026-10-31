@@ -136,7 +136,7 @@ fn keygen_writes_files_the_secret_flow_consumes() {
     let pqc_pub_from_file = fs::read_to_string(dir.join("rot.pqc.pub")).unwrap();
     let (_pqc_sk, pqc_pk) = parse_pqc_secret_key(&pqc_sk_b64).unwrap();
     let expected_pqc_pk = parse_pqc_public_key(&pqc_pub_from_file).unwrap();
-    assert_eq!(pqc_pk.into_bytes(), expected_pqc_pk.into_bytes());
+    assert_eq!(pqc_pk.to_bytes(), expected_pqc_pk.to_bytes());
 
     // Regenerating without --force must refuse to clobber a live key.
     assert!(generate_key(&dir, "rot", Some("other".into()), false, false).is_err());
@@ -160,7 +160,7 @@ fn keygen_pqc_only_writes_only_pqc_files() {
     let pqc_pub_from_file = fs::read_to_string(dir.join("pqc_only.pqc.pub")).unwrap();
     let (_pqc_sk, pqc_pk) = parse_pqc_secret_key(&pqc_sk_b64).unwrap();
     let expected_pqc_pk = parse_pqc_public_key(&pqc_pub_from_file).unwrap();
-    assert_eq!(pqc_pk.into_bytes(), expected_pqc_pk.into_bytes());
+    assert_eq!(pqc_pk.to_bytes(), expected_pqc_pk.to_bytes());
 
     fs::remove_dir_all(&dir).ok();
 }
@@ -172,7 +172,8 @@ fn pqc_signatures_round_trip_and_reject_tampering() {
     let payload = b"pretend installer bytes with PQC".repeat(1024);
     fs::write(&data_path, &payload).unwrap();
 
-    let (pk, sk) = ml_dsa_65::KG::keygen_from_seed(&[99u8; 32]);
+    let sk = SigningKey::<MlDsa65>::from_seed(&Seed::from([99u8; 32]));
+    let pk = sk.verifying_key();
     sign_file_pqc(&sk, &pk, &data_path).unwrap();
 
     verify_file_pqc(&pk, &data_path).unwrap();
@@ -198,8 +199,8 @@ fn keygen_and_guard_agree_on_the_embedded_value() {
     .unwrap();
     let embedded = pubkey_b64(&keypair.pk).unwrap();
 
-    let (pqc_pk, _) = ml_dsa_65::KG::keygen_from_seed(&[7u8; 32]);
-    let embedded_pqc = BASE64.encode(pqc_pk.into_bytes());
+    let pqc_pk = SigningKey::<MlDsa65>::from_seed(&Seed::from([7u8; 32])).verifying_key();
+    let embedded_pqc = BASE64.encode(pqc_pk.to_bytes());
 
     // What generate_key prints is exactly what the guard compares against.
     let update_rs = dir.join("update.rs");

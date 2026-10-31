@@ -38,9 +38,11 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow, bail};
 use base64::Engine as _;
 use clap::{Parser, Subcommand};
-use fips204::ml_dsa_65;
-use fips204::traits::{KeyGen, SerDes, Signer, Verifier};
 use minisign::{KeyPair, PublicKey, SecretKey, SecretKeyBox, SignatureBox};
+use ml_dsa::{
+    EncodedSignature, EncodedVerifyingKey, KeyExport, KeyInit, Keypair, MlDsa65, Seed, Signature,
+    SignatureEncoding, SigningKey, VerifyingKey,
+};
 use rand::Rng as _;
 
 mod bump_version;
@@ -65,6 +67,9 @@ const PQC_PUBKEY_ENV: &str = "LIMEDL_PQC_SIGNING_PUBKEY";
 
 const PQC_MANIFEST_CTX: &[u8] = b"limedl-manifest";
 const PQC_ARTIFACT_CTX: &[u8] = b"limedl-artifact";
+
+type PqcSigningKey = SigningKey<MlDsa65>;
+type PqcVerifyingKey = VerifyingKey<MlDsa65>;
 
 /// Where the client's embedded public key lives.
 ///
@@ -489,31 +494,30 @@ fn unix_now() -> u64 {
         .unwrap_or(0)
 }
 
-fn sign_file_pqc(
-    sk: &ml_dsa_65::PrivateKey,
-    pk: &ml_dsa_65::PublicKey,
-    file: &Path,
-) -> Result<PathBuf> {
+fn sign_file_pqc(sk: &PqcSigningKey, pk: &PqcVerifyingKey, file: &Path) -> Result<PathBuf> {
     let data = fs::read(file).with_context(|| format!("read {}", file.display()))?;
     let ctx = pqc_context_for_file(file);
+    // `Signer` only signs with the empty context; the domain-separated
+    // context variants live on `ExpandedSigningKey`.
     let sig = sk
-        .try_sign(&data, ctx)
-        .map_err(|e| anyhow!("ML-DSA-65 sign {}: {e:?}", file.display()))?;
+        .expanded_key()
+        .sign_randomized(&data, ctx, &mut rand::rng())
+        .map_err(|e| anyhow!("ML-DSA-65 sign {}: {e}", file.display()))?;
 
     // Self-check before writing: a bad signature is cheaper to catch here than
     // in a published release.
-    if !pk.verify(&data, &sig, ctx) {
+    if !pk.verify_with_context(&data, ctx, &sig) {
         bail!("ML-DSA-65 self-check failed for {}", file.display());
     }
 
     let sig_path = pqc_signature_path(file);
-    let sig_b64 = BASE64.encode(sig);
+    let sig_b64 = BASE64.encode(sig.to_bytes());
     let content = format!("untrusted comment: ml-dsa-65 signature\n{sig_b64}\n");
     fs::write(&sig_path, content).with_context(|| format!("write {}", sig_path.display()))?;
     Ok(sig_path)
 }
 
-fn verify_file_pqc(pk: &ml_dsa_65::PublicKey, file: &Path) -> Result<()> {
+fn verify_file_pqc(pk: &PqcVerifyingKey, file: &Path) -> Result<()> {
     let sig_path = pqc_signature_path(file);
     let data = fs::read(file).with_context(|| format!("read {}", file.display()))?;
     let sig_text = fs::read_to_string(&sig_path).with_context(|| {
@@ -530,11 +534,15 @@ fn verify_file_pqc(pk: &ml_dsa_65::PublicKey, file: &Path) -> Result<()> {
     let sig_bytes = BASE64
         .decode(raw_b64)
         .context("base64 decode PQC signature")?;
-    let sig_array: [u8; ml_dsa_65::SIG_LEN] = sig_bytes
-        .try_into()
-        .map_err(|_| anyhow!("PQC signature in {} has invalid length", sig_path.display()))?;
+    let sig = Signature::<MlDsa65>::try_from(sig_bytes.as_slice()).map_err(|_| {
+        anyhow!(
+            "PQC signature in {} has invalid length (expected {} bytes)",
+            sig_path.display(),
+            std::mem::size_of::<EncodedSignature<MlDsa65>>()
+        )
+    })?;
     let ctx = pqc_context_for_file(file);
-    if !pk.verify(&data, &sig_array, ctx) {
+    if !pk.verify_with_context(&data, ctx, &sig) {
         bail!(
             "ML-DSA-65 post-quantum signature rejected for {}",
             file.display()
@@ -557,7 +565,7 @@ fn pqc_context_for_file(file: &Path) -> &'static [u8] {
     }
 }
 
-fn load_pqc_key() -> Result<Option<(ml_dsa_65::PrivateKey, ml_dsa_65::PublicKey, String)>> {
+fn load_pqc_key() -> Result<Option<(PqcSigningKey, PqcVerifyingKey, String)>> {
     let Some(value) = env_var(PQC_KEY_ENV) else {
         return Ok(None);
     };
@@ -566,7 +574,7 @@ fn load_pqc_key() -> Result<Option<(ml_dsa_65::PrivateKey, ml_dsa_65::PublicKey,
     Ok(Some((sk, pk, PQC_KEY_ENV.to_string())))
 }
 
-fn parse_pqc_secret_key(value: &str) -> Result<(ml_dsa_65::PrivateKey, ml_dsa_65::PublicKey)> {
+fn parse_pqc_secret_key(value: &str) -> Result<(PqcSigningKey, PqcVerifyingKey)> {
     let trimmed = value.trim();
     let text = if Path::new(trimmed).is_file() {
         fs::read_to_string(trimmed).context("read PQC secret key file")?
@@ -584,7 +592,8 @@ fn parse_pqc_secret_key(value: &str) -> Result<(ml_dsa_65::PrivateKey, ml_dsa_65
         .context("base64 decode PQC secret key")?;
     if bytes.len() == 32 {
         let seed: [u8; 32] = bytes.try_into().unwrap();
-        let (pk, sk) = ml_dsa_65::KG::keygen_from_seed(&seed);
+        let sk = SigningKey::<MlDsa65>::from_seed(&Seed::from(seed));
+        let pk = sk.verifying_key();
         Ok((sk, pk))
     } else {
         bail!(
@@ -597,7 +606,7 @@ fn parse_pqc_secret_key(value: &str) -> Result<(ml_dsa_65::PrivateKey, ml_dsa_65
 fn resolve_pqc_public_key(
     explicit: Option<&str>,
     file: Option<&Path>,
-) -> Result<Option<ml_dsa_65::PublicKey>> {
+) -> Result<Option<PqcVerifyingKey>> {
     if let Some(value) = explicit {
         return parse_pqc_public_key(value)
             .map(Some)
@@ -621,7 +630,7 @@ fn resolve_pqc_public_key(
     Ok(None)
 }
 
-fn parse_pqc_public_key(value: &str) -> Result<ml_dsa_65::PublicKey> {
+fn parse_pqc_public_key(value: &str) -> Result<PqcVerifyingKey> {
     let trimmed = value.trim();
     let text = if Path::new(trimmed).is_file() {
         fs::read_to_string(trimmed).context("read PQC public key file")?
@@ -637,14 +646,13 @@ fn parse_pqc_public_key(value: &str) -> Result<ml_dsa_65::PublicKey> {
     let bytes = BASE64
         .decode(raw_b64)
         .context("base64 decode PQC public key")?;
-    let pk_array: [u8; ml_dsa_65::PK_LEN] = bytes.try_into().map_err(|_| {
+    let encoded = EncodedVerifyingKey::<MlDsa65>::try_from(bytes.as_slice()).map_err(|_| {
         anyhow!(
             "PQC public key has invalid length (expected {} bytes)",
-            ml_dsa_65::PK_LEN
+            std::mem::size_of::<EncodedVerifyingKey<MlDsa65>>()
         )
     })?;
-    ml_dsa_65::PublicKey::try_from_bytes(pk_array)
-        .map_err(|e| anyhow!("parse ML-DSA-65 public key: {e}"))
+    Ok(VerifyingKey::<MlDsa65>::new(&encoded))
 }
 
 // ── Guard ────────────────────────────────────────────────────────────────────
@@ -679,7 +687,7 @@ fn guard(files: &[PathBuf], update_rs: &Path) -> Result<()> {
     let pqc_guard = if let Some((_, pqc_pk, pqc_source)) = load_pqc_key()? {
         let pqc_embedded = extract_pqc_pubkey_b64(&src)
             .with_context(|| format!("find PQC_PUBKEY_B64 in {}", update_rs.display()))?;
-        let pqc_derived = BASE64.encode(pqc_pk.clone().into_bytes());
+        let pqc_derived = BASE64.encode(pqc_pk.to_bytes());
         if pqc_derived != pqc_embedded {
             bail!(
                 "PQC signing key does not match the client's embedded PQC public key.\n\
@@ -813,9 +821,9 @@ fn generate_key(
     // Generate ML-DSA-65 post-quantum keypair from 32-byte secure seed
     let mut pqc_seed = [0u8; 32];
     rand::rng().fill_bytes(&mut pqc_seed);
-    let (pqc_pk, _) = ml_dsa_65::KG::keygen_from_seed(&pqc_seed);
+    let pqc_pk = SigningKey::<MlDsa65>::from_seed(&Seed::from(pqc_seed)).verifying_key();
     let pqc_seed_b64 = BASE64.encode(pqc_seed);
-    let embedded_pqc = BASE64.encode(pqc_pk.into_bytes());
+    let embedded_pqc = BASE64.encode(pqc_pk.to_bytes());
 
     fs::write(&pqc_sk_b64_path, &pqc_seed_b64).context("write PQC secret key seed payload")?;
     restrict_permissions(&pqc_sk_b64_path)?;

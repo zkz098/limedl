@@ -21,7 +21,7 @@ clap = { workspace = true }
 flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 # Pure-Rust image decoder/resizer for cross-platform icon generation
 image = { version = "0.25", default-features = false, features = ["png"] }
-fips204 = { workspace = true }
+ml-dsa = { workspace = true }
 minisign = "0.10"
 rand = { workspace = true }
 # Version bumping edits Cargo.toml/Cargo.lock/website with the same anchored

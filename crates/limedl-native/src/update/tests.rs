@@ -313,3 +313,39 @@ fn update_http_client_applies_proxy_settings() {
         assert!(http_client(&settings).is_ok());
     }
 }
+
+// ── PQC wire-format compatibility ───────────────────────────────────────────
+
+/// Migration pin: the public key and signature in `testdata/` were produced by
+/// `fips204` 0.4.6, the verifier used before the switch to RustCrypto
+/// `ml-dsa`. Both implement the FIPS 204 wire format, so clients must keep
+/// accepting what the old verifier accepted. The public key also pins the
+/// seed→keypair derivation: production `PQC_PUBKEY_B64` is paired with a
+/// 32-byte seed in CI, and a derivation change would break every release.
+#[test]
+fn previous_fips204_signatures_still_verify() {
+    use ml_dsa::{KeyExport, Keypair, MlDsa65, Signature, SigningKey};
+
+    let pk_bytes = base64::engine::general_purpose::STANDARD
+        .decode(include_str!("testdata/pqc_fips204_pk.b64").trim())
+        .unwrap();
+    let sig_bytes = base64::engine::general_purpose::STANDARD
+        .decode(include_str!("testdata/pqc_fips204_sig.b64").trim())
+        .unwrap();
+
+    let seed = ml_dsa::Seed::from([0x42u8; 32]);
+    let derived = SigningKey::<MlDsa65>::from_seed(&seed).verifying_key();
+    assert_eq!(
+        derived.to_bytes().as_slice(),
+        pk_bytes.as_slice(),
+        "the same 32-byte seed must derive the same ML-DSA-65 public key"
+    );
+
+    let pk = parse_pqc_public_key(&pk_bytes).unwrap();
+    assert_eq!(pk.to_bytes().as_slice(), pk_bytes.as_slice());
+
+    let sig = Signature::<MlDsa65>::try_from(sig_bytes.as_slice()).unwrap();
+    let msg = b"limedl pqc compatibility fixture";
+    assert!(pk.verify_with_context(msg, b"limedl-manifest", &sig));
+    assert!(!pk.verify_with_context(msg, b"limedl-artifact", &sig));
+}

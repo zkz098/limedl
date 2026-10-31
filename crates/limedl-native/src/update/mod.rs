@@ -753,8 +753,7 @@ fn verify_pqc_signature_text(data: &[u8], signature_text: &str) -> Result<()> {
 }
 
 fn verify_pqc_signature_bytes(data: &[u8], sig_bytes: &[u8], context: &[u8]) -> Result<()> {
-    use fips204::ml_dsa_65;
-    use fips204::traits::{SerDes, Verifier};
+    use ml_dsa::{MlDsa65, Signature};
 
     if PQC_PUBKEY_B64.is_empty() {
         return Ok(());
@@ -763,26 +762,32 @@ fn verify_pqc_signature_bytes(data: &[u8], sig_bytes: &[u8], context: &[u8]) -> 
     let pubkey_bytes = base64::engine::general_purpose::STANDARD
         .decode(PQC_PUBKEY_B64.trim())
         .context("decode embedded PQC public key base64")?;
-    let pubkey_array: [u8; ml_dsa_65::PK_LEN] = pubkey_bytes.try_into().map_err(|_| {
-        anyhow!(
-            "embedded PQC public key has invalid length (expected {} bytes)",
-            ml_dsa_65::PK_LEN
-        )
-    })?;
-    let pubkey = ml_dsa_65::PublicKey::try_from_bytes(pubkey_array)
-        .map_err(|e| anyhow!("parse embedded PQC public key: {e}"))?;
+    let pubkey = parse_pqc_public_key(&pubkey_bytes)?;
 
-    let sig_array: [u8; ml_dsa_65::SIG_LEN] = sig_bytes.to_vec().try_into().map_err(|_| {
+    let signature = Signature::<MlDsa65>::try_from(sig_bytes).map_err(|_| {
         anyhow!(
             "PQC signature has invalid length (expected {} bytes)",
-            ml_dsa_65::SIG_LEN
+            std::mem::size_of::<ml_dsa::EncodedSignature<MlDsa65>>()
         )
     })?;
 
-    if !pubkey.verify(data, &sig_array, context) {
+    if !pubkey.verify_with_context(data, context, &signature) {
         bail!("ML-DSA-65 post-quantum verification rejected artifact");
     }
     Ok(())
+}
+
+/// Parse a raw FIPS 204 ML-DSA-65 public key (1952 bytes).
+fn parse_pqc_public_key(bytes: &[u8]) -> Result<ml_dsa::VerifyingKey<ml_dsa::MlDsa65>> {
+    use ml_dsa::{EncodedVerifyingKey, KeyInit, MlDsa65, VerifyingKey};
+
+    let encoded = EncodedVerifyingKey::<MlDsa65>::try_from(bytes).map_err(|_| {
+        anyhow!(
+            "PQC public key has invalid length (expected {} bytes)",
+            std::mem::size_of::<EncodedVerifyingKey<MlDsa65>>()
+        )
+    })?;
+    Ok(VerifyingKey::<MlDsa65>::new(&encoded))
 }
 
 fn verify_sha256(data: &[u8], expected_hex: &str) -> Result<()> {
