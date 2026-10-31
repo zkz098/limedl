@@ -1,5 +1,7 @@
 use super::*;
-use crate::types::{BtPortRange, MatchType, ReplacementMode, default_http_user_agent};
+use crate::types::{
+    BtPortRange, ChecksumMode, MatchType, ReplacementMode, default_http_user_agent,
+};
 use std::io::Write;
 use tempfile::tempdir;
 
@@ -515,7 +517,7 @@ fn test_load_settings_valid_json_full_fields() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("settings.json");
     let json = r#"{
-            "appearance": {"themeColor": "lime", "backgroundOpacity": "default", "colorMode": "system", "showDetailInfo": true, "showHeatmap": true, "sortKey": "added_at", "sortDirection": "desc", "compactView": false, "visibleColumns": ["file", "size", "downloaded", "status", "progress", "speed", "eta"]},
+            "appearance": {"themeColor": "lime", "backgroundOpacity": "default", "colorMode": "system", "showDetailInfo": true, "sortKey": "added_at", "sortDirection": "desc", "compactView": false, "visibleColumns": ["file", "size", "downloaded", "status", "progress", "speed", "eta"]},
             "proxy": {"mode": "manual", "manualUrl": "http://proxy:8080"},
             "scheduler": {"mode": "automatic", "traditional": {"maxParallelTasks": 3}, "automatic": {"maxParallelThreads": 8, "maxThreadsPerTask": 4, "minThreadsPerTask": 2, "adaptiveProfile": "balanced"}},
             "download": {"defaultDownloadDir": "", "defaultMaxRetries": 5, "defaultChecksum": "blake3", "defaultUserAgent": "TestAgent/1.0"},
@@ -561,6 +563,56 @@ fn test_normalize_keeps_prevent_sleep() {
     assert!(
         !normalize_settings(settings).unwrap().power.prevent_sleep,
         "normalize_settings must carry the power section through unchanged"
+    );
+}
+
+#[test]
+fn test_load_settings_rewrites_legacy_checksum_without_resetting_the_file() {
+    for legacy in ["sha1", "xxh3_128"] {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(
+            &path,
+            format!(
+                r#"{{
+                    "proxy": {{"mode": "manual", "manualUrl": "http://proxy:8080"}},
+                    "download": {{"defaultDownloadDir": "/downloads", "defaultMaxRetries": 7, "defaultChecksum": "{legacy}"}},
+                    "autostart": true
+                }}"#
+            ),
+        )
+        .unwrap();
+
+        let loaded = load_settings(&path).expect("a legacy checksum must not fail the load");
+
+        assert_eq!(loaded.proxy.mode, ProxyMode::Manual, "legacy={legacy}");
+        assert_eq!(loaded.download.default_checksum, ChecksumMode::Blake3);
+        assert_eq!(loaded.download.default_max_retries, 7);
+        assert_eq!(loaded.download.default_download_dir, "/downloads");
+        assert!(loaded.autostart);
+        assert!(
+            !path.with_extension("json.corrupt").exists(),
+            "a legacy checksum must not quarantine the file (legacy={legacy})"
+        );
+    }
+}
+
+#[test]
+fn test_load_settings_download_section_defaults_missing_fields() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    fs::write(&path, br#"{"download": {"defaultChecksum": "sha256"}}"#).unwrap();
+
+    let loaded = load_settings(&path).expect("missing download fields must use defaults");
+
+    assert_eq!(loaded.download.default_checksum, ChecksumMode::Sha256);
+    assert_eq!(
+        loaded.download.default_max_retries,
+        DownloadDefaultsSettings::default().default_max_retries
+    );
+    assert!(
+        !path.with_extension("json.corrupt").exists(),
+        "a partial download section must not quarantine the file"
     );
 }
 

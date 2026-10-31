@@ -357,7 +357,7 @@ pub fn default_http_user_agent() -> String {
     )
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct DownloadDefaultsSettings {
     pub default_download_dir: String,
     pub default_max_retries: u32,
@@ -434,8 +434,6 @@ pub struct AppearanceSettings {
     pub color_mode: ColorMode,
     #[serde(default = "default_true")]
     pub show_detail_info: bool,
-    #[serde(default = "default_true")]
-    pub show_heatmap: bool,
     #[serde(default)]
     pub sort_key: SortKey,
     #[serde(default)]
@@ -459,7 +457,6 @@ impl Default for AppearanceSettings {
             background_opacity: Default::default(),
             color_mode: Default::default(),
             show_detail_info: true,
-            show_heatmap: true,
             sort_key: Default::default(),
             sort_direction: Default::default(),
             compact_view: false,

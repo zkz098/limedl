@@ -63,7 +63,11 @@ export component SettingsTabBt inherits ScrollView {
                 spacing: 4px;
                 Text { text: @tr("Listen Port (empty for random):"); color: Theme.c9ca3af; font-size: 12px;
                     Tooltip {
-                        FormTip { text: @tr("Leave empty for auto-assignment. 1024–65535"); }
+                        VerticalLayout {
+                            spacing: 4px;
+                            FormTip { text: @tr("Leave empty for auto-assignment. 1024–65535"); }
+                            FormTip { text: @tr("Changes apply to the BT session after restart."); }
+                        }
                     } }
                 UnitInput {
                     text <=> root.settings_form.listen_port;
@@ -75,7 +79,11 @@ export component SettingsTabBt inherits ScrollView {
                 spacing: 4px;
                 Text { text: @tr("Max Peers per Torrent:"); color: Theme.c9ca3af; font-size: 12px;
                     Tooltip {
-                        FormTip { text: @tr("Maximum peer connections per torrent."); }
+                        VerticalLayout {
+                            spacing: 4px;
+                            FormTip { text: @tr("Maximum peer connections per torrent."); }
+                            FormTip { text: @tr("Changes apply to the BT session after restart."); }
+                        }
                     } }
                 UnitInput {
                     text <=> root.settings_form.max_bt_connections;
@@ -104,7 +112,10 @@ export component SettingsTabBt inherits ScrollView {
             VerticalLayout {
                 alignment: space-between;
                 spacing: 2px;
-                Text { text: "UPnP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                Text { text: "UPnP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Changes apply to the BT session after restart."); }
+                    } }
                 ToggleSwitch {
                     checked: root.settings_form.bt_upnp_enabled;
                     toggled => { root.settings_form.bt_upnp_enabled = !root.settings_form.bt_upnp_enabled; }
@@ -113,7 +124,10 @@ export component SettingsTabBt inherits ScrollView {
             VerticalLayout {
                 alignment: space-between;
                 spacing: 2px;
-                Text { text: "IPv6"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                Text { text: "IPv6"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Changes apply to the BT session after restart."); }
+                    } }
                 ToggleSwitch {
                     checked: root.settings_form.bt_ipv6_enabled;
                     toggled => { root.settings_form.bt_ipv6_enabled = !root.settings_form.bt_ipv6_enabled; }
@@ -122,7 +136,10 @@ export component SettingsTabBt inherits ScrollView {
             VerticalLayout {
                 alignment: space-between;
                 spacing: 2px;
-                Text { text: "uTP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600; }
+                Text { text: "uTP"; color: Theme.cf3f4f6; font-size: 12px; font-weight: 600;
+                    Tooltip {
+                        FormTip { text: @tr("Changes apply to the BT session after restart."); }
+                    } }
                 ToggleSwitch {
                     checked: root.settings_form.bt_utp_enabled;
                     toggled => { root.settings_form.bt_utp_enabled = !root.settings_form.bt_utp_enabled; }
@@ -308,7 +325,11 @@ export component SettingsTabBt inherits ScrollView {
                 spacing: 2px;
                 Text { text: @tr("Enable IP Blocklist"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600;
                     Tooltip {
-                        FormTip { text: @tr("Load a peer IP blocklist into the session. Blocked ranges (e.g. known leeching IDC/networks) are refused on connection."); }
+                        VerticalLayout {
+                            spacing: 4px;
+                            FormTip { text: @tr("Load a peer IP blocklist into the session. Blocked ranges (e.g. known leeching IDC/networks) are refused on connection."); }
+                            FormTip { text: @tr("Changes apply to the BT session after restart."); }
+                        }
                     } }
                 Text { text: @tr("Load local blocklist filter file"); color: #6b7280; font-size: 11px; }
             }
@@ -321,7 +342,11 @@ export component SettingsTabBt inherits ScrollView {
             spacing: 4px;
             Text { text: @tr("Blocklist Path:"); color: Theme.c9ca3af; font-size: 12px;
                 Tooltip {
-                    FormTip { text: @tr("Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."); }
+                    VerticalLayout {
+                        spacing: 4px;
+                        FormTip { text: @tr("Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."); }
+                        FormTip { text: @tr("Changes apply to the BT session after restart."); }
+                    }
                 } }
             CustomTextInput { text <=> root.settings_form.bt_blocklist_path; placeholder: "C:/path/to/blocklist.dat"; }
         }

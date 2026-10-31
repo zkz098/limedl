@@ -431,30 +431,36 @@ pub fn collect_request_headers(
 /// Parse the aria2 `checksum` option (`"TYPE=DIGEST"`, e.g.
 /// `sha-256=abcdef…`) into limedl checksum fields.
 ///
-/// Unsupported hash types (md5, sha-1, adler32, …) and malformed values are
-/// ignored, matching aria2's own tolerant behaviour for optional metadata.
-/// sha-512 is accepted because it is part of limedl's supported set, even
-/// though aria2 itself only knows sha-1/md5/sha-256.
+/// A well-formed request for an algorithm limedl cannot verify (SHA-1 and MD5
+/// are the ones aria2 clients actually send) is rejected instead of silently
+/// starting an unverified download: reporting success while skipping the check
+/// is worse than failing the call. Malformed values are still ignored, matching
+/// aria2's tolerance for optional metadata.
 pub fn parse_checksum_option(
     options: Option<&serde_json::Map<String, Value>>,
-) -> (Option<ChecksumMode>, Option<String>) {
+) -> Result<(Option<ChecksumMode>, Option<String>), String> {
     let Some(raw) = extract_option_str(options, "checksum") else {
-        return (None, None);
+        return Ok((None, None));
     };
     let Some((hash_type, digest)) = raw.trim().split_once('=') else {
-        return (None, None);
+        return Ok((None, None));
     };
-    let mode = match hash_type.trim().to_ascii_lowercase().as_str() {
+    let hash_type = hash_type.trim().to_ascii_lowercase();
+    let mode = match hash_type.as_str() {
         "sha-256" | "sha256" => ChecksumMode::Sha256,
         "sha-512" | "sha512" => ChecksumMode::Sha512,
         "blake3" => ChecksumMode::Blake3,
-        _ => return (None, None),
+        other => {
+            return Err(format!(
+                "unsupported checksum type '{other}': limedl verifies blake3, sha-256 and sha-512"
+            ));
+        }
     };
     let digest = digest.trim().to_ascii_lowercase();
     if digest.is_empty() {
-        return (None, None);
+        return Ok((None, None));
     }
-    (Some(mode), Some(digest))
+    Ok((Some(mode), Some(digest)))
 }
 
 /// Case-insensitive lookup of a `"Name: value"` entry's value.

@@ -32,6 +32,10 @@ pub struct CoreSystems {
     pub settings_service: Arc<SettingsService>,
     pub disk_io_service: Arc<DiskIoService>,
     pub concurrency: Arc<ConcurrencyManager>,
+    /// Resume files removed from the pre-librqbit BT engine during bootstrap.
+    /// The desktop client turns this into a one-time notice: those tasks cannot
+    /// be restored, but the downloaded files are left untouched.
+    pub legacy_bt_resume_files: usize,
 }
 
 /// Initialize all core subsystems in the correct order.
@@ -49,14 +53,17 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
         .start_scheduler_loop(download_manager.clone());
 
     // Initialize BT backend using ConcurrencyManager slots. This is lazy: the
-    // irontide session (socket binds, DHT/LSD, resume-state load, blocklist
-    // parse) starts in the background so app startup does not wait for it.
+    // BT session (socket binds, DHT/LSD, resume-state load, blocklist parse)
+    // starts in the background so app startup does not wait for it.
+    #[cfg(not(feature = "bt"))]
+    let legacy_bt_resume_files = 0usize;
     #[cfg(feature = "bt")]
-    let bt_backend = {
+    let (bt_backend, legacy_bt_resume_files) = {
         let bt_state_dir = state_dir.join("torrents");
         let bt_output_dir = state_dir.join("bt_files");
         tokio::fs::create_dir_all(&bt_state_dir).await?;
         tokio::fs::create_dir_all(&bt_output_dir).await?;
+        let legacy_bt_resume_files = crate::bt_backend::take_legacy_resume_files(&bt_state_dir);
         let bt = Arc::new(LazyBtBackend::new(
             &settings,
             bt_state_dir,
@@ -75,7 +82,7 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
             // previous session left unfinished work behind.
             bt.spawn_startup();
         }
-        bt
+        (bt, legacy_bt_resume_files)
     };
 
     // Create registry — register_arc so the registry shares the SAME Arc
@@ -130,5 +137,6 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
         settings_service: context.settings_service.clone(),
         disk_io_service: context.disk_io.clone(),
         concurrency: context.concurrency.clone(),
+        legacy_bt_resume_files,
     })
 }

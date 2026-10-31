@@ -66,33 +66,6 @@ pub struct BtFileStatus {
     pub included: bool,
 }
 
-/// Preallocation strategy for torrent files.
-#[allow(deprecated)]
-#[deprecated(note = "Unused in librqbit BT engine")]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum BtPreallocateMode {
-    /// Sparse files (no preallocation).
-    #[default]
-    None,
-    /// Full preallocation.
-    Full,
-}
-
-/// Protocol encryption (MSE/PE) mode.
-#[allow(deprecated)]
-#[deprecated(note = "Unused in librqbit BT engine")]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum BtEncryptionMode {
-    /// Encryption enabled but not required.
-    #[default]
-    Enabled,
-    /// Encryption disabled.
-    Disabled,
-    /// Require encryption.
-    Forced,
-}
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct BtPortRange {
@@ -111,33 +84,6 @@ pub enum BtAntiLeechAction {
     LimitSlots,
 }
 
-/// Seed-mode choking algorithm (engine tuning).
-#[allow(deprecated)]
-#[deprecated(note = "Unused in librqbit BT engine")]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum BtSeedChokingAlgorithm {
-    /// Unchoke the peers we upload to fastest.
-    #[default]
-    FastestUpload,
-    /// Round-robin through all interested peers.
-    RoundRobin,
-    /// Prefer leechers over seeds (anti-leech).
-    AntiLeech,
-}
-
-/// Top-level unchoke-slot algorithm (engine tuning).
-#[allow(deprecated)]
-#[deprecated(note = "Unused in librqbit BT engine")]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum BtChokingAlgorithm {
-    /// Fixed number of unchoke slots.
-    #[default]
-    FixedSlots,
-    /// Rate-based unchoking (auto-adjusts slots).
-    RateBased,
-}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtSettings {

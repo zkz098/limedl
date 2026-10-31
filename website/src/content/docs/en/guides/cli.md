@@ -124,5 +124,4 @@ limedl://download?url=<ENCODED_URL>&filename=<OPTIONAL_NAME>&referer=<OPTIONAL_R
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
 | `LIMEDL_DATA_DIR` | `%LOCALAPPDATA%\limedl` | Overrides the primary data directory. Point this to a relative path on a flash drive for a 100% self-contained portable install. |
-| `LIMEDL_TAURI_DATA_DIR` | `%LOCALAPPDATA%\com.zkz20.limedl` | Overrides the migration source path for legacy Tauri installs. |
 | `RUST_LOG` | `info` | Adjusts logging verbosity (e.g. `limedl_core=debug,limedl_native=trace`). |

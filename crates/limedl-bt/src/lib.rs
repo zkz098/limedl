@@ -14,7 +14,7 @@ pub mod snapshot;
 pub mod tests;
 pub mod uploads;
 
-pub use lazy::LazyBtBackend;
+pub use lazy::{LazyBtBackend, take_legacy_resume_files};
 
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -126,10 +126,6 @@ pub struct RqbitBtBackend {
     /// Creation timestamps for active torrents (populated on start).
     pub(crate) torrent_created_at: Arc<FastDashMap<Id20, u64>>,
 }
-
-/// Backwards-compatibility alias for the backend.
-#[deprecated(note = "use RqbitBtBackend instead")]
-pub type IrontideBtBackend = RqbitBtBackend;
 
 impl Clone for RqbitBtBackend {
     fn clone(&self) -> Self {

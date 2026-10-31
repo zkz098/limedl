@@ -30,6 +30,14 @@ pub fn format_toast_setup_finished(lang: Language) -> &'static str {
     tr("Setup completed", lang)
 }
 
+pub fn format_toast_legacy_bt_resume(count: usize, lang: Language) -> String {
+    tr_fmt(
+        "Legacy BitTorrent resume data was removed ({} files). Those tasks cannot be restored; downloaded files are kept. Please re-add the torrents.",
+        lang,
+        &[&count],
+    )
+}
+
 pub fn format_toast_tracker_synced(count: usize, lang: Language) -> String {
     tr_fmt("Tracker list synced: {} entries", lang, &[&count])
 }

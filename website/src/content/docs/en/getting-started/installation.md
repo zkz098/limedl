@@ -139,12 +139,11 @@ If verified, the command outputs `Signature and comment signature verified`.
 
 ---
 
-## Initial Setup & Data Migration
+## Initial Setup
 
 On first run, the **Setup Wizard** guides you through:
 1. **Language & Appearance**: Choose between Chinese/English and Light/Dark themes.
 2. **Download Directory & Networking**: Set your default storage folder.
-3. **Legacy Data Migration**: If you previously used the legacy Tauri-based version of limedl, the client will **automatically detect and safely import** your settings (`settings.json`), download history (`downloads.db`), and active torrent states without manual intervention.
 
 ### Default Storage Paths
 - **Windows**: `%LOCALAPPDATA%\limedl\`

@@ -36,6 +36,7 @@ pub static POWER_GUARD: std::sync::LazyLock<PowerGuard> = std::sync::LazyLock::n
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 use anyhow::Context;
 use parking_lot::Mutex;
@@ -48,6 +49,7 @@ use limedl_core::event_bus::DownloadEvent;
 use limedl_rpc::Aria2RpcServer;
 
 use crate::i18n::Language;
+use crate::toast::push_toast;
 use crate::tray::TRAY_INSTANCE;
 use crate::ui_boot::UiState;
 
@@ -167,6 +169,19 @@ async fn run() -> anyhow::Result<()> {
         window: main_window,
         ctx,
     } = ui;
+
+    // One-time notice for users caught by the irontide → librqbit switch: the
+    // old resume files were removed during bootstrap, and those tasks cannot be
+    // recreated. Say so instead of letting them disappear silently.
+    if core.legacy_bt_resume_files > 0 {
+        push_toast(
+            &ctx.ui_weak,
+            &ctx.toast_queue,
+            i18n::format_toast_legacy_bt_resume(core.legacy_bt_resume_files, initial_lang),
+            "warning",
+            Duration::from_secs(20),
+        );
+    }
 
     // Everything from here on needs the operating system: the real window
     // handle only exists once the event loop runs, and theme/geometry talk to

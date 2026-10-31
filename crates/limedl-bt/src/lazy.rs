@@ -92,6 +92,39 @@ const IDLE_CHECK_INTERVAL: Duration = Duration::from_secs(10);
 /// user request.
 const IDLE_SETTLE: Duration = Duration::from_secs(20);
 
+/// Remove resume data left by the previous BitTorrent engine and return how
+/// many files were deleted.
+///
+/// irontide wrote `<state>/resume/torrents/<hex>.resume`; some older builds also
+/// left `.resume` files directly under `<state>/resume`. librqbit's JSON
+/// persistence only writes `session.json`, `<hash>.torrent` and `<hash>.bitv`
+/// there, so no live state uses the `.resume` extension.
+pub fn take_legacy_resume_files(state_dir: &std::path::Path) -> usize {
+    let resume_dir = state_dir.join("resume");
+    let removed =
+        remove_resume_files(&resume_dir) + remove_resume_files(&resume_dir.join("torrents"));
+    if removed > 0 {
+        tracing::warn!(
+            removed,
+            "removed resume files left by the previous BitTorrent engine; those tasks cannot be restored"
+        );
+    }
+    removed
+}
+
+fn remove_resume_files(dir: &std::path::Path) -> usize {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .filter(|entry| {
+            entry.path().extension().and_then(std::ffi::OsStr::to_str) == Some("resume")
+        })
+        .filter(|entry| std::fs::remove_file(entry.path()).is_ok())
+        .count()
+}
+
 /// Whether a persisted state means "there is still work to do".
 ///
 /// Paused, completed, failed and canceled tasks do not justify loading the
@@ -575,21 +608,9 @@ impl LazyBtBackend {
         has_json_in(&resume_dir) || has_json_in(&resume_dir.join("torrents"))
     }
 
-    /// Clean up legacy `.resume` files left by older engines (e.g. irontide).
-    fn prune_legacy_resume_files(dir: &std::path::Path) {
-        if let Ok(entries) = std::fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().and_then(std::ffi::OsStr::to_str) == Some("resume") {
-                    let _ = std::fs::remove_file(path);
-                }
-            }
-        }
-    }
-
     /// Create the BT session and its background loops.
     async fn create_engine(&self) -> Result<Arc<RqbitBtBackend>> {
-        Self::prune_legacy_resume_files(&self.state_dir.join("resume"));
+        take_legacy_resume_files(&self.state_dir);
         let settings = lock(&self.settings).clone();
         let engine = Arc::new(
             RqbitBtBackend::new(
@@ -1144,21 +1165,28 @@ mod tests {
     }
 
     #[test]
-    fn test_prune_legacy_resume_files() {
+    fn test_take_legacy_resume_files_covers_both_layouts() {
         let tmp = tempfile::tempdir().unwrap();
-        let resume_dir = tmp.path().join("resume");
-        std::fs::create_dir_all(&resume_dir).unwrap();
-        let legacy_file = resume_dir.join("legacy_task.resume");
+        let state_dir = tmp.path();
+        let resume_dir = state_dir.join("resume");
+        let torrents_dir = resume_dir.join("torrents");
+        std::fs::create_dir_all(&torrents_dir).unwrap();
+
+        let top_level = resume_dir.join("legacy_task.resume");
+        let nested = torrents_dir.join("deadbeef.resume");
         let json_file = resume_dir.join("session.json");
-        std::fs::write(&legacy_file, b"legacy data").unwrap();
+        let torrent_file = resume_dir.join("deadbeef.torrent");
+        std::fs::write(&top_level, b"legacy data").unwrap();
+        std::fs::write(&nested, b"legacy data").unwrap();
         std::fs::write(&json_file, b"{}").unwrap();
+        std::fs::write(&torrent_file, b"torrent").unwrap();
 
-        assert!(legacy_file.exists());
-        assert!(json_file.exists());
-
-        LazyBtBackend::prune_legacy_resume_files(&resume_dir);
-
-        assert!(!legacy_file.exists(), "legacy .resume file must be pruned");
+        assert_eq!(take_legacy_resume_files(state_dir), 2);
+        assert!(!top_level.exists(), "top-level .resume file must be pruned");
+        assert!(!nested.exists(), "torrents/ .resume file must be pruned");
         assert!(json_file.exists(), "valid .json resume file must be kept");
+        assert!(torrent_file.exists(), "valid .torrent file must be kept");
+
+        assert_eq!(take_legacy_resume_files(state_dir), 0);
     }
 }

@@ -65,9 +65,6 @@ pub use limedl_testkit as test_harness;
 
 pub use backend_registry::BackendRegistry;
 #[cfg(feature = "bt")]
-#[allow(deprecated)]
-pub use bt_backend::IrontideBtBackend;
-#[cfg(feature = "bt")]
 pub use bt_backend::{LazyBtBackend, RqbitBtBackend};
 pub use cdn::{CdnAccelerator, CdnService, CdnTestOutcome};
 pub use checksum::{calculate_checksum, calculate_checksum_with_progress};

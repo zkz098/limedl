@@ -401,12 +401,6 @@ msgstr "days"
 msgid "Unlimited"
 msgstr "Unlimited"
 
-msgid "Encryption Mode:"
-msgstr "Encryption Mode:"
-
-msgid "Pre-allocation Mode:"
-msgstr "Pre-allocation Mode:"
-
 msgid "Advanced BT Settings"
 msgstr "Advanced BT Settings"
 
@@ -481,12 +475,6 @@ msgstr "Blocklist Path:"
 
 msgid "Engine Tuning"
 msgstr "Engine Tuning"
-
-msgid "Seed Choking:"
-msgstr "Seed Choking:"
-
-msgid "Choking Algorithm:"
-msgstr "Choking Algorithm:"
 
 msgid "Max Upload Slots per Torrent:"
 msgstr "Max Upload Slots per Torrent:"
@@ -1293,14 +1281,6 @@ msgstr ""
 
 
 msgid "Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward."
-msgstr ""
-
-
-msgid "MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."
-msgstr ""
-
-
-msgid "Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."
 msgstr ""
 
 
@@ -2730,3 +2710,9 @@ msgstr "limedl - Download Manager"
 
 msgid "Failed to save settings"
 msgstr "Failed to save settings"
+
+msgid "Legacy BitTorrent resume data was removed ({} files). Those tasks cannot be restored; downloaded files are kept. Please re-add the torrents."
+msgstr "Legacy BitTorrent resume data was removed ({} files). Those tasks cannot be restored; downloaded files are kept. Please re-add the torrents."
+
+msgid "Changes apply to the BT session after restart."
+msgstr "Changes apply to the BT session after restart."

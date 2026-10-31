@@ -610,7 +610,7 @@ fn parse_checksum_option_supported_types() {
     ] {
         let mut map = serde_json::Map::new();
         map.insert("checksum".to_string(), json!(raw));
-        let (mode, digest) = parse_checksum_option(Some(&map));
+        let (mode, digest) = parse_checksum_option(Some(&map)).expect("supported algorithm");
         assert_eq!(mode, Some(expected_mode), "type mismatch for {raw}");
         assert_eq!(
             digest,
@@ -621,19 +621,31 @@ fn parse_checksum_option_supported_types() {
 }
 
 #[test]
-fn parse_checksum_option_ignores_unsupported_and_malformed() {
-    for raw in [
-        "md5=abc",
-        "sha-1=abc",
-        "adler32=abc",
-        "no-equals",
-        "sha-256=",
-    ] {
+fn parse_checksum_option_rejects_unverifiable_algorithms() {
+    for raw in ["md5=abc", "sha-1=abc", "adler32=abc", "sha3-256=abc"] {
         let mut map = serde_json::Map::new();
         map.insert("checksum".to_string(), json!(raw));
-        assert_eq!(parse_checksum_option(Some(&map)), (None, None), "raw={raw}");
+        let error = parse_checksum_option(Some(&map))
+            .expect_err("an unverifiable algorithm must not be silently dropped");
+        assert!(
+            error.contains("unsupported checksum type"),
+            "raw={raw}, error={error}"
+        );
     }
-    assert_eq!(parse_checksum_option(None), (None, None));
+}
+
+#[test]
+fn parse_checksum_option_ignores_malformed_values() {
+    for raw in ["no-equals", "sha-256=", ""] {
+        let mut map = serde_json::Map::new();
+        map.insert("checksum".to_string(), json!(raw));
+        assert_eq!(
+            parse_checksum_option(Some(&map)).unwrap(),
+            (None, None),
+            "raw={raw}"
+        );
+    }
+    assert_eq!(parse_checksum_option(None).unwrap(), (None, None));
 }
 
 #[test]

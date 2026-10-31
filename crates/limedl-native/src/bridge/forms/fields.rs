@@ -354,7 +354,6 @@ mod tests {
         "appearance.sortDirection",
         // Engine-only knobs: they have no dialog control in the desktop client
         // and are set through the settings file / the server CLI.
-        "appearance.showHeatmap",
         "scheduler.http3AltSvcEnabled",
         "aria2Rpc.listenAddress",
         "aria2Rpc.corsAllowedOrigins",

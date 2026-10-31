@@ -477,17 +477,16 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
     };
 
     // Every `AppSettings` field is `#[serde(default)]`, so a partial or
-    // hand-edited file still loads. Unknown keys are ignored: the old
-    // `githubMirror` / `sha1` checksum settings are no longer migrated.
+    // hand-edited file still loads. Unknown keys are ignored. Unknown *enum
+    // values* are not: serde rejects the whole document, and before this
+    // rewrite an old `"defaultChecksum": "sha1"` quarantined the file and reset
+    // every unrelated setting.
     //
     // Unparseable content must not brick the application. Passing the error up
     // used to abort every start (the GUI has nowhere to show it), so instead the
     // bad file is moved aside, the previous save is tried, and only then do the
     // built-in defaults apply.
-    match serde_json::from_str::<AppSettings>(&content)
-        .map_err(DownloadError::from)
-        .and_then(normalize_settings)
-    {
+    match parse_settings(&content).and_then(normalize_settings) {
         Ok(settings) => Ok(settings),
         Err(error) => {
             let quarantined = quarantine_unreadable_settings(settings_path);
@@ -514,6 +513,36 @@ pub fn load_settings(settings_path: &Path) -> Result<AppSettings> {
     }
 }
 
+fn parse_settings(content: &str) -> Result<AppSettings> {
+    let mut value = serde_json::from_str::<serde_json::Value>(content)?;
+    migrate_legacy_checksum_setting(&mut value);
+    serde_json::from_value::<AppSettings>(value).map_err(DownloadError::from)
+}
+
+/// Rewrite a `defaultChecksum` left over from the era when SHA-1 and XXH3-128
+/// were selectable, so an old file keeps every other setting.
+///
+/// Only the value is touched: the rest of the document is left for serde, and a
+/// genuinely malformed file still goes through the quarantine/backup path.
+fn migrate_legacy_checksum_setting(value: &mut serde_json::Value) {
+    let Some(checksum) = value
+        .get_mut("download")
+        .and_then(|download| download.get_mut("defaultChecksum"))
+    else {
+        return;
+    };
+    let supported = checksum
+        .as_str()
+        .is_some_and(|s| matches!(s, "none" | "blake3" | "sha256" | "sha512"));
+    if !supported {
+        tracing::warn!(
+            stored = %checksum,
+            "unsupported defaultChecksum in settings; falling back to blake3"
+        );
+        *checksum = serde_json::Value::String(String::from("blake3"));
+    }
+}
+
 /// Move an unreadable settings file aside so the next save can create a fresh
 /// one and the user can still inspect what was there.
 fn quarantine_unreadable_settings(settings_path: &Path) -> Option<PathBuf> {
@@ -534,7 +563,7 @@ fn quarantine_unreadable_settings(settings_path: &Path) -> Option<PathBuf> {
 fn read_settings_backup(settings_path: &Path) -> Option<AppSettings> {
     let backup = settings_path.with_extension("json.bak");
     let content = fs::read_to_string(&backup).ok()?;
-    serde_json::from_str::<AppSettings>(&content)
+    parse_settings(&content)
         .ok()
         .and_then(|settings| normalize_settings(settings).ok())
 }

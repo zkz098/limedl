@@ -401,12 +401,6 @@ msgstr "天"
 msgid "Unlimited"
 msgstr "不限"
 
-msgid "Encryption Mode:"
-msgstr "加密模式:"
-
-msgid "Pre-allocation Mode:"
-msgstr "预分配:"
-
 msgid "Advanced BT Settings"
 msgstr "高级 BT 设置"
 
@@ -481,12 +475,6 @@ msgstr "屏蔽列表路径:"
 
 msgid "Engine Tuning"
 msgstr "引擎调优"
-
-msgid "Seed Choking:"
-msgstr "做种调度:"
-
-msgid "Choking Algorithm:"
-msgstr "阻塞算法:"
 
 msgid "Max Upload Slots per Torrent:"
 msgstr "每 Torrent 最大上传槽位:"
@@ -1276,12 +1264,6 @@ msgstr "每个 torrent 的最大 peer 连接数。"
 
 msgid "Download a TXT file from this URL, one tracker URL per line. Updating refreshes the list below; save settings afterward."
 msgstr "从该地址下载 TXT，每行一个 Tracker URL。点击更新只会刷新下方列表，仍需保存设置。"
-
-msgid "MSE/PE protocol encryption. Forced mode may reject unencrypted connections. irontide only."
-msgstr "MSE/PE 协议加密。强制模式可能拒绝未加密连接。仅 irontide。"
-
-msgid "Full preallocation reduces disk fragmentation but is slower on task creation. irontide only."
-msgstr "完全预分配可减少磁盘碎片，但创建任务较慢。仅 irontide。"
 
 msgid "Maximum number of auto-managed active downloads"
 msgstr "自动管理的最大活跃下载任务数"
@@ -2677,3 +2659,9 @@ msgstr "limedl - 下载管理器"
 
 msgid "Failed to save settings"
 msgstr "保存设置失败"
+
+msgid "Legacy BitTorrent resume data was removed ({} files). Those tasks cannot be restored; downloaded files are kept. Please re-add the torrents."
+msgstr "已清理旧版 BT 引擎的续传数据（{} 个文件）。这些任务无法恢复，已下载的文件会保留；请重新添加种子。"
+
+msgid "Changes apply to the BT session after restart."
+msgstr "更改将在 BT 会话重启后生效。"

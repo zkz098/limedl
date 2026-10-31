@@ -60,7 +60,8 @@ pub async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
     let kind = classify_aria2_uri(&url);
     let mirror_urls = (kind == TaskKind::Http && uris.len() > 1).then(|| uris.clone());
     let headers = collect_request_headers(options, &url);
-    let (checksum, expected_checksum) = parse_checksum_option(options);
+    let (checksum, expected_checksum) = parse_checksum_option(options)
+        .map_err(|message| make_error(ERR_INVALID_PARAMS, message))?;
     let destination_dir = options
         .and_then(|o| o.get("dir"))
         .and_then(|v| v.as_str())

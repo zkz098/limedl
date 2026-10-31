@@ -126,5 +126,4 @@ limedl 允许通过设置环境变量来改变运行行为，特别适合多配�
 | 环境变量 | 默认值 | 作用与说明 |
 | :--- | :--- | :--- |
 | `LIMEDL_DATA_DIR` | `%LOCALAPPDATA%\limedl` | 覆盖默认数据存储根目录。若将其指向便携 U 盘的相对路径，即可实现完全的绿色隔离运行。 |
-| `LIMEDL_TAURI_DATA_DIR` | `%LOCALAPPDATA%\com.zkz20.limedl` | 覆盖老版本历史数据迁移源路径。 |
 | `RUST_LOG` | `info` | 控制日志输出详细级别。排查故障时可设置为 `limedl_core=debug,limedl_native=trace`。 |
