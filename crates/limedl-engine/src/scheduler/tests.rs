@@ -1002,3 +1002,13 @@ fn test_rebalance_traditional_caps_hdd_parallel_tasks() {
     assert!(active.contains(&"ssd_0".to_string()));
     assert!(active.contains(&"ssd_1".to_string()));
 }
+
+#[test]
+fn scheduler_idle_flag_initially_active() {
+    let scheduler = super::Scheduler::new();
+    assert!(
+        scheduler
+            .has_active_tasks
+            .load(std::sync::atomic::Ordering::Acquire)
+    );
+}

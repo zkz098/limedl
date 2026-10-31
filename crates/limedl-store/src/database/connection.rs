@@ -195,6 +195,16 @@ impl Database {
         self.read_conn.lock()
     }
 
+    /// Shrink SQLite heap memory by flushing unused page cache and statement cache.
+    pub fn shrink_memory(&self) {
+        if let Some(conn) = self.write_conn.try_lock() {
+            let _ = conn.execute_batch("PRAGMA shrink_memory;");
+        }
+        if let Some(conn) = self.read_conn.try_lock() {
+            let _ = conn.execute_batch("PRAGMA shrink_memory;");
+        }
+    }
+
     /// Perform a WAL checkpoint to truncate the WAL file on clean shutdown.
     /// Should be called after all downloads have stopped and before the process exits.
     pub fn shutdown(&self) -> Result<()> {

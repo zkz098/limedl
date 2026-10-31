@@ -771,4 +771,11 @@ impl Dispatcher {
             Ok(false)
         }
     }
+
+    /// Shrink SQLite database memory (e.g. when minimized to tray).
+    pub fn shrink_database_memory(&self) {
+        if let Some(dm) = self.registry.get_typed::<crate::manager::DownloadManager>() {
+            dm.db.shrink_memory();
+        }
+    }
 }

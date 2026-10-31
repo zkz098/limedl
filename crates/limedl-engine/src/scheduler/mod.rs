@@ -10,7 +10,10 @@
 
 use std::{
     path::Path,
-    sync::{Arc, atomic::Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -37,6 +40,8 @@ use crate::{
 };
 
 const SCHEDULER_TICK: Duration = Duration::from_secs(2);
+/// Idle scheduler tick when no downloads are active or queued. Reduces timer wakeups.
+const IDLE_SCHEDULER_TICK: Duration = Duration::from_secs(30);
 
 /// Maximum concurrent connections (threads) allowed to a single hostname.
 const MAX_CONNECTIONS_PER_HOST: usize = 16;
@@ -75,6 +80,9 @@ pub struct Scheduler {
     /// Persisted across passes so allocations stay sticky and starvation is
     /// detectable; see [`AutomaticRebalanceState`].
     automatic: Mutex<AutomaticRebalanceState>,
+    /// Track whether active tasks (Downloading, Queued, Retrying) exist so the
+    /// scheduler loop can back off to `IDLE_SCHEDULER_TICK` when idle.
+    has_active_tasks: AtomicBool,
 }
 
 impl Default for Scheduler {
@@ -87,6 +95,7 @@ impl Scheduler {
     pub fn new() -> Self {
         Self {
             automatic: Mutex::new(AutomaticRebalanceState::default()),
+            has_active_tasks: AtomicBool::new(true),
         }
     }
 
@@ -97,13 +106,15 @@ impl Scheduler {
         tokio::spawn(async move {
             let mut consecutive_rebalance_failures: u32 = 0;
             loop {
-                let tick = {
+                let tick = if self.has_active_tasks.load(Ordering::Acquire) {
                     let settings = dm.settings_service().get().await;
                     if settings.scheduler.expert_mode {
                         Duration::from_millis(settings.scheduler.expert.scheduler_tick_ms)
                     } else {
                         SCHEDULER_TICK
                     }
+                } else {
+                    IDLE_SCHEDULER_TICK
                 };
 
                 tokio::select! {
@@ -233,6 +244,14 @@ impl Scheduler {
         dm.concurrency()
             .active_http_count
             .store(downloading_count, Ordering::Release);
+
+        let has_active = all_downloads.iter().any(|m| {
+            let s = m.lock_core().manifest.state;
+            s == DownloadState::Downloading
+                || s == DownloadState::Queued
+                || s == DownloadState::Retrying
+        });
+        self.has_active_tasks.store(has_active, Ordering::Release);
 
         persist_rebalanced(dm.db(), &all_downloads).await;
         Ok(())

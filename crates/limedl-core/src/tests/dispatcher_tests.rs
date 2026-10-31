@@ -712,3 +712,11 @@ async fn dispatcher_bt_facade_reaches_a_registered_backend() -> TestResult {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_dispatcher_shrink_database_memory() -> TestResult {
+    let (_tmp, dm) = make_manager();
+    let (_eb, dispatcher) = make_dispatcher(dm);
+    dispatcher.shrink_database_memory();
+    Ok(())
+}

@@ -230,3 +230,9 @@ fn lock_contention_is_never_mistaken_for_corruption() {
     assert!(!is_lock_contention("database disk image is malformed"));
     assert!(!is_lock_contention("file is not a database"));
 }
+
+#[test]
+fn shrink_memory_succeeds() {
+    let db = Database::open_in_memory().unwrap();
+    db.shrink_memory();
+}

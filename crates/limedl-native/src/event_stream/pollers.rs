@@ -33,8 +33,31 @@ pub fn start_clipboard_monitor(ctx: &AppContext) {
         }
 
         let mut interval = tokio::time::interval(Duration::from_millis(1500));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut vis_rx = platform_win::subscribe_window_visibility();
+
         loop {
-            interval.tick().await;
+            // While the window is hidden in tray, suspend completely to avoid polling.
+            while !*vis_rx.borrow_and_update() {
+                if vis_rx.changed().await.is_err() {
+                    return;
+                }
+            }
+
+            tokio::select! {
+                _ = interval.tick() => {}
+                res = vis_rx.changed() => {
+                    if res.is_err() {
+                        return;
+                    }
+                    continue;
+                }
+            }
+
+            if !platform_win::is_window_visible() {
+                continue;
+            }
+
             let Ok(mut clipboard) = arboard::Clipboard::new() else {
                 continue;
             };
@@ -100,11 +123,21 @@ fn spawn_bt_status_poller(ctx: &AppContext) {
     let dispatcher = ctx.dispatcher.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(2));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut vis_rx = platform_win::subscribe_window_visibility();
+
         loop {
-            interval.tick().await;
+            // While the window is hidden in tray, sleep until restored.
+            while !*vis_rx.borrow_and_update() {
+                if vis_rx.changed().await.is_err() {
+                    return;
+                }
+            }
+
             if !platform_win::is_window_visible() {
                 continue;
             }
+
             let status = dispatcher.bt_runtime_status();
             let ui_weak = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
@@ -127,6 +160,15 @@ fn spawn_bt_status_poller(ctx: &AppContext) {
                     _ => ui.set_bt_status_visible(false),
                 }
             });
+
+            tokio::select! {
+                _ = interval.tick() => {}
+                res = vis_rx.changed() => {
+                    if res.is_err() {
+                        return;
+                    }
+                }
+            }
         }
     });
 }
@@ -141,21 +183,54 @@ fn spawn_inspector_poller(ctx: &AppContext) {
 
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_millis(1000));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut vis_rx = platform_win::subscribe_window_visibility();
+
         loop {
-            interval.tick().await;
+            // While the window is hidden in tray, sleep until restored.
+            while !*vis_rx.borrow_and_update() {
+                if vis_rx.changed().await.is_err() {
+                    return;
+                }
+            }
+
             if !platform_win::is_window_visible() {
                 continue;
             }
 
             let current_id = active_inspector_id.lock().clone();
             let Some(task_id_str) = current_id else {
+                tokio::select! {
+                    _ = interval.tick() => {}
+                    res = vis_rx.changed() => {
+                        if res.is_err() {
+                            return;
+                        }
+                    }
+                }
                 continue;
             };
             let Ok(task_id) = TaskId::from_wire_string(&task_id_str) else {
+                tokio::select! {
+                    _ = interval.tick() => {}
+                    res = vis_rx.changed() => {
+                        if res.is_err() {
+                            return;
+                        }
+                    }
+                }
                 continue;
             };
             let summary = store.lock().get_summary(&task_id_str);
             let Some(summary) = summary else {
+                tokio::select! {
+                    _ = interval.tick() => {}
+                    res = vis_rx.changed() => {
+                        if res.is_err() {
+                            return;
+                        }
+                    }
+                }
                 continue;
             };
 
@@ -194,6 +269,15 @@ fn spawn_inspector_poller(ctx: &AppContext) {
                         ui.set_inspector_info(inspector_info);
                     }
                 });
+            }
+
+            tokio::select! {
+                _ = interval.tick() => {}
+                res = vis_rx.changed() => {
+                    if res.is_err() {
+                        return;
+                    }
+                }
             }
         }
     });

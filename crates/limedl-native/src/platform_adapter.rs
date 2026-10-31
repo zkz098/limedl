@@ -40,6 +40,14 @@ pub fn setup_platform_integration(
         });
     }
 
+    // Register trim callback for database memory shrink when minimizing to tray
+    {
+        let dispatcher = ctx.dispatcher.clone();
+        crate::platform_win::set_trim_callback(move || {
+            dispatcher.shrink_database_memory();
+        });
+    }
+
     #[cfg(windows)]
     setup_windows_hooks(ctx);
 

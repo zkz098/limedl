@@ -14,9 +14,16 @@
 
 use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::sync::watch;
 
 static WINDOW_VISIBLE: AtomicBool = AtomicBool::new(true);
+static VISIBILITY_TX: LazyLock<watch::Sender<bool>> = LazyLock::new(|| {
+    let (tx, _) = watch::channel(true);
+    tx
+});
+static TRIM_CALLBACK: Mutex<Option<Box<dyn Fn() + Send + Sync>>> = Mutex::new(None);
 
 /// Track whether the primary window is actively visible and not minimized.
 /// Used to suppress expensive background UI model rebuilds and periodic status polling.
@@ -26,12 +33,51 @@ pub fn is_window_visible() -> bool {
 
 /// Update the primary window visibility state.
 pub fn set_window_visible(visible: bool) {
-    WINDOW_VISIBLE.store(visible, Ordering::SeqCst);
+    let prev = WINDOW_VISIBLE.swap(visible, Ordering::SeqCst);
+    if prev != visible {
+        let _ = VISIBILITY_TX.send(visible);
+    }
+}
+
+/// Subscribe to primary window visibility changes.
+pub fn subscribe_window_visibility() -> watch::Receiver<bool> {
+    VISIBILITY_TX.subscribe()
+}
+
+/// Register a callback invoked when trimming the process working set (e.g. SQLite shrink).
+pub fn set_trim_callback(callback: impl Fn() + Send + Sync + 'static) {
+    *TRIM_CALLBACK.lock() = Some(Box::new(callback));
 }
 
 /// Trim the process working set to release physical memory back to the OS.
 /// Typically called when the window is minimized or hidden in the tray.
 pub fn trim_working_set() {
+    // 1. Invoke custom trim hook (e.g. SQLite PRAGMA shrink_memory) first,
+    // so any newly freed memory can be collected by mimalloc below.
+    if let Some(ref cb) = *TRIM_CALLBACK.lock() {
+        cb();
+    }
+
+    // 2. Instruct mimalloc to release thread caches and decommit unused pages.
+    unsafe extern "C" {
+        fn mi_collect(force: bool);
+    }
+    unsafe {
+        mi_collect(true);
+    }
+
+    // 3. On Linux glibc, also instruct the system malloc to release free arenas.
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    {
+        unsafe extern "C" {
+            fn malloc_trim(pad: usize) -> std::ffi::c_int;
+        }
+        unsafe {
+            let _ = malloc_trim(0);
+        }
+    }
+
+    // 4. On Windows, trim working set pages into the standby list.
     #[cfg(windows)]
     {
         use windows::Win32::System::Threading::{GetCurrentProcess, SetProcessWorkingSetSize};
@@ -1048,5 +1094,30 @@ mod tests {
             false
         ));
         reset_placement_applied_for_test();
+    }
+
+    #[test]
+    fn test_trim_working_set_and_callback() {
+        use std::sync::atomic::AtomicUsize;
+        static TRIM_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+        set_trim_callback(|| {
+            TRIM_COUNT.fetch_add(1, Ordering::SeqCst);
+        });
+
+        trim_working_set();
+        assert_eq!(TRIM_COUNT.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_window_visibility_channel() {
+        let mut rx = subscribe_window_visibility();
+        set_window_visible(false);
+        assert!(!is_window_visible());
+        assert!(!*rx.borrow_and_update());
+
+        set_window_visible(true);
+        assert!(is_window_visible());
+        assert!(*rx.borrow_and_update());
     }
 }
