@@ -166,6 +166,31 @@ fn test_aria2_hint_counts_headers_and_names_ignored_options() {
     assert!(!format_aria2_hint(1, 2, &[], Language::ZhTw).is_empty());
 }
 
+/// Decode the C-style escapes gettext and Slint/Rust literals use.
+fn unescape_c_escapes(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut chars = raw.chars();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            out.push(ch);
+            continue;
+        }
+        match chars.next() {
+            Some('n') => out.push('\n'),
+            Some('t') => out.push('\t'),
+            Some('r') => out.push('\r'),
+            Some('"') => out.push('"'),
+            Some('\\') => out.push('\\'),
+            Some(other) => {
+                out.push('\\');
+                out.push(other);
+            }
+            None => out.push('\\'),
+        }
+    }
+    out
+}
+
 /// Parse a gettext `.po` catalog into `msgid -> msgstr` entries.
 fn parse_po(path: &Path) -> HashMap<String, String> {
     let content = std::fs::read_to_string(path)
@@ -178,18 +203,18 @@ fn parse_po(path: &Path) -> HashMap<String, String> {
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix("msgid \"") {
             if let Some(s) = rest.strip_suffix('"') {
-                current_id = Some(s.replace("\\\"", "\""));
+                current_id = Some(unescape_c_escapes(s));
                 mode = Some("id");
             }
         } else if let Some(rest) = trimmed.strip_prefix("msgstr \"") {
             if let Some(s) = rest.strip_suffix('"') {
                 if let Some(id) = &current_id {
-                    entries.insert(id.clone(), s.replace("\\\"", "\""));
+                    entries.insert(id.clone(), unescape_c_escapes(s));
                 }
                 mode = Some("str");
             }
         } else if let Some(stripped) = trimmed.strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
-            let val = stripped.replace("\\\"", "\"");
+            let val = unescape_c_escapes(stripped);
             match mode {
                 Some("id") => {
                     if let Some(id) = &mut current_id {
@@ -247,7 +272,7 @@ fn extract_tr_strings(text: &str) -> Vec<String> {
             }
             if let Some(idx) = end_idx {
                 let msg = &inner[..idx];
-                results.push(msg.replace("\\\"", "\"").replace("\\n", "\n"));
+                results.push(unescape_c_escapes(msg));
                 rest = &inner[idx + 1..];
             }
         }
@@ -313,16 +338,14 @@ fn collect_rs_files(dir: &Path, list: &mut Vec<PathBuf>) {
     }
 }
 
-/// Every `msgid` literal that is the first argument of an `i18n::tr` /
-/// `i18n::tr_fmt` call.
+/// Visit every string literal in `text`, skipping comments and char literals.
 ///
-/// Comments and string literals are skipped by a small state machine: the module
-/// docs and this very file mention `tr("…")` as an example, and `@tr(` appears in
-/// the Slint scan above. The callee name is read back from the source so a call
-/// like `attr("…")` is not mistaken for `tr("…")`.
-fn extract_tr_literals(text: &str) -> Vec<String> {
+/// `callee` is the identifier immediately before the opening parenthesis when
+/// the literal is a call argument (`tr("…")`). Whitespace — including newlines
+/// — between the callee, `(` and the literal is ignored, so the multi-line
+/// `tr_fmt(\n "…", …)` form is not silently exempted from the checks.
+fn visit_string_literals(text: &str, mut visit: impl FnMut(&str, Option<&str>)) {
     let chars: Vec<char> = text.chars().collect();
-    let mut results = Vec::new();
     let mut i = 0;
     while i < chars.len() {
         let c = chars[i];
@@ -355,14 +378,15 @@ fn extract_tr_literals(text: &str) -> Vec<String> {
             continue;
         }
 
-        // Read the string literal.
+        // Read the string literal, keeping the escapes for the shared decoder.
         let mut j = i + 1;
-        let mut content = String::new();
+        let mut raw = String::new();
         while j < chars.len() {
             match chars[j] {
                 '\\' => {
-                    if let Some(escaped) = chars.get(j + 1) {
-                        content.push(*escaped);
+                    raw.push('\\');
+                    if let Some(next) = chars.get(j + 1) {
+                        raw.push(*next);
                         j += 2;
                     } else {
                         j += 1;
@@ -370,26 +394,58 @@ fn extract_tr_literals(text: &str) -> Vec<String> {
                 }
                 '"' => break,
                 other => {
-                    content.push(other);
+                    raw.push(other);
                     j += 1;
                 }
             }
         }
 
-        // Only a `tr(`/`tr_fmt(` call directly before the literal counts.
-        if chars.get(i.wrapping_sub(1)) == Some(&'(') {
-            let mut m = i - 1;
-            let mut callee = String::new();
-            while m > 0 && (chars[m - 1].is_alphanumeric() || chars[m - 1] == '_') {
-                callee.insert(0, chars[m - 1]);
+        // Identifier immediately before the opening parenthesis, if any.
+        let mut k = i;
+        while k > 0 && chars[k - 1].is_whitespace() {
+            k -= 1;
+        }
+        let callee = if k > 0 && chars[k - 1] == '(' {
+            let mut m = k - 1;
+            while m > 0 && chars[m - 1].is_whitespace() {
                 m -= 1;
             }
-            if callee == "tr" || callee == "tr_fmt" {
-                results.push(content);
+            let mut ident = String::new();
+            while m > 0 && (chars[m - 1].is_alphanumeric() || chars[m - 1] == '_') {
+                ident.insert(0, chars[m - 1]);
+                m -= 1;
             }
-        }
+            (!ident.is_empty()).then_some(ident)
+        } else {
+            None
+        };
+
+        visit(&unescape_c_escapes(&raw), callee.as_deref());
         i = j + 1;
     }
+}
+
+/// Every `msgid` literal that is the first argument of an `i18n::tr` /
+/// `i18n::tr_fmt` call.
+///
+/// The module docs and this very file mention `tr("…")` as an example, and
+/// `@tr(` appears in the Slint scan above; comments and non-key literals are
+/// skipped by the shared state machine.
+fn extract_tr_literals(text: &str) -> Vec<String> {
+    let mut results = Vec::new();
+    visit_string_literals(text, |content, callee| {
+        if matches!(callee, Some("tr" | "tr_fmt")) {
+            results.push(content.to_string());
+        }
+    });
+    results
+}
+
+/// Every string literal in a file. Used for the dynamic-key tables, where the
+/// key is passed to `tr` through a variable.
+fn extract_all_string_literals(text: &str) -> Vec<String> {
+    let mut results = Vec::new();
+    visit_string_literals(text, |content, _| results.push(content.to_string()));
     results
 }
 
@@ -419,6 +475,61 @@ fn every_rust_message_exists_in_the_catalogs() {
         missing.is_empty(),
         "tr/tr_fmt keys missing from the .po catalogs (run `cargo xtask i18n generate` \
          after adding them): {missing:#?}"
+    );
+}
+
+/// A catalog entry nothing references is dead weight: it ships in every build,
+/// gets translated into every locale, and is no longer reachable.
+///
+/// Keys resolved through a variable — `SettingsField::msgid` and the priority
+/// label — cannot be seen by the `tr("…")` literal scan, so every string
+/// literal under `src/i18n/` except the generated catalog and this test file is
+/// treated as a possible key. That over-approximation can only hide an orphan;
+/// it cannot mark a live key as dead.
+#[test]
+fn every_catalog_entry_is_referenced() {
+    let base_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut used = std::collections::HashSet::new();
+
+    let mut slint_files = Vec::new();
+    collect_slint_files(&base_dir.join("ui"), &mut slint_files);
+    for file in &slint_files {
+        let content = std::fs::read_to_string(file).expect("read slint file");
+        used.extend(extract_tr_strings(&content));
+    }
+
+    let mut rust_files = Vec::new();
+    collect_rs_files(&base_dir.join("src"), &mut rust_files);
+    for file in &rust_files {
+        let content = std::fs::read_to_string(file).expect("read rust file");
+        used.extend(extract_tr_literals(&content));
+    }
+
+    // The dynamic-key tables and the local three-language tables live here.
+    let mut i18n_files = Vec::new();
+    collect_rs_files(&base_dir.join("src/i18n"), &mut i18n_files);
+    for file in &i18n_files {
+        let name = file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        if name == "catalog.rs" || name == "tests.rs" {
+            continue;
+        }
+        let content = std::fs::read_to_string(file).expect("read i18n source");
+        used.extend(extract_all_string_literals(&content));
+    }
+
+    let mut orphans: Vec<&str> = super::catalog::CATALOG
+        .iter()
+        .map(|entry| entry.msgid)
+        .filter(|msgid| !used.contains(*msgid))
+        .collect();
+    orphans.sort_unstable();
+    assert!(
+        orphans.is_empty(),
+        "catalog entries no longer referenced from .slint or Rust (remove them from the \
+         .po files and run `cargo xtask i18n generate`): {orphans:#?}"
     );
 }
 

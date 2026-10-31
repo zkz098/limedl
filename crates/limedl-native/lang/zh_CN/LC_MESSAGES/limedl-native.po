@@ -56,9 +56,6 @@ msgstr "彻底删除本地文件"
 msgid "New Download Task"
 msgstr "新建下载任务"
 
-msgid "Download URL (HTTP / HTTPS / Magnet / Torrent):"
-msgstr "下载链接 (HTTP / HTTPS / Magnet / Torrent):"
-
 msgid "Select Torrent..."
 msgstr "选择种子..."
 
@@ -71,89 +68,20 @@ msgstr "浏览..."
 msgid "Custom Filename (Optional):"
 msgstr "自定义文件名 (可选):"
 
-msgid "Leave empty to use remote filename automatically"
-msgstr "留空则自动从响应头或 URL 解析"
-
 msgid "Cancel"
 msgstr "取消"
 
 msgid "Start Download"
 msgstr "立即下载"
 
-msgid "Speed Limit Settings"
-msgstr "限速设置"
-
-msgid "Configure task speed limits (0 for unlimited):"
-msgstr "配置此任务的最大传输带宽 (0 为不限制):"
-
-msgid "Download Limit:"
-msgstr "下载限速:"
-
-msgid "Upload Limit (BT):"
-msgstr "上传限速 (BT):"
-
-msgid "Save"
-msgstr "保存"
-
-msgid "Task Inspector"
-msgstr "任务详情检查器 (Inspector)"
-
 msgid "Overview"
 msgstr "概览"
-
-msgid "Pieces Map"
-msgstr "分片分布"
-
-msgid "Peers"
-msgstr "节点 (Peers)"
-
-msgid "Trackers"
-msgstr "服务器 (Trackers)"
-
-msgid "Files"
-msgstr "文件列表"
-
-msgid "Task ID:"
-msgstr "任务 ID:"
-
-msgid "Engine Protocol:"
-msgstr "协议引擎:"
-
-msgid "Resource URL:"
-msgstr "资源链接:"
 
 msgid "Save Path:"
 msgstr "保存路径:"
 
-msgid "Total Size:"
-msgstr "文件总大小:"
-
-msgid "Downloaded:"
-msgstr "已下载数据:"
-
-msgid "Uploaded (BT):"
-msgstr "已上传数据:"
-
-msgid "Active Connections:"
-msgstr "活跃连接数:"
-
-msgid "Share Ratio:"
-msgstr "分享率:"
-
-msgid "Active Rate Limits:"
-msgstr "当前限速:"
-
-msgid "Pieces Progress"
-msgstr "分片完成分布"
-
 msgid "IP Address"
 msgstr "IP 地址"
-
-msgid "Client"
-msgstr "客户端"
-
-msgid "Flags"
-msgstr "标志"
 
 msgid "Progress"
 msgstr "进度"
@@ -164,17 +92,8 @@ msgstr "下载速度"
 msgid "Upload Speed"
 msgstr "上传速度"
 
-msgid "Tier"
-msgstr "层级"
-
-msgid "URL"
-msgstr "URL 地址"
-
 msgid "Status"
 msgstr "状态"
-
-msgid "Peers Count"
-msgstr "节点数"
 
 msgid "File Name"
 msgstr "文件名"
@@ -185,32 +104,14 @@ msgstr "大小"
 msgid "Priority"
 msgstr "优先级"
 
-msgid "Speed Limit"
-msgstr "限速设置"
-
 msgid "Open Folder"
 msgstr "打开目录"
 
 msgid "Close"
 msgstr "关闭"
 
-msgid "Pieces bitmap is only available for active BitTorrent tasks."
-msgstr "分片位图可视化仅适用于 BitTorrent 多分片下载任务。"
-
-msgid "No peers connected yet."
-msgstr "暂无已连接节点数据"
-
-msgid "No tracker servers available."
-msgstr "暂无 Tracker 服务器信息"
-
-msgid "No file information available."
-msgstr "暂无多文件结构信息"
-
 msgid "Settings Center"
 msgstr "设置中心"
-
-msgid "General"
-msgstr "常规"
 
 msgid "Download"
 msgstr "下载"
@@ -224,9 +125,6 @@ msgstr "调度"
 msgid "BT Network"
 msgstr "BT 网络"
 
-msgid "IO Baseline"
-msgstr "IO 实验"
-
 msgid "Logging"
 msgstr "日志"
 
@@ -236,65 +134,8 @@ msgstr "Aria2"
 msgid "About"
 msgstr "关于"
 
-msgid "Language & Appearance"
-msgstr "语言与外观"
-
-msgid "Language:"
-msgstr "界面语言:"
-
-msgid "Theme Mode (dark/light/system):"
-msgstr "主题模式 (dark/light/system):"
-
-msgid "UI Scale (0.5 - 2.0):"
-msgstr "界面缩放比例 (0.5 - 2.0):"
-
-msgid "Font Family (leave empty for system default):"
-msgstr "自定义字体 (留空使用系统默认):"
-
-msgid "System default font"
-msgstr "系统默认字体"
-
-msgid "Close to System Tray"
-msgstr "关闭窗口时最小化到系统托盘"
-
-msgid "Keep background downloads running when window is closed"
-msgstr "窗口关闭后在系统托盘保持后台运行与下载"
-
-msgid "Auto-start on System Boot"
-msgstr "开机自启动"
-
-msgid "Launch limedl quietly in background on system startup"
-msgstr "开机登录后自动启动 limedl 并静默在系统托盘"
-
-msgid "Download & Storage"
-msgstr "下载与存储"
-
-msgid "Default Download Directory:"
-msgstr "默认下载保存目录:"
-
-msgid "Leave empty for system Downloads, e.g. D:\\Downloads"
-msgstr "留空使用系统默认，例如 D:\\Downloads"
-
 msgid "Select Path..."
 msgstr "选择路径..."
-
-msgid "Auto-create Subdirectory for Multi-file Torrents"
-msgstr "多文件种子自动创建独立子文件夹"
-
-msgid "Keep multi-file downloads organized in a dedicated directory"
-msgstr "避免多个文件散落到下载根目录中"
-
-msgid "Disk Pre-allocation Strategy (none/sparse/falloc/full):"
-msgstr "磁盘空间预分配策略 (none/sparse/falloc/full):"
-
-msgid "sparse: fast; falloc: OS pre-allocated; full: zero-fill to prevent fragmentation"
-msgstr "sparse 速度快；falloc 驱动级预占；full 零填充防碎片"
-
-msgid "Auto Checksum Verification upon Completion"
-msgstr "下载完成后自动校验 Checksum"
-
-msgid "Verify SHA256/MD5 if checksum metadata is provided"
-msgstr "若资源包含散列摘要，完成时自动校验完整性"
 
 msgid "Proxy Settings"
 msgstr "代理设置"
@@ -389,9 +230,6 @@ msgstr "秒"
 msgid "slots"
 msgstr "个"
 
-msgid "failures"
-msgstr "次"
-
 msgid "files"
 msgstr "个"
 
@@ -409,15 +247,6 @@ msgstr "队列与限速"
 
 msgid "Max Active Downloads:"
 msgstr "最大活跃下载:"
-
-msgid "Max Active Seeds:"
-msgstr "最大做种:"
-
-msgid "Max Torrents:"
-msgstr "最大 Torrent 数:"
-
-msgid "Active Limit:"
-msgstr "活跃上限:"
 
 msgid "Global Download Rate Limit:"
 msgstr "全局下载限速:"
@@ -472,27 +301,6 @@ msgstr "加载本地 blocklist 文件"
 
 msgid "Blocklist Path:"
 msgstr "屏蔽列表路径:"
-
-msgid "Engine Tuning"
-msgstr "引擎调优"
-
-msgid "Max Upload Slots per Torrent:"
-msgstr "每 Torrent 最大上传槽位:"
-
-msgid "Smart Ban Threshold (1-100):"
-msgstr "智能封禁阈值 (1-100):"
-
-msgid "Smart Ban Parole"
-msgstr "智能封禁假释"
-
-msgid "Isolate suspicious peers before permanent ban to prevent false positives"
-msgstr "先隔离再判定，减少误封"
-
-msgid "Ban Duration after Eviction:"
-msgstr "驱逐后禁止重连时长:"
-
-msgid "No Data Contribution Timeout:"
-msgstr "无数据贡献超时:"
 
 msgid "Tracker Subscription URL:"
 msgstr "Tracker 订阅 URL:"
@@ -833,12 +641,6 @@ msgstr "大小"
 msgid "Speed"
 msgstr "速度"
 
-msgid "Ascending"
-msgstr "升序"
-
-msgid "Descending"
-msgstr "降序"
-
 msgid "Pause All"
 msgstr "全部暂停"
 
@@ -851,14 +653,8 @@ msgstr "新建任务"
 msgid "No matching download tasks found"
 msgstr "未找到匹配的下载任务"
 
-msgid "No download tasks"
-msgstr "暂无下载任务"
-
 msgid "Try clearing your search keywords"
 msgstr "尝试清除搜索关键词"
-
-msgid "Click \"New Task\" in the top-right corner to add HTTP / BT downloads"
-msgstr "点击右上角「新建任务」添加 HTTP / BT 下载"
 
 msgid "Selected "
 msgstr "已选择 "
@@ -1163,35 +959,11 @@ msgstr "固定"
 msgid "Enabled"
 msgstr "启用"
 
-msgid "Forced"
-msgstr "强制"
-
-msgid "None (sparse)"
-msgstr "无 (sparse)"
-
-msgid "Full (zero-fill)"
-msgstr "完整 (zero-fill)"
-
 msgid "Ban"
 msgstr "封禁"
 
 msgid "Limit Upload Slots"
 msgstr "限制上传槽位"
-
-msgid "Fastest Upload First"
-msgstr "最快上传优先"
-
-msgid "Round Robin"
-msgstr "轮询调度"
-
-msgid "Anti-Leech First"
-msgstr "反吸血优先"
-
-msgid "Fixed Slots"
-msgstr "固定槽位"
-
-msgid "Rate Based"
-msgstr "基于速率"
 
 msgid "Trace"
 msgstr "Trace"
@@ -1268,15 +1040,6 @@ msgstr "从该地址下载 TXT，每行一个 Tracker URL。点击更新只会�
 msgid "Maximum number of auto-managed active downloads"
 msgstr "自动管理的最大活跃下载任务数"
 
-msgid "Maximum number of auto-managed active seeds"
-msgstr "自动管理的最大活跃做种任务数"
-
-msgid "Maximum total number of torrents allowed"
-msgstr "允许添加的 Torrent 总数上限"
-
-msgid "Hard limit on total active torrents (downloading + seeding + checking)"
-msgstr "同时活跃（下载+做种+校验）的硬上限"
-
 msgid "0 = unlimited"
 msgstr "0 = 不限制"
 
@@ -1315,27 +1078,6 @@ msgstr "将会话的 IP 过滤设为黑名单文件中的网段，被封段的�
 
 msgid "Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."
 msgstr "填写黑名单文件路径。支持 eMule .dat 或 P2P 明文（每行一个 CIDR）格式，按文件扩展名自动选择解析器。"
-
-msgid "How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."
-msgstr "做种时对 peer 的排序方式。反吸血优先回报最高的做种对等端。"
-
-msgid "How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."
-msgstr "每个 torrent 的 unchoke 槽位如何确定：固定槽位数 或 按速率自动调整。"
-
-msgid "Maximum concurrent unchoke slots per torrent."
-msgstr "每个 torrent 的最大并发 unchoke 槽位数。"
-
-msgid "Hash-failure involvements before a peer is automatically banned."
-msgstr "hash 校验失败的涉事次数超过该值后自动封禁该 peer。"
-
-msgid "Re-download a failed piece from an uninvolved peer to attribute the fault before striking."
-msgstr "从无关 peer 重新下载失败分片以判定责任，判责前不扣分。"
-
-msgid "Seconds an evicted (non-contributing) peer is blocked from reconnecting."
-msgstr "被驱逐（不贡献数据的）peer 需等待的封禁秒数，到期后可重新连接。"
-
-msgid "Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard."
-msgstr "超过该秒数未收到分片数据的 peer 将被断开；填 0 关闭此保护。"
 
 msgid "Enable double-buffer pool optimization for mechanical hard drives to improve write performance. Not needed for SSDs."
 msgstr "为机械硬盘启用双缓冲池优化，提升写入性能。SSD 不需要此功能。"
@@ -1623,12 +1365,6 @@ msgstr "表格视图"
 msgid "Cards View"
 msgstr "卡片视图"
 
-msgid "Asc"
-msgstr "升序"
-
-msgid "Desc"
-msgstr "降序"
-
 msgid "Clear Completed"
 msgstr "清除已完成"
 
@@ -1760,18 +1496,6 @@ msgstr "Hugging Face 镜像"
 
 msgid "Civitai"
 msgstr "Civitai 镜像"
-
-msgid "Fast Extension"
-msgstr "Fast 扩展"
-
-msgid "Holepunch"
-msgstr "NAT 穿透 (Holepunch)"
-
-msgid "WebSeed"
-msgstr "Web 种子 (WebSeed)"
-
-msgid "SuperSeed"
-msgstr "超级做种 (SuperSeed)"
 
 msgid "Unknown"
 msgstr "未知"
@@ -2245,15 +1969,6 @@ msgstr "每 Torrent 最大 Peers"
 msgid "BT max downloads"
 msgstr "BT 最大下载数"
 
-msgid "BT max seeds"
-msgstr "BT 最大做种数"
-
-msgid "BT max torrents"
-msgstr "BT 最大 Torrent 数"
-
-msgid "BT active limit"
-msgstr "BT 活跃限制"
-
 msgid "BT global download limit"
 msgstr "BT 全局下载限速"
 
@@ -2277,18 +1992,6 @@ msgstr "反吸血封禁时长"
 
 msgid "Anti-leech upload slots"
 msgstr "反吸血限槽模式槽位"
-
-msgid "Max upload slots per torrent"
-msgstr "每 Torrent 最大上传槽"
-
-msgid "Smart ban threshold"
-msgstr "智能封禁阈值"
-
-msgid "Eviction ban duration"
-msgstr "驱逐封禁时长"
-
-msgid "No-contribution timeout"
-msgstr "无贡献超时"
 
 msgid "IO buffer limit"
 msgstr "IO 缓冲上限"

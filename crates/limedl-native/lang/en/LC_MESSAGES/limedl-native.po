@@ -56,9 +56,6 @@ msgstr "Delete File Permanently"
 msgid "New Download Task"
 msgstr "New Download Task"
 
-msgid "Download URL (HTTP / HTTPS / Magnet / Torrent):"
-msgstr "Download URL (HTTP / HTTPS / Magnet / Torrent):"
-
 msgid "Select Torrent..."
 msgstr "Select Torrent..."
 
@@ -71,89 +68,20 @@ msgstr "Browse..."
 msgid "Custom Filename (Optional):"
 msgstr "Custom Filename (Optional):"
 
-msgid "Leave empty to use remote filename automatically"
-msgstr "Leave empty to use remote filename automatically"
-
 msgid "Cancel"
 msgstr "Cancel"
 
 msgid "Start Download"
 msgstr "Start Download"
 
-msgid "Speed Limit Settings"
-msgstr "Speed Limit Settings"
-
-msgid "Configure task speed limits (0 for unlimited):"
-msgstr "Configure task speed limits (0 for unlimited):"
-
-msgid "Download Limit:"
-msgstr "Download Limit:"
-
-msgid "Upload Limit (BT):"
-msgstr "Upload Limit (BT):"
-
-msgid "Save"
-msgstr "Save"
-
-msgid "Task Inspector"
-msgstr "Task Inspector"
-
 msgid "Overview"
 msgstr "Overview"
-
-msgid "Pieces Map"
-msgstr "Pieces Map"
-
-msgid "Peers"
-msgstr "Peers"
-
-msgid "Trackers"
-msgstr "Trackers"
-
-msgid "Files"
-msgstr "Files"
-
-msgid "Task ID:"
-msgstr "Task ID:"
-
-msgid "Engine Protocol:"
-msgstr "Engine Protocol:"
-
-msgid "Resource URL:"
-msgstr "Resource URL:"
 
 msgid "Save Path:"
 msgstr "Save Path:"
 
-msgid "Total Size:"
-msgstr "Total Size:"
-
-msgid "Downloaded:"
-msgstr "Downloaded:"
-
-msgid "Uploaded (BT):"
-msgstr "Uploaded (BT):"
-
-msgid "Active Connections:"
-msgstr "Active Connections:"
-
-msgid "Share Ratio:"
-msgstr "Share Ratio:"
-
-msgid "Active Rate Limits:"
-msgstr "Active Rate Limits:"
-
-msgid "Pieces Progress"
-msgstr "Pieces Progress"
-
 msgid "IP Address"
 msgstr "IP Address"
-
-msgid "Client"
-msgstr "Client"
-
-msgid "Flags"
-msgstr "Flags"
 
 msgid "Progress"
 msgstr "Progress"
@@ -164,17 +92,8 @@ msgstr "Download Speed"
 msgid "Upload Speed"
 msgstr "Upload Speed"
 
-msgid "Tier"
-msgstr "Tier"
-
-msgid "URL"
-msgstr "URL"
-
 msgid "Status"
 msgstr "Status"
-
-msgid "Peers Count"
-msgstr "Peers Count"
 
 msgid "File Name"
 msgstr "File Name"
@@ -185,32 +104,14 @@ msgstr "Size"
 msgid "Priority"
 msgstr "Priority"
 
-msgid "Speed Limit"
-msgstr "Speed Limit"
-
 msgid "Open Folder"
 msgstr "Open Folder"
 
 msgid "Close"
 msgstr "Close"
 
-msgid "Pieces bitmap is only available for active BitTorrent tasks."
-msgstr "Pieces bitmap is only available for active BitTorrent tasks."
-
-msgid "No peers connected yet."
-msgstr "No peers connected yet."
-
-msgid "No tracker servers available."
-msgstr "No tracker servers available."
-
-msgid "No file information available."
-msgstr "No file information available."
-
 msgid "Settings Center"
 msgstr "Settings Center"
-
-msgid "General"
-msgstr "General"
 
 msgid "Download"
 msgstr "Download"
@@ -224,9 +125,6 @@ msgstr "Scheduler"
 msgid "BT Network"
 msgstr "BT Network"
 
-msgid "IO Baseline"
-msgstr "IO Baseline"
-
 msgid "Logging"
 msgstr "Logging"
 
@@ -236,65 +134,8 @@ msgstr "Aria2 RPC"
 msgid "About"
 msgstr "About"
 
-msgid "Language & Appearance"
-msgstr "Language & Appearance"
-
-msgid "Language:"
-msgstr "Language:"
-
-msgid "Theme Mode (dark/light/system):"
-msgstr "Theme Mode (dark/light/system):"
-
-msgid "UI Scale (0.5 - 2.0):"
-msgstr "UI Scale (0.5 - 2.0):"
-
-msgid "Font Family (leave empty for system default):"
-msgstr "Font Family (leave empty for system default):"
-
-msgid "System default font"
-msgstr "System default font"
-
-msgid "Close to System Tray"
-msgstr "Close to System Tray"
-
-msgid "Keep background downloads running when window is closed"
-msgstr "Keep background downloads running when window is closed"
-
-msgid "Auto-start on System Boot"
-msgstr "Auto-start on System Boot"
-
-msgid "Launch limedl quietly in background on system startup"
-msgstr "Launch limedl quietly in background on system startup"
-
-msgid "Download & Storage"
-msgstr "Download & Storage"
-
-msgid "Default Download Directory:"
-msgstr "Default Download Directory:"
-
-msgid "Leave empty for system Downloads, e.g. D:\\Downloads"
-msgstr "Leave empty for system Downloads, e.g. D:\\Downloads"
-
 msgid "Select Path..."
 msgstr "Select Path..."
-
-msgid "Auto-create Subdirectory for Multi-file Torrents"
-msgstr "Auto-create Subdirectory for Multi-file Torrents"
-
-msgid "Keep multi-file downloads organized in a dedicated directory"
-msgstr "Keep multi-file downloads organized in a dedicated directory"
-
-msgid "Disk Pre-allocation Strategy (none/sparse/falloc/full):"
-msgstr "Disk Pre-allocation Strategy (none/sparse/falloc/full):"
-
-msgid "sparse: fast; falloc: OS pre-allocated; full: zero-fill to prevent fragmentation"
-msgstr "sparse: fast; falloc: OS pre-allocated; full: zero-fill to prevent fragmentation"
-
-msgid "Auto Checksum Verification upon Completion"
-msgstr "Auto Checksum Verification upon Completion"
-
-msgid "Verify SHA256/MD5 if checksum metadata is provided"
-msgstr "Verify SHA256/MD5 if checksum metadata is provided"
 
 msgid "Proxy Settings"
 msgstr "Proxy Settings"
@@ -389,9 +230,6 @@ msgstr "secs"
 msgid "slots"
 msgstr "slots"
 
-msgid "failures"
-msgstr "failures"
-
 msgid "files"
 msgstr "files"
 
@@ -409,15 +247,6 @@ msgstr "Queuing & Rate Limits"
 
 msgid "Max Active Downloads:"
 msgstr "Max Active Downloads:"
-
-msgid "Max Active Seeds:"
-msgstr "Max Active Seeds:"
-
-msgid "Max Torrents:"
-msgstr "Max Torrents:"
-
-msgid "Active Limit:"
-msgstr "Active Limit:"
 
 msgid "Global Download Rate Limit:"
 msgstr "Global Download Rate Limit:"
@@ -472,27 +301,6 @@ msgstr "Load local blocklist filter file"
 
 msgid "Blocklist Path:"
 msgstr "Blocklist Path:"
-
-msgid "Engine Tuning"
-msgstr "Engine Tuning"
-
-msgid "Max Upload Slots per Torrent:"
-msgstr "Max Upload Slots per Torrent:"
-
-msgid "Smart Ban Threshold (1-100):"
-msgstr "Smart Ban Threshold (1-100):"
-
-msgid "Smart Ban Parole"
-msgstr "Smart Ban Parole"
-
-msgid "Isolate suspicious peers before permanent ban to prevent false positives"
-msgstr "Isolate suspicious peers before permanent ban to prevent false positives"
-
-msgid "Ban Duration after Eviction:"
-msgstr "Ban Duration after Eviction:"
-
-msgid "No Data Contribution Timeout:"
-msgstr "No Data Contribution Timeout:"
 
 msgid "Tracker Subscription URL:"
 msgstr "Tracker Subscription URL:"
@@ -833,12 +641,6 @@ msgstr "Size"
 msgid "Speed"
 msgstr "Speed"
 
-msgid "Ascending"
-msgstr "Ascending"
-
-msgid "Descending"
-msgstr "Descending"
-
 msgid "Pause All"
 msgstr "Pause All"
 
@@ -851,14 +653,8 @@ msgstr "New Task"
 msgid "No matching download tasks found"
 msgstr "No matching download tasks found"
 
-msgid "No download tasks"
-msgstr "No download tasks"
-
 msgid "Try clearing your search keywords"
 msgstr "Try clearing your search keywords"
-
-msgid "Click \"New Task\" in the top-right corner to add HTTP / BT downloads"
-msgstr "Click \"New Task\" in the top-right corner to add HTTP / BT downloads"
 
 msgid "Selected "
 msgstr "Selected "
@@ -1163,35 +959,11 @@ msgstr "Fixed"
 msgid "Enabled"
 msgstr "Enabled"
 
-msgid "Forced"
-msgstr "Forced"
-
-msgid "None (sparse)"
-msgstr "None (sparse)"
-
-msgid "Full (zero-fill)"
-msgstr "Full (zero-fill)"
-
 msgid "Ban"
 msgstr "Ban"
 
 msgid "Limit Upload Slots"
 msgstr "Limit Upload Slots"
-
-msgid "Fastest Upload First"
-msgstr "Fastest Upload First"
-
-msgid "Round Robin"
-msgstr "Round Robin"
-
-msgid "Anti-Leech First"
-msgstr "Anti-Leech First"
-
-msgid "Fixed Slots"
-msgstr "Fixed Slots"
-
-msgid "Rate Based"
-msgstr "Rate Based"
 
 msgid "Trace"
 msgstr "Trace"
@@ -1288,18 +1060,6 @@ msgid "Maximum number of auto-managed active downloads"
 msgstr ""
 
 
-msgid "Maximum number of auto-managed active seeds"
-msgstr ""
-
-
-msgid "Maximum total number of torrents allowed"
-msgstr ""
-
-
-msgid "Hard limit on total active torrents (downloading + seeding + checking)"
-msgstr ""
-
-
 msgid "0 = unlimited"
 msgstr ""
 
@@ -1349,34 +1109,6 @@ msgstr ""
 
 
 msgid "Path to a blocklist file. Use an eMule .dat file or a P2P plaintext file (one CIDR per line); format is chosen by file extension."
-msgstr ""
-
-
-msgid "How peers are ranked while seeding. Anti-Leech prefers seeding peers that contribute the most back."
-msgstr ""
-
-
-msgid "How unchoke slots are determined per torrent. Fixed keeps a constant slot count; Rate-based auto-adjusts."
-msgstr ""
-
-
-msgid "Maximum concurrent unchoke slots per torrent."
-msgstr ""
-
-
-msgid "Hash-failure involvements before a peer is automatically banned."
-msgstr ""
-
-
-msgid "Re-download a failed piece from an uninvolved peer to attribute the fault before striking."
-msgstr ""
-
-
-msgid "Seconds an evicted (non-contributing) peer is blocked from reconnecting."
-msgstr ""
-
-
-msgid "Seconds without receiving piece data before a peer is disconnected. 0 disables this safeguard."
 msgstr ""
 
 
@@ -1674,12 +1406,6 @@ msgstr "Table View"
 msgid "Cards View"
 msgstr "Cards View"
 
-msgid "Asc"
-msgstr "Asc"
-
-msgid "Desc"
-msgstr "Desc"
-
 msgid "Clear Completed"
 msgstr "Clear Completed"
 
@@ -1811,18 +1537,6 @@ msgstr "Hugging Face"
 
 msgid "Civitai"
 msgstr "Civitai"
-
-msgid "Fast Extension"
-msgstr "Fast Extension"
-
-msgid "Holepunch"
-msgstr "Holepunch"
-
-msgid "WebSeed"
-msgstr "WebSeed"
-
-msgid "SuperSeed"
-msgstr "SuperSeed"
 
 msgid "Unknown"
 msgstr "Unknown"
@@ -2296,15 +2010,6 @@ msgstr "Max peers per torrent"
 msgid "BT max downloads"
 msgstr "BT max downloads"
 
-msgid "BT max seeds"
-msgstr "BT max seeds"
-
-msgid "BT max torrents"
-msgstr "BT max torrents"
-
-msgid "BT active limit"
-msgstr "BT active limit"
-
 msgid "BT global download limit"
 msgstr "BT global download limit"
 
@@ -2328,18 +2033,6 @@ msgstr "Anti-leech ban duration"
 
 msgid "Anti-leech upload slots"
 msgstr "Anti-leech upload slots"
-
-msgid "Max upload slots per torrent"
-msgstr "Max upload slots per torrent"
-
-msgid "Smart ban threshold"
-msgstr "Smart ban threshold"
-
-msgid "Eviction ban duration"
-msgstr "Eviction ban duration"
-
-msgid "No-contribution timeout"
-msgstr "No-contribution timeout"
 
 msgid "IO buffer limit"
 msgstr "IO buffer limit"

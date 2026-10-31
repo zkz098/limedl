@@ -333,7 +333,8 @@ settings_form_fields! {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, HashMap};
+    use std::path::{Path, PathBuf};
 
     use limedl_core::types::AppSettings;
 
@@ -499,6 +500,209 @@ mod tests {
             unchanged.is_empty(),
             "`AppSettings` leaves with no settings-dialog field, and not listed in\n\
              NOT_ON_THE_FORM: {unchanged:#?}"
+        );
+    }
+
+    /// Convert a camelCase leaf path (`appearance.showDetailInfo`) into the
+    /// snake_case Rust access path (`appearance.show_detail_info`).
+    fn snake_path(path: &str) -> String {
+        path.split('.')
+            .map(|segment| {
+                let mut out = String::new();
+                for ch in segment.chars() {
+                    if ch.is_ascii_uppercase() {
+                        out.push('_');
+                        out.push(ch.to_ascii_lowercase());
+                    } else {
+                        out.push(ch);
+                    }
+                }
+                out
+            })
+            .collect::<Vec<_>>()
+            .join(".")
+    }
+
+    /// Remove comments and string/char literal contents so a field name in a
+    /// doc comment or a catalog string is not mistaken for a read.
+    fn strip_comments_and_strings(text: &str) -> String {
+        let chars: Vec<char> = text.chars().collect();
+        let mut out = String::with_capacity(text.len());
+        let mut i = 0;
+        while i < chars.len() {
+            let c = chars[i];
+            if c == '/' && chars.get(i + 1) == Some(&'/') {
+                while i < chars.len() && chars[i] != '\n' {
+                    i += 1;
+                }
+                out.push('\n');
+                continue;
+            }
+            if c == '/' && chars.get(i + 1) == Some(&'*') {
+                i += 2;
+                while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                    i += 1;
+                }
+                i += 2;
+                out.push(' ');
+                continue;
+            }
+            if c == '\'' {
+                i += if chars.get(i + 2) == Some(&'\'') {
+                    3
+                } else {
+                    1
+                };
+                out.push(' ');
+                continue;
+            }
+            if c == '"' {
+                i += 1;
+                while i < chars.len() {
+                    match chars[i] {
+                        '\\' => i += 2,
+                        '"' => {
+                            i += 1;
+                            break;
+                        }
+                        _ => i += 1,
+                    }
+                }
+                out.push(' ');
+                continue;
+            }
+            out.push(c);
+            i += 1;
+        }
+        out
+    }
+
+    /// Remove `#[cfg(test)]` items so a test-only access does not count as a
+    /// consumer of a production setting.
+    fn strip_cfg_test_blocks(text: &str) -> String {
+        let mut out = String::new();
+        let mut rest = text;
+        while let Some(pos) = rest.find("#[cfg(test)]") {
+            out.push_str(&rest[..pos]);
+            let after = &rest[pos + "#[cfg(test)]".len()..];
+            let brace = after.find('{');
+            let semi = after.find(';');
+            let end = match (brace, semi) {
+                (Some(b), Some(s)) if s < b => s + 1,
+                (Some(b), _) => {
+                    let mut depth = 0usize;
+                    let mut end = after.len();
+                    for (idx, ch) in after[b..].char_indices() {
+                        match ch {
+                            '{' => depth += 1,
+                            '}' => {
+                                depth -= 1;
+                                if depth == 0 {
+                                    end = b + idx + 1;
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    end
+                }
+                (None, Some(s)) => s + 1,
+                (None, None) => after.len(),
+            };
+            rest = &after[end..];
+        }
+        out.push_str(rest);
+        out
+    }
+
+    fn is_access_boundary(c: Option<char>) -> bool {
+        c.is_none_or(|c| !(c.is_alphanumeric() || c == '_'))
+    }
+
+    fn has_access(text: &str, needle: &str) -> bool {
+        text.match_indices(needle).any(|(index, _)| {
+            let after = text[index + needle.len()..].chars().next();
+            is_access_boundary(after)
+        })
+    }
+
+    /// Recursively collect `.rs` files below `dir`.
+    fn collect_rs_files(dir: &Path, list: &mut Vec<PathBuf>) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    collect_rs_files(&path, list);
+                } else if path.extension().is_some_and(|ext| ext == "rs") {
+                    list.push(path);
+                }
+            }
+        }
+    }
+
+    /// A settings leaf with no reader anywhere is dead config: it is serialized,
+    /// migrated and displayed by nothing (the class `showHeatmap` belonged to).
+    ///
+    /// Leaves are enumerated from serde, so a new field cannot be forgotten.
+    /// The scan excludes the definition/defaults, tests, this table, comments
+    /// and strings, and requires a Rust field access somewhere in the workspace.
+    /// On-form preferences are satisfied by their `to_form`/`from_form`
+    /// mapping; an off-form leaf needs a consumer of its own. Duplicate leaf
+    /// names (`enabled`, `mode`) are matched on their parent-qualified path so a
+    /// live field cannot vouch for a dead namesake.
+    #[test]
+    fn every_settings_leaf_has_a_consumer() {
+        let base_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let workspace = base_dir.join("../..");
+        let mut files = Vec::new();
+        collect_rs_files(&workspace.join("crates"), &mut files);
+
+        let sources: Vec<String> = files
+            .iter()
+            .filter(|path| {
+                let rel = path.to_string_lossy().replace('\\', "/");
+                !rel.ends_with("types/settings.rs")
+                    && !rel.contains("/tests/")
+                    && !rel.contains("/ui_tests/")
+                    && !rel.ends_with("tests.rs")
+                    && !rel.ends_with("_tests.rs")
+                    && !rel.ends_with("bridge/forms/fields.rs")
+                    && !rel.ends_with("i18n/catalog.rs")
+            })
+            .map(|path| {
+                let text = std::fs::read_to_string(path).expect("read rust source");
+                strip_comments_and_strings(&strip_cfg_test_blocks(&text))
+            })
+            .collect();
+
+        let leaves = json_leaves(&serde_json::to_value(AppSettings::default()).expect("serialize"));
+        let mut counts: HashMap<&str, usize> = HashMap::new();
+        for path in leaves.keys() {
+            let field = path.rsplit('.').next().unwrap_or(path);
+            *counts.entry(field).or_default() += 1;
+        }
+
+        let mut dead = Vec::new();
+        for path in leaves.keys() {
+            let field = path.rsplit('.').next().unwrap_or(path);
+            let snake_field = snake_path(field);
+            let snake = snake_path(path);
+            let needle = if counts.get(field).copied().unwrap_or(0) > 1 {
+                snake
+            } else {
+                format!(".{snake_field}")
+            };
+            if !sources.iter().any(|text| has_access(text, &needle)) {
+                dead.push(path.clone());
+            }
+        }
+
+        dead.sort();
+        assert!(
+            dead.is_empty(),
+            "settings leaves that no code reads outside the settings form (wire them up or \
+             remove them): {dead:#?}"
         );
     }
 }
