@@ -93,7 +93,7 @@ cargo nextest run --manifest-path crates/limedl-native/Cargo.toml
 cargo nextest run --manifest-path xtask/Cargo.toml
 ```
 
-See [`openwiki/`](openwiki/) for architecture and subsystem documentation and [`docs/`](docs/) for operational runbooks.
+See [`.wiki/pages/`](.wiki/pages/) for architecture and subsystem documentation and [`docs/`](docs/) for operational runbooks.
 
 ## License
 

@@ -87,19 +87,19 @@ release if a dependency raises it again.
 
 ## Documentation
 
-Architecture and mechanism documentation lives in the generated OpenWiki
-(`openwiki/`); start at `openwiki/quickstart.md`. Operational runbooks live in
+Architecture and mechanism documentation lives in the loredex wiki
+(`.wiki/pages/`); start at `.wiki/pages/quickstart.md`. Operational runbooks live in
 `docs/` (index: `docs/README.md`); `docs/` runbooks are hand-maintained — update
 them **after** changing the behavior they describe.
 
 | Topic | Where |
 | --- | --- |
-| Engine architecture, protocol routing, event bus | `openwiki/architecture/` |
-| HTTP / BT / CDN workflows, scheduler & AIMD | `openwiki/workflows/` |
-| Persistence, settings, disk I/O, networking | `openwiki/systems/` |
-| Aria2 RPC, native UI, self-update | `openwiki/integrations/`, `openwiki/desktop/` |
-| Testing (engine + Slint UI) | `openwiki/testing/` |
-| Build / CI / release operations | `docs/ci-operations.md` |
+| Engine architecture, protocol routing, event bus | `.wiki/pages/architecture/` |
+| HTTP / BT / CDN workflows, scheduler & AIMD | `.wiki/pages/workflows/` |
+| Persistence, settings, disk I/O, networking | `.wiki/pages/systems/` |
+| Aria2 RPC, native UI, self-update | `.wiki/pages/integrations/`, `.wiki/pages/desktop/` |
+| Testing (engine + Slint UI) | `.wiki/pages/testing/` |
+| Build / CI / release operations, server deployment | `.wiki/pages/operations/`, `docs/ci-operations.md` |
 | Self-update key rotation | `docs/update-signing-key.md` |
 | Known issues & accepted warnings | `docs/troubleshooting.md` |
 | Linux desktop build & packaging | `docs/desktop-build-and-packaging.md` |
@@ -195,19 +195,17 @@ After `cargo update` / `cargo add` / `cargo remove`, commit the changed
 `Cargo.lock`. Uncommitted lockfile changes cause CI cache misses and stale
 dependency resolution.
 
-<!-- OPENWIKI:START -->
+<!-- BEGIN loredex -->
+## 仓库 Wiki(loredex)
 
-## OpenWiki
+本仓库在 `.wiki/` 下维护证据可回溯的 wiki(页面在 `.wiki/pages/*.md`;每条论断都带 `[[cite:path:Lx-Ly]]` 源码标记,并 pin 到 git 内容哈希)。
 
-This repository has a generated `openwiki/` evidence index. It is optional just-in-time context, not required startup reading.
+Agent 协议:
 
-- Do not enumerate, preload, or search wikis at task start. Use retrieval when the user asks for it, when unfamiliar architecture or dependency behavior materially affects the task, or when source inspection leaves an important uncertainty. Stop once the question is grounded.
-- When those conditions apply and OpenWiki retrieval tools are available, use `openwiki_search` for just-in-time context and `openwiki_read` for the relevant complete sections. If search returns `workspace_required`, ask which listed workspace to use and retry with its ID.
-- Use `openwiki_list_workspaces` or `openwiki_list_wikis` when workspace membership itself needs to be discovered.
-- If the retrieval tools are unavailable, read `openwiki/quickstart.md` and follow its links to the relevant pages.
-- Treat source code and tests as authoritative. A brief's unknowns and review items are verification gaps, not automatic requirements.
-- Prefer the narrowest quiet validation that proves the changed behavior. Preserve complete failure output.
+1. 先查 wiki 再读代码:`loredex search "<关键词>"` / `loredex show <页面>`(或 MCP `wiki_search` / `wiki_get_page`)。
+2. 信任页面前先验证新鲜度:`loredex check`(或 MCP `wiki_check_freshness`);STALE 页面视为未验证,去读源码。
+3. 修改代码后:`loredex auto` 自愈漂移引用,`loredex plan` 列出剩余写作任务。
+4. 写页面时每条论断配一个行内 `[[cite:path:Lx-Ly]]`;无引用的正文会被拒绝。
 
-The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
-
-<!-- OPENWIKI:END -->
+请勿手改本区块;用 `loredex agents-md` 重新生成(`loredex agents-md --remove` 移除)。
+<!-- END loredex -->

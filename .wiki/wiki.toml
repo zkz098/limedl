@@ -1,0 +1,12 @@
+# loredex configuration
+[wiki]
+pages = "pages"
+# skeleton text locale for generated pages/playbooks: "en" | "zh"
+language = "zh"
+# cache directory is gitignored; rebuildable, never committed
+
+[page_types."desktop"]
+description = "imported page type (from openwiki bundle)"
+
+[page_types."operations"]
+description = "imported page type (from openwiki bundle)"

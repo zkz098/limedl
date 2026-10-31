@@ -1,7 +1,7 @@
 # limedl operational docs
 
-Architecture and mechanism documentation lives in the generated OpenWiki
-(`openwiki/`); start at [`openwiki/quickstart.md`](../openwiki/quickstart.md).
+Architecture and mechanism documentation lives in the loredex wiki
+(`.wiki/pages/`); start at [`.wiki/pages/quickstart.md`](../.wiki/pages/quickstart.md).
 
 This directory holds hand-maintained **runbooks** — procedures, operational
 contracts and known-issue notes that do not fit the generated wiki (which is

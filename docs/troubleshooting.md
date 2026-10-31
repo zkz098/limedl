@@ -27,7 +27,7 @@ Measured 2026-09, with Chrome 154 stable at the time:
 1. Bump the built-in UA: change
    `crates/limedl-core/src/types/settings.rs::default_http_user_agent()` to the
    current stable Chrome major, and sync the UI copy and i18n (see
-   [`openwiki/systems/networking-and-rate-control.md`](../openwiki/systems/networking-and-rate-control.md)).
+   [`.wiki/pages/systems/networking-and-rate-control.md`](../.wiki/pages/systems/networking-and-rate-control.md)).
 2. Existing `settings.json` does **not** follow automatically (the user's custom
    value is preserved); clear the Default User-Agent in Settings or type a new
    browser UA.
@@ -35,7 +35,7 @@ Measured 2026-09, with Chrome 154 stable at the time:
    IPv4 subnet is flagged by TUNA you need a different network or IPv6.
 4. This is server policy, not a limedl Referer problem; the code already detects
    anti-abuse pages and skips pointless Referer probing (see
-   [`openwiki/workflows/http-download-lifecycle.md`](../openwiki/workflows/http-download-lifecycle.md)).
+   [`.wiki/pages/workflows/http-download-lifecycle.md`](../.wiki/pages/workflows/http-download-lifecycle.md)).
 
 ## Durable vs received progress (crash consistency)
 

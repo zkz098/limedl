@@ -49,3 +49,4 @@ crates/limedl-native/assets/fonts/
 # Temporary files
 temp/
 
+.wiki/.cache/

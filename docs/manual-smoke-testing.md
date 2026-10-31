@@ -14,7 +14,7 @@ Logs are at `<data_dir>\downloads\logs\limedl.log` (level controlled by
 
 To let an agent or script open the real window and inspect/click it, use the MCP
 server instead of a bare `cargo run`. Full prerequisites are in
-[`openwiki/testing/slint-ui-testing.md`](../openwiki/testing/slint-ui-testing.md);
+[`.wiki/pages/testing/slint-ui-testing.md`](../.wiki/pages/testing/slint-ui-testing.md);
 the short version:
 
 ```cmd

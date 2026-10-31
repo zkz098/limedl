@@ -538,7 +538,8 @@ jobs:
   # see .cargo/config.toml) and aarch64.
   #
   # `cargo zigbuild` supplies the musl C toolchain that `aws-lc-sys` (pulled
-  # through the pinned `irontide` engine) needs to compile its C sources; a plain
+  # through librqbit's sha1-wrapper and the rustls/quinn TLS stack) needs to
+  # compile its C sources; a plain
   # `cargo build --target *-musl` on the runner cannot link those. It is used
   # instead of `cross` because it needs no Docker and both targets were verified
   # locally to produce stripped, statically-linked binaries. zig itself comes

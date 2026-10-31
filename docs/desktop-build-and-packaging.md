@@ -2,7 +2,7 @@
 
 Why the `limedl-native` dependency graph looks the way it does, and how the Linux
 artifacts are produced. UI architecture is in
-[`openwiki/desktop/native-ui-architecture.md`](../openwiki/desktop/native-ui-architecture.md).
+[`.wiki/pages/desktop/native-ui-architecture.md`](../.wiki/pages/desktop/native-ui-architecture.md).
 
 ## `rfd` dialog backend is `xdg-portal`
 

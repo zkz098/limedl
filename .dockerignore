@@ -6,6 +6,6 @@ target
 .git
 .gitignore
 node_modules
-openwiki
+.wiki
 website
 crates/limedl-native/assets/fonts

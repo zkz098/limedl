@@ -35,9 +35,10 @@ allow = [
   # HTTP/HTTPS download paths.
   "CDLA-Permissive-2.0",
   # limedl itself is GPL-3.0-or-later (Cargo.toml workspace license +
-  # LICENSE file). irontide / irontide-bencode / irontide-core are
-  # GPL-3.0-or-later, integrated as the core BT engine, and their virality
-  # is acknowledged — limedl as a whole is conveyed under GPL-3.0-or-later.
+  # LICENSE file). Slint (i-slint-* and friends) is GPL-3.0-or-later with a
+  # license exception, and its virality is acknowledged — limedl as a whole is
+  # conveyed under GPL-3.0-or-later. (The BT engine is now librqbit, Apache-2.0;
+  # the previously pinned GPL irontide engine is gone from the graph.)
   "GPL-3.0-or-later",
 ]
 confidence-threshold = 0.8

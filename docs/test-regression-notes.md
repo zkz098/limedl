@@ -2,8 +2,8 @@
 
 Institutional memory for the test suite: the regressions it has already caught,
 and the test areas whose intent is easy to break. Test layout and conventions are
-in [`openwiki/testing/testing-strategy.md`](../openwiki/testing/testing-strategy.md)
-and [`openwiki/testing/slint-ui-testing.md`](../openwiki/testing/slint-ui-testing.md).
+in [`.wiki/pages/testing/testing-strategy.md`](../.wiki/pages/testing/testing-strategy.md)
+and [`.wiki/pages/testing/slint-ui-testing.md`](../.wiki/pages/testing/slint-ui-testing.md).
 
 ## Real bugs the UI tests caught
 
@@ -86,17 +86,24 @@ once), so it can run safely in the same process as other lib tests:
 
 ## BT backend test notes
 
-`bt_backend/tests/` starts a real irontide session via `make_backend()` (DHT/LSD/
-UPnP/PEX/uTP off, port 0). Two implementation-coupled points:
+`crates/limedl-bt/src/tests/` starts a real librqbit session via `make_backend()`
+(DHT/UPnP/IPv6/uTP off, listen port 0); `make_network_backend()` (DHT+uTP on)
+exists only for the `#[ignore]`d peer-discovery tests. Two implementation-coupled
+points:
 
-- `handle_alert()` and `emit_progress_for_all_torrents()` were extracted as
-  `pub(super)` functions for testability; alert branches that only log and publish
-  no event must also have an assertion (`drain_events()` is empty), so a future
-  change cannot quietly turn a log into an event.
-- An offline session cannot manufacture real peers, so anti-leech's
-  "ban leecher / cap upload slots" and upload policy's "pause by limit" branches
-  are **not** covered (`get_peer_info` is empty and the loop returns early).
-  Changing those branches cannot rely on the existing tests to catch a regression.
+- `handle_event()` and `emit_progress_for_all_torrents()` (`alerts.rs`) are kept
+  `pub` for testability; assertions go through `event_bus.subscribe()` +
+  `rx.try_recv()`. Branches that only log and publish no event must assert that
+  the receiver stays empty, so a future change cannot quietly turn a log into an
+  event.
+- An offline session cannot manufacture real wire peers, so anti-leech is covered
+  in two pieces instead: the `peer_is_leecher` predicate over faked
+  `LeecherPeerInfo` structs, and the bookkeeping sweeps (expired-ban cleanup,
+  slot caps untouched without peers, loop respawn replaces the previous task).
+  Upload policy covers the throttle path end to end
+  (`upload_policy_unpauses_when_limits_are_cleared` drives the real
+  `session.pause`). Changing those branches beyond these shapes cannot rely on
+  the existing tests to catch a regression.
 
 ## Crash-consistency / startup hardening changes (2026-10)
 

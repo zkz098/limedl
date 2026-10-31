@@ -1,0 +1,62 @@
+# Scheduled maintenance of this repository's loredex wiki (.wiki/).
+# Algorithmic recovery (line-drift and rename projection + plan ledger) is
+# committed back directly by the bot; only genuine re-authoring opens an
+# issue carrying the plan JSON, which any coding agent can consume via
+# `wiki_plan` / `wiki_mark_task` (or `loredex plan`).
+name: loredex wiki refresh
+on:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays, off-peak
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  auto:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LOREDEX_VERSION: "0.1.3"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # evidence checks diff the generation commits against HEAD
+          fetch-depth: 0
+
+      - name: install loredex
+        run: |
+          set -euo pipefail
+          asset=loredex-cli-x86_64-unknown-linux-gnu
+          base=https://github.com/zkz098/loredex/releases/download/v${LOREDEX_VERSION}
+          curl -sSfL -o "$asset.tar.xz" "$base/$asset.tar.xz"
+          curl -sSfL -o "$asset.tar.xz.sha256" "$base/$asset.tar.xz.sha256"
+          sha256sum -c "$asset.tar.xz.sha256"
+          tar -xJf "$asset.tar.xz"
+          echo "$PWD/$asset" >> "$GITHUB_PATH"
+
+      - name: loredex auto
+        id: auto
+        run: |
+          set +e
+          loredex auto --json > auto.json
+          code=$?
+          set -e
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          if [ -n "$(git status --porcelain .wiki)" ]; then
+            git config user.name "loredex[bot]"
+            git config user.email "loredex@localhost"
+            git add .wiki
+            git commit -m "wiki: auto-project drifts (scheduled loredex auto)"
+            git push
+          fi
+
+      - name: open attention issue when authoring work remains
+        if: steps.auto.outputs.exit != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          { echo "loredex found pending wiki work:"; echo '```json'; cat auto.json; echo '```'; } > body.md
+          gh issue create --title "[loredex] wiki needs author attention" \
+            --body-file body.md || true

@@ -1,0 +1,1971 @@
+{
+  "schema": 1,
+  "runs": [
+    {
+      "id": "run-1-b5102b9f",
+      "started_at": "2026-10-31T14:40:20Z",
+      "base_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "target_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "status": "superseded",
+      "tasks": [
+        {
+          "page_id": "architecture/bootstrap-and-services",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "architecture",
+          "instructions": "为 `architecture/bootstrap-and-services` 撰写类型为 `architecture` 的页面。章节:系统目标 -> 模块地图与分层 -> 数据流 -> 故障域 -> 关键不变量。逐条具体回答并配引用:顶层单元有哪些?各自负责什么? 依赖允许朝哪个方向? X 失败时最先崩的是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "architecture/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `architecture/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "architecture/overview",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "architecture",
+          "instructions": "为 `architecture/overview` 撰写类型为 `architecture` 的页面。章节:系统目标 -> 模块地图与分层 -> 数据流 -> 故障域 -> 关键不变量。逐条具体回答并配引用:顶层单元有哪些?各自负责什么? 依赖允许朝哪个方向? X 失败时最先崩的是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "architecture/protocol-routing-and-dispatcher",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "architecture",
+          "instructions": "为 `architecture/protocol-routing-and-dispatcher` 撰写类型为 `architecture` 的页面。章节:系统目标 -> 模块地图与分层 -> 数据流 -> 故障域 -> 关键不变量。逐条具体回答并配引用:顶层单元有哪些?各自负责什么? 依赖允许朝哪个方向? X 失败时最先崩的是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "desktop/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `desktop/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "desktop/native-ui-architecture",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "desktop",
+          "instructions": "为 `desktop/native-ui-architecture` 撰写类型为 `desktop` 的页面。章节:。逐条具体回答并配引用:。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "desktop/self-update-and-distribution",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "desktop",
+          "instructions": "为 `desktop/self-update-and-distribution` 撰写类型为 `desktop` 的页面。章节:。逐条具体回答并配引用:。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "desktop/task-input-and-aria2c-parsing",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "desktop",
+          "instructions": "为 `desktop/task-input-and-aria2c-parsing` 撰写类型为 `desktop` 的页面。章节:。逐条具体回答并配引用:。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "integrations/aria2-rpc-server",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "integration",
+          "instructions": "为 `integrations/aria2-rpc-server` 撰写类型为 `integration` 的页面。章节:对接方与契约 -> 适配层布局 -> 兼容性与版本 -> 错误映射。逐条具体回答并配引用:实现的是哪个外部契约?在哪里有偏差? 外部错误如何映射为本地错误?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "integrations/headless-server-daemon",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "integration",
+          "instructions": "为 `integrations/headless-server-daemon` 撰写类型为 `integration` 的页面。章节:对接方与契约 -> 适配层布局 -> 兼容性与版本 -> 错误映射。逐条具体回答并配引用:实现的是哪个外部契约?在哪里有偏差? 外部错误如何映射为本地错误?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "integrations/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `integrations/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "operations/build-release-and-ci",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "operations",
+          "instructions": "为 `operations/build-release-and-ci` 撰写类型为 `operations` 的页面。章节:。逐条具体回答并配引用:。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "operations/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `operations/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "operations/server-deployment-and-packaging",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "operations",
+          "instructions": "为 `operations/server-deployment-and-packaging` 撰写类型为 `operations` 的页面。章节:。逐条具体回答并配引用:。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/disk-io-and-storage",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `systems/disk-io-and-storage` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `systems/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/networking-and-rate-control",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `systems/networking-and-rate-control` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/persistence-and-recovery",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `systems/persistence-and-recovery` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/settings-and-configuration",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `systems/settings-and-configuration` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "testing/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `testing/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "testing/slint-ui-testing",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "testing",
+          "instructions": "为 `testing/slint-ui-testing` 撰写类型为 `testing` 的页面。章节:测试分层 -> 如何运行 -> 夹具与测试架 -> 值得注意的回归。逐条具体回答并配引用:哪条命令验证哪种风险? 测试套件编码了哪些回归?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "testing/testing-strategy",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "testing",
+          "instructions": "为 `testing/testing-strategy` 撰写类型为 `testing` 的页面。章节:测试分层 -> 如何运行 -> 夹具与测试架 -> 值得注意的回归。逐条具体回答并配引用:哪条命令验证哪种风险? 测试套件编码了哪些回归?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/bit-torrent-backend",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "workflow",
+          "instructions": "为 `workflows/bit-torrent-backend` 撰写类型为 `workflow` 的页面。章节:触发点 -> 步骤序列 -> 状态迁移 -> 错误处理 -> 可观测性。逐条具体回答并配引用:追踪一个具体请求/任务从入口到完成. 可能在哪失败?用户当时看到什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/cdn-acceleration",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "workflow",
+          "instructions": "为 `workflows/cdn-acceleration` 撰写类型为 `workflow` 的页面。章节:触发点 -> 步骤序列 -> 状态迁移 -> 错误处理 -> 可观测性。逐条具体回答并配引用:追踪一个具体请求/任务从入口到完成. 可能在哪失败?用户当时看到什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/http-download-lifecycle",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "workflow",
+          "instructions": "为 `workflows/http-download-lifecycle` 撰写类型为 `workflow` 的页面。章节:触发点 -> 步骤序列 -> 状态迁移 -> 错误处理 -> 可观测性。逐条具体回答并配引用:追踪一个具体请求/任务从入口到完成. 可能在哪失败?用户当时看到什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `workflows/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/metalink-and-mirror-selection",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "workflow",
+          "instructions": "为 `workflows/metalink-and-mirror-selection` 撰写类型为 `workflow` 的页面。章节:触发点 -> 步骤序列 -> 状态迁移 -> 错误处理 -> 可观测性。逐条具体回答并配引用:追踪一个具体请求/任务从入口到完成. 可能在哪失败?用户当时看到什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/scheduler-and-concurrency",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "workflow",
+          "instructions": "为 `workflows/scheduler-and-concurrency` 撰写类型为 `workflow` 的页面。章节:触发点 -> 步骤序列 -> 状态迁移 -> 错误处理 -> 可观测性。逐条具体回答并配引用:追踪一个具体请求/任务从入口到完成. 可能在哪失败?用户当时看到什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-core-limedl_core",
+          "kind": "new",
+          "purpose": "module `limedl-core/limedl_core` (51 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-core/src/backend_registry/mod.rs",
+            "crates/limedl-core/src/backend_registry/tests.rs",
+            "crates/limedl-core/src/bootstrap.rs",
+            "crates/limedl-core/src/context.rs",
+            "crates/limedl-core/src/dispatcher.rs",
+            "crates/limedl-core/src/lib.rs",
+            "crates/limedl-core/src/logging.rs",
+            "crates/limedl-core/src/manager.rs",
+            "crates/limedl-core/src/testing.rs",
+            "crates/limedl-core/src/tests/adversarial_interception_tests.rs",
+            "crates/limedl-core/src/tests/bootstrap_tests.rs",
+            "crates/limedl-core/src/tests/bt_backend_tests.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-core-limedl_core` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-core-logging_preinstalled_subscriber",
+          "kind": "new",
+          "purpose": "module `limedl-core/logging_preinstalled_subscriber` (2 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-core/tests/logging_preinstalled_subscriber.rs",
+            "crates/limedl-core/tests/logging_reload_repro.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-core-logging_preinstalled_subscriber` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-core-logging_reload_repro",
+          "kind": "new",
+          "purpose": "module `limedl-core/logging_reload_repro` (2 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-core/tests/logging_preinstalled_subscriber.rs",
+            "crates/limedl-core/tests/logging_reload_repro.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-core-logging_reload_repro` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-core-download_e2e",
+          "kind": "new",
+          "purpose": "module `limedl-core/download_e2e` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-core/benches/download_e2e.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-core-download_e2e` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-bt-limedl_bt",
+          "kind": "new",
+          "purpose": "module `limedl-bt/limedl_bt` (23 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-bt/src/alerts.rs",
+            "crates/limedl-bt/src/anti_leech.rs",
+            "crates/limedl-bt/src/fixtures.rs",
+            "crates/limedl-bt/src/lazy.rs",
+            "crates/limedl-bt/src/lib.rs",
+            "crates/limedl-bt/src/lifecycle.rs",
+            "crates/limedl-bt/src/queries.rs",
+            "crates/limedl-bt/src/session.rs",
+            "crates/limedl-bt/src/snapshot.rs",
+            "crates/limedl-bt/src/tests/alerts.rs",
+            "crates/limedl-bt/src/tests/anti_leech.rs",
+            "crates/limedl-bt/src/tests/backend_api.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-bt-limedl_bt` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-http-limedl_http",
+          "kind": "new",
+          "purpose": "module `limedl-http/limedl_http` (7 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-http/src/http/mod.rs",
+            "crates/limedl-http/src/http/tests.rs",
+            "crates/limedl-http/src/http_client_factory/mod.rs",
+            "crates/limedl-http/src/http_client_factory/tests.rs",
+            "crates/limedl-http/src/lib.rs",
+            "crates/limedl-http/src/rate_limiter/mod.rs",
+            "crates/limedl-http/src/rate_limiter/tests.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-http-limedl_http` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-http-rate_limiter",
+          "kind": "new",
+          "purpose": "module `limedl-http/rate_limiter` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-http/benches/rate_limiter.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-http-rate_limiter` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-types-limedl_types",
+          "kind": "new",
+          "purpose": "module `limedl-types/limedl_types` (20 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-types/src/checksum/detect.rs",
+            "crates/limedl-types/src/checksum/mod.rs",
+            "crates/limedl-types/src/error.rs",
+            "crates/limedl-types/src/event_bus/mod.rs",
+            "crates/limedl-types/src/event_bus/tests.rs",
+            "crates/limedl-types/src/lib.rs",
+            "crates/limedl-types/src/manifest.rs",
+            "crates/limedl-types/src/platform.rs",
+            "crates/limedl-types/src/protocol.rs",
+            "crates/limedl-types/src/settings/mod.rs",
+            "crates/limedl-types/src/settings/tests.rs",
+            "crates/limedl-types/src/slot_guard.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-types-limedl_types` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-store-limedl_store",
+          "kind": "new",
+          "purpose": "module `limedl-store/limedl_store` (17 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-store/src/alt_svc/mod.rs",
+            "crates/limedl-store/src/alt_svc/repo.rs",
+            "crates/limedl-store/src/alt_svc/repo_tests.rs",
+            "crates/limedl-store/src/database/bt_task_repo.rs",
+            "crates/limedl-store/src/database/chunk_repo.rs",
+            "crates/limedl-store/src/database/connection.rs",
+            "crates/limedl-store/src/database/manifest_repo.rs",
+            "crates/limedl-store/src/database/mod.rs",
+            "crates/limedl-store/src/database/schema.rs",
+            "crates/limedl-store/src/database/tests/bt_task_repo.rs",
+            "crates/limedl-store/src/database/tests/chunks.rs",
+            "crates/limedl-store/src/database/tests/concurrency.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-store-limedl_store` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-disk-limedl_disk",
+          "kind": "new",
+          "purpose": "module `limedl-disk/limedl_disk` (27 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-disk/src/buffer_pool/download_buffer.rs",
+            "crates/limedl-disk/src/buffer_pool/mod.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/coalescing.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/degraded.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/hdd_buffer.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/mod.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/pool.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/slot_guard.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/ssd_pingpong.rs",
+            "crates/limedl-disk/src/buffer_pool/worker.rs",
+            "crates/limedl-disk/src/file_ops/batch.rs",
+            "crates/limedl-disk/src/file_ops/coalesce.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-disk-limedl_disk` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-disk-buffer_pool",
+          "kind": "new",
+          "purpose": "module `limedl-disk/buffer_pool` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-disk/benches/buffer_pool.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-disk-buffer_pool` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-engine-limedl_engine",
+          "kind": "new",
+          "purpose": "module `limedl-engine/limedl_engine` (42 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-engine/src/aimd/mod.rs",
+            "crates/limedl-engine/src/aimd/tests.rs",
+            "crates/limedl-engine/src/cdn/accelerator.rs",
+            "crates/limedl-engine/src/cdn/ip_ranges/mod.rs",
+            "crates/limedl-engine/src/cdn/ip_ranges/tests.rs",
+            "crates/limedl-engine/src/cdn/mod.rs",
+            "crates/limedl-engine/src/cdn/provider.rs",
+            "crates/limedl-engine/src/cdn/resolver.rs",
+            "crates/limedl-engine/src/cdn/service.rs",
+            "crates/limedl-engine/src/cdn/speed_test/mod.rs",
+            "crates/limedl-engine/src/cdn/speed_test/tests.rs",
+            "crates/limedl-engine/src/cdn/tests/mod.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-engine-limedl_engine` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-engine-aimd",
+          "kind": "new",
+          "purpose": "module `limedl-engine/aimd` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-engine/benches/aimd.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-engine-aimd` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-testkit-limedl_testkit",
+          "kind": "new",
+          "purpose": "module `limedl-testkit/limedl_testkit` (3 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-testkit/src/bench.rs",
+            "crates/limedl-testkit/src/lib.rs",
+            "crates/limedl-testkit/src/tests.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-testkit-limedl_testkit` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-rpc-limedl_rpc",
+          "kind": "new",
+          "purpose": "module `limedl-rpc/limedl_rpc` (17 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-rpc/src/bind.rs",
+            "crates/limedl-rpc/src/context.rs",
+            "crates/limedl-rpc/src/dispatch.rs",
+            "crates/limedl-rpc/src/download.rs",
+            "crates/limedl-rpc/src/e2e_tests.rs",
+            "crates/limedl-rpc/src/interop_tests.rs",
+            "crates/limedl-rpc/src/jsonrpc.rs",
+            "crates/limedl-rpc/src/lib.rs",
+            "crates/limedl-rpc/src/options.rs",
+            "crates/limedl-rpc/src/oracle_tests.rs",
+            "crates/limedl-rpc/src/protocol.rs",
+            "crates/limedl-rpc/src/query.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-rpc-limedl_rpc` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-rpc-ws_e2e",
+          "kind": "new",
+          "purpose": "module `limedl-rpc/ws_e2e` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-rpc/tests/ws_e2e.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-rpc-ws_e2e` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-native-limedl-native",
+          "kind": "new",
+          "purpose": "module `limedl-native/limedl-native` (104 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-native/src/aria2_cli.rs",
+            "crates/limedl-native/src/autostart.rs",
+            "crates/limedl-native/src/bridge/clipboard.rs",
+            "crates/limedl-native/src/bridge/format.rs",
+            "crates/limedl-native/src/bridge/forms/aria2_clients.rs",
+            "crates/limedl-native/src/bridge/forms/combo.rs",
+            "crates/limedl-native/src/bridge/forms/disk_override.rs",
+            "crates/limedl-native/src/bridge/forms/enums.rs",
+            "crates/limedl-native/src/bridge/forms/fields.rs",
+            "crates/limedl-native/src/bridge/forms/from_form.rs",
+            "crates/limedl-native/src/bridge/forms/mod.rs",
+            "crates/limedl-native/src/bridge/forms/speed_limit.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-native-limedl-native` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-native-build-script-build",
+          "kind": "new",
+          "purpose": "module `limedl-native/build-script-build` (190 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-native/Cargo.toml",
+            "crates/limedl-native/build.rs",
+            "crates/limedl-native/lang/en/LC_MESSAGES/limedl-native.po",
+            "crates/limedl-native/lang/zh_CN/LC_MESSAGES/limedl-native.po",
+            "crates/limedl-native/lang/zh_TW/LC_MESSAGES/limedl-native.po",
+            "crates/limedl-native/limedl-native.rc",
+            "crates/limedl-native/src/aria2_cli.rs",
+            "crates/limedl-native/src/autostart.rs",
+            "crates/limedl-native/src/bridge/clipboard.rs",
+            "crates/limedl-native/src/bridge/format.rs",
+            "crates/limedl-native/src/bridge/forms/aria2_clients.rs",
+            "crates/limedl-native/src/bridge/forms/combo.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-native-build-script-build` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-server-limedl_server",
+          "kind": "new",
+          "purpose": "module `limedl-server/limedl_server` (4 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-server/src/cli.rs",
+            "crates/limedl-server/src/config.rs",
+            "crates/limedl-server/src/lib.rs",
+            "crates/limedl-server/src/main.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-server-limedl_server` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-server-limedl-server",
+          "kind": "new",
+          "purpose": "module `limedl-server/limedl-server` (4 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-server/src/cli.rs",
+            "crates/limedl-server/src/config.rs",
+            "crates/limedl-server/src/lib.rs",
+            "crates/limedl-server/src/main.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-server-limedl-server` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-server-daemon",
+          "kind": "new",
+          "purpose": "module `limedl-server/daemon` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-server/tests/daemon.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-server-daemon` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "xtask-xtask",
+          "kind": "new",
+          "purpose": "module `xtask/xtask` (9 files) has no wiki coverage",
+          "seeds": [
+            "xtask/src/bump_version.rs",
+            "xtask/src/fetch_font.rs",
+            "xtask/src/gate.rs",
+            "xtask/src/i18n.rs",
+            "xtask/src/icons.rs",
+            "xtask/src/main.rs",
+            "xtask/src/manifest.rs",
+            "xtask/src/tests.rs",
+            "xtask/src/theme.rs"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `xtask-xtask` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "repo-root",
+          "kind": "new",
+          "purpose": "module `.` (17 files) has no wiki coverage",
+          "seeds": [
+            ".dockerignore",
+            ".git-blame-ignore-revs",
+            ".gitattributes",
+            ".gitignore",
+            "AGENTS.md",
+            "Cargo.lock",
+            "Cargo.toml",
+            "LICENSE",
+            "NOTICE",
+            "README.md",
+            "cliff.toml",
+            "deny.toml"
+          ],
+          "status": "pending",
+          "suggested_type": "architecture",
+          "instructions": "为 `repo-root` 撰写类型为 `architecture` 的页面。章节:系统目标 -> 模块地图与分层 -> 数据流 -> 故障域 -> 关键不变量。逐条具体回答并配引用:顶层单元有哪些?各自负责什么? 依赖允许朝哪个方向? X 失败时最先崩的是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "docs",
+          "kind": "new",
+          "purpose": "module `docs` (11 files) has no wiki coverage",
+          "seeds": [
+            "docs/README.md",
+            "docs/aria2-interop-testing.md",
+            "docs/ci-operations.md",
+            "docs/desktop-build-and-packaging.md",
+            "docs/engine-dev-notes.md",
+            "docs/i18n.md",
+            "docs/manual-smoke-testing.md",
+            "docs/server-daemon.md",
+            "docs/test-regression-notes.md",
+            "docs/troubleshooting.md",
+            "docs/update-signing-key.md"
+          ],
+          "status": "pending",
+          "suggested_type": "architecture",
+          "instructions": "为 `docs` 撰写类型为 `architecture` 的页面。章节:系统目标 -> 模块地图与分层 -> 数据流 -> 故障域 -> 关键不变量。逐条具体回答并配引用:顶层单元有哪些?各自负责什么? 依赖允许朝哪个方向? X 失败时最先崩的是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "installer",
+          "kind": "new",
+          "purpose": "module `installer` (1 files) has no wiki coverage",
+          "seeds": [
+            "installer/limedl-native.nsi"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `installer` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki",
+          "kind": "new",
+          "purpose": "module `openwiki` (5 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/.last-update.json",
+            "openwiki/.page-manifest.json",
+            "openwiki/.run.json",
+            "openwiki/index.md",
+            "openwiki/quickstart.md"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-claims",
+          "kind": "new",
+          "purpose": "module `openwiki/.claims` (22 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/.claims/architecture/bootstrap-and-services.json",
+            "openwiki/.claims/architecture/overview.json",
+            "openwiki/.claims/architecture/protocol-routing-and-dispatcher.json",
+            "openwiki/.claims/desktop/native-ui-architecture.json",
+            "openwiki/.claims/desktop/self-update-and-distribution.json",
+            "openwiki/.claims/desktop/task-input-and-aria2c-parsing.json",
+            "openwiki/.claims/integrations/aria2-rpc-server.json",
+            "openwiki/.claims/integrations/headless-server-daemon.json",
+            "openwiki/.claims/operations/build-release-and-ci.json",
+            "openwiki/.claims/operations/server-deployment-and-packaging.json",
+            "openwiki/.claims/quickstart.json",
+            "openwiki/.claims/systems/disk-io-and-storage.json"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-claims` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-architecture",
+          "kind": "new",
+          "purpose": "module `openwiki/architecture` (4 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/architecture/bootstrap-and-services.md",
+            "openwiki/architecture/index.md",
+            "openwiki/architecture/overview.md",
+            "openwiki/architecture/protocol-routing-and-dispatcher.md"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-architecture` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-desktop",
+          "kind": "new",
+          "purpose": "module `openwiki/desktop` (4 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/desktop/index.md",
+            "openwiki/desktop/native-ui-architecture.md",
+            "openwiki/desktop/self-update-and-distribution.md",
+            "openwiki/desktop/task-input-and-aria2c-parsing.md"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-desktop` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-integrations",
+          "kind": "new",
+          "purpose": "module `openwiki/integrations` (3 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/integrations/aria2-rpc-server.md",
+            "openwiki/integrations/headless-server-daemon.md",
+            "openwiki/integrations/index.md"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-integrations` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-operations",
+          "kind": "new",
+          "purpose": "module `openwiki/operations` (3 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/operations/build-release-and-ci.md",
+            "openwiki/operations/index.md",
+            "openwiki/operations/server-deployment-and-packaging.md"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-operations` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-systems",
+          "kind": "new",
+          "purpose": "module `openwiki/systems` (5 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/systems/disk-io-and-storage.md",
+            "openwiki/systems/index.md",
+            "openwiki/systems/networking-and-rate-control.md",
+            "openwiki/systems/persistence-and-recovery.md",
+            "openwiki/systems/settings-and-configuration.md"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-systems` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-testing",
+          "kind": "new",
+          "purpose": "module `openwiki/testing` (3 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/testing/index.md",
+            "openwiki/testing/slint-ui-testing.md",
+            "openwiki/testing/testing-strategy.md"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-testing` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-workflows",
+          "kind": "new",
+          "purpose": "module `openwiki/workflows` (6 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/workflows/bit-torrent-backend.md",
+            "openwiki/workflows/cdn-acceleration.md",
+            "openwiki/workflows/http-download-lifecycle.md",
+            "openwiki/workflows/index.md",
+            "openwiki/workflows/metalink-and-mirror-selection.md",
+            "openwiki/workflows/scheduler-and-concurrency.md"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-workflows` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "packaging-linux",
+          "kind": "new",
+          "purpose": "module `packaging/linux` (2 files) has no wiki coverage",
+          "seeds": [
+            "packaging/linux/AppRun",
+            "packaging/linux/limedl-native.desktop"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `packaging-linux` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "packaging-macos",
+          "kind": "new",
+          "purpose": "module `packaging/macos` (1 files) has no wiki coverage",
+          "seeds": [
+            "packaging/macos/Info.plist.in"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `packaging-macos` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "packaging-msix",
+          "kind": "new",
+          "purpose": "module `packaging/msix` (1 files) has no wiki coverage",
+          "seeds": [
+            "packaging/msix/AppxManifest.xml"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `packaging-msix` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "packaging-server",
+          "kind": "new",
+          "purpose": "module `packaging/server` (6 files) has no wiki coverage",
+          "seeds": [
+            "packaging/server/Dockerfile",
+            "packaging/server/Dockerfile.release",
+            "packaging/server/docker-compose.yml",
+            "packaging/server/docker-entrypoint.sh",
+            "packaging/server/systemd/limedl-server.env.example",
+            "packaging/server/systemd/limedl-server.service"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `packaging-server` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "scripts",
+          "kind": "new",
+          "purpose": "module `scripts` (6 files) has no wiki coverage",
+          "seeds": [
+            "scripts/check-glibc-floor.sh",
+            "scripts/make-macos-icon.sh",
+            "scripts/package-appimage.sh",
+            "scripts/package-deb.sh",
+            "scripts/package-linux.sh",
+            "scripts/package-macos.sh"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `scripts` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "website",
+          "kind": "new",
+          "purpose": "module `website` (6 files) has no wiki coverage",
+          "seeds": [
+            "website/astro.config.mjs",
+            "website/package.json",
+            "website/pnpm-lock.yaml",
+            "website/pnpm-workspace.yaml",
+            "website/uno.config.ts",
+            "website/wrangler.toml"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `website` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "website-public",
+          "kind": "new",
+          "purpose": "module `website/public` (10 files) has no wiki coverage",
+          "seeds": [
+            "website/public/_headers",
+            "website/public/favicon.png",
+            "website/public/images/docs/ariang-connection.png",
+            "website/public/images/docs/browser-extension-setting.png",
+            "website/public/images/docs/settings-buffer-pool.png",
+            "website/public/images/docs/settings-cdn-probe.png",
+            "website/public/images/hero-desktop-ui.png",
+            "website/public/images/og-preview.png",
+            "website/public/limedl-pqc-pubkey.b64",
+            "website/public/logo.png"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `website-public` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "website-src",
+          "kind": "new",
+          "purpose": "module `website/src` (54 files) has no wiki coverage",
+          "seeds": [
+            "website/src/assets/ariang-connection.png",
+            "website/src/assets/browser-extension-setting.png",
+            "website/src/assets/favicon.png",
+            "website/src/assets/hero-desktop-ui.png",
+            "website/src/assets/logo.png",
+            "website/src/assets/settings-buffer-pool.png",
+            "website/src/assets/settings-cdn-probe.png",
+            "website/src/components/ComparisonTable.astro",
+            "website/src/components/CtaSection.astro",
+            "website/src/components/FeaturesGrid.astro",
+            "website/src/components/Footer.astro",
+            "website/src/components/Header.astro"
+          ],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `website-src` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        }
+      ]
+    },
+    {
+      "id": "run-2-b5102b9f",
+      "started_at": "2026-10-31T14:40:52Z",
+      "base_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "target_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "status": "superseded",
+      "tasks": [
+        {
+          "page_id": "architecture/bootstrap-and-services",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "architecture",
+          "instructions": "为 `architecture/bootstrap-and-services` 撰写类型为 `architecture` 的页面。章节:系统目标 -> 模块地图与分层 -> 数据流 -> 故障域 -> 关键不变量。逐条具体回答并配引用:顶层单元有哪些?各自负责什么? 依赖允许朝哪个方向? X 失败时最先崩的是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "architecture/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `architecture/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "architecture/overview",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "architecture",
+          "instructions": "为 `architecture/overview` 撰写类型为 `architecture` 的页面。章节:系统目标 -> 模块地图与分层 -> 数据流 -> 故障域 -> 关键不变量。逐条具体回答并配引用:顶层单元有哪些?各自负责什么? 依赖允许朝哪个方向? X 失败时最先崩的是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "architecture/protocol-routing-and-dispatcher",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "architecture",
+          "instructions": "为 `architecture/protocol-routing-and-dispatcher` 撰写类型为 `architecture` 的页面。章节:系统目标 -> 模块地图与分层 -> 数据流 -> 故障域 -> 关键不变量。逐条具体回答并配引用:顶层单元有哪些?各自负责什么? 依赖允许朝哪个方向? X 失败时最先崩的是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "desktop/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `desktop/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "desktop/native-ui-architecture",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "desktop",
+          "instructions": "为 `desktop/native-ui-architecture` 撰写类型为 `desktop` 的页面。章节:。逐条具体回答并配引用:。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "desktop/self-update-and-distribution",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "desktop",
+          "instructions": "为 `desktop/self-update-and-distribution` 撰写类型为 `desktop` 的页面。章节:。逐条具体回答并配引用:。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "desktop/task-input-and-aria2c-parsing",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "desktop",
+          "instructions": "为 `desktop/task-input-and-aria2c-parsing` 撰写类型为 `desktop` 的页面。章节:。逐条具体回答并配引用:。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "integrations/aria2-rpc-server",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "integration",
+          "instructions": "为 `integrations/aria2-rpc-server` 撰写类型为 `integration` 的页面。章节:对接方与契约 -> 适配层布局 -> 兼容性与版本 -> 错误映射。逐条具体回答并配引用:实现的是哪个外部契约?在哪里有偏差? 外部错误如何映射为本地错误?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "integrations/headless-server-daemon",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "integration",
+          "instructions": "为 `integrations/headless-server-daemon` 撰写类型为 `integration` 的页面。章节:对接方与契约 -> 适配层布局 -> 兼容性与版本 -> 错误映射。逐条具体回答并配引用:实现的是哪个外部契约?在哪里有偏差? 外部错误如何映射为本地错误?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "integrations/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `integrations/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "operations/build-release-and-ci",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "operations",
+          "instructions": "为 `operations/build-release-and-ci` 撰写类型为 `operations` 的页面。章节:。逐条具体回答并配引用:。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "operations/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `operations/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "operations/server-deployment-and-packaging",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "operations",
+          "instructions": "为 `operations/server-deployment-and-packaging` 撰写类型为 `operations` 的页面。章节:。逐条具体回答并配引用:。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/disk-io-and-storage",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "system",
+          "instructions": "为 `systems/disk-io-and-storage` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `systems/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/networking-and-rate-control",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "system",
+          "instructions": "为 `systems/networking-and-rate-control` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/persistence-and-recovery",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "system",
+          "instructions": "为 `systems/persistence-and-recovery` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/settings-and-configuration",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "system",
+          "instructions": "为 `systems/settings-and-configuration` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "testing/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `testing/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "testing/slint-ui-testing",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "testing",
+          "instructions": "为 `testing/slint-ui-testing` 撰写类型为 `testing` 的页面。章节:测试分层 -> 如何运行 -> 夹具与测试架 -> 值得注意的回归。逐条具体回答并配引用:哪条命令验证哪种风险? 测试套件编码了哪些回归?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "testing/testing-strategy",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "testing",
+          "instructions": "为 `testing/testing-strategy` 撰写类型为 `testing` 的页面。章节:测试分层 -> 如何运行 -> 夹具与测试架 -> 值得注意的回归。逐条具体回答并配引用:哪条命令验证哪种风险? 测试套件编码了哪些回归?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/bit-torrent-backend",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "workflow",
+          "instructions": "为 `workflows/bit-torrent-backend` 撰写类型为 `workflow` 的页面。章节:触发点 -> 步骤序列 -> 状态迁移 -> 错误处理 -> 可观测性。逐条具体回答并配引用:追踪一个具体请求/任务从入口到完成. 可能在哪失败?用户当时看到什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/cdn-acceleration",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "workflow",
+          "instructions": "为 `workflows/cdn-acceleration` 撰写类型为 `workflow` 的页面。章节:触发点 -> 步骤序列 -> 状态迁移 -> 错误处理 -> 可观测性。逐条具体回答并配引用:追踪一个具体请求/任务从入口到完成. 可能在哪失败?用户当时看到什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/http-download-lifecycle",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "workflow",
+          "instructions": "为 `workflows/http-download-lifecycle` 撰写类型为 `workflow` 的页面。章节:触发点 -> 步骤序列 -> 状态迁移 -> 错误处理 -> 可观测性。逐条具体回答并配引用:追踪一个具体请求/任务从入口到完成. 可能在哪失败?用户当时看到什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "pending",
+          "suggested_type": "system",
+          "instructions": "为 `workflows/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/metalink-and-mirror-selection",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "workflow",
+          "instructions": "为 `workflows/metalink-and-mirror-selection` 撰写类型为 `workflow` 的页面。章节:触发点 -> 步骤序列 -> 状态迁移 -> 错误处理 -> 可观测性。逐条具体回答并配引用:追踪一个具体请求/任务从入口到完成. 可能在哪失败?用户当时看到什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/scheduler-and-concurrency",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "done",
+          "suggested_type": "workflow",
+          "instructions": "为 `workflows/scheduler-and-concurrency` 撰写类型为 `workflow` 的页面。章节:触发点 -> 步骤序列 -> 状态迁移 -> 错误处理 -> 可观测性。逐条具体回答并配引用:追踪一个具体请求/任务从入口到完成. 可能在哪失败?用户当时看到什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-core-limedl_core",
+          "kind": "new",
+          "purpose": "module `limedl-core/limedl_core` (51 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-core/src/backend_registry/mod.rs",
+            "crates/limedl-core/src/backend_registry/tests.rs",
+            "crates/limedl-core/src/bootstrap.rs",
+            "crates/limedl-core/src/context.rs",
+            "crates/limedl-core/src/dispatcher.rs",
+            "crates/limedl-core/src/lib.rs",
+            "crates/limedl-core/src/logging.rs",
+            "crates/limedl-core/src/manager.rs",
+            "crates/limedl-core/src/testing.rs",
+            "crates/limedl-core/src/tests/adversarial_interception_tests.rs",
+            "crates/limedl-core/src/tests/bootstrap_tests.rs",
+            "crates/limedl-core/src/tests/bt_backend_tests.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-core-limedl_core` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-core-logging_preinstalled_subscriber",
+          "kind": "new",
+          "purpose": "module `limedl-core/logging_preinstalled_subscriber` (2 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-core/tests/logging_preinstalled_subscriber.rs",
+            "crates/limedl-core/tests/logging_reload_repro.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-core-logging_preinstalled_subscriber` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-core-logging_reload_repro",
+          "kind": "new",
+          "purpose": "module `limedl-core/logging_reload_repro` (2 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-core/tests/logging_preinstalled_subscriber.rs",
+            "crates/limedl-core/tests/logging_reload_repro.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-core-logging_reload_repro` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-core-download_e2e",
+          "kind": "new",
+          "purpose": "module `limedl-core/download_e2e` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-core/benches/download_e2e.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-core-download_e2e` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-bt-limedl_bt",
+          "kind": "new",
+          "purpose": "module `limedl-bt/limedl_bt` (23 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-bt/src/alerts.rs",
+            "crates/limedl-bt/src/anti_leech.rs",
+            "crates/limedl-bt/src/fixtures.rs",
+            "crates/limedl-bt/src/lazy.rs",
+            "crates/limedl-bt/src/lib.rs",
+            "crates/limedl-bt/src/lifecycle.rs",
+            "crates/limedl-bt/src/queries.rs",
+            "crates/limedl-bt/src/session.rs",
+            "crates/limedl-bt/src/snapshot.rs",
+            "crates/limedl-bt/src/tests/alerts.rs",
+            "crates/limedl-bt/src/tests/anti_leech.rs",
+            "crates/limedl-bt/src/tests/backend_api.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-bt-limedl_bt` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-http-limedl_http",
+          "kind": "new",
+          "purpose": "module `limedl-http/limedl_http` (7 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-http/src/http/mod.rs",
+            "crates/limedl-http/src/http/tests.rs",
+            "crates/limedl-http/src/http_client_factory/mod.rs",
+            "crates/limedl-http/src/http_client_factory/tests.rs",
+            "crates/limedl-http/src/lib.rs",
+            "crates/limedl-http/src/rate_limiter/mod.rs",
+            "crates/limedl-http/src/rate_limiter/tests.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-http-limedl_http` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-http-rate_limiter",
+          "kind": "new",
+          "purpose": "module `limedl-http/rate_limiter` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-http/benches/rate_limiter.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-http-rate_limiter` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-types-limedl_types",
+          "kind": "new",
+          "purpose": "module `limedl-types/limedl_types` (20 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-types/src/checksum/detect.rs",
+            "crates/limedl-types/src/checksum/mod.rs",
+            "crates/limedl-types/src/error.rs",
+            "crates/limedl-types/src/event_bus/mod.rs",
+            "crates/limedl-types/src/event_bus/tests.rs",
+            "crates/limedl-types/src/lib.rs",
+            "crates/limedl-types/src/manifest.rs",
+            "crates/limedl-types/src/platform.rs",
+            "crates/limedl-types/src/protocol.rs",
+            "crates/limedl-types/src/settings/mod.rs",
+            "crates/limedl-types/src/settings/tests.rs",
+            "crates/limedl-types/src/slot_guard.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-types-limedl_types` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-store-limedl_store",
+          "kind": "new",
+          "purpose": "module `limedl-store/limedl_store` (17 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-store/src/alt_svc/mod.rs",
+            "crates/limedl-store/src/alt_svc/repo.rs",
+            "crates/limedl-store/src/alt_svc/repo_tests.rs",
+            "crates/limedl-store/src/database/bt_task_repo.rs",
+            "crates/limedl-store/src/database/chunk_repo.rs",
+            "crates/limedl-store/src/database/connection.rs",
+            "crates/limedl-store/src/database/manifest_repo.rs",
+            "crates/limedl-store/src/database/mod.rs",
+            "crates/limedl-store/src/database/schema.rs",
+            "crates/limedl-store/src/database/tests/bt_task_repo.rs",
+            "crates/limedl-store/src/database/tests/chunks.rs",
+            "crates/limedl-store/src/database/tests/concurrency.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-store-limedl_store` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-disk-limedl_disk",
+          "kind": "new",
+          "purpose": "module `limedl-disk/limedl_disk` (27 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-disk/src/buffer_pool/download_buffer.rs",
+            "crates/limedl-disk/src/buffer_pool/mod.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/coalescing.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/degraded.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/hdd_buffer.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/mod.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/pool.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/slot_guard.rs",
+            "crates/limedl-disk/src/buffer_pool/tests/ssd_pingpong.rs",
+            "crates/limedl-disk/src/buffer_pool/worker.rs",
+            "crates/limedl-disk/src/file_ops/batch.rs",
+            "crates/limedl-disk/src/file_ops/coalesce.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-disk-limedl_disk` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-disk-buffer_pool",
+          "kind": "new",
+          "purpose": "module `limedl-disk/buffer_pool` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-disk/benches/buffer_pool.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-disk-buffer_pool` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-engine-limedl_engine",
+          "kind": "new",
+          "purpose": "module `limedl-engine/limedl_engine` (42 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-engine/src/aimd/mod.rs",
+            "crates/limedl-engine/src/aimd/tests.rs",
+            "crates/limedl-engine/src/cdn/accelerator.rs",
+            "crates/limedl-engine/src/cdn/ip_ranges/mod.rs",
+            "crates/limedl-engine/src/cdn/ip_ranges/tests.rs",
+            "crates/limedl-engine/src/cdn/mod.rs",
+            "crates/limedl-engine/src/cdn/provider.rs",
+            "crates/limedl-engine/src/cdn/resolver.rs",
+            "crates/limedl-engine/src/cdn/service.rs",
+            "crates/limedl-engine/src/cdn/speed_test/mod.rs",
+            "crates/limedl-engine/src/cdn/speed_test/tests.rs",
+            "crates/limedl-engine/src/cdn/tests/mod.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-engine-limedl_engine` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-engine-aimd",
+          "kind": "new",
+          "purpose": "module `limedl-engine/aimd` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-engine/benches/aimd.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-engine-aimd` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-testkit-limedl_testkit",
+          "kind": "new",
+          "purpose": "module `limedl-testkit/limedl_testkit` (3 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-testkit/src/bench.rs",
+            "crates/limedl-testkit/src/lib.rs",
+            "crates/limedl-testkit/src/tests.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-testkit-limedl_testkit` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-rpc-limedl_rpc",
+          "kind": "new",
+          "purpose": "module `limedl-rpc/limedl_rpc` (17 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-rpc/src/bind.rs",
+            "crates/limedl-rpc/src/context.rs",
+            "crates/limedl-rpc/src/dispatch.rs",
+            "crates/limedl-rpc/src/download.rs",
+            "crates/limedl-rpc/src/e2e_tests.rs",
+            "crates/limedl-rpc/src/interop_tests.rs",
+            "crates/limedl-rpc/src/jsonrpc.rs",
+            "crates/limedl-rpc/src/lib.rs",
+            "crates/limedl-rpc/src/options.rs",
+            "crates/limedl-rpc/src/oracle_tests.rs",
+            "crates/limedl-rpc/src/protocol.rs",
+            "crates/limedl-rpc/src/query.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-rpc-limedl_rpc` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-rpc-ws_e2e",
+          "kind": "new",
+          "purpose": "module `limedl-rpc/ws_e2e` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-rpc/tests/ws_e2e.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-rpc-ws_e2e` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-native-limedl-native",
+          "kind": "new",
+          "purpose": "module `limedl-native/limedl-native` (104 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-native/src/aria2_cli.rs",
+            "crates/limedl-native/src/autostart.rs",
+            "crates/limedl-native/src/bridge/clipboard.rs",
+            "crates/limedl-native/src/bridge/format.rs",
+            "crates/limedl-native/src/bridge/forms/aria2_clients.rs",
+            "crates/limedl-native/src/bridge/forms/combo.rs",
+            "crates/limedl-native/src/bridge/forms/disk_override.rs",
+            "crates/limedl-native/src/bridge/forms/enums.rs",
+            "crates/limedl-native/src/bridge/forms/fields.rs",
+            "crates/limedl-native/src/bridge/forms/from_form.rs",
+            "crates/limedl-native/src/bridge/forms/mod.rs",
+            "crates/limedl-native/src/bridge/forms/speed_limit.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-native-limedl-native` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-native-build-script-build",
+          "kind": "new",
+          "purpose": "module `limedl-native/build-script-build` (190 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-native/Cargo.toml",
+            "crates/limedl-native/build.rs",
+            "crates/limedl-native/lang/en/LC_MESSAGES/limedl-native.po",
+            "crates/limedl-native/lang/zh_CN/LC_MESSAGES/limedl-native.po",
+            "crates/limedl-native/lang/zh_TW/LC_MESSAGES/limedl-native.po",
+            "crates/limedl-native/limedl-native.rc",
+            "crates/limedl-native/src/aria2_cli.rs",
+            "crates/limedl-native/src/autostart.rs",
+            "crates/limedl-native/src/bridge/clipboard.rs",
+            "crates/limedl-native/src/bridge/format.rs",
+            "crates/limedl-native/src/bridge/forms/aria2_clients.rs",
+            "crates/limedl-native/src/bridge/forms/combo.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-native-build-script-build` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-server-limedl_server",
+          "kind": "new",
+          "purpose": "module `limedl-server/limedl_server` (4 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-server/src/cli.rs",
+            "crates/limedl-server/src/config.rs",
+            "crates/limedl-server/src/lib.rs",
+            "crates/limedl-server/src/main.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-server-limedl_server` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-server-limedl-server",
+          "kind": "new",
+          "purpose": "module `limedl-server/limedl-server` (4 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-server/src/cli.rs",
+            "crates/limedl-server/src/config.rs",
+            "crates/limedl-server/src/lib.rs",
+            "crates/limedl-server/src/main.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-server-limedl-server` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "limedl-server-daemon",
+          "kind": "new",
+          "purpose": "module `limedl-server/daemon` (1 files) has no wiki coverage",
+          "seeds": [
+            "crates/limedl-server/tests/daemon.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `limedl-server-daemon` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "xtask-xtask",
+          "kind": "new",
+          "purpose": "module `xtask/xtask` (9 files) has no wiki coverage",
+          "seeds": [
+            "xtask/src/bump_version.rs",
+            "xtask/src/fetch_font.rs",
+            "xtask/src/gate.rs",
+            "xtask/src/i18n.rs",
+            "xtask/src/icons.rs",
+            "xtask/src/main.rs",
+            "xtask/src/manifest.rs",
+            "xtask/src/tests.rs",
+            "xtask/src/theme.rs"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `xtask-xtask` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "repo-root",
+          "kind": "new",
+          "purpose": "module `.` (17 files) has no wiki coverage",
+          "seeds": [
+            ".dockerignore",
+            ".git-blame-ignore-revs",
+            ".gitattributes",
+            ".gitignore",
+            "AGENTS.md",
+            "Cargo.lock",
+            "Cargo.toml",
+            "LICENSE",
+            "NOTICE",
+            "README.md",
+            "cliff.toml",
+            "deny.toml"
+          ],
+          "status": "skipped",
+          "suggested_type": "architecture",
+          "instructions": "为 `repo-root` 撰写类型为 `architecture` 的页面。章节:系统目标 -> 模块地图与分层 -> 数据流 -> 故障域 -> 关键不变量。逐条具体回答并配引用:顶层单元有哪些?各自负责什么? 依赖允许朝哪个方向? X 失败时最先崩的是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "docs",
+          "kind": "new",
+          "purpose": "module `docs` (11 files) has no wiki coverage",
+          "seeds": [
+            "docs/README.md",
+            "docs/aria2-interop-testing.md",
+            "docs/ci-operations.md",
+            "docs/desktop-build-and-packaging.md",
+            "docs/engine-dev-notes.md",
+            "docs/i18n.md",
+            "docs/manual-smoke-testing.md",
+            "docs/server-daemon.md",
+            "docs/test-regression-notes.md",
+            "docs/troubleshooting.md",
+            "docs/update-signing-key.md"
+          ],
+          "status": "skipped",
+          "suggested_type": "architecture",
+          "instructions": "为 `docs` 撰写类型为 `architecture` 的页面。章节:系统目标 -> 模块地图与分层 -> 数据流 -> 故障域 -> 关键不变量。逐条具体回答并配引用:顶层单元有哪些?各自负责什么? 依赖允许朝哪个方向? X 失败时最先崩的是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "installer",
+          "kind": "new",
+          "purpose": "module `installer` (1 files) has no wiki coverage",
+          "seeds": [
+            "installer/limedl-native.nsi"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `installer` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki",
+          "kind": "new",
+          "purpose": "module `openwiki` (5 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/.last-update.json",
+            "openwiki/.page-manifest.json",
+            "openwiki/.run.json",
+            "openwiki/index.md",
+            "openwiki/quickstart.md"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-claims",
+          "kind": "new",
+          "purpose": "module `openwiki/.claims` (22 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/.claims/architecture/bootstrap-and-services.json",
+            "openwiki/.claims/architecture/overview.json",
+            "openwiki/.claims/architecture/protocol-routing-and-dispatcher.json",
+            "openwiki/.claims/desktop/native-ui-architecture.json",
+            "openwiki/.claims/desktop/self-update-and-distribution.json",
+            "openwiki/.claims/desktop/task-input-and-aria2c-parsing.json",
+            "openwiki/.claims/integrations/aria2-rpc-server.json",
+            "openwiki/.claims/integrations/headless-server-daemon.json",
+            "openwiki/.claims/operations/build-release-and-ci.json",
+            "openwiki/.claims/operations/server-deployment-and-packaging.json",
+            "openwiki/.claims/quickstart.json",
+            "openwiki/.claims/systems/disk-io-and-storage.json"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-claims` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-architecture",
+          "kind": "new",
+          "purpose": "module `openwiki/architecture` (4 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/architecture/bootstrap-and-services.md",
+            "openwiki/architecture/index.md",
+            "openwiki/architecture/overview.md",
+            "openwiki/architecture/protocol-routing-and-dispatcher.md"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-architecture` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-desktop",
+          "kind": "new",
+          "purpose": "module `openwiki/desktop` (4 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/desktop/index.md",
+            "openwiki/desktop/native-ui-architecture.md",
+            "openwiki/desktop/self-update-and-distribution.md",
+            "openwiki/desktop/task-input-and-aria2c-parsing.md"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-desktop` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-integrations",
+          "kind": "new",
+          "purpose": "module `openwiki/integrations` (3 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/integrations/aria2-rpc-server.md",
+            "openwiki/integrations/headless-server-daemon.md",
+            "openwiki/integrations/index.md"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-integrations` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-operations",
+          "kind": "new",
+          "purpose": "module `openwiki/operations` (3 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/operations/build-release-and-ci.md",
+            "openwiki/operations/index.md",
+            "openwiki/operations/server-deployment-and-packaging.md"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-operations` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-systems",
+          "kind": "new",
+          "purpose": "module `openwiki/systems` (5 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/systems/disk-io-and-storage.md",
+            "openwiki/systems/index.md",
+            "openwiki/systems/networking-and-rate-control.md",
+            "openwiki/systems/persistence-and-recovery.md",
+            "openwiki/systems/settings-and-configuration.md"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-systems` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-testing",
+          "kind": "new",
+          "purpose": "module `openwiki/testing` (3 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/testing/index.md",
+            "openwiki/testing/slint-ui-testing.md",
+            "openwiki/testing/testing-strategy.md"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-testing` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "openwiki-workflows",
+          "kind": "new",
+          "purpose": "module `openwiki/workflows` (6 files) has no wiki coverage",
+          "seeds": [
+            "openwiki/workflows/bit-torrent-backend.md",
+            "openwiki/workflows/cdn-acceleration.md",
+            "openwiki/workflows/http-download-lifecycle.md",
+            "openwiki/workflows/index.md",
+            "openwiki/workflows/metalink-and-mirror-selection.md",
+            "openwiki/workflows/scheduler-and-concurrency.md"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `openwiki-workflows` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "packaging-linux",
+          "kind": "new",
+          "purpose": "module `packaging/linux` (2 files) has no wiki coverage",
+          "seeds": [
+            "packaging/linux/AppRun",
+            "packaging/linux/limedl-native.desktop"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `packaging-linux` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "packaging-macos",
+          "kind": "new",
+          "purpose": "module `packaging/macos` (1 files) has no wiki coverage",
+          "seeds": [
+            "packaging/macos/Info.plist.in"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `packaging-macos` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "packaging-msix",
+          "kind": "new",
+          "purpose": "module `packaging/msix` (1 files) has no wiki coverage",
+          "seeds": [
+            "packaging/msix/AppxManifest.xml"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `packaging-msix` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "packaging-server",
+          "kind": "new",
+          "purpose": "module `packaging/server` (6 files) has no wiki coverage",
+          "seeds": [
+            "packaging/server/Dockerfile",
+            "packaging/server/Dockerfile.release",
+            "packaging/server/docker-compose.yml",
+            "packaging/server/docker-entrypoint.sh",
+            "packaging/server/systemd/limedl-server.env.example",
+            "packaging/server/systemd/limedl-server.service"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `packaging-server` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "scripts",
+          "kind": "new",
+          "purpose": "module `scripts` (6 files) has no wiki coverage",
+          "seeds": [
+            "scripts/check-glibc-floor.sh",
+            "scripts/make-macos-icon.sh",
+            "scripts/package-appimage.sh",
+            "scripts/package-deb.sh",
+            "scripts/package-linux.sh",
+            "scripts/package-macos.sh"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `scripts` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "website",
+          "kind": "new",
+          "purpose": "module `website` (6 files) has no wiki coverage",
+          "seeds": [
+            "website/astro.config.mjs",
+            "website/package.json",
+            "website/pnpm-lock.yaml",
+            "website/pnpm-workspace.yaml",
+            "website/uno.config.ts",
+            "website/wrangler.toml"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `website` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "website-public",
+          "kind": "new",
+          "purpose": "module `website/public` (10 files) has no wiki coverage",
+          "seeds": [
+            "website/public/_headers",
+            "website/public/favicon.png",
+            "website/public/images/docs/ariang-connection.png",
+            "website/public/images/docs/browser-extension-setting.png",
+            "website/public/images/docs/settings-buffer-pool.png",
+            "website/public/images/docs/settings-cdn-probe.png",
+            "website/public/images/hero-desktop-ui.png",
+            "website/public/images/og-preview.png",
+            "website/public/limedl-pqc-pubkey.b64",
+            "website/public/logo.png"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `website-public` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "website-src",
+          "kind": "new",
+          "purpose": "module `website/src` (54 files) has no wiki coverage",
+          "seeds": [
+            "website/src/assets/ariang-connection.png",
+            "website/src/assets/browser-extension-setting.png",
+            "website/src/assets/favicon.png",
+            "website/src/assets/hero-desktop-ui.png",
+            "website/src/assets/logo.png",
+            "website/src/assets/settings-buffer-pool.png",
+            "website/src/assets/settings-cdn-probe.png",
+            "website/src/components/ComparisonTable.astro",
+            "website/src/components/CtaSection.astro",
+            "website/src/components/FeaturesGrid.astro",
+            "website/src/components/Footer.astro",
+            "website/src/components/Header.astro"
+          ],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `website-src` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        }
+      ]
+    },
+    {
+      "id": "run-3-b5102b9f",
+      "started_at": "2026-10-31T15:59:17Z",
+      "base_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "target_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "status": "superseded",
+      "tasks": [
+        {
+          "page_id": "architecture/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `architecture/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "desktop/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `desktop/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "integrations/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `integrations/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "operations/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `operations/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "systems/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `systems/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "testing/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `testing/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        },
+        {
+          "page_id": "workflows/index",
+          "kind": "refresh",
+          "purpose": "page status is `draft`",
+          "seeds": [],
+          "status": "skipped",
+          "suggested_type": "system",
+          "instructions": "为 `workflows/index` 撰写类型为 `system` 的页面。章节:职责 -> 公开接口 -> 内部机制 -> 配置 -> 资源与生命周期。逐条具体回答并配引用:这个组件向谁暴露了什么? 它持有什么状态?持久化在哪里? 有哪些开关?默认值是什么?。每个论断后面都要有行内 [[cite:path:Lx-Ly]]。"
+        }
+      ]
+    },
+    {
+      "id": "run-4-b5102b9f",
+      "started_at": "2026-10-31T15:59:50Z",
+      "base_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "target_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "status": "superseded",
+      "tasks": []
+    },
+    {
+      "id": "run-5-b5102b9f",
+      "started_at": "2026-10-31T15:59:51Z",
+      "base_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "target_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "status": "active",
+      "tasks": []
+    }
+  ]
+}

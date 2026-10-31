@@ -2,7 +2,7 @@
 
 Runbook for the signing keys that authenticate `latest-native.json` and every
 desktop artifact. Architecture of the updater itself is documented in
-[`openwiki/desktop/self-update-and-distribution.md`](../openwiki/desktop/self-update-and-distribution.md).
+[`.wiki/pages/desktop/self-update-and-distribution.md`](../.wiki/pages/desktop/self-update-and-distribution.md).
 
 ## Trust chain in one paragraph
 
