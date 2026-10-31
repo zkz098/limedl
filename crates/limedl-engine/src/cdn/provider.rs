@@ -212,3 +212,100 @@ impl CdnProvider for CustomCdnProvider {
         self.fallback_cache()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{Ipv4Addr, Ipv6Addr};
+    use tokio_util::sync::CancellationToken;
+
+    fn v4(a: u8, b: u8, c: u8, d: u8) -> IpAddr {
+        IpAddr::V4(Ipv4Addr::new(a, b, c, d))
+    }
+
+    #[test]
+    fn cloudflare_fallback_matches_only_its_ranges() {
+        let provider = CloudflareProvider;
+        let cache = provider.fallback_cache();
+
+        assert!(cache.from_fallback);
+        assert_eq!(cache.ipv4_cidrs.len(), CLOUDFLARE_IPV4_RANGES.len());
+        assert_eq!(cache.ipv6_cidrs.len(), CLOUDFLARE_IPV6_RANGES.len());
+        assert!(!cache.ipv4_addrs.is_empty());
+        assert!(!cache.ipv6_addrs.is_empty());
+
+        assert!(provider.matches_ip(&cache, v4(104, 16, 0, 1)));
+        assert!(!provider.matches_ip(&cache, v4(8, 8, 8, 8)));
+        assert!(provider.matches_ip(&cache, "2606:4700::1".parse::<Ipv6Addr>().unwrap().into()));
+        assert!(!provider.matches_ip(&cache, "2001:db8::1".parse::<Ipv6Addr>().unwrap().into()));
+    }
+
+    #[test]
+    fn fastly_fallback_uses_fastly_ranges() {
+        let provider = FastlyProvider;
+        let cache = provider.fallback_cache();
+
+        assert_eq!(provider.kind(), CdnProviderKind::Fastly);
+        assert_eq!(provider.name(), "Fastly");
+        assert!(provider.default_test_url().contains("fastly"));
+        assert_eq!(cache.ipv4_cidrs.len(), FASTLY_IPV4_RANGES.len());
+        assert_eq!(cache.ipv6_cidrs.len(), FASTLY_IPV6_RANGES.len());
+        assert!(!cache.ipv4_addrs.is_empty());
+
+        assert!(provider.matches_ip(&cache, v4(151, 101, 1, 1)));
+        assert!(!provider.matches_ip(&cache, v4(104, 16, 0, 1)));
+        assert!(!provider.matches_ip(&cache, v4(8, 8, 8, 8)));
+    }
+
+    #[tokio::test]
+    async fn fastly_fetch_returns_the_fallback_cache() {
+        let cache = FastlyProvider
+            .fetch_ip_ranges(CancellationToken::new())
+            .await;
+        assert!(cache.from_fallback);
+        assert_eq!(cache.ipv4_cidrs.len(), FASTLY_IPV4_RANGES.len());
+    }
+
+    #[test]
+    fn custom_provider_expands_configured_cidrs() {
+        let provider = CustomCdnProvider::new(
+            "Example CDN",
+            "https://cdn.example.test/speed",
+            vec!["203.0.113.0/24".to_string()],
+            vec!["2001:db8::/32".to_string()],
+        );
+        let cache = provider.fallback_cache();
+
+        assert_eq!(provider.kind(), CdnProviderKind::Custom);
+        assert_eq!(provider.name(), "Example CDN");
+        assert_eq!(
+            provider.default_test_url(),
+            "https://cdn.example.test/speed"
+        );
+        assert_eq!(cache.ipv4_cidrs, ["203.0.113.0/24"]);
+        assert_eq!(cache.ipv6_cidrs, ["2001:db8::/32"]);
+        assert!(!cache.ipv4_addrs.is_empty());
+        assert!(!cache.ipv6_addrs.is_empty());
+
+        assert!(provider.matches_ip(&cache, v4(203, 0, 113, 42)));
+        assert!(!provider.matches_ip(&cache, v4(203, 0, 114, 42)));
+        assert!(!provider.matches_ip(&cache, v4(104, 16, 0, 1)));
+        assert!(provider.matches_ip(&cache, "2001:db8::42".parse::<Ipv6Addr>().unwrap().into()));
+    }
+
+    #[tokio::test]
+    async fn custom_provider_fetch_returns_configured_ranges() {
+        let provider = CustomCdnProvider::new(
+            "Empty",
+            "https://cdn.example.test/speed",
+            Vec::new(),
+            Vec::new(),
+        );
+        let cache = provider.fetch_ip_ranges(CancellationToken::new()).await;
+        assert!(cache.from_fallback);
+        assert!(cache.ipv4_cidrs.is_empty());
+        assert!(cache.ipv6_cidrs.is_empty());
+        assert!(cache.ipv4_addrs.is_empty());
+        assert!(cache.ipv6_addrs.is_empty());
+    }
+}

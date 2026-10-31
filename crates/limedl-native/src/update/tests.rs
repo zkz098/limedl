@@ -349,3 +349,201 @@ fn previous_fips204_signatures_still_verify() {
     assert!(pk.verify_with_context(msg, b"limedl-manifest", &sig));
     assert!(!pk.verify_with_context(msg, b"limedl-artifact", &sig));
 }
+
+// ── Artifact download + verification pipeline ────────────────────────────────
+
+use std::io::Write as _;
+use std::sync::{Arc, Mutex};
+
+fn b64(data: impl AsRef<[u8]>) -> String {
+    base64::engine::general_purpose::STANDARD.encode(data)
+}
+
+fn available_update(
+    url: String,
+    signature: String,
+    pqc_signature: Option<String>,
+    sha256: Option<String>,
+) -> AvailableUpdate {
+    AvailableUpdate {
+        version: "9.9.9".to_string(),
+        notes: String::new(),
+        asset: PlatformAsset {
+            kind: "portable".to_string(),
+            url,
+            signature,
+            pqc_signature,
+            sha256,
+        },
+    }
+}
+
+/// Generate a throwaway minisign key pair and sign `artifact`.
+fn sign_minisign(artifact: &[u8]) -> (String, String) {
+    use std::io::Cursor;
+    let minisign::KeyPair { pk, sk } =
+        minisign::KeyPair::generate_unencrypted_keypair().expect("generate minisign key pair");
+    let pubkey_b64 = b64(pk.to_box().expect("serialize public key").to_bytes());
+    let signature = minisign::sign(Some(&pk), &sk, Cursor::new(artifact), Some("test"), None)
+        .expect("sign artifact");
+    (pubkey_b64, b64(signature.to_string()))
+}
+
+#[tokio::test]
+async fn download_and_verify_accepts_minisign_and_handles_pqc() {
+    let artifact = b"signed update artifact bytes".repeat(128);
+    let (pubkey_b64, signature) = sign_minisign(&artifact);
+    TEST_MINISIGN_PUBKEY.set(pubkey_b64).ok();
+    let server = limedl_testkit::TestServer::from_bytes(artifact.clone()).await;
+    let tmp = tempfile::tempdir().unwrap();
+    let settings = AppSettings::default();
+
+    let progress = Arc::new(Mutex::new(Vec::new()));
+    let progress_sink = progress.clone();
+    let update = available_update(
+        server.file_url(),
+        signature.clone(),
+        None,
+        Some(server.sha256_hash.clone()),
+    );
+    let verified = download_and_verify(&update, &settings, tmp.path(), &move |done, total| {
+        progress_sink.lock().unwrap().push((done, total))
+    })
+    .await
+    .expect("a correctly signed artifact must verify");
+
+    assert_eq!(std::fs::read(&verified).unwrap(), artifact);
+    assert_eq!(verified, update_work_dir(tmp.path()).join("file"));
+    {
+        let seen = progress.lock().unwrap();
+        assert!(!seen.is_empty(), "progress callback must run");
+        assert_eq!(seen.last().unwrap().0, artifact.len() as u64);
+        assert_eq!(seen.last().unwrap().1, Some(artifact.len() as u64));
+    }
+
+    // A present but bogus PQC signature must be rejected, while a missing one
+    // is only a warning (covered above).
+    let bad_pqc = available_update(
+        server.file_url(),
+        signature,
+        Some(b64(vec![0xAAu8; 64])),
+        Some(server.sha256_hash.clone()),
+    );
+    let error = download_and_verify(&bad_pqc, &settings, tmp.path(), &|_, _| {})
+        .await
+        .expect_err("a bogus PQC signature must be rejected");
+    assert!(
+        format!("{error:#}").contains("post-quantum"),
+        "unexpected error: {error:#}"
+    );
+}
+
+#[tokio::test]
+async fn download_and_verify_rejects_sha_mismatch_and_bad_signature() {
+    let artifact = b"tampered artifact".to_vec();
+    let server = limedl_testkit::TestServer::from_bytes(artifact).await;
+    let tmp = tempfile::tempdir().unwrap();
+    let settings = AppSettings::default();
+
+    let wrong_sha = available_update(
+        server.file_url(),
+        "unused".to_string(),
+        None,
+        Some("0".repeat(64)),
+    );
+    let error = download_and_verify(&wrong_sha, &settings, tmp.path(), &|_, _| {})
+        .await
+        .expect_err("a sha256 mismatch must abort");
+    assert!(
+        format!("{error:#}").contains("sha256 mismatch"),
+        "unexpected error: {error:#}"
+    );
+
+    let bad_signature = available_update(
+        server.file_url(),
+        b64("not a minisign signature"),
+        None,
+        Some(server.sha256_hash.clone()),
+    );
+    let error = download_and_verify(&bad_signature, &settings, tmp.path(), &|_, _| {})
+        .await
+        .expect_err("an invalid signature must abort");
+    assert!(
+        format!("{error:#}").contains("signature"),
+        "unexpected error: {error:#}"
+    );
+}
+
+#[tokio::test]
+async fn download_and_verify_refuses_oversized_artifacts() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let advertised = MAX_UPDATE_BYTES + 1;
+    std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut request = [0u8; 1024];
+        let _ = std::io::Read::read(&mut stream, &mut request);
+        write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nContent-Length: {advertised}\r\nConnection: close\r\n\r\n"
+        )
+        .unwrap();
+    });
+
+    let tmp = tempfile::tempdir().unwrap();
+    let update = available_update(
+        format!("http://{addr}/artifact.bin"),
+        "unused".to_string(),
+        None,
+        None,
+    );
+    let error = download_and_verify(&update, &AppSettings::default(), tmp.path(), &|_, _| {})
+        .await
+        .expect_err("oversized downloads must be refused");
+    let message = format!("{error:#}");
+    assert!(
+        message.contains(&advertised.to_string()) && message.contains("limit"),
+        "unexpected error: {message}"
+    );
+}
+
+#[test]
+fn update_work_dir_is_cleaned_and_check_throttling_persists() {
+    let tmp = tempfile::tempdir().unwrap();
+    let state = tmp.path();
+
+    assert_eq!(update_work_dir(state), state.join("update"));
+
+    let work = update_work_dir(state);
+    std::fs::create_dir_all(&work).unwrap();
+    std::fs::write(work.join("stale.part"), b"partial").unwrap();
+    clean_update_work_dir(state);
+    assert!(!work.exists(), "stale update downloads must be removed");
+    clean_update_work_dir(state); // missing directory is a no-op
+
+    assert!(
+        should_check_for_update_now(state, Duration::from_secs(60 * 60)),
+        "a fresh state dir has no stamp"
+    );
+    record_update_check(state);
+    assert!(
+        !should_check_for_update_now(state, Duration::from_secs(60 * 60)),
+        "the stamp must suppress immediate re-checks"
+    );
+    assert!(
+        should_check_for_update_now(state, Duration::ZERO),
+        "a zero interval always allows a check"
+    );
+
+    let stamp = state.join("update-check.stamp");
+    std::fs::write(&stamp, "not-a-number").unwrap();
+    assert!(
+        should_check_for_update_now(state, Duration::from_secs(60 * 60)),
+        "a malformed stamp must not suppress checks"
+    );
+    std::fs::write(&stamp, (u64::MAX / 2).to_string()).unwrap();
+    assert!(
+        !should_check_for_update_now(state, Duration::from_secs(60 * 60)),
+        "a future stamp (clock rollback) is treated as fresh"
+    );
+}

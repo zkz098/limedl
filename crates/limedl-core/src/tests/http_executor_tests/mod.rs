@@ -94,5 +94,6 @@ mod compression;
 mod http_errors;
 mod mirrors_and_abuse;
 mod multi_stream;
+mod piece_verification;
 mod rate_limit;
 mod single_stream;

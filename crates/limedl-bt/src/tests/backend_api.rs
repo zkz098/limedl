@@ -334,3 +334,113 @@ async fn backend_resume_active_no_panic() {
 
     backend.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn backend_pending_magnet_status_pause_resume_and_open_file() {
+    let (_tmp, backend) = make_backend().await;
+    let request = StartDownloadRequest {
+        url: "magnet:?xt=urn:btih:3333333333333333333333333333333333333333&dn=pending".into(),
+        ..Default::default()
+    };
+    let task_id = DownloadBackend::start(&backend, request)
+        .await
+        .expect("start should create a pending magnet");
+
+    let status = DownloadBackend::status(&backend, &task_id)
+        .await
+        .expect("pending status");
+    assert_eq!(status.state, DownloadState::Queued);
+    assert_eq!(status.kind, TaskKind::Bt);
+    assert_eq!(status.file_name, "pending");
+    assert_eq!(
+        status.upload_status,
+        Some(crate::types::BtUploadStatus::Idle)
+    );
+    assert!(
+        status
+            .thread_note
+            .as_deref()
+            .is_some_and(|note| note.contains("resolving metadata"))
+    );
+
+    let paused = DownloadBackend::pause(&backend, &task_id)
+        .await
+        .expect("pause pending");
+    assert_eq!(paused.state, DownloadState::Paused);
+    assert_eq!(
+        paused.upload_status,
+        Some(crate::types::BtUploadStatus::Paused)
+    );
+    assert_eq!(
+        DownloadBackend::status(&backend, &task_id)
+            .await
+            .expect("paused status")
+            .state,
+        DownloadState::Paused
+    );
+
+    let resumed = DownloadBackend::resume(&backend, &task_id)
+        .await
+        .expect("resume pending");
+    assert_eq!(resumed.state, DownloadState::Queued);
+
+    // The pending destination is the download directory itself, so opening it
+    // as a single file must be rejected before any OS handler runs.
+    let error = DownloadBackend::open_file(&backend, &task_id)
+        .await
+        .expect_err("a directory cannot be opened as a single file");
+    match error {
+        crate::error::DownloadError::Io(error) => {
+            assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput)
+        }
+        other => panic!("expected an InvalidInput I/O error, got {other:?}"),
+    }
+
+    backend.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn backend_remove_and_purge_pending_magnets() {
+    let (_tmp, backend) = make_backend().await;
+    let backend_ref = &backend;
+    let start = move |hash: &str| {
+        let hash = hash.to_string();
+        async move {
+            let request = StartDownloadRequest {
+                url: format!("magnet:?xt=urn:btih:{hash}&dn=task"),
+                ..Default::default()
+            };
+            DownloadBackend::start(backend_ref, request)
+                .await
+                .expect("start pending magnet")
+        }
+    };
+
+    let removed = start("4444444444444444444444444444444444444444").await;
+    let purged = start("5555555555555555555555555555555555555555").await;
+
+    let snapshot = DownloadBackend::remove(&backend, &removed)
+        .await
+        .expect("remove pending magnet");
+    assert_eq!(snapshot.state, DownloadState::Queued);
+    assert!(
+        DownloadBackend::status(&backend, &removed).await.is_err(),
+        "removed magnet must no longer be visible"
+    );
+    assert!(
+        DownloadBackend::status(&backend, &purged).await.is_ok(),
+        "removing one magnet must not touch the other"
+    );
+
+    let snapshot = DownloadBackend::purge(&backend, &purged)
+        .await
+        .expect("purge pending magnet");
+    assert_eq!(snapshot.state, DownloadState::Queued);
+    assert!(DownloadBackend::status(&backend, &purged).await.is_err());
+    assert!(
+        backend.list().await.expect("list").is_empty(),
+        "no pending task may remain listed"
+    );
+
+    backend.shutdown().await;
+}

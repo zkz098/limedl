@@ -701,6 +701,23 @@ fn unix_now() -> u64 {
         .unwrap_or(0)
 }
 
+/// The minisign public key used to authenticate update artifacts.
+///
+/// Production builds always use [`PUBKEY_B64`]. Tests that need a *valid*
+/// artifact signature generate a throwaway key pair and install its public
+/// key here; nextest gives every test its own process, so the override cannot
+/// leak into another test.
+fn updater_pubkey_b64() -> &'static str {
+    #[cfg(test)]
+    if let Some(pubkey) = TEST_MINISIGN_PUBKEY.get() {
+        return pubkey.as_str();
+    }
+    PUBKEY_B64
+}
+
+#[cfg(test)]
+static TEST_MINISIGN_PUBKEY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
 // ── Crypto verification ──────────────────────────────────────────────────────
 
 fn verify_signature(data: &[u8], signature_b64: &str) -> Result<()> {
@@ -716,7 +733,7 @@ fn verify_signature_text(data: &[u8], signature_text: &str) -> Result<()> {
     use minisign_verify::{PublicKey, Signature};
 
     let pubkey_text = base64::engine::general_purpose::STANDARD
-        .decode(PUBKEY_B64)
+        .decode(updater_pubkey_b64())
         .context("decode embedded updater public key")?;
     let pubkey = PublicKey::decode(std::str::from_utf8(&pubkey_text)?)
         .context("parse embedded updater public key")?;

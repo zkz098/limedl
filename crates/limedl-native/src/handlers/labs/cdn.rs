@@ -425,3 +425,152 @@ fn clear_cdn_test(cdn: Cdn) {
         });
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use limedl_core::cdn::speed_test::DefaultNodeResult;
+    use std::net::{IpAddr, Ipv4Addr};
+
+    fn node(ip: &str, latency_ms: f64, throughput: Option<f64>) -> DefaultNodeResult {
+        DefaultNodeResult {
+            ip: Some(ip.to_string()),
+            tcp_latency_ms: latency_ms,
+            throughput_mbps: throughput,
+            error: None,
+        }
+    }
+
+    fn outcome(
+        active_speed: Option<f64>,
+        default_node: Option<DefaultNodeResult>,
+        candidates: Vec<SpeedTestResult>,
+    ) -> CdnTestOutcome {
+        CdnTestOutcome {
+            state: AccelState::Ready,
+            active_ip: Some(IpAddr::V4(Ipv4Addr::new(104, 16, 0, 1))),
+            active_speed_mbps: active_speed,
+            candidates,
+            default_node,
+        }
+    }
+
+    #[test]
+    fn default_node_text_prefers_throughput_then_latency() {
+        assert_eq!(
+            default_node_text(&outcome(
+                None,
+                Some(node("1.2.3.4", 9.0, Some(12.345))),
+                vec![]
+            )),
+            Some("1.2.3.4 (12.35 MB/s)".to_string())
+        );
+        assert_eq!(
+            default_node_text(&outcome(None, Some(node("1.2.3.4", 15.0, None)), vec![])),
+            Some("1.2.3.4 (15.0 ms)".to_string())
+        );
+        assert_eq!(
+            default_node_text(&outcome(None, Some(node("1.2.3.4", 0.0, None)), vec![])),
+            Some("1.2.3.4".to_string())
+        );
+
+        assert_eq!(default_node_text(&outcome(None, None, vec![])), None);
+        let mut without_ip = node("1.2.3.4", 5.0, Some(1.0));
+        without_ip.ip = None;
+        assert_eq!(
+            default_node_text(&outcome(None, Some(without_ip), vec![])),
+            None
+        );
+    }
+
+    #[test]
+    fn speed_improvement_text_compares_against_the_baseline() {
+        assert_eq!(
+            speed_improvement_text(&outcome(
+                Some(150.0),
+                Some(node("1.1.1.1", 1.0, Some(100.0))),
+                vec![]
+            )),
+            Some("+50.0%".to_string())
+        );
+        assert_eq!(
+            speed_improvement_text(&outcome(
+                Some(50.0),
+                Some(node("1.1.1.1", 1.0, Some(100.0))),
+                vec![]
+            )),
+            Some("-50.0%".to_string())
+        );
+        assert_eq!(
+            speed_improvement_text(&outcome(
+                Some(50.0),
+                Some(node("1.1.1.1", 1.0, Some(0.0))),
+                vec![]
+            )),
+            None,
+            "a zero baseline has no meaningful percentage"
+        );
+        assert_eq!(
+            speed_improvement_text(&outcome(
+                None,
+                Some(node("1.1.1.1", 1.0, Some(1.0))),
+                vec![]
+            )),
+            None
+        );
+        assert_eq!(
+            speed_improvement_text(&outcome(Some(1.0), None, vec![])),
+            None
+        );
+    }
+
+    #[test]
+    fn latency_improvement_text_uses_the_best_candidate() {
+        let candidates = vec![
+            SpeedTestResult {
+                ip: IpAddr::V4(Ipv4Addr::new(104, 16, 0, 1)),
+                tcp_latency_ms: 20.0,
+                throughput_mbps: None,
+                error: None,
+            },
+            SpeedTestResult {
+                ip: IpAddr::V4(Ipv4Addr::new(104, 16, 0, 2)),
+                tcp_latency_ms: 10.0,
+                throughput_mbps: None,
+                error: None,
+            },
+        ];
+        assert_eq!(
+            latency_improvement_text(&outcome(
+                Some(1.0),
+                Some(node("1.1.1.1", 20.0, None)),
+                candidates
+            )),
+            Some("-50.0%".to_string())
+        );
+
+        assert_eq!(
+            latency_improvement_text(&outcome(
+                Some(1.0),
+                Some(node("1.1.1.1", 20.0, None)),
+                vec![]
+            )),
+            None,
+            "no candidates means no improvement to report"
+        );
+        let candidates = vec![SpeedTestResult {
+            ip: IpAddr::V4(Ipv4Addr::new(104, 16, 0, 2)),
+            tcp_latency_ms: 10.0,
+            ..Default::default()
+        }];
+        assert_eq!(
+            latency_improvement_text(&outcome(
+                Some(1.0),
+                Some(node("1.1.1.1", 0.0, None)),
+                candidates
+            )),
+            None,
+            "a zero baseline has no meaningful percentage"
+        );
+    }
+}

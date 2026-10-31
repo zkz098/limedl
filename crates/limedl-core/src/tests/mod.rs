@@ -12,6 +12,7 @@ mod resume_corruption_tests;
 // here to cover `resolve_gid` and the GID cache against a real DownloadManager.
 pub(crate) mod dispatcher_tests;
 mod http_executor_tests;
+mod integrity_tests;
 mod manager_tests;
 mod mirror_e2e_tests;
 mod module_boundaries_tests;

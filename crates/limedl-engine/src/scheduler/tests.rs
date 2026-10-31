@@ -2,7 +2,7 @@ use crate::download::{DEFAULT_FIXED_THREADS, MAX_TRADITIONAL_THREADS};
 use crate::manifest::Manifest;
 use crate::types::{
     AppSettings, AutomaticSchedulerSettings, DownloadState, Priority, SchedulerMode,
-    SchedulerSettings, ThreadMode, TraditionalSchedulerSettings,
+    SchedulerSettings, SpeedLimitSlot, ThreadMode, TraditionalSchedulerSettings,
 };
 
 // ── helpers ───────────────────────────────────────────────────────────
@@ -1011,4 +1011,57 @@ fn scheduler_idle_flag_initially_active() {
             .has_active_tasks
             .load(std::sync::atomic::Ordering::Acquire)
     );
+}
+
+// ── speed limit schedule ─────────────────────────────────────────────
+
+fn slot(start_hour: u8, end_hour: u8, limit_bps: u64) -> SpeedLimitSlot {
+    SpeedLimitSlot {
+        start_hour,
+        end_hour,
+        limit_bps,
+    }
+}
+
+#[test]
+fn speed_limit_schedule_empty_has_no_limit() {
+    assert_eq!(super::matching_speed_limit(&[], 0), None);
+    assert_eq!(super::matching_speed_limit(&[], 12), None);
+}
+
+#[test]
+fn speed_limit_schedule_uses_half_open_ranges() {
+    let schedule = [slot(8, 18, 1_000_000)];
+
+    assert_eq!(super::matching_speed_limit(&schedule, 7), None);
+    assert_eq!(super::matching_speed_limit(&schedule, 8), Some(1_000_000));
+    assert_eq!(super::matching_speed_limit(&schedule, 17), Some(1_000_000));
+    assert_eq!(super::matching_speed_limit(&schedule, 18), None);
+}
+
+#[test]
+fn speed_limit_schedule_wraps_midnight() {
+    let schedule = [slot(22, 6, 500_000)];
+
+    assert_eq!(super::matching_speed_limit(&schedule, 21), None);
+    assert_eq!(super::matching_speed_limit(&schedule, 22), Some(500_000));
+    assert_eq!(super::matching_speed_limit(&schedule, 23), Some(500_000));
+    assert_eq!(super::matching_speed_limit(&schedule, 0), Some(500_000));
+    assert_eq!(super::matching_speed_limit(&schedule, 5), Some(500_000));
+    assert_eq!(super::matching_speed_limit(&schedule, 6), None);
+}
+
+#[test]
+fn speed_limit_schedule_first_match_wins() {
+    let schedule = [slot(8, 12, 100), slot(10, 14, 200), slot(14, 18, 300)];
+
+    assert_eq!(super::matching_speed_limit(&schedule, 9), Some(100));
+    assert_eq!(super::matching_speed_limit(&schedule, 12), Some(200));
+    assert_eq!(super::matching_speed_limit(&schedule, 15), Some(300));
+}
+
+#[test]
+fn speed_limit_schedule_zero_limit_is_meaningful() {
+    let schedule = [slot(0, 12, 0)];
+    assert_eq!(super::matching_speed_limit(&schedule, 6), Some(0));
 }

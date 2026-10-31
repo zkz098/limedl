@@ -218,3 +218,156 @@ fn test_mirror_pool_leasing_and_concurrency_limit() {
     assert_eq!(snapshots[0].active_connections, 0);
     assert_eq!(snapshots[1].active_connections, 0);
 }
+
+// ── MirrorPool runtime health ────────────────────────────────────────
+
+fn resource(url: &str, priority: u32, max_connections: usize) -> MirrorResource {
+    MirrorResource {
+        url: url.to_string(),
+        priority,
+        location: None,
+        max_connections: Some(max_connections),
+    }
+}
+
+#[test]
+fn mirror_pool_from_urls_dedupes_primary_and_keeps_order() {
+    let pool = MirrorPool::from_urls(
+        "https://primary.example/file.iso",
+        &[
+            "https://primary.example/file.iso".to_string(),
+            "https://mirror-a.example/file.iso".to_string(),
+            "https://mirror-b.example/file.iso".to_string(),
+        ],
+        MirrorScoringConfig::default(),
+        3,
+    );
+
+    let snapshots = pool.snapshots();
+    assert_eq!(snapshots.len(), 3);
+    assert_eq!(snapshots[0].url, "https://primary.example/file.iso");
+    assert_eq!(snapshots[0].priority, 1);
+    assert_eq!(snapshots[1].url, "https://mirror-a.example/file.iso");
+    assert_eq!(snapshots[1].priority, 3);
+    assert_eq!(snapshots[2].url, "https://mirror-b.example/file.iso");
+    assert_eq!(snapshots[2].priority, 4);
+    assert!(snapshots.iter().all(|s| s.max_connections == 3));
+}
+
+#[test]
+fn mirror_pool_update_rtt_rescores_known_mirrors() {
+    let config = MirrorScoringConfig::default();
+    let pool = MirrorPool::new(
+        vec![resource("https://mirror.example/file.iso", 1, 2)],
+        MirrorScoringConfig::default(),
+        2,
+    );
+
+    pool.update_rtt("https://mirror.example/file.iso", 25);
+    let snapshot = &pool.snapshots()[0];
+    assert_eq!(snapshot.rtt_ms, Some(25));
+    let expected = calculate_mirror_score(
+        &resource("https://mirror.example/file.iso", 1, 2),
+        Some(25),
+        0,
+        &config,
+    );
+    assert_eq!(snapshot.score, expected);
+
+    // Unknown URLs are ignored rather than creating new entries.
+    pool.update_rtt("https://unknown.example/file.iso", 5);
+    assert_eq!(pool.snapshots().len(), 1);
+}
+
+#[test]
+fn mirror_pool_failure_backs_off_and_success_clears_it() {
+    let pool = MirrorPool::new(
+        vec![resource("https://mirror.example/file.iso", 1, 1)],
+        MirrorScoringConfig::default(),
+        1,
+    );
+
+    let lease = pool.lease_best_mirror().expect("lease");
+    lease.report_failure();
+    drop(lease);
+
+    let snapshot = &pool.snapshots()[0];
+    assert!(snapshot.is_cooling_down, "failure must start a cooldown");
+    assert!(
+        pool.lease_best_mirror().is_none(),
+        "a cooling-down mirror must not be leased"
+    );
+
+    pool.report_success("https://mirror.example/file.iso", 4096);
+    let snapshot = &pool.snapshots()[0];
+    assert!(!snapshot.is_cooling_down);
+    assert_eq!(snapshot.chunks_completed, 1);
+    assert_eq!(snapshot.total_bytes, 4096);
+    assert!(pool.lease_best_mirror().is_some());
+
+    // Unknown URLs are ignored.
+    pool.report_success("https://unknown.example/file.iso", 1);
+    pool.report_failure("https://unknown.example/file.iso");
+    pool.report_corrupted_piece("https://unknown.example/file.iso");
+    assert_eq!(pool.snapshots().len(), 1);
+}
+
+#[test]
+fn mirror_pool_corrupted_piece_applies_long_penalty() {
+    let pool = MirrorPool::new(
+        vec![resource("https://mirror.example/file.iso", 1, 1)],
+        MirrorScoringConfig::default(),
+        1,
+    );
+    let score_before = pool.snapshots()[0].score;
+
+    pool.report_corrupted_piece("https://mirror.example/file.iso");
+
+    let snapshot = &pool.snapshots()[0];
+    assert!(snapshot.is_cooling_down);
+    assert!(
+        snapshot.score < score_before,
+        "corruption penalty must reduce the score (before {score_before}, after {})",
+        snapshot.score
+    );
+    assert!(pool.lease_best_mirror().is_none());
+}
+
+#[test]
+fn mirror_pool_lease_falls_back_to_least_loaded_mirror() {
+    let pool = MirrorPool::new(
+        vec![
+            resource("https://mirror-a.example/file.iso", 1, 1),
+            resource("https://mirror-b.example/file.iso", 2, 1),
+        ],
+        MirrorScoringConfig::default(),
+        1,
+    );
+
+    let first = pool.lease_best_mirror().expect("first lease");
+    assert_eq!(first.url, "https://mirror-a.example/file.iso");
+    let second = pool.lease_best_mirror().expect("second lease");
+    assert_eq!(second.url, "https://mirror-b.example/file.iso");
+
+    // Both are at capacity; the fallback still hands out a slot from the
+    // least-loaded mirror instead of failing the chunk.
+    let third = pool.lease_best_mirror().expect("capacity fallback");
+    assert_eq!(third.url, "https://mirror-a.example/file.iso");
+}
+
+#[test]
+fn mirror_pool_lease_returns_none_when_every_mirror_is_cooling_down() {
+    let pool = MirrorPool::new(
+        vec![
+            resource("https://mirror-a.example/file.iso", 1, 4),
+            resource("https://mirror-b.example/file.iso", 2, 4),
+        ],
+        MirrorScoringConfig::default(),
+        4,
+    );
+
+    pool.report_failure("https://mirror-a.example/file.iso");
+    pool.report_failure("https://mirror-b.example/file.iso");
+
+    assert!(pool.lease_best_mirror().is_none());
+}

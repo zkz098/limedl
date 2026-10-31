@@ -35,7 +35,7 @@ use crate::{
     persistence::persist_manifest_snapshots_batch,
     types::{
         AdaptiveProfile, AppSettings, DiskType, DownloadState, QueueSortStrategy, SchedulerMode,
-        ThreadMode,
+        SpeedLimitSlot, ThreadMode,
     },
 };
 
@@ -277,24 +277,7 @@ impl Scheduler {
             }
         };
 
-        // Find matching slot
-        let limit = schedule.iter().find_map(|slot| {
-            if slot.start_hour <= slot.end_hour {
-                // Normal range: e.g. 8-18
-                if current_hour >= slot.start_hour && current_hour < slot.end_hour {
-                    Some(slot.limit_bps)
-                } else {
-                    None
-                }
-            } else {
-                // Wraps midnight: e.g. 22-6
-                if current_hour >= slot.start_hour || current_hour < slot.end_hour {
-                    Some(slot.limit_bps)
-                } else {
-                    None
-                }
-            }
-        });
+        let limit = matching_speed_limit(schedule, current_hour);
 
         match limit {
             Some(bps) => dm.rate_limiter().set_rate(bps),
@@ -308,6 +291,21 @@ impl Scheduler {
 }
 
 // ── Scheduler helper functions ───────────────────────────────────────────────
+
+/// Resolve the speed limit that applies at `current_hour`.
+///
+/// Slots are half-open (`start_hour` inclusive, `end_hour` exclusive); a slot
+/// with `start_hour > end_hour` wraps midnight. The first matching slot wins.
+fn matching_speed_limit(schedule: &[SpeedLimitSlot], current_hour: u8) -> Option<u64> {
+    schedule.iter().find_map(|slot| {
+        let active = if slot.start_hour <= slot.end_hour {
+            current_hour >= slot.start_hour && current_hour < slot.end_hour
+        } else {
+            current_hour >= slot.start_hour || current_hour < slot.end_hour
+        };
+        active.then_some(slot.limit_bps)
+    })
+}
 
 /// Extract the hostname from a download's final_url for per-host connection limiting.
 fn hostname_from_manifest(manifest: &Manifest) -> Option<String> {

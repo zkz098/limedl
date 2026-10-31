@@ -564,3 +564,52 @@ fn catalog_columns_are_complete_and_english_is_cjk_free() {
         );
     }
 }
+
+#[test]
+fn test_toast_formatters_are_localized_and_carry_details() {
+    for lang in [Language::ZhCn, Language::ZhTw, Language::EnUs] {
+        let added = format_toast_task_added("file.bin", lang);
+        assert!(added.contains("file.bin"), "task name missing for {lang:?}");
+
+        let failed = format_toast_task_add_failed("boom", lang);
+        assert!(failed.contains("boom"), "error missing for {lang:?}");
+
+        assert!(!format_toast_batch_done(1, 3, lang).is_empty());
+        assert!(!format_toast_settings_saved(lang).is_empty());
+        assert!(format_toast_settings_save_failed("disk full", lang).contains("disk full"));
+        assert!(format_toast_settings_invalid("bad value", lang).contains("bad value"));
+        assert!(!format_toast_setup_finished(lang).is_empty());
+        assert!(!format_toast_legacy_bt_resume(3, lang).is_empty());
+        assert!(!format_toast_tracker_synced(2, lang).is_empty());
+        assert!(format_toast_tracker_sync_failed("timeout", lang).contains("timeout"));
+        assert!(!format_toast_link_copied(lang).is_empty());
+        assert!(!format_toast_filename_copied(lang).is_empty());
+        assert!(!format_toast_labs_saved(lang).is_empty());
+        assert!(format_toast_labs_save_failed("readonly", lang).contains("readonly"));
+        assert!(format_toast_cdn_applied("1.2.3.4", lang).contains("1.2.3.4"));
+        assert!(format_toast_cdn_test_done(Some("1.2.3.4"), lang).contains("1.2.3.4"));
+        assert!(!format_toast_cdn_test_done(None, lang).is_empty());
+        assert!(format_toast_cdn_test_failed("refused", lang).contains("refused"));
+        assert!(format_toast_aria2_rpc_started(6800, lang).contains("6800"));
+        assert!(format_toast_aria2_token_failed("missing", lang).contains("missing"));
+        assert!(format_toast_autostart_failed("denied", lang).contains("denied"));
+        assert!(format_toast_priority_failed("bad", lang).contains("bad"));
+        assert!(!format_toast_bt_files_keep_one(lang).is_empty());
+        assert!(format_toast_bt_files_failed("io", lang).contains("io"));
+        assert!(!format_toast_clear_completed(2, lang).is_empty());
+        assert!(!format_toast_clear_completed_none(lang).is_empty());
+        assert!(format_toast_factory_reset_failed("locked", lang).contains("locked"));
+        assert!(format_toast_update_downloading("9.9.9", lang).contains("9.9.9"));
+        assert!(format_toast_update_ready("9.9.9", lang).contains("9.9.9"));
+        assert!(format_toast_update_failed("offline", lang).contains("offline"));
+        assert!(format_toast_update_available("9.9.9", lang).contains("9.9.9"));
+        assert!(format_toast_update_check_failed("offline", lang).contains("offline"));
+        assert!(format_toast_update_restart_failed("denied", lang).contains("denied"));
+        assert!(!format_toast_invalid_checksum(lang).is_empty());
+        assert!(format_toast_integrity_checking("file.bin", lang).contains("file.bin"));
+        assert!(format_toast_integrity_passed("file.bin", "sha256", lang).contains("file.bin"));
+        assert!(format_toast_integrity_mismatch("file.bin", "sha256", lang).contains("file.bin"));
+        assert!(format_toast_integrity_computed("file.bin", "sha256", lang).contains("file.bin"));
+        assert!(format_toast_integrity_failed("corrupt", lang).contains("corrupt"));
+    }
+}

@@ -387,6 +387,46 @@ pub fn sync_from_settings(autostart_flag: bool) {
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_desktop_entry_round_trip() {
+        let tmp = tempfile::tempdir().unwrap();
+        let previous = std::env::var_os("XDG_CONFIG_HOME");
+        struct Restore(Option<std::ffi::OsString>);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                // SAFETY: nextest runs each test in its own process, so no
+                // other thread observes the temporary env var.
+                unsafe {
+                    match &self.0 {
+                        Some(value) => std::env::set_var("XDG_CONFIG_HOME", value),
+                        None => std::env::remove_var("XDG_CONFIG_HOME"),
+                    }
+                }
+            }
+        }
+        let _restore = Restore(previous);
+        unsafe { std::env::set_var("XDG_CONFIG_HOME", tmp.path()) };
+
+        assert!(!is_enabled(), "no desktop entry exists yet");
+        enable().expect("enable autostart");
+        assert!(is_enabled());
+
+        let path = tmp.path().join("autostart/limedl-native.desktop");
+        let content = std::fs::read_to_string(&path).expect("desktop entry");
+        assert!(content.contains("[Desktop Entry]"));
+        assert!(content.contains("X-GNOME-Autostart-enabled=true"));
+        assert!(content.contains(&format!("Exec={}", expected_command().unwrap())));
+        assert!(
+            registered_for_current_exe(),
+            "a freshly written entry must point at this executable"
+        );
+
+        disable().expect("disable autostart");
+        assert!(!is_enabled());
+        disable().expect("disable is idempotent");
+    }
+
     #[cfg(any(windows, target_os = "linux"))]
     #[test]
     fn expected_command_contains_hidden_flag() {

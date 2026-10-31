@@ -371,6 +371,7 @@ mod eviction;
 mod lifecycle;
 mod progress;
 mod queries;
+mod resolve_client;
 mod scheduling_e2e;
 mod start_validation;
 mod startup;

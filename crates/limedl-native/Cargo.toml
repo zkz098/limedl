@@ -195,6 +195,11 @@ slint-build = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+limedl-testkit = { path = "../limedl-testkit" }
+# Signing side of the updater's minisign key pair, used only to build a valid
+# artifact signature in `update::tests`; the shipped verifier stays
+# `minisign-verify`.
+minisign = "0.10"
 # In-process UI testing: drives the real `MainWindow` (element queries, simulated
 # clicks and keystrokes, accessibility actions) with no window and no event loop.
 #

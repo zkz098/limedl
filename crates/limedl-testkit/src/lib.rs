@@ -65,6 +65,8 @@ pub struct TestServer {
     pub sha256_hash: String,
     /// Pre-computed SHA-512 hex checksum of the full content.
     pub sha512_hash: String,
+    /// The deterministic bytes every non-fault endpoint serves.
+    content: Arc<Vec<u8>>,
     /// Dropping this triggers graceful server shutdown.
     _shutdown: tokio::sync::oneshot::Sender<()>,
     /// How many responses the encoded endpoints actually compressed. Lets a
@@ -80,16 +82,25 @@ impl TestServer {
     /// The server binds to `127.0.0.1:0` (OS-assigned port) and listens
     /// until it is dropped, which triggers a graceful shutdown.
     pub async fn new(size: u64) -> Self {
-        let data = generate_content(size);
+        Self::from_bytes(generate_content(size)).await
+    }
+
+    /// Start a server over caller-provided bytes (checksums are derived).
+    ///
+    /// Useful for artifacts whose content is fixed by another component,
+    /// such as the native updater's download-and-verify tests.
+    pub async fn from_bytes(data: Vec<u8>) -> Self {
+        let data = Arc::new(data);
+        let file_size = data.len() as u64;
 
         // Pre‑compute every supported checksum from the in‑memory buffer.
-        let data_ref: &[&[u8]] = &[&data];
+        let data_ref: &[&[u8]] = &[data.as_slice()];
         let blake3_hash = hash_slices(ChecksumMode::Blake3, data_ref);
         let sha256_hash = hash_slices(ChecksumMode::Sha256, data_ref);
         let sha512_hash = hash_slices(ChecksumMode::Sha512, data_ref);
 
         let state = Arc::new(ServerState {
-            data: Arc::new(data),
+            data: data.clone(),
             blake3_hash: blake3_hash.clone(),
             sha256_hash: sha256_hash.clone(),
             sha512_hash: sha512_hash.clone(),
@@ -100,6 +111,7 @@ impl TestServer {
         let app = Router::new()
             .route("/file", get(serve_file))
             .route("/file/range", get(serve_file_range))
+            .route("/file/range/slow/{ms}", get(serve_file_range_slow))
             .route(
                 "/file/range/bandwidth/{bps}",
                 get(serve_file_range_bandwidth),
@@ -149,13 +161,21 @@ impl TestServer {
 
         Self {
             addr,
-            file_size: size,
+            file_size,
             blake3_hash,
             sha256_hash,
             sha512_hash,
+            content: data,
             _shutdown: tx,
             encoded_responses,
         }
+    }
+
+    /// The deterministic bytes every non-fault endpoint serves.
+    ///
+    /// Lets a test compute per-piece hashes without downloading the file first.
+    pub fn content(&self) -> &[u8] {
+        &self.content
     }
 
     /// URL for the full file download (`GET /file`).
@@ -186,6 +206,15 @@ impl TestServer {
     /// transfer. The limit is per connection, so N chunk workers share N×`bps`.
     pub fn file_url_range_bandwidth(&self, bps: u64) -> String {
         format!("{}/file/range/bandwidth/{bps}", self.addr)
+    }
+
+    /// URL for a range-capable file whose first response is delayed by
+    /// `delay_ms` milliseconds.
+    ///
+    /// Useful when a test has to attach state (for example Metalink piece
+    /// hashes) after `start()` but before the executor plans its chunks.
+    pub fn file_url_range_slow(&self, delay_ms: u64) -> String {
+        format!("{}/file/range/slow/{delay_ms}", self.addr)
     }
 
     /// URL for a **single-stream** file (no `Accept-Ranges`) that is served
@@ -400,6 +429,16 @@ async fn serve_file_range(
     State(state): State<Arc<ServerState>>,
     req_headers: HeaderMap,
 ) -> impl IntoResponse {
+    serve_range_identity(&state, &req_headers)
+}
+
+/// Range response delayed by `ms` before the first byte is produced.
+async fn serve_file_range_slow(
+    State(state): State<Arc<ServerState>>,
+    Path(delay_ms): Path<u64>,
+    req_headers: HeaderMap,
+) -> Response {
+    sleep(Duration::from_millis(delay_ms)).await;
     serve_range_identity(&state, &req_headers)
 }
 
