@@ -531,26 +531,58 @@ pub fn center_window_on_monitor(hwnd: HWND) {
             let work = mi.rcWork;
             let mut rect = RECT::default();
             if GetWindowRect(hwnd, &mut rect).is_ok() {
-                let win_w = rect.right - rect.left;
-                let win_h = rect.bottom - rect.top;
-                let work_w = work.right - work.left;
-                let work_h = work.bottom - work.top;
-                let x = work.left + ((work_w - win_w) / 2).max(0);
-                let y = work.top + ((work_h - win_h) / 2).max(0);
-                let _ = SetWindowPos(
-                    hwnd,
-                    None,
-                    x,
-                    y,
-                    0,
-                    0,
-                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
-                );
+                let mut win_w = (rect.right - rect.left).max(0) as u32;
+                let mut win_h = (rect.bottom - rect.top).max(0) as u32;
+                let work_w = (work.right - work.left).max(0) as u32;
+                let work_h = (work.bottom - work.top).max(0) as u32;
+                let resize = win_w > work_w || win_h > work_h;
+                if win_w > work_w {
+                    win_w = work_w;
+                }
+                if win_h > work_h {
+                    win_h = work_h;
+                }
+                let x = work.left + ((work_w - win_w) as i32 / 2).max(0);
+                let y = work.top + ((work_h - win_h) as i32 / 2).max(0);
+                let flags = if resize {
+                    SWP_NOZORDER | SWP_NOACTIVATE
+                } else {
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+                };
+                let _ = SetWindowPos(hwnd, None, x, y, win_w as i32, win_h as i32, flags);
                 tracing::info!(
-                    "窗口已智能居中于显示器工作区: x={x}, y={y} (工作区 {work_w}x{work_h})"
+                    "窗口已智能居中于显示器工作区: x={x}, y={y}, w={win_w}, h={win_h} (工作区 {work_w}x{work_h})"
                 );
             }
         }
+    }
+}
+
+/// Clamps a restored window geometry into a monitor's work area, preventing oversized
+/// windows (e.g. saved on a 4K display and restored on a 1080p or 768p laptop display)
+/// or windows whose title bars/edges hang outside the usable monitor bounds.
+#[cfg(any(windows, test))]
+pub fn clamp_geometry_to_work_area(
+    geom: &WindowGeometry,
+    work_left: i32,
+    work_top: i32,
+    work_right: i32,
+    work_bottom: i32,
+) -> WindowGeometry {
+    let work_w = (work_right - work_left).max(0) as u32;
+    let work_h = (work_bottom - work_top).max(0) as u32;
+    let width = geom.width.min(work_w).max(MIN_WINDOW_WIDTH.min(work_w));
+    let height = geom.height.min(work_h).max(MIN_WINDOW_HEIGHT.min(work_h));
+    let max_x = (work_right - width as i32).max(work_left);
+    let max_y = (work_bottom - height as i32).max(work_top);
+    let x = geom.x.clamp(work_left, max_x);
+    let y = geom.y.clamp(work_top, max_y);
+    WindowGeometry {
+        x,
+        y,
+        width,
+        height,
+        is_maximized: geom.is_maximized,
     }
 }
 
@@ -625,14 +657,39 @@ pub fn apply_restored_window_placement(
             return false;
         };
         unsafe {
+            let check_w = geom.width.min(100) as i32;
+            let check_h = geom.height.min(40) as i32;
+            let rect = RECT {
+                left: geom.x,
+                top: geom.y,
+                right: geom.x + check_w,
+                bottom: geom.y + check_h,
+            };
+            let hmonitor = MonitorFromRect(&rect, MONITOR_DEFAULTTOPRIMARY);
+            let mut mi = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            let clamped = if GetMonitorInfoW(hmonitor, &mut mi).as_bool() {
+                clamp_geometry_to_work_area(
+                    &geom,
+                    mi.rcWork.left,
+                    mi.rcWork.top,
+                    mi.rcWork.right,
+                    mi.rcWork.bottom,
+                )
+            } else {
+                geom.clone()
+            };
+
             let show_cmd = if !window.is_visible() {
                 SW_HIDE.0 as u32
-            } else if geom.is_maximized {
+            } else if clamped.is_maximized {
                 SW_SHOWMAXIMIZED.0 as u32
             } else {
                 SW_SHOWNORMAL.0 as u32
             };
-            let flags = if geom.is_maximized {
+            let flags = if clamped.is_maximized {
                 WPF_RESTORETOMAXIMIZED
             } else {
                 WINDOWPLACEMENT_FLAGS::default()
@@ -644,10 +701,10 @@ pub fn apply_restored_window_placement(
                 ptMinPosition: POINT { x: -1, y: -1 },
                 ptMaxPosition: POINT { x: -1, y: -1 },
                 rcNormalPosition: RECT {
-                    left: geom.x,
-                    top: geom.y,
-                    right: geom.x + geom.width as i32,
-                    bottom: geom.y + geom.height as i32,
+                    left: clamped.x,
+                    top: clamped.y,
+                    right: clamped.x + clamped.width as i32,
+                    bottom: clamped.y + clamped.height as i32,
                 },
             };
             let _ = SetWindowPlacement(hwnd, &wp);
@@ -1015,6 +1072,63 @@ mod tests {
         assert_eq!(load_window_geometry(&temp_dir), None);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_clamp_geometry_to_work_area() {
+        // 1. In-bounds geometry is preserved
+        let normal = WindowGeometry {
+            x: 100,
+            y: 50,
+            width: 1280,
+            height: 720,
+            is_maximized: false,
+        };
+        let clamped = clamp_geometry_to_work_area(&normal, 0, 0, 1920, 1040);
+        assert_eq!(clamped, normal);
+
+        // 2. Oversized geometry (from 4K/2K display to 1366x768 display) is clamped
+        let oversized = WindowGeometry {
+            x: 200,
+            y: 100,
+            width: 2560,
+            height: 1440,
+            is_maximized: true,
+        };
+        let clamped = clamp_geometry_to_work_area(&oversized, 0, 0, 1366, 728);
+        assert_eq!(clamped.width, 1366);
+        assert_eq!(clamped.height, 728);
+        assert_eq!(clamped.x, 0);
+        assert_eq!(clamped.y, 0);
+        assert!(clamped.is_maximized);
+
+        // 3. Right/bottom hanging geometry is shifted inside
+        let hanging = WindowGeometry {
+            x: 1500,
+            y: 800,
+            width: 1200,
+            height: 700,
+            is_maximized: false,
+        };
+        let clamped = clamp_geometry_to_work_area(&hanging, 0, 0, 1920, 1080);
+        assert_eq!(clamped.width, 1200);
+        assert_eq!(clamped.height, 700);
+        assert_eq!(clamped.x, 720); // 1920 - 1200 = 720
+        assert_eq!(clamped.y, 380); // 1080 - 700 = 380
+
+        // 4. Geometry left/above work area is clamped to top-left
+        let off_top_left = WindowGeometry {
+            x: -200,
+            y: -100,
+            width: 1000,
+            height: 600,
+            is_maximized: false,
+        };
+        let clamped = clamp_geometry_to_work_area(&off_top_left, 0, 0, 1920, 1080);
+        assert_eq!(clamped.x, 0);
+        assert_eq!(clamped.y, 0);
+        assert_eq!(clamped.width, 1000);
+        assert_eq!(clamped.height, 600);
     }
 
     /// A geometry saved by an earlier run must survive the round trip through

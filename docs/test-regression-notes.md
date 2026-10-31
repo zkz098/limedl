@@ -38,9 +38,21 @@ When adding UI test cases, aim at these directions:
   `ScrollView` so Settings and Labs always remain reachable. `layout.rs` pins the
   1024x540 / 1024x576 work area in both zh-CN and en-US.
 - The new-task dialog modal had a fixed height (600 px when
-  `preview_state == "ready"`), while an expanded torrent file list is taller.
-  Fixed by putting the dialog body in a `ScrollView` so the footer
-  ("Start Download") always stays in the modal.
+  `preview_state == "ready"` or in batch mode), while low-resolution or scaled
+  displays (work area height ~540 px) forced the modal outside the window,
+  clipping the footer ("Start Download" / "Add Batch Tasks") and header. Fixed by
+  capping the modal height to `min(parent.height - 32px, ...)`, adding
+  `min-height: 0px` to its `ScrollView`, and applying compact spacing when height
+  is below 600 px. `layout.rs::dialogs_fit_on_small_work_areas` pins the dialog
+  in both locales across single, batch, and torrent preview states.
+- The task inspector's Tab 3 (Piece Map) hardcoded its image height to 380 px
+  without a `ScrollView`, overflowing the 440 px modal panel on small work areas.
+  Fixed by wrapping Tab 3 in a `ScrollView` and applying adaptive image height
+  below 600 px.
+- Restoring saved window geometry from a high-resolution display (e.g. 4K) on a
+  smaller monitor could restore oversized dimensions exceeding the screen. Fixed
+  by clamping restored geometry to the target monitor's work area in
+  `platform_win::clamp_geometry_to_work_area`.
 - The table view's inline action column was clipped out of the visible area at
   default and minimum widths (the table has no horizontal scroll). Fixed by
   pinning the action column to the right edge (`root.width - 138px`), letting data

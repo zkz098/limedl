@@ -319,6 +319,53 @@ fn dialogs_fit_the_window_at_the_minimum_size() {
 }
 
 #[test]
+fn dialogs_fit_on_small_work_areas() {
+    for lang in [Language::ZhCn, Language::EnUs] {
+        with_language(lang, |ui| {
+            for (w, h) in [(1024.0, 540.0), (1024.0, 576.0)] {
+                ui.set_window_size(w, h);
+
+                // NewTaskDialog: Single mode
+                ui.click("MainWindow::ta_new_task");
+                assert_dialog_fits(ui, "NewTaskDialog::modal", "NewTaskDialog::submit_btn");
+                ui.click("NewTaskDialog::close_btn");
+
+                // NewTaskDialog: Batch mode
+                ui.click("MainWindow::ta_new_task");
+                ui.click("NewTaskDialog::batch_tab");
+                assert_dialog_fits(
+                    ui,
+                    "NewTaskDialog::modal",
+                    "NewTaskDialog::submit_batch_btn",
+                );
+                ui.click("NewTaskDialog::close_btn");
+
+                // NewTaskDialog: Torrent preview ready
+                ui.click("MainWindow::ta_new_task");
+                ui.window.set_new_task_preview_state("ready".into());
+                assert_dialog_fits(ui, "NewTaskDialog::modal", "NewTaskDialog::submit_btn");
+                ui.click("NewTaskDialog::close_btn");
+
+                // TaskInspector: General Tab & Piece Map Tab
+                ui.seed(vec![http_task(
+                    1,
+                    "alpha.bin",
+                    DownloadState::Downloading,
+                    10,
+                    100,
+                )]);
+                ui.window.invoke_open_inspector(http_wire(1).into());
+                assert_dialog_fits(ui, "TaskInspector::panel", "TaskInspector::close_btn");
+                ui.window.invoke_set_inspector_tab(3);
+                assert_dialog_fits(ui, "TaskInspector::panel", "TaskInspector::close_btn");
+                ui.window.invoke_close_inspector();
+            }
+            crate::i18n::apply_translation(Language::ZhCn);
+        });
+    }
+}
+
+#[test]
 fn the_context_and_priority_menus_are_clamped_into_the_window() {
     with_ui(|ui| {
         ui.seed(vec![

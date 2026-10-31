@@ -67,8 +67,8 @@ export component NewTaskDialog inherits Rectangle {
     }
 
     modal := Rectangle {
-        width: min(parent.width - 60px, 660px);
-        height: root.batch_mode || root.preview_state == "ready" ? 600px : 470px;
+        width: min(parent.width - 40px, 660px);
+        height: min(parent.height - 32px, root.batch_mode || root.preview_state == "ready" ? 600px : 470px);
         animate height { duration: 200ms; easing: ease-out; }
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2 + (root.is_open ? 0px : 14px);
@@ -81,8 +81,8 @@ export component NewTaskDialog inherits Rectangle {
         drop-shadow-color: Theme.c000000cc;
 
         VerticalLayout {
-            padding: 22px;
-            spacing: 12px;
+            padding: root.height < 600px ? 14px : 22px;
+            spacing: root.height < 600px ? 8px : 12px;
 
             // Header
             HorizontalLayout {
@@ -118,12 +118,12 @@ export component NewTaskDialog inherits Rectangle {
                 }
             }
 
-            // The body scrolls: the modal has a fixed height and the torrent file
-            // list makes its content taller than that, which used to push the footer
-            // (and the Start Download button) out of the modal. Keeping the footer
-            // outside the scroll area means it stays reachable at every window size.
+            // The body scrolls: the modal has a bounded height and the content or
+            // torrent file list makes it scrollable, ensuring the footer (and the
+            // Start Download button) stays reachable at every window size.
             ScrollView {
                 vertical-stretch: 1;
+                min-height: 0px;
                 content-width: self.visible-width;
 
                 VerticalLayout {
@@ -230,7 +230,7 @@ export component NewTaskDialog inherits Rectangle {
 
                             Rectangle {
                                 clip: true;
-                                height: root.preview_state == "ready" ? 160px : 0px;
+                                height: root.preview_state == "ready" ? (root.height < 600px ? 120px : 160px) : 0px;
                                 opacity: root.preview_state == "ready" ? 1.0 : 0.0;
                                 animate height { duration: 200ms; easing: ease-out; }
                                 animate opacity { duration: 160ms; easing: ease-out; }
@@ -307,7 +307,7 @@ export component NewTaskDialog inherits Rectangle {
                         }
 
                         Rectangle {
-                            height: 180px;
+                            height: root.height < 600px ? 130px : 180px;
                             background: Theme.c14161b;
                             border-color: te.has-focus ? Theme.c84cc16 : Theme.c2b313d;
                             border-width: 1px;
