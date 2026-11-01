@@ -2,18 +2,41 @@
 import '../styles/main.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import { organizationJsonLd, SITE_URL } from '../lib/seo';
 
 interface Props {
   title: string;
   description?: string;
   lang?: 'zh-CN' | 'en';
+  rss?: string;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 
 const {
   title,
   description = 'limedl - 基于 Rust 与 Slint 的轻量级原生多协议下载管理器，支持 HTTP 自适应并发与 BitTorrent，内置 CDN 智能加速。',
   lang = 'zh-CN',
+  rss,
+  jsonLd,
 } = Astro.props;
+
+const site = Astro.site ?? new URL(SITE_URL);
+const isEn = lang === 'en';
+const path = Astro.url.pathname;
+const normalizedPath = path.endsWith('/') ? path : `${path}/`;
+const canonical = new URL(normalizedPath, site).toString();
+const stripEn = (value: string) =>
+  value === '/en' || value === '/en/' ? '/' : value.startsWith('/en/') ? value.slice(3) : value;
+const addEn = (value: string) => (value === '/' ? '/en/' : `/en${value}`);
+const zhUrl = new URL(isEn ? stripEn(normalizedPath) : normalizedPath, site).toString();
+const enUrl = new URL(isEn ? normalizedPath : addEn(normalizedPath), site).toString();
+const ogImage = new URL('/images/og-preview.png', site).toString();
+const ogLocale = isEn ? 'en_US' : 'zh_CN';
+const alternateLocale = isEn ? 'zh_CN' : 'en_US';
+const structuredData = [
+  organizationJsonLd(),
+  ...(Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : []),
+];
 ---
 
 <!doctype html>
@@ -22,17 +45,34 @@ const {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png" />
+    {rss && <link rel="alternate" type="application/rss+xml" title="limedl changelog" href={rss} />}
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta name="theme-color" content="#0d0f12" />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="zh-CN" href={zhUrl} />
+    <link rel="alternate" hreflang="en" href={enUrl} />
+    <link rel="alternate" hreflang="x-default" href={zhUrl} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/images/og-preview.png" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content="limedl" />
+    <meta property="og:locale" content={ogLocale} />
+    <meta property="og:locale:alternate" content={alternateLocale} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="limedl — native multi-protocol download manager" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="/images/og-preview.png" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content="limedl — native multi-protocol download manager" />
+    <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
   </head>
   <body class="bg-brand-dark text-slate-100 min-h-screen flex flex-col antialiased selection:bg-lime-500 selection:text-black">
     <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">

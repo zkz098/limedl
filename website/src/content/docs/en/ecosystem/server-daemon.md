@@ -132,7 +132,7 @@ The systemd unit enforces isolation (`ProtectSystem=strict`, `ProtectHome=true`,
 
 For secure external access, keep the default `127.0.0.1` loopback listener and let Caddy or Nginx provide TLS encryption and proxy `/jsonrpc`:
 
-```caddyfile
+```text
 # Caddyfile example
 aria.example.com {
     root * /srv/ariang

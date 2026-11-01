@@ -1,0 +1,204 @@
+---
+import changelog from '../data/changelog.json';
+
+interface Props {
+  lang?: 'zh-CN' | 'en';
+}
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEn = lang === 'en';
+
+const labels = {
+  features: isEn ? 'Features' : '新功能',
+  fixes: isEn ? 'Bug Fixes' : '问题修复',
+  performance: isEn ? 'Performance' : '性能优化',
+  refactoring: isEn ? 'Refactoring' : '重构',
+};
+
+const commitsIn = (groups: typeof changelog.unreleased) =>
+  groups.reduce((total, group) => total + group.commits.length, 0);
+
+const releases = changelog.releases;
+const hasUnreleased = changelog.unreleased.length > 0;
+
+const block = (groups: typeof changelog.unreleased) =>
+  groups.map((group) => ({
+    label: labels[group.id as keyof typeof labels] ?? group.id,
+    commits: group.commits,
+  }));
+---
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+  <header class="space-y-4 mb-12">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-lime-500/20 bg-lime-500/10 text-lime-400 text-xs font-mono">
+      <span class="i-ri-git-commit-line w-3.5 h-3.5"></span>
+      <span>{isEn ? 'Generated from Conventional Commits' : '由 Conventional Commits 自动生成'}</span>
+    </div>
+    <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+      {isEn ? 'Changelog' : '更新日志'}
+    </h1>
+    <p class="text-slate-400 max-w-3xl leading-relaxed">
+      {
+        isEn
+          ? 'Every stable release, grouped by features, fixes, performance work, and refactoring. Internal tests, CI, and documentation commits are omitted.'
+          : '只列出稳定版本中面向用户的新功能、问题修复、性能优化与重构；内部测试、CI 与文档改动不在此列。'
+      }
+    </p>
+    <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-mono">
+      <span>{isEn ? 'Latest stable' : '最新稳定版'}: {changelog.latestTag ?? '—'}</span>
+      <span class="text-brand-border">·</span>
+      <span>{isEn ? 'Snapshot' : '快照日期'}: {changelog.generatedAt ?? '—'}</span>
+      <span class="text-brand-border">·</span>
+      <a
+        href={isEn ? '/en/changelog.xml' : '/changelog.xml'}
+        class="inline-flex items-center gap-1 text-lime-400 hover:text-lime-300 transition-colors"
+      >
+        <span class="i-ri-rss-line w-3.5 h-3.5"></span>
+        RSS
+      </a>
+    </div>
+  </header>
+
+  {
+    hasUnreleased && (
+      <article class="glass-card mb-8 border-lime-500/30">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div class="flex items-center gap-3">
+            <h2 class="text-xl font-bold text-white">{isEn ? 'Unreleased' : '未发布'}</h2>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-lime-500/20 text-lime-400 border border-lime-500/30">
+              main
+            </span>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">
+            {commitsIn(changelog.unreleased)} {isEn ? 'changes' : '项改动'}
+          </span>
+        </div>
+        <div class="space-y-6">
+          {block(changelog.unreleased).map((group) => (
+            <section>
+              <h3 class="text-xs uppercase tracking-widest text-lime-400 font-bold font-mono mb-3">
+                {group.label}
+              </h3>
+              <ul class="space-y-2">
+                {group.commits.map((commit) => (
+                  <li class="flex items-start gap-2 text-sm text-slate-300 leading-relaxed">
+                    <span class="mt-2 w-1.5 h-1.5 rounded-full bg-lime-500/70 shrink-0"></span>
+                    <span>
+                      {commit.scope && <code class="text-lime-300 text-xs mr-1.5">{commit.scope}</code>}
+                      {commit.subject}
+                      {commit.breaking && (
+                        <span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          BREAKING
+                        </span>
+                      )}
+                      <a
+                        href={`https://github.com/zkz098/limedl/commit/${commit.hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="ml-2 text-[11px] text-slate-500 hover:text-lime-400 font-mono"
+                      >
+                        {commit.shortHash}
+                      </a>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </article>
+    )
+  }
+
+  {
+    releases.length === 0 && (
+      <p class="text-slate-400">
+        {isEn ? 'No stable releases have been recorded yet.' : '暂时还没有可展示的稳定版本记录。'}
+      </p>
+    )
+  }
+
+  <div class="space-y-4">
+    {releases.map((release, index) => {
+      const expanded = !hasUnreleased && index === 0;
+      const content = (
+        <div class="space-y-6">
+          {block(release.groups).map((group) => (
+            <section>
+              <h3 class="text-xs uppercase tracking-widest text-lime-400 font-bold font-mono mb-3">
+                {group.label}
+              </h3>
+              <ul class="space-y-2">
+                {group.commits.map((commit) => (
+                  <li class="flex items-start gap-2 text-sm text-slate-300 leading-relaxed">
+                    <span class="mt-2 w-1.5 h-1.5 rounded-full bg-lime-500/70 shrink-0"></span>
+                    <span>
+                      {commit.scope && <code class="text-lime-300 text-xs mr-1.5">{commit.scope}</code>}
+                      {commit.subject}
+                      {commit.breaking && (
+                        <span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          BREAKING
+                        </span>
+                      )}
+                      <a
+                        href={`https://github.com/zkz098/limedl/commit/${commit.hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="ml-2 text-[11px] text-slate-500 hover:text-lime-400 font-mono"
+                      >
+                        {commit.shortHash}
+                      </a>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      );
+
+      const header = (
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <h2 class="text-xl font-bold text-white">
+              {release.tag}
+            </h2>
+            <span class="text-xs text-slate-500 font-mono">{release.date}</span>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">
+            {commitsIn(release.groups)} {isEn ? 'changes' : '项改动'}
+          </span>
+        </div>
+      );
+
+      return expanded ? (
+        <article id={release.tag} class="glass-card scroll-mt-24">
+          <div class="mb-5">{header}</div>
+          {content}
+        </article>
+      ) : (
+        <details id={release.tag} class="glass-card group scroll-mt-24">
+          <summary class="cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden">
+            <div class="flex items-center justify-between gap-3">
+              {header}
+              <span class="i-ri-arrow-down-s-line w-5 h-5 text-slate-400 group-open:rotate-180 transition-transform shrink-0"></span>
+            </div>
+          </summary>
+          <div class="mt-5 pt-5 border-t border-brand-border/60">{content}</div>
+        </details>
+      );
+    })}
+  </div>
+
+  <div class="mt-12 text-center">
+    <a
+      href="https://github.com/zkz098/limedl/releases"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="inline-flex items-center gap-2 text-sm font-semibold text-lime-400 hover:text-lime-300 transition-colors"
+    >
+      <span>{isEn ? 'Browse all releases and assets on GitHub' : '在 GitHub 查看全部版本与发布资产'}</span>
+      <span class="i-ri-external-link-line w-4 h-4"></span>
+    </a>
+  </div>
+</div>

@@ -132,7 +132,7 @@ sudo journalctl -u limedl-server -f
 
 若需要公网安全访问，推荐让 `limedl-server` 维持默认的 `127.0.0.1` 本地回环监听，由 Caddy 或 Nginx 提供 TLS 加密并反代 `/jsonrpc`：
 
-```caddyfile
+```text
 # Caddyfile 示例
 aria.example.com {
     root * /srv/ariang

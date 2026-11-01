@@ -7,8 +7,10 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
+    "prebuild": "node scripts/generate-changelog.mjs",
     "build": "astro build",
     "preview": "astro preview",
+    "changelog": "node scripts/generate-changelog.mjs",
     "astro": "astro"
   },
   "dependencies": {

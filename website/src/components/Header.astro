@@ -1,6 +1,7 @@
 ---
 import { Image } from 'astro:assets';
 import logoImage from '../assets/logo.png';
+import { APP_TAG } from '../lib/version';
 
 interface Props {
   lang?: 'zh-CN' | 'en';
@@ -12,15 +13,17 @@ const isEn = lang === 'en';
 const navLinks = isEn
   ? [
       { name: 'Features', href: '/en/#features' },
+      { name: 'Use Cases', href: '/en/use-cases/' },
       { name: 'Download', href: '/en/download' },
       { name: 'Docs', href: '/en/getting-started/overview/' },
-      { name: 'Ecosystem', href: '/en/ecosystem/browser/' },
+      { name: 'Changelog', href: '/en/changelog' },
     ]
   : [
       { name: '特性', href: '/#features' },
+      { name: '使用场景', href: '/use-cases/' },
       { name: '下载', href: '/download' },
       { name: '文档', href: '/getting-started/overview/' },
-      { name: '生态集成', href: '/ecosystem/browser/' },
+      { name: '更新日志', href: '/changelog' },
     ];
 
 const langSwitchHref = isEn ? '/' : '/en/';
@@ -45,12 +48,12 @@ const langSwitchText = isEn ? '中文' : 'English';
         limedl
       </span>
       <span class="text-xs px-2 py-0.5 rounded-full bg-lime-500/10 text-lime-400 border border-lime-500/20 font-mono">
-        v0.6.1
+        {APP_TAG}
       </span>
     </a>
 
     <!-- Nav Links -->
-    <nav class="hidden md:flex items-center gap-8">
+    <nav class="hidden md:flex items-center gap-4 lg:gap-7">
       {
         navLinks.map((item) => (
           <a

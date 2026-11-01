@@ -103,3 +103,5 @@ limedl 直接在 Rust 的 `reqwest::ClientBuilder::resolve` 传输层接入：
   ```
 
 保存规则后，当你通过剪贴板或浏览器插件提交原始 GitHub 链接时，limedl 会在派发前自动将其匹配并重写为高速镜像源，同时保留原始文件的校验和与元数据。
+
+匹配类型、前缀代理/模板、URL 编码与失败回退的完整字段见 [URL 重写与自定义 CDN](/guides/url-rewrite-and-cdn-providers/)。

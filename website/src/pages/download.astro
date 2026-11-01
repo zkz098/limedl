@@ -1,8 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { APP_TAG, RELEASE_BASE_URL } from '../lib/version';
+import { softwareApplicationJsonLd } from '../lib/seo';
 
-const version = 'v0.6.1';
-const baseReleaseUrl = 'https://github.com/zkz098/limedl/releases/latest/download';
+const version = APP_TAG;
+const baseReleaseUrl = RELEASE_BASE_URL;
 
 const downloads = [
   {
@@ -38,7 +40,7 @@ const downloads = [
     platform: 'macOS',
     icon: 'i-ri-macbook-line',
     arch: 'Apple Silicon (aarch64)',
-    osVersion: 'macOS 12+ (M1 / M2 / M3 / M4)',
+    osVersion: 'macOS 11+ (仅 Apple Silicon)',
     packages: [
       {
         name: '便携应用包 (.tar.gz)',
@@ -85,6 +87,7 @@ const downloads = [
   title="下载 limedl - 全平台桌面客户端"
   description="获取适用于 Windows、macOS (Apple Silicon) 与 Linux 系统的 limedl 官方安全安装包与便携绿色版，支持 Minisign + ML-DSA-65 混合双签名验签。"
   lang="zh-CN"
+  jsonLd={[softwareApplicationJsonLd(version)]}
 >
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
     <!-- Header -->
@@ -97,6 +100,10 @@ const downloads = [
       </h1>
       <p class="text-slate-400 text-base">
         所有安装包均通过 GitHub Actions 自动化构建，并由 Minisign (Ed25519) 与 ML-DSA-65 双签名，保障零篡改与绝对纯净。
+      </p>
+      <p class="text-xs text-slate-500">
+        仅提供 Windows x86_64、macOS Apple Silicon 与 Linux x86_64；没有 Intel Mac、Windows ARM64 或 Linux ARM64 桌面版。
+        <a href="/getting-started/platform-support/" class="text-lime-400 hover:text-lime-300 underline">查看平台支持矩阵</a>
       </p>
     </div>
 
@@ -219,7 +226,7 @@ const downloads = [
         <h3 class="text-lg font-bold text-white">安全与哈希校验指南</h3>
       </div>
       <p class="text-sm text-slate-400 leading-relaxed">
-        为确保你下载的文件未经第三方篡改，每个版本均在 Release 资产中附带 <code class="text-lime-300">.sig</code>（Minisign Ed25519）与 <code class="text-lime-300">.pqc.sig</code>（ML-DSA-65 后量子密码学）双签名与 SHA256 哈希清单；ML-DSA-65 公钥与独立验签方法见<a href="/getting-started/installation/" class="text-lime-400 hover:text-lime-300 underline">安装指南</a>。
+        为确保你下载的文件未经第三方篡改，桌面发行版均通过 <code class="text-lime-300">Minisign Ed25519</code> 与 <code class="text-lime-300">ML-DSA-65</code> 后量子密码学双签名；SHA-256 摘要由 GitHub Release 为每个资产提供。签名文件与独立验签方法见<a href="/security/" class="text-lime-400 hover:text-lime-300 underline">安全与验签</a>。
       </p>
 
       <div class="space-y-3">

@@ -60,7 +60,7 @@ limedl 的配置统一保存在应用数据目录下的 `settings.json` 中，�
 | **Tail Sprint** | 开启 / 关闭（默认） | 尾部冲刺：对最后剩余的大分块做拆分与重试，减少长尾。 |
 | **连接预热** | 开启（默认）/ 关闭 | 下载开始前预先建立部分连接，降低首字节等待。 |
 | **自动校验和模式** | None / Blake3（默认）/ SHA-256 / SHA-512 | 下载完成后校验的算法；`None` 表示不校验。注意：通用校验失败时任务会标记为失败并保留 `.part.corrupt`，不会自动重下“坏块”；Metalink 的 piece 校验是独立的逐片机制。 |
-| **HTTP/3 Alt-Svc** | `settings.json` 中 `scheduler.http3AltSvcEnabled`，默认开启 | 允许对支持 Alt-Svc 的主机尝试 HTTP/3（QUIC）；失败会熔断并回退 TCP，需要本机 UDP 443 可用。此项不在设置对话框中。 |
+| **HTTP/3 Alt-Svc** | `settings.json` 中 `scheduler.http3AltSvcEnabled`，默认开启 | 允许对支持 Alt-Svc 的主机尝试 HTTP/3（QUIC）；失败会熔断并回退 TCP，需要本机 UDP 443 可用。此项不在设置对话框中，启用条件与熔断细节见[专家参数与 HTTP/3](/advanced/expert-settings-and-http3/)。 |
 
 ### 专家模式 (Expert Mode)
 
@@ -181,5 +181,5 @@ Game Mode 与 Overclock Mode 是运行时开关，不写入 `settings.json`：�
   - 自定义 Provider 可填写测速 URL 与 IPv4/IPv6 CIDR 列表；
   - 测速会消耗 20–50 MB 流量，完成后可应用最优边缘 IP；
   - 加速仅对匹配所选 Provider 网段的域名生效，失败会回退普通 DNS。
-- **URL 重写规则 (URL Rewrite Rules)**：按 Host / 前缀 / 正则 / 通配符匹配，将慢速源改写为镜像，可设置请求头与替换模板。
+- **URL 重写规则 (URL Rewrite Rules)**：按 Host / 前缀 / 正则 / 通配符匹配，将慢速源改写为镜像；支持前缀代理/模板、URL 编码与失败回退。规则本身不含请求头字段，`Cookie`/`Referer` 等请通过任务或浏览器扩展传入。字段与匹配顺序见 [URL 重写与自定义 CDN](/guides/url-rewrite-and-cdn-providers/)。
 - **完整性校验**：任务右键菜单提供“校验文件完整性”，见 [任务管理](/guides/tasks/)。

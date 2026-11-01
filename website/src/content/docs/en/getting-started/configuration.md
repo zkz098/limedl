@@ -60,7 +60,7 @@ Open **Settings** from the left toolbar for the graphical panel. A few engine-le
 | **Tail Sprint** | On / Off (default) | Splits/retries the last large chunks to reduce long tails. |
 | **Connection warmup** | On (default) / Off | Pre-opens some connections to reduce time-to-first-byte. |
 | **Automatic checksum mode** | None / Blake3 (default) / SHA-256 / SHA-512 | Post-download verification. A generic checksum mismatch fails the task and preserves `.part.corrupt`; it does **not** auto-redownload bad chunks. Metalink piece verification is a separate per-piece mechanism. |
-| **HTTP/3 Alt-Svc** | `scheduler.http3AltSvcEnabled` in `settings.json`, on by default | Tries HTTP/3 (QUIC) for hosts that advertise Alt-Svc; failures trip a circuit breaker and fall back to TCP. UDP 443 must be available. Not exposed in the settings dialog. |
+| **HTTP/3 Alt-Svc** | `scheduler.http3AltSvcEnabled` in `settings.json`, on by default | Tries HTTP/3 (QUIC) for hosts that advertise Alt-Svc; failures trip a circuit breaker and fall back to TCP. UDP 443 must be available. Not exposed in the settings dialog; see [Expert Settings & HTTP/3](/en/advanced/expert-settings-and-http3/) for gating and backoff. |
 
 ### Expert Mode
 
@@ -181,5 +181,5 @@ Logs live in the data directory (see the installation guide). Attach the relevan
   - A custom provider takes a test URL plus IPv4/IPv6 CIDR lists;
   - A speed test consumes 20–50 MB of traffic; apply the best edge IP afterwards;
   - Acceleration only applies to domains matching the selected provider's ranges and falls back to normal DNS on failure.
-- **URL rewrite rules**: match by host/prefix/regex/wildcard and rewrite slow sources to mirrors, with optional headers and replacement templates.
+- **URL rewrite rules**: match by host/prefix/regex/wildcard and rewrite slow sources to mirrors; supports prefix-proxy/template modes, URL encoding, and fallback to the original. Rules have no header fields — pass `Cookie`/`Referer` through the task or browser extension. See [URL Rewrite & Custom CDN](/en/guides/url-rewrite-and-cdn-providers/).
 - **Integrity verification**: the task context menu offers "Verify integrity"; see [Tasks & Concurrency](/en/guides/tasks/).

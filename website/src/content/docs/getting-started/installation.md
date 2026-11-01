@@ -5,7 +5,7 @@ description: 如何在 Windows、macOS 与 Linux 系统上获取、安装与校�
 
 # 安装指南
 
-limedl 为主流桌面操作系统提供了原生编译的发布版本。所有发布文件均经过 **Minisign 密码学防篡改签名** 与 SHA256 哈希固化，确保安全纯净。
+limedl 为主流桌面操作系统提供了原生编译的发布版本。所有桌面发布文件均经过 **Minisign + ML-DSA-65 双签名**；服务端二进制不参与自更新签名。文中的文件名以 `v0.6.1` 为示例，请以实际下载到的版本号为准。
 
 :::tip[快捷下载通道]
 你随时可以访问官方 [下载页面](/download/)，页面会自动根据你的浏览器环境推荐最适合你当前系统的安装包格式。
@@ -18,7 +18,7 @@ limedl 为主流桌面操作系统提供了原生编译的发布版本。所有�
 | 操作系统 | 推荐架构 | 最低系统版本 | 运行依赖 |
 | :--- | :--- | :--- | :--- |
 | **Windows** | x86_64 (64位) | Windows 10 (1809+) 或 Windows 11 | 系统默认自带 C++ 运行时，无需额外依赖 |
-| **macOS** | Apple Silicon (aarch64) | macOS Monterey 12.0 或更高版本 | 原生支持 M1 / M2 / M3 / M4 系列芯片 |
+| **macOS** | Apple Silicon (aarch64) | macOS 11.0 (Big Sur) 或更高版本（Bundle 声明的最低版本） | 原生支持 M1 / M2 / M3 / M4 系列芯片；不提供 Intel (x86_64) 构建 |
 | **Linux** | x86_64 (64位) | glibc ≥ 2.17 (如 Debian 10+, Ubuntu 18.04+, CentOS 7+) | `xdg-desktop-portal` (文件对话框) · StatusNotifier 宿主 (托盘) |
 
 ---
@@ -43,7 +43,7 @@ Windows 平台提供三种分发格式，满足不同场景的使用偏好：
 
 ### 3. MSIX 现代安全包 (.msix)
 - **特性**：利用 Windows 现代应用容器封装，享受安全沙箱保护、纯净卸载无残留、与 Windows 10/11 系统深度集成。
-- **更新方式**：MSIX 版本通过 **Microsoft Store** 更新；应用内自动更新仅适用于 Setup.exe 与便携版。
+- **更新方式**：MSIX 版本通过 **Microsoft Store** 更新；应用内自动更新仅适用于 Setup.exe 与便携版。各通道的检测、回退与回滚细节见[自更新通道与回滚](/advanced/self-update-channels/)。
 
 ---
 
@@ -112,6 +112,8 @@ cd limedl-native
 
 ### 1. SHA-256 哈希比对
 
+GitHub Release 会为每个资产显示 SHA-256 摘要；本地计算后与页面上的摘要逐位比对即可。仓库不额外发布 `SHA256SUMS` 清单。
+
 **Windows (PowerShell)**:
 ```powershell
 Get-FileHash -Algorithm SHA256 .\limedl-native-v0.6.1-windows-x86_64-setup.exe
@@ -129,16 +131,18 @@ sha256sum limedl-native-v0.6.1-linux-x86_64.AppImage
 
 ### 2. Minisign 密码学防篡改验签
 
-limedl 发布流水线对所有构建工件实施 **Minisign (Ed25519) + ML-DSA-65 (NIST FIPS 204 后量子密码学)** 混合双签名（附带 `.sig` 与 `.pqc.sig` 文件）。你可以使用标准 `minisign` 工具核对 Ed25519 签名：
+limedl 发布流水线对桌面构建工件实施 **Minisign (Ed25519) + ML-DSA-65 (NIST FIPS 204 后量子密码学)** 混合双签名，每个桌面资产都有对应的 `.sig` 与 `.pqc.sig` 文件。你可以使用标准 `minisign` 工具核对 Ed25519 签名：
 
 官方发布公钥：
 ```text
 RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7
 ```
 
-执行验签命令：
+执行验签命令（`-x` 指定 `.sig` 签名文件）：
 ```bash
-minisign -Vm limedl-native-v0.6.1-windows-x86_64-setup.exe -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
+minisign -Vm limedl-native-v0.6.1-windows-x86_64-setup.exe \
+  -x limedl-native-v0.6.1-windows-x86_64-setup.exe.sig \
+  -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
 ```
 若终端输出 `Signature and comment signature verified`，说明文件未受任何篡改且确实由官方流水线签名产出。
 

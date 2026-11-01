@@ -116,9 +116,9 @@ On certain GNOME desktop versions, system tray icons are hidden by default:
 If you experience crashes, interrupted downloads, or unexpected errors, inspect the application log files:
 
 ### Log Directories
-- **Windows**: `%LOCALAPPDATA%\limedl\logs\`
-- **Linux**: `~/.local/share/limedl/logs/`
-- **macOS**: `~/Library/Application Support/limedl/logs/`
+- **Windows**: `%LOCALAPPDATA%\limedl\downloads\logs\`
+- **Linux**: `~/.local/share/limedl/downloads/logs/`
+- **macOS**: `~/Library/Application Support/limedl/downloads/logs/`
 
 ### Submitting a Helpful Issue
 To report a bug, visit [GitHub Issues](https://github.com/zkz098/limedl/issues) with:

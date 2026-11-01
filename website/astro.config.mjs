@@ -11,10 +11,18 @@ const sidebarGroups = [
     ['项目简介', 'Overview', 'getting-started/overview'],
     ['安装指南', 'Installation', 'getting-started/installation'],
     ['配置手册', 'Configuration', 'getting-started/configuration'],
+    ['平台支持', 'Platform Support', 'getting-started/platform-support'],
+  ]],
+  ['使用场景', 'Use Cases', [
+    ['场景总览', 'Overview', 'use-cases'],
+    ['NAS / 软路由离线下载', 'NAS / Soft-Router Downloads', 'use-cases/nas-offline-download'],
+    ['跨境与镜像加速', 'Cross-Border Mirrors', 'use-cases/cross-border-mirrors'],
+    ['浏览器一键接管', 'Browser Handoff', 'use-cases/browser-handoff'],
   ]],
   ['核心功能', 'Features & Usage', [
     ['任务管理与并发', 'Tasks & Concurrency', 'guides/tasks'],
     ['CDN 探针加速', 'CDN Acceleration', 'guides/cdn'],
+    ['URL 重写与自定义 CDN', 'URL Rewrite & Custom CDN', 'guides/url-rewrite-and-cdn-providers'],
     ['BitTorrent 调优', 'BitTorrent Tuning', 'guides/bittorrent'],
     ['命令行与协议', 'CLI & Protocol', 'guides/cli'],
     ['常见问题与排错', 'Troubleshooting', 'guides/troubleshooting'],
@@ -24,9 +32,19 @@ const sidebarGroups = [
     ['Aria2 RPC 对接', 'Aria2 RPC', 'ecosystem/aria2-rpc'],
     ['无头服务端 (NAS / 软路由)', 'Headless Daemon (NAS / Server)', 'ecosystem/server-daemon'],
   ]],
+  ['安全与帮助', 'Security & Help', [
+    ['安全与验签', 'Security & Verification', 'security'],
+    ['常见问题', 'FAQ', 'faq'],
+  ]],
   ['进阶与内幕', 'Advanced & Internals', [
     ['系统架构与技术内幕', 'System Architecture', 'advanced/architecture'],
     ['磁盘缓冲池机制', 'Disk Buffer Pool', 'advanced/buffer-pool'],
+    ['磁盘介质与缓冲调优', 'Disk Media & Buffer Tuning', 'advanced/disk-media-and-buffer-tuning'],
+    ['Metalink 与镜像选择', 'Metalink & Mirror Selection', 'advanced/metalink-and-mirrors'],
+    ['自更新通道与回滚', 'Self-Update Channels & Rollback', 'advanced/self-update-channels'],
+    ['专家参数与 HTTP/3', 'Expert Settings & HTTP/3', 'advanced/expert-settings-and-http3'],
+    ['数据备份与 Aria2 迁移', 'Data Backup & Aria2 Import', 'guides/data-backup-and-migration'],
+    ['性能基准', 'Benchmarks', 'advanced/benchmarks'],
     ['源码编译与开发', 'Build & Contributing', 'advanced/development'],
   ]],
 ];
@@ -49,6 +67,7 @@ export default defineConfig({
     }),
     starlight({
       title: 'limedl',
+      favicon: '/favicon.png',
       logo: {
         src: './src/assets/logo.png',
       },
@@ -67,6 +86,9 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/zkz098/limedl' },
       ],
       sidebar,
+      components: {
+        Head: './src/components/starlight/Head.astro',
+      },
       customCss: ['./src/styles/starlight-custom.css'],
     }),
   ],

@@ -73,7 +73,7 @@ Submits Base64-encoded `.torrent` file bytes.
 ---
 
 ### 3. `aria2.addMetalink` — Add Metalink Multi-Mirror Task
-Uploads Base64-encoded `.metalink` or `.meta4` XML payload. limedl parses RFC 5854 / RFC 6249 metadata, performs lightweight mirror latency and range probing, and dynamically selects the best mirrors.
+Uploads Base64-encoded `.metalink` or `.meta4` XML payload. limedl parses RFC 5854 / RFC 6249 metadata and selects mirrors through a scored lease pool based on priority, protocol, region, and error history; see [Metalink & Mirror Selection](/en/advanced/metalink-and-mirrors/).
 
 **Parameters**:
 - `params[0]`: Authentication token (optional)

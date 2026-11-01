@@ -1,0 +1,74 @@
+---
+import { faqPageJsonLd, OG_IMAGE_URL, SITE_URL, techArticleJsonLd } from '../../lib/seo';
+
+const route = Astro.locals.starlightRoute;
+const { head, entry, lang, id } = route;
+
+const site = Astro.site ?? new URL(SITE_URL);
+const canonical = new URL(Astro.url.pathname, site).toString();
+const isEn = lang === 'en';
+const title = entry.data.title;
+const description =
+  entry.data.description ??
+  'limedl — 基于 Rust 与 Slint 的轻量级原生多协议下载管理器。';
+const is404 = id === '404' || Astro.url.pathname.includes('/404');
+const feed = isEn ? '/en/changelog.xml' : '/changelog.xml';
+
+function toPlainText(markdown: string) {
+  return markdown
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/^\s*\|.*\|\s*$/gm, ' ')
+    .replace(/^---+$/gm, ' ')
+    .replace(/^\s*[-*+]\s+/gm, ' ')
+    .replace(/^#{1,6}\s+/gm, ' ')
+    .replace(/^>\s?/gm, ' ')
+    .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+    .replace(/\*/g, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const faqQuestions: { question: string; answer: string }[] = [];
+const isFaq = !is404 && (id === 'faq' || Astro.url.pathname.endsWith('/faq/'));
+if (isFaq) {
+  const body = entry.body ?? '';
+  const heading = /^##\s+(.+?)\s*$/gm;
+  let match: RegExpExecArray | null;
+  while ((match = heading.exec(body)) !== null) {
+    const question = match[1].trim();
+    if (/没找到答案|still stuck/i.test(question)) continue;
+    const start = match.index + match[0].length;
+    const next = body.slice(start).search(/^##\s+/m);
+    const end = next === -1 ? body.length : start + next;
+    const answer = toPlainText(body.slice(start, end)).slice(0, 600);
+    if (answer.length > 20) faqQuestions.push({ question, answer });
+  }
+}
+
+const structuredData = is404
+  ? []
+  : [
+      techArticleJsonLd({ headline: title, description, url: canonical, lang }),
+      ...(faqQuestions.length > 0 ? [faqPageJsonLd(faqQuestions)] : []),
+    ];
+---
+
+{head.map(({ tag: Tag, attrs, content }) => <Tag {...attrs} set:html={content} />)}
+<link rel="alternate" type="application/rss+xml" title="limedl changelog" href={feed} />
+{!is404 && <meta name="robots" content="index,follow,max-image-preview:large" />}
+<meta name="theme-color" content="#0d0f12" />
+<meta property="og:image" content={OG_IMAGE_URL} />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="limedl — native multi-protocol download manager" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={OG_IMAGE_URL} />
+<meta name="twitter:image:alt" content="limedl — native multi-protocol download manager" />
+{is404 && <meta name="robots" content="noindex, follow" />}
+{structuredData.length > 0 && <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />}

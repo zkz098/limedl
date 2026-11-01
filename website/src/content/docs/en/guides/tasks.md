@@ -97,6 +97,8 @@ When submitting `.metalink` or `.meta4` payloads via drag-and-drop or RPC, limed
   - **Failure Penalties**: Penalizes endpoints that return 5xx errors or connection timeouts.
 
   > The current scoring uses these static properties plus error history. `MirrorPool` carries an RTT field, but the download path does not perform active RTT probing yet.
+
+Scoring, leases, cooldown, and the RTT boundary are detailed in [Metalink & Mirror Selection](/en/advanced/metalink-and-mirrors/).
 - **Dynamic Leasing (`MirrorPool` & `MirrorLease`)**:
   Uses an RAII `MirrorLease` to balance chunk requests across the fastest nodes while respecting per-server concurrency limits (`max-connection-per-server`), saturating bandwidth without overloading origins;
 - **End-to-End Cryptographic Validation**:

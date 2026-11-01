@@ -116,9 +116,9 @@ sudo dnf install xdg-desktop-portal xdg-desktop-portal-gtk
 当遇到非预期的程序崩溃、任务中断或疑难错误时，可以查阅本地运行日志：
 
 ### 日志存储目录
-- **Windows**: `%LOCALAPPDATA%\limedl\logs\`
-- **Linux**: `~/.local/share/limedl/logs/`
-- **macOS**: `~/Library/Application Support/limedl/logs/`
+- **Windows**: `%LOCALAPPDATA%\limedl\downloads\logs\`
+- **Linux**: `~/.local/share/limedl/downloads/logs/`
+- **macOS**: `~/Library/Application Support/limedl/downloads/logs/`
 
 ### 提交有效 Issue
 如果你发现了一个潜在的软件缺陷，欢迎前往 [GitHub Issues](https://github.com/zkz098/limedl/issues) 提交反馈。建议包含以下信息：

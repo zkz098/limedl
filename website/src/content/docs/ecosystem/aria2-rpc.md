@@ -72,7 +72,7 @@ limedl 支持两种鉴权模式，按 aria2 标准要求在 `params` 数组第�
 ---
 
 ### 3. `aria2.addMetalink` — 添加 Metalink 多镜像源任务
-上传以 Base64 编码的 `.metalink` / `.meta4` XML 数据。limedl 内置 RFC 5854 / RFC 6249 解析器与智能镜像评分池，自动并发测速并优选最优镜像下载。
+上传以 Base64 编码的 `.metalink` / `.meta4` XML 数据。limedl 内置 RFC 5854 / RFC 6249 解析器与镜像评分/租约池，按优先级、协议、地区与错误历史选择镜像；评分细节见[Metalink 与镜像选择](/advanced/metalink-and-mirrors/)。
 
 **请求参数**：
 - `params[0]`: 鉴权 Token（可选）

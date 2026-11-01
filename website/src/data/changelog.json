@@ -1,0 +1,4182 @@
+{
+  "generatedAt": "2026-11-01",
+  "latestTag": "v0.6.1",
+  "unreleased": [
+    {
+      "id": "fixes",
+      "commits": [
+        {
+          "hash": "08ba12413ab7edf5706e93481261e8d62000a4cf",
+          "shortHash": "08ba1241",
+          "type": "fix",
+          "scope": "update",
+          "subject": "switch PQC signing from fips204 to RustCrypto ml-dsa",
+          "breaking": false
+        },
+        {
+          "hash": "b103d1c53a4e67b06f200e79934d8d85e9f1999a",
+          "shortHash": "b103d1c5",
+          "type": "fix",
+          "scope": "compat",
+          "subject": "close legacy migration gaps from retired backends",
+          "breaking": false
+        }
+      ]
+    }
+  ],
+  "releases": [
+    {
+      "tag": "v0.6.1",
+      "version": "0.6.1",
+      "date": "2026-10-31",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "e82be5271b3a7131b8a4814e2322a3ad0f9914f0",
+              "shortHash": "e82be527",
+              "type": "fix",
+              "scope": "native",
+              "subject": "adapt new-task dialog, inspector piece map and window restore on small screens",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "performance",
+          "commits": [
+            {
+              "hash": "2987ff2cf5b3ea9136fe06bb87b4bb2f66c4158f",
+              "shortHash": "2987ff2c",
+              "type": "perf",
+              "scope": "native",
+              "subject": "optimize resource consumption and idle wakeups in tray status",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.6.0",
+      "version": "0.6.0",
+      "date": "2026-10-30",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "f6ebcb056e073e37355148648ac22975b957739e",
+              "shortHash": "f6ebcb05",
+              "type": "feat",
+              "scope": "bt",
+              "subject": "migrate BitTorrent engine from irontide to librqbit",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "e8fb7df885d56d50b81c7b6effd3d6ec9fa21d4c",
+              "shortHash": "e8fb7df8",
+              "type": "fix",
+              "scope": "native",
+              "subject": "collapse toolbar action text and add responsive scrolling to sidebar on small screens",
+              "breaking": false
+            },
+            {
+              "hash": "180c1677ad20d44dc3b5e6a71fd03b9d3d527f1f",
+              "shortHash": "180c1677",
+              "type": "fix",
+              "scope": "engine",
+              "subject": "flush micro-batch by interval to prevent 0B/s drops on slow links",
+              "breaking": false
+            },
+            {
+              "hash": "96a55e9d063dd8850ef538016eb0848d699d05b0",
+              "shortHash": "96a55e9d",
+              "type": "fix",
+              "scope": "bt",
+              "subject": "tolerate non-live torrent state in get_peers",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "e781098a0e2d4e4266d6aaff9cd2849adb366d3d",
+              "shortHash": "e781098a",
+              "type": "refactor",
+              "scope": "bt",
+              "subject": "rename RqbitBtBackend, prune dead BtSettings and align daemon CLI",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.5.6",
+      "version": "0.5.6",
+      "date": "2026-10-25",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "3273ab5dd5d22ca2c95b66a663d299220a4dd32b",
+              "shortHash": "3273ab5d",
+              "type": "fix",
+              "scope": "deps",
+              "subject": "clear five RustSec advisories that landed after the last green run",
+              "breaking": false
+            },
+            {
+              "hash": "3dd98e6e48338dd7d83c7f9a95e46e5497296aef",
+              "shortHash": "3dd98e6e",
+              "type": "fix",
+              "scope": "native",
+              "subject": "collapse the BT status pills before they clip the toolbar",
+              "breaking": false
+            },
+            {
+              "hash": "cb6a9236a984c05efec4e86fb626c9b244a1ffa5",
+              "shortHash": "cb6a9236",
+              "type": "fix",
+              "scope": "core",
+              "subject": "make the documented BT-free build compile cleanly",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "2b37a4ee038efbd5468f1c51fe60539359fa8503",
+              "shortHash": "2b37a4ee",
+              "type": "refactor",
+              "scope": "crates",
+              "subject": "finish the crate split's follow-up work",
+              "breaking": false
+            },
+            {
+              "hash": "db022d9da614ef3cef3946f75784ef4b9620b46f",
+              "shortHash": "db022d9d",
+              "type": "refactor",
+              "scope": "rpc",
+              "subject": "extract limedl-rpc and limedl-testkit, closing the split",
+              "breaking": false
+            },
+            {
+              "hash": "07f15a0d3ef981e41c2aa38b42e1a9910bb5ebb8",
+              "shortHash": "07f15a0d",
+              "type": "refactor",
+              "scope": "engine",
+              "subject": "extract limedl-engine, the HTTP download engine",
+              "breaking": false
+            },
+            {
+              "hash": "f0d431c2d35242c3a3044c8cd454d37be238e78a",
+              "shortHash": "f0d431c2",
+              "type": "refactor",
+              "scope": "bt",
+              "subject": "extract limedl-bt, the only crate that names irontide",
+              "breaking": false
+            },
+            {
+              "hash": "95d14e9e5eac6a6b27357ec2068f8f0b899d83db",
+              "shortHash": "95d14e9e",
+              "type": "refactor",
+              "scope": "http",
+              "subject": "extract the limedl-http transport crate",
+              "breaking": false
+            },
+            {
+              "hash": "c4e354213a548dc6f56f19b36dcb61361cfa2635",
+              "shortHash": "c4e35421",
+              "type": "refactor",
+              "scope": "store",
+              "subject": "extract the limedl-store persistence crate",
+              "breaking": false
+            },
+            {
+              "hash": "4a3a81d36a24431cd101d31674ee11e568453c94",
+              "shortHash": "4a3a81d3",
+              "type": "refactor",
+              "scope": "disk",
+              "subject": "extract the limedl-disk I/O substrate crate",
+              "breaking": false
+            },
+            {
+              "hash": "5c5036bf8f3fdbb9ba54ff08fcd83ee0c7da8c5c",
+              "shortHash": "5c5036bf",
+              "type": "refactor",
+              "scope": "types",
+              "subject": "replace irontide Id20 with a local InfoHash",
+              "breaking": false
+            },
+            {
+              "hash": "d7277f948547040edb6c758b3534ca32ed87dace",
+              "shortHash": "d7277f94",
+              "type": "refactor",
+              "scope": "core",
+              "subject": "extract the limedl-types foundation crate",
+              "breaking": false
+            },
+            {
+              "hash": "61897eba3470c537a52da17407c7cece53e638a4",
+              "shortHash": "61897eba",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "resolve Rust-side strings through the gettext catalogs",
+              "breaking": false
+            },
+            {
+              "hash": "fcbea5ba54dfd6474162a49668abd45084668252",
+              "shortHash": "fcbea5ba",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "declare the settings form fields in one field table",
+              "breaking": false
+            },
+            {
+              "hash": "0ca9acc5c0f375f0729e737d90bb058dbf48ec6f",
+              "shortHash": "0ca9acc5",
+              "type": "refactor",
+              "scope": null,
+              "subject": "split the functions Sonar reports for cognitive complexity",
+              "breaking": false
+            },
+            {
+              "hash": "cdc010ce92bd5077d8ec8db0c33ce7fdaf9f9647",
+              "shortHash": "cdc010ce",
+              "type": "refactor",
+              "scope": "core",
+              "subject": "make the module graph acyclic and drop the duplicate I/O path",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.5.5",
+      "version": "0.5.5",
+      "date": "2026-10-17",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "58112586a61d49a3e41bed9b6a1f084a57c1be05",
+              "shortHash": "58112586",
+              "type": "feat",
+              "scope": "scheduler",
+              "subject": "enforce hdd media quota, connect device elevator queue and fallback win32 disk detection",
+              "breaking": false
+            },
+            {
+              "hash": "84c5020b660ee38da2d55815cbf2cc00fee5fc17",
+              "shortHash": "84c5020b",
+              "type": "feat",
+              "scope": "checksum",
+              "subject": "streaming hash, header detection, corrupt lifecycle and integrity verification",
+              "breaking": false
+            },
+            {
+              "hash": "5d3ed810412f0e6e17ac755b3f57c0f0bfd9c19d",
+              "shortHash": "5d3ed810",
+              "type": "feat",
+              "scope": "http",
+              "subject": "implement cross-task persistent Alt-Svc cache with HTTP/3 circuit breaker and fallback",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "790d89926eae58005f33d4abf8cb23b60f06f33b",
+              "shortHash": "790d8992",
+              "type": "fix",
+              "scope": "native",
+              "subject": "adapt portable zip extraction to zip 9 name_for_index API",
+              "breaking": false
+            },
+            {
+              "hash": "5d1a26f6ed1b37a33b8749ca7e92aeff783cc4ba",
+              "shortHash": "5d1a26f6",
+              "type": "fix",
+              "scope": "native",
+              "subject": "center table sort icons and anchor data columns to prevent action button overlap",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "performance",
+          "commits": [
+            {
+              "hash": "105d8b86eb7bbd08a0126667c1d7a4f3264d05dc",
+              "shortHash": "105d8b86",
+              "type": "perf",
+              "scope": "http",
+              "subject": "optimize chunk workers, work stealing, mirrors and io batching",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.5.4",
+      "version": "0.5.4",
+      "date": "2026-10-16",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "5bdc6ff50b3d1ab845dd8379f79d8ab69dde1e38",
+              "shortHash": "5bdc6ff5",
+              "type": "fix",
+              "scope": "scheduler",
+              "subject": "stop automatic-mode worker churn under oversubscription",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.5.3",
+      "version": "0.5.3",
+      "date": "2026-10-14",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "c030d166aeacb918d5f68edfb74d952d953abce2",
+              "shortHash": "c030d166",
+              "type": "feat",
+              "scope": "scheduler",
+              "subject": "add expert mode for fine-grained scheduler tuning",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.5.2",
+      "version": "0.5.2",
+      "date": "2026-10-14",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "116b78df854f2a3cf4b3aa02de60055410d27d7d",
+              "shortHash": "116b78df",
+              "type": "fix",
+              "scope": "core",
+              "subject": "queue surplus tasks instead of rejecting at concurrency slot limit",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.5.1",
+      "version": "0.5.1",
+      "date": "2026-10-14",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "a945ef5d8a74c2f4864d3aec98270b2738f2d3d0",
+              "shortHash": "a945ef5d",
+              "type": "feat",
+              "scope": "native",
+              "subject": "add GitHub repository link and open button to About page",
+              "breaking": false
+            },
+            {
+              "hash": "04e2a92bb374e8330b3a4acf37dd9a6e5e9f0f5f",
+              "shortHash": "04e2a92b",
+              "type": "feat",
+              "scope": "native,core",
+              "subject": "inhibit system sleep while downloads run",
+              "breaking": false
+            },
+            {
+              "hash": "4116c03f9498ff811b2adb468734c0f2db35821d",
+              "shortHash": "4116c03f",
+              "type": "feat",
+              "scope": "native",
+              "subject": "parse pasted aria2c commands in the new-task dialog",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "146eb0644962f682783cee6ff3c1e6b696f559b1",
+              "shortHash": "146eb064",
+              "type": "fix",
+              "scope": "native",
+              "subject": "prevent horizontal layout overflow in new-task dialog on long url",
+              "breaking": false
+            },
+            {
+              "hash": "f7251b14e331199ce6e8c9e3d4701e3d027c288a",
+              "shortHash": "f7251b14",
+              "type": "fix",
+              "scope": "native",
+              "subject": "import MainWindow in platform_adapter under cfg(windows)",
+              "breaking": false
+            },
+            {
+              "hash": "c2083338139d27de75d6d6d2358ddbef71b7e39c",
+              "shortHash": "c2083338",
+              "type": "fix",
+              "scope": "native",
+              "subject": "restore Win32_Security feature required by CreateMutexW",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "6942666f18f0fe23494c5c33f4e5397a938ba2d9",
+              "shortHash": "6942666f",
+              "type": "refactor",
+              "scope": "quality",
+              "subject": "resolve six SonarCloud findings",
+              "breaking": false
+            },
+            {
+              "hash": "ccd1e058e231ea90dc557971b3b5d255fcd048d5",
+              "shortHash": "ccd1e058",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "replace winreg with windows-registry and prune unused windows features",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.5.0",
+      "version": "0.5.0",
+      "date": "2026-10-06",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "310ede44a05036da9886355e4ff0e7779354de50",
+              "shortHash": "310ede44",
+              "type": "feat",
+              "scope": "crypto",
+              "subject": "introduce ML-DSA-65 post-quantum dual signing for updates",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "112731ace4517fe8aeee09bdf2ee976ab6e6da1e",
+              "shortHash": "112731ac",
+              "type": "fix",
+              "scope": "native",
+              "subject": "break layoutinfo binding loop on view mode button",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.13",
+      "version": "0.4.13",
+      "date": "2026-10-06",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "e236d99ff62aebc47a3cfb2f2b51409b28911710",
+              "shortHash": "e236d99f",
+              "type": "fix",
+              "scope": "native",
+              "subject": "reconcile task list model in-place and fix context menu trigger",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.12",
+      "version": "0.4.12",
+      "date": "2026-10-06",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "45accb03681958b864ec9eb441a35355ec9618a9",
+              "shortHash": "45accb03",
+              "type": "feat",
+              "scope": "theme",
+              "subject": "add violet and monochrome color schemes",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.11",
+      "version": "0.4.11",
+      "date": "2026-10-06",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "fab4a59c5553830636f74e0d49b228a597918a9a",
+              "shortHash": "fab4a59c",
+              "type": "feat",
+              "scope": "metalink",
+              "subject": "add Metalink format support and intelligent mirror selection",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "a3490573c359680dde1ca0756c3c66d33d2685a8",
+              "shortHash": "a3490573",
+              "type": "fix",
+              "scope": "scheduler",
+              "subject": "break AIMD deadlock with proactive probing and eliminate cascading decrease",
+              "breaking": false
+            },
+            {
+              "hash": "8403a45e7b3e3eb0faafe4d3f786fc5125c92641",
+              "shortHash": "8403a45e",
+              "type": "fix",
+              "scope": "native",
+              "subject": "optimize URL rewrite layout and compact live test sandbox",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.10",
+      "version": "0.4.10",
+      "date": "2026-10-05",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "5b69fb2c29c16b8844a114635a63e5bd8a1c4b5c",
+              "shortHash": "5b69fb2c",
+              "type": "fix",
+              "scope": "native",
+              "subject": "allow manual checksum input in new task dialog",
+              "breaking": false
+            },
+            {
+              "hash": "e0609508ef4318835a03ec360c9ee29cfd29b7ec",
+              "shortHash": "e0609508",
+              "type": "fix",
+              "scope": "native",
+              "subject": "vertically center drop hint icon in empty state pill",
+              "breaking": false
+            },
+            {
+              "hash": "cea96144a7dd81d9ff639d882ed28d3567c65998",
+              "shortHash": "cea96144",
+              "type": "fix",
+              "scope": "native",
+              "subject": "show text label on view mode toggle button on wide viewports",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.9",
+      "version": "0.4.9",
+      "date": "2026-10-05",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "3e03784deaa46b73f8cb0ad6d74e09a185261945",
+              "shortHash": "3e03784d",
+              "type": "fix",
+              "scope": "native",
+              "subject": "preserve window placement and fix restore corruption from tray",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.8",
+      "version": "0.4.8",
+      "date": "2026-10-05",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "13d2c58c54eef3ff5466d0d2ce6f4384102e1970",
+              "shortHash": "13d2c58c",
+              "type": "fix",
+              "scope": "xtask",
+              "subject": "bump limedl-server in Cargo.lock and refuse a lagging lock",
+              "breaking": false
+            },
+            {
+              "hash": "8558a675df35b652073f1cced6c755b93fd300a8",
+              "shortHash": "8558a675",
+              "type": "fix",
+              "scope": "core",
+              "subject": "stop the resume test from racing a fast failure",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.7",
+      "version": "0.4.7",
+      "date": "2026-10-05",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "ecd0c8ce2f25431fad2f8afb012887691ef7f927",
+              "shortHash": "ecd0c8ce",
+              "type": "feat",
+              "scope": "aria2",
+              "subject": "converge the RPC surface on aria2 and AriaNg",
+              "breaking": false
+            },
+            {
+              "hash": "93b0623d965410aa87d1231344a234338a2c522b",
+              "shortHash": "93b0623d",
+              "type": "feat",
+              "scope": "native",
+              "subject": "build the Linux desktop for glibc 2.17 via cargo zigbuild",
+              "breaking": false
+            },
+            {
+              "hash": "8538b9b57ee90ce64bd41b73721996fa0315dc27",
+              "shortHash": "8538b9b5",
+              "type": "feat",
+              "scope": "server",
+              "subject": "headless Aria2 RPC daemon with NAS deployment",
+              "breaking": false
+            },
+            {
+              "hash": "5a0d64368f3b648cce1bc04825d35e260f2f593e",
+              "shortHash": "5a0d6436",
+              "type": "feat",
+              "scope": "core",
+              "subject": "support gzip/brotli/zstd and report RPC features truthfully",
+              "breaking": false
+            },
+            {
+              "hash": "55525ae7968d72dabecb5e68d02797ac5c5023f2",
+              "shortHash": "55525ae7",
+              "type": "feat",
+              "scope": "core",
+              "subject": "expand aria2 RPC compatibility and add interop tests",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "036220c91fd9a3558651cdc355857fbe177040ff",
+              "shortHash": "036220c9",
+              "type": "fix",
+              "scope": "core",
+              "subject": "recover from stream-level interruptions and relax read timeout",
+              "breaking": false
+            },
+            {
+              "hash": "cfdee1884a81840a90ec5a214088e3ced6598cff",
+              "shortHash": "cfdee188",
+              "type": "fix",
+              "scope": "server",
+              "subject": "tolerate the startup connection-refused race in the daemon test",
+              "breaking": false
+            },
+            {
+              "hash": "89088c0d91525baf9fe92f1f16a71c99b7531c70",
+              "shortHash": "89088c0d",
+              "type": "fix",
+              "scope": "core",
+              "subject": "tolerate a slow-starting aria2c in the oracle readiness poll",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "ee7bc4320ea8326214f7de62548bd14545b43ff3",
+              "shortHash": "ee7bc432",
+              "type": "refactor",
+              "scope": "core,native,xtask",
+              "subject": "resolve SonarCloud findings",
+              "breaking": false
+            },
+            {
+              "hash": "4a302e76dd7d540d046b385aa9558735b6639ace",
+              "shortHash": "4a302e76",
+              "type": "refactor",
+              "scope": "xtask",
+              "subject": "migrate theme pipeline and icon generation into xtask",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.6",
+      "version": "0.4.6",
+      "date": "2026-10-04",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "1f31d1e54e9c9f0411b18e3dad02925449ad8a6e",
+              "shortHash": "1f31d1e5",
+              "type": "fix",
+              "scope": "native",
+              "subject": "persist aria2 client tokens and dialog table state on save",
+              "breaking": false
+            },
+            {
+              "hash": "a4b7eabac36633a235568af82c96215f66ef2add",
+              "shortHash": "a4b7eaba",
+              "type": "fix",
+              "scope": "core,native",
+              "subject": "clear the dead-code, chunk-range and pump flakes",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.5",
+      "version": "0.4.5",
+      "date": "2026-10-04",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "13f020a4f1073833bf665d9a7eb3cdad625f4e24",
+              "shortHash": "13f020a4",
+              "type": "feat",
+              "scope": "native",
+              "subject": "show flowing highlight animation on indeterminate progress bar",
+              "breaking": false
+            },
+            {
+              "hash": "3bba45cbcad0291a68b10950679d2d7ba418244e",
+              "shortHash": "3bba45cb",
+              "type": "feat",
+              "scope": "native",
+              "subject": "animate in-app toasts and download progress bars",
+              "breaking": false
+            },
+            {
+              "hash": "827236f447891afb5589c887b8e3ba239256d0df",
+              "shortHash": "827236f4",
+              "type": "feat",
+              "scope": "core",
+              "subject": "disable the Aria2 RPC service by default",
+              "breaking": true
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "6486fe2b99efd754e6a25d59f46d932b0e50979d",
+              "shortHash": "6486fe2b",
+              "type": "fix",
+              "scope": "native",
+              "subject": "harden startup against crashes, duplicate launches and a missing tray",
+              "breaking": false
+            },
+            {
+              "hash": "2273bf213b3ad5a70f2229b14e8d6ac122d0f9c9",
+              "shortHash": "2273bf21",
+              "type": "fix",
+              "scope": "core",
+              "subject": "recover an unreadable settings file instead of failing to start",
+              "breaking": false
+            },
+            {
+              "hash": "ef163f8b386b038fad3fbb84e97bd01e000d6969",
+              "shortHash": "ef163f8b",
+              "type": "fix",
+              "scope": "core",
+              "subject": "jitter retry backoff so concurrent retries do not stay in step",
+              "breaking": false
+            },
+            {
+              "hash": "5fb1f9dd317f7131a5b84e62cf686d7f504c0811",
+              "shortHash": "5fb1f9dd",
+              "type": "fix",
+              "scope": "core",
+              "subject": "persist only flushed progress so a crash cannot skip data",
+              "breaking": false
+            },
+            {
+              "hash": "82dc8c1dc6cb40279d24f3e151679fa0a590cb1c",
+              "shortHash": "82dc8c1d",
+              "type": "fix",
+              "scope": "core",
+              "subject": "make migrations transactional and quarantine a corrupt database",
+              "breaking": false
+            },
+            {
+              "hash": "7742de755ce41bead3f8a2f30a8b65b164591836",
+              "shortHash": "7742de75",
+              "type": "fix",
+              "scope": "core,native",
+              "subject": "clear platform cfg lints and de-flake the resume test",
+              "breaking": false
+            },
+            {
+              "hash": "1e0b3b9485bae0d91d2e43e51b09a417cbb1a492",
+              "shortHash": "1e0b3b94",
+              "type": "fix",
+              "scope": "aria2-rpc,native",
+              "subject": "keep the RPC server alive across a settings hot-reload",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.4",
+      "version": "0.4.4",
+      "date": "2026-10-03",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "a43ee5be35fe2a53e212541f1b1da69d60aa8db7",
+              "shortHash": "a43ee5be",
+              "type": "feat",
+              "scope": "bt",
+              "subject": "add lightweight BT mode that unloads the idle engine",
+              "breaking": false
+            },
+            {
+              "hash": "5258a4ca49637e5aee76f8cdf70b1a30fd63b5bd",
+              "shortHash": "5258a4ca",
+              "type": "feat",
+              "scope": "aria2-rpc",
+              "subject": "add per-client tokens with Argon2 hashing",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "9eff60bba0149f866ee595e4f1c392225338e77e",
+              "shortHash": "9eff60bb",
+              "type": "refactor",
+              "scope": "core,native",
+              "subject": "type download events, unify settings, drop retired-frontend relics",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.3",
+      "version": "0.4.3",
+      "date": "2026-10-03",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "99fb238e21459cc799c31145e77ac9ba068c006b",
+              "shortHash": "99fb238e",
+              "type": "fix",
+              "scope": "core",
+              "subject": "route the dispatcher and BT clients through the proxy-aware factory",
+              "breaking": false
+            },
+            {
+              "hash": "2cc7781599a544b13f0458a2ef558056d53f6949",
+              "shortHash": "2cc77815",
+              "type": "fix",
+              "scope": "core",
+              "subject": "read the OS proxy in system mode",
+              "breaking": false
+            },
+            {
+              "hash": "0a5cfda7414f7e18f946164c3b1ff1fd9a6f880c",
+              "shortHash": "0a5cfda7",
+              "type": "fix",
+              "scope": "native",
+              "subject": "honour the proxy setting when checking for and downloading updates",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.2",
+      "version": "0.4.2",
+      "date": "2026-10-03",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "f165513471832d0128042e924ef072f832970fb6",
+              "shortHash": "f1655134",
+              "type": "feat",
+              "scope": "native",
+              "subject": "switch the Linux tray to the GTK-free ksni backend",
+              "breaking": false
+            },
+            {
+              "hash": "c3942b1dec76bdc5bb074ab276c11362e63e25c5",
+              "shortHash": "c3942b1d",
+              "type": "feat",
+              "scope": "core",
+              "subject": "complete the aria2 RPC surface for AriaNg-class clients",
+              "breaking": false
+            },
+            {
+              "hash": "5230822b8aca40bc1ceef20da04d0a76851f7caf",
+              "shortHash": "5230822b",
+              "type": "feat",
+              "scope": "settings",
+              "subject": "make directory media overrides editable in the IO tab",
+              "breaking": false
+            },
+            {
+              "hash": "3473ea2ae8aa9538e8bde7c28a908c793d872675",
+              "shortHash": "3473ea2a",
+              "type": "feat",
+              "scope": "core",
+              "subject": "resolve WSL and network disk media instead of reporting SSD",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "5899dc873ed3bf5eafd6868bc7e507905c33aeb6",
+              "shortHash": "5899dc87",
+              "type": "fix",
+              "scope": "core",
+              "subject": "keep progress flushes from downgrading terminal download rows",
+              "breaking": false
+            },
+            {
+              "hash": "0b1b05720b287cad36edf674592f704e98a16950",
+              "shortHash": "0b1b0572",
+              "type": "fix",
+              "scope": "core",
+              "subject": "synthesize the file entry for single-file torrents",
+              "breaking": false
+            },
+            {
+              "hash": "701281cff6a0ad783681139b73570b3d5e3edac1",
+              "shortHash": "701281cf",
+              "type": "fix",
+              "scope": "core",
+              "subject": "derive BT file selection from the engine's priorities",
+              "breaking": false
+            },
+            {
+              "hash": "e498fb9199051a0fe97c537b8f3a386f7482baf8",
+              "shortHash": "e498fb91",
+              "type": "fix",
+              "scope": "core",
+              "subject": "centralize aria2 auth and fix multicall, pause and gid cache",
+              "breaking": false
+            },
+            {
+              "hash": "01724843447bfb838516194eec982ab414c2f947",
+              "shortHash": "01724843",
+              "type": "fix",
+              "scope": "core",
+              "subject": "keep crash-resumed downloads runnable and close integrity gaps",
+              "breaking": false
+            },
+            {
+              "hash": "cbe13851592153d69135accd458d64ac950cd972",
+              "shortHash": "cbe13851",
+              "type": "fix",
+              "scope": "native",
+              "subject": "align the updater extraction test with the 0o700 staging mode",
+              "breaking": false
+            },
+            {
+              "hash": "8a0f8b274f63c7b8315d46eb229e7d134e244685",
+              "shortHash": "8a0f8b27",
+              "type": "fix",
+              "scope": "update",
+              "subject": "keep the staged self-update binary owner-only (rust:S2612)",
+              "breaking": false
+            },
+            {
+              "hash": "1ca525d1323df56ee7dbc4cf984698765ec04091",
+              "shortHash": "1ca525d1",
+              "type": "fix",
+              "scope": "async",
+              "subject": "keep blocking file IO off the async runtime (rust:S7493)",
+              "breaking": false
+            },
+            {
+              "hash": "7cd293aaec4987884f4da8dd4bd47332ded020c5",
+              "shortHash": "7cd293aa",
+              "type": "fix",
+              "scope": "core",
+              "subject": "stop warning about >4 GiB downloads on every filesystem",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "28a713e72fa6ddee4d1a4da7643d8b66149cf2f3",
+              "shortHash": "28a713e7",
+              "type": "refactor",
+              "scope": "xtask",
+              "subject": "migrate font fetch, manifest and version bump into xtask",
+              "breaking": false
+            },
+            {
+              "hash": "174e8a5c5ea4cbd2d34fcf257d1419dac106e88f",
+              "shortHash": "174e8a5c",
+              "type": "refactor",
+              "scope": "core,native",
+              "subject": "split the platform-gated detect and subclass paths (rust:S3776)",
+              "breaking": false
+            },
+            {
+              "hash": "94b2727b54ddc5e7d73dc2a0b3cbf72fd68e3b97",
+              "shortHash": "94b2727b",
+              "type": "refactor",
+              "scope": "core",
+              "subject": "split the http_executor run paths into stage helpers (rust:S3776)",
+              "breaking": false
+            },
+            {
+              "hash": "4719eab7b36275986a3040e4623f747d4b9826a7",
+              "shortHash": "4719eab7",
+              "type": "refactor",
+              "scope": "core",
+              "subject": "extract the ping-pong flip helpers from DownloadBuffer (rust:S3776)",
+              "breaking": false
+            },
+            {
+              "hash": "2ad72b305b8e3ca9339cb4528947848f10fb5306",
+              "shortHash": "2ad72b30",
+              "type": "refactor",
+              "scope": "core",
+              "subject": "split the scheduler AIMD and rebalance passes (rust:S3776)",
+              "breaking": false
+            },
+            {
+              "hash": "4b20e1667b7ea6ff06ea73c5b89850cb28b875d9",
+              "shortHash": "4b20e166",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "split the Tauri migration into per-artifact steps (rust:S3776)",
+              "breaking": false
+            },
+            {
+              "hash": "2d4991bce76aed459be8149a8c0927eaacfd77d3",
+              "shortHash": "2d4991bc",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "split BT settings apply and task list filtering (rust:S3776)",
+              "breaking": false
+            },
+            {
+              "hash": "732059984b9b6a4f961dee1d7f8390b791088bdc",
+              "shortHash": "73205998",
+              "type": "refactor",
+              "scope": "core",
+              "subject": "share the http_executor buffer, flush and throttle helpers (rust:S3776)",
+              "breaking": false
+            },
+            {
+              "hash": "293efe9389f64ffe48fe694bd0938ef970f9aa37",
+              "shortHash": "293efe93",
+              "type": "refactor",
+              "scope": "core",
+              "subject": "split the retry, url-rewrite and vectored-write helpers (rust:S3776)",
+              "breaking": false
+            },
+            {
+              "hash": "d106d21581d3599343aaf41ed6f23d4478f3a380",
+              "shortHash": "d106d215",
+              "type": "refactor",
+              "scope": "scripts",
+              "subject": "keep fetch-misans host output in Show- functions (powershell:S8677, powershell:S3776)",
+              "breaking": false
+            },
+            {
+              "hash": "1be66d2c4bcd9c68c431528311251dff41492aa3",
+              "shortHash": "1be66d2c",
+              "type": "refactor",
+              "scope": "core,native",
+              "subject": "import explicitly instead of globs and use method references (rust:S2208, rust:S1612)",
+              "breaking": false
+            },
+            {
+              "hash": "bbd78e5a208678826c2b059de324988df3d33a16",
+              "shortHash": "bbd78e5a",
+              "type": "refactor",
+              "scope": "settings",
+              "subject": "move the legacy checksum rewrite out of load_settings",
+              "breaking": false
+            },
+            {
+              "hash": "62af5c8112f3843dc932b164b92a22a17dbb0193",
+              "shortHash": "62af5c81",
+              "type": "refactor",
+              "scope": "checksum",
+              "subject": "support blake3/sha256/sha512 and drop sha1/xxh3_128",
+              "breaking": false
+            },
+            {
+              "hash": "ba8a77142a36a16e67cd15bc60b18c91187a9a6a",
+              "shortHash": "ba8a7714",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "pin the renderer pair instead of four renderer features",
+              "breaking": false
+            },
+            {
+              "hash": "21530271e0b8c7a796b0277acb69975dbbe5a883",
+              "shortHash": "21530271",
+              "type": "refactor",
+              "scope": "scripts",
+              "subject": "share the theme token tables between the two theme scripts",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.1",
+      "version": "0.4.1",
+      "date": "2026-10-01",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "468ea6a1d216efe40b2e08bb5f7dff50230fe8ec",
+              "shortHash": "468ea6a1",
+              "type": "fix",
+              "scope": "native-ui",
+              "subject": "fall back to the software renderer when OpenGL is unavailable",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.4.0",
+      "version": "0.4.0",
+      "date": "2026-10-01",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "233536409cf59398d57166c00a5e6992cbdd3c14",
+              "shortHash": "23353640",
+              "type": "feat",
+              "scope": "native-ui",
+              "subject": "ship FemtoVG/OpenGL as the default renderer",
+              "breaking": true
+            },
+            {
+              "hash": "631b58462c4a0f28f4ea281e41e45604191847c1",
+              "shortHash": "631b5846",
+              "type": "feat",
+              "scope": "native-ui",
+              "subject": "add renderer-skia-opengl for a GPU Skia surface",
+              "breaking": false
+            },
+            {
+              "hash": "ed2cf684fb6c6c319112b82f5c22fab18be1997f",
+              "shortHash": "ed2cf684",
+              "type": "feat",
+              "scope": "native-ui",
+              "subject": "select the graphics renderer with a Cargo feature",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "7c273adb408b304c325d16c7c248fac928898d95",
+              "shortHash": "7c273adb",
+              "type": "fix",
+              "scope": "native-ui",
+              "subject": "disarm the factory-reset gate when the settings dialog closes",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.15",
+      "version": "0.3.15",
+      "date": "2026-10-01",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "09487e8301fbee74085d433bc415c210da775a01",
+              "shortHash": "09487e83",
+              "type": "feat",
+              "scope": "bt",
+              "subject": "start the irontide session in the background",
+              "breaking": true
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "9f5808c2e69fc2fcd4323783ee38080b829fa8f3",
+              "shortHash": "9f5808c2",
+              "type": "fix",
+              "scope": "xtask",
+              "subject": "point the release guard at the split update module",
+              "breaking": false
+            },
+            {
+              "hash": "73e948ce2ced5bebb32fa2786a1afcd03a0e2920",
+              "shortHash": "73e948ce",
+              "type": "fix",
+              "scope": "native-ui",
+              "subject": "pin the table action column, scroll the new-task body, share the wizard cards",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "c514da0c6a00a9c90a9f1ca8baccb5205374a9cb",
+              "shortHash": "c514da0c",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "split settings form conversion and extract handler callbacks",
+              "breaking": false
+            },
+            {
+              "hash": "03b88df6317b8379b31773c68ebbb4cb8e744fd7",
+              "shortHash": "03b88df6",
+              "type": "refactor",
+              "scope": "core",
+              "subject": "extract the download shared kernel and split oversized test modules",
+              "breaking": false
+            },
+            {
+              "hash": "b9b1655f2ceecb03f32c5b2bc54ea1a4d4f94028",
+              "shortHash": "b9b1655f",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "split the settings dialog tabs and i18n helpers by domain",
+              "breaking": false
+            },
+            {
+              "hash": "7d020253e3768d4c8a5f001f68974f328dfd1ac6",
+              "shortHash": "7d020253",
+              "type": "refactor",
+              "scope": "core",
+              "subject": "split http_executor and aria2_rpc into module directories",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.14",
+      "version": "0.3.14",
+      "date": "2026-09-26",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "ed52a84a0a3553953ab5060a5e4f465638a0d6d9",
+              "shortHash": "ed52a84a",
+              "type": "fix",
+              "scope": "download",
+              "subject": "detect anti-abuse 403 pages and skip useless Referer probes",
+              "breaking": false
+            },
+            {
+              "hash": "519fc5c43670252b482d8b785feac86089efdb78",
+              "shortHash": "519fc5c4",
+              "type": "fix",
+              "scope": "aria2",
+              "subject": "forward addUri request options to the HTTP layer",
+              "breaking": false
+            },
+            {
+              "hash": "26838539ee6c7cafaaaa65f7976f7a022f62913f",
+              "shortHash": "26838539",
+              "type": "fix",
+              "scope": "download",
+              "subject": "bump the default User-Agent to Chrome/154",
+              "breaking": false
+            },
+            {
+              "hash": "19e7a49795cbae60d2702d7331cd2c5bd75a83e2",
+              "shortHash": "19e7a497",
+              "type": "fix",
+              "scope": "native",
+              "subject": "restore text labels on top toolbar secondary action buttons",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "c0456518276f6c55ed52d65110a5c5cbb88ddacf",
+              "shortHash": "c0456518",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "split the UI callback god-functions by concern",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.13",
+      "version": "0.3.13",
+      "date": "2026-09-25",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "194bf00def55bcac18547255d0c3aa3a99a55fa6",
+              "shortHash": "194bf00d",
+              "type": "fix",
+              "scope": "download",
+              "subject": "fix task speed display anomaly with sliding window speed tracker",
+              "breaking": false
+            },
+            {
+              "hash": "a94dd6ee7e792fc0a8e6eba0aa1f116efaea7501",
+              "shortHash": "a94dd6ee",
+              "type": "fix",
+              "scope": "native",
+              "subject": "gate windows hooks in platform_adapter to resolve non-windows compilation",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.12",
+      "version": "0.3.12",
+      "date": "2026-09-25",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "e1b11e0752c438d2c44b391b0e2bbf7d0d60f4df",
+              "shortHash": "e1b11e07",
+              "type": "fix",
+              "scope": "download",
+              "subject": "auto-infer anti-hotlink referer on 403 and downgrade to single thread on 429",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.11",
+      "version": "0.3.11",
+      "date": "2026-09-25",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "5a402b9c4411aa185aff480d6d2e87761bac6739",
+              "shortHash": "5a402b9c",
+              "type": "feat",
+              "scope": "native",
+              "subject": "add Traditional Chinese (zh-TW) localization support",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "defa7c5cc520a1268985a4e3a041292d909968cd",
+              "shortHash": "defa7c5c",
+              "type": "fix",
+              "scope": "ui",
+              "subject": "resolve inspector list scrolling and peer client formatting",
+              "breaking": false
+            },
+            {
+              "hash": "c30fa5cc4e7a13353c1b8c1613ba4540ef9ac65d",
+              "shortHash": "c30fa5cc",
+              "type": "fix",
+              "scope": "ui",
+              "subject": "vertically center action buttons and text in batch bar and table rows",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "performance",
+          "commits": [
+            {
+              "hash": "3495a39a89a28684b94868a2723935439eae7cfe",
+              "shortHash": "3495a39a",
+              "type": "perf",
+              "scope": "native",
+              "subject": "optimize background resource usage and cold start latency",
+              "breaking": false
+            },
+            {
+              "hash": "fe0c98c2310225d1c16882186c512f8522ad7ee5",
+              "shortHash": "fe0c98c2",
+              "type": "perf",
+              "scope": "native",
+              "subject": "optimize settings scroll performance",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "25cd31686db37a4ec4ceac716d68b7e54a096c66",
+              "shortHash": "25cd3168",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "split monolithic main.rs and bridge.rs into modular subsystems",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.10",
+      "version": "0.3.10",
+      "date": "2026-09-25",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "1a9fbb47c5dd17b43fed82c4334811e5b8496377",
+              "shortHash": "1a9fbb47",
+              "type": "feat",
+              "scope": "packaging",
+              "subject": "add Linux AppImage and DEB package support",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "2b625e30fc3f8a468af2b5003950fad95fa8aa31",
+              "shortHash": "2b625e30",
+              "type": "fix",
+              "scope": "native",
+              "subject": "fix top toolbar layout overflow on narrow windows",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.9",
+      "version": "0.3.9",
+      "date": "2026-09-24",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "565d1706b415d24373638f220ffae2fae4d64114",
+              "shortHash": "565d1706",
+              "type": "fix",
+              "scope": "native",
+              "subject": "gate HOOK_INSTALLED in cleanup_window_hooks for macOS and Linux",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "performance",
+          "commits": [
+            {
+              "hash": "dfa9e3a795f323d4b43812bf2a2ed1e057d6a404",
+              "shortHash": "dfa9e3a7",
+              "type": "perf",
+              "scope": "core,native",
+              "subject": "use foldhash for concurrent maps and add Windows fast preallocation",
+              "breaking": false
+            },
+            {
+              "hash": "4a194457cddef073088779b594f23d955e6df14f",
+              "shortHash": "4a194457",
+              "type": "perf",
+              "scope": "native",
+              "subject": "enable mimalloc as global allocator",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "2d64704ebfe79cca5e23c4ee57cd0b94eb5fc13e",
+              "shortHash": "2d64704e",
+              "type": "refactor",
+              "scope": "arch",
+              "subject": "remove WebUI and server mode in favor of pure desktop client",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.8",
+      "version": "0.3.8",
+      "date": "2026-09-24",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "ec9675c667f0da4635874a1508333c2477e4cb08",
+              "shortHash": "ec9675c6",
+              "type": "fix",
+              "scope": "deps",
+              "subject": "bump rustls to 0.23.45 to resolve RUSTSEC-2026-0285",
+              "breaking": false
+            },
+            {
+              "hash": "24c697a040a2702195e9914b6cdab01d113dc979",
+              "shortHash": "24c697a0",
+              "type": "fix",
+              "scope": "native",
+              "subject": "prevent transparent window on hidden autostart with maximized state",
+              "breaking": false
+            },
+            {
+              "hash": "b8539a0cb15ec287dfb3dac73c1708cf74d1ebd2",
+              "shortHash": "b8539a0c",
+              "type": "fix",
+              "scope": "native",
+              "subject": "gate the Windows-only IPC machinery so non-Windows clippy passes",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.7",
+      "version": "0.3.7",
+      "date": "2026-09-13",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "b3bd33b116fb4fe5f18084b9d45dd76473bc9c70",
+              "shortHash": "b3bd33b1",
+              "type": "feat",
+              "scope": "native",
+              "subject": "ship the Slint client for macOS and Linux",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.6",
+      "version": "0.3.6",
+      "date": "2026-09-13",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "06221fece7e94f5d05708e2fb87ca9aec3d21ab9",
+              "shortHash": "06221fec",
+              "type": "fix",
+              "scope": "scheduler",
+              "subject": "publish AIMD target changes to the task snapshot",
+              "breaking": false
+            },
+            {
+              "hash": "594b81e0b767008e90a4007726f457aa4a3ef57d",
+              "shortHash": "594b81e0",
+              "type": "fix",
+              "scope": "scheduler",
+              "subject": "keep adaptive thread tuning active when a proxy is configured",
+              "breaking": false
+            },
+            {
+              "hash": "6ccfbf88dfddb9c04a23d8dce1a3b0379adeb25d",
+              "shortHash": "6ccfbf88",
+              "type": "fix",
+              "scope": "native",
+              "subject": "show toast notifications and immediate feedback for self-update",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.5",
+      "version": "0.3.5",
+      "date": "2026-09-12",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "741ce91f60df43c7c0e6a92a0986300508e73e41",
+              "shortHash": "741ce91f",
+              "type": "fix",
+              "scope": "native",
+              "subject": "refresh task list on deletion and fix file explorer path reveal",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "4d4d71fc83f8c09115360e2f60d087322bb4174d",
+              "shortHash": "4d4d71fc",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "remove redundant option text from settings and labs dropdowns",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.4",
+      "version": "0.3.4",
+      "date": "2026-09-12",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "ce93f0de301b5896ec69780b34285b43bc59e260",
+              "shortHash": "ce93f0de",
+              "type": "fix",
+              "scope": "native",
+              "subject": "center window on monitor work area and persist window geometry",
+              "breaking": false
+            },
+            {
+              "hash": "9ae5e54bf6af690a9a4f821ab4131287db224427",
+              "shortHash": "9ae5e54b",
+              "type": "fix",
+              "scope": "i18n",
+              "subject": "localize remaining English strings across native client and WebUI",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.3",
+      "version": "0.3.3",
+      "date": "2026-09-12",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "983f127b5b84a6fc2b3af0d4322511d8bffdcbf9",
+              "shortHash": "983f127b",
+              "type": "fix",
+              "scope": "native",
+              "subject": "resolve blank window when restoring from tray on Windows",
+              "breaking": false
+            },
+            {
+              "hash": "b4429494502acb920db91af07c46ca7364f9d059",
+              "shortHash": "b4429494",
+              "type": "fix",
+              "scope": "native",
+              "subject": "keep the NSIS setup wizard interactive",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.2",
+      "version": "0.3.2",
+      "date": "2026-09-12",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "085c6de4e26fd86521ccb08eaaadb4ae1c90e5ac",
+              "shortHash": "085c6de4",
+              "type": "fix",
+              "scope": "packaging",
+              "subject": "MSIX manifest Id format and asset scale variants",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.1",
+      "version": "0.3.1",
+      "date": "2026-09-12",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "77a5e6db0215a886805ab21780d0fd8d99d94d9c",
+              "shortHash": "77a5e6db",
+              "type": "feat",
+              "scope": "native",
+              "subject": "optimize GUI layout for 1920x1080 Full HD resolution",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.3.0",
+      "version": "0.3.0",
+      "date": "2026-09-12",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "691ca3da5ad182a94ae7d84b1c98413491234bc9",
+              "shortHash": "691ca3da",
+              "type": "feat",
+              "scope": "native",
+              "subject": "migrate Tauri data and start silently from autostart",
+              "breaking": false
+            },
+            {
+              "hash": "da8e91d307152323057d73483b3be9dff96c64cf",
+              "shortHash": "da8e91d3",
+              "type": "feat",
+              "scope": "native",
+              "subject": "close the desktop feature-parity gaps with the web client",
+              "breaking": false
+            },
+            {
+              "hash": "fcb6dddd88f8ee2cf386318766354028d3a99727",
+              "shortHash": "fcb6dddd",
+              "type": "feat",
+              "scope": "native",
+              "subject": "polish ui animations and implement CustomSelect dropdowns",
+              "breaking": false
+            },
+            {
+              "hash": "7f286946d93a9d66abfba983a32ae14c93e910da",
+              "shortHash": "7f286946",
+              "type": "feat",
+              "scope": "native",
+              "subject": "hide console in release builds and embed PE resources and icon",
+              "breaking": false
+            },
+            {
+              "hash": "52689811f55ec44d70769bad0816184744cf7ecc",
+              "shortHash": "52689811",
+              "type": "feat",
+              "scope": "native",
+              "subject": "implement P1 range selection, drag-and-drop, deep links, and clipboard monitoring",
+              "breaking": false
+            },
+            {
+              "hash": "c0c637ac960cc8403c9370f0f8bfc1afb3357c33",
+              "shortHash": "c0c637ac",
+              "type": "feat",
+              "scope": "native",
+              "subject": "implement P0 table view, sleep prevention, desktop hotkeys, and smart clipboard sniffing",
+              "breaking": false
+            },
+            {
+              "hash": "cabc6198e1d3e822d484b7a54ae36838aab839ac",
+              "shortHash": "cabc6198",
+              "type": "feat",
+              "scope": "native",
+              "subject": "first-run setup wizard, clipboard autofill, list context menu, in-app toasts",
+              "breaking": false
+            },
+            {
+              "hash": "4cea053c7dfa41e0ef2b446772f846bee6c08dc1",
+              "shortHash": "4cea053c",
+              "type": "feat",
+              "scope": "native",
+              "subject": "collapse advanced BT settings by default in settings dialog",
+              "breaking": false
+            },
+            {
+              "hash": "993c4c5c1db188d0034574a82e9ff6a3afe40b2a",
+              "shortHash": "993c4c5c",
+              "type": "feat",
+              "scope": "native",
+              "subject": "torrent preselect/checksum probe/single-instance, fix double-click, context menu and tray quit",
+              "breaking": false
+            },
+            {
+              "hash": "56b18fa69a7221856f49fd5ca8140a49be5aca11",
+              "shortHash": "56b18fa6",
+              "type": "feat",
+              "scope": "native",
+              "subject": "self-update with minisign-verified manifest across channels",
+              "breaking": false
+            },
+            {
+              "hash": "f25547bd5cf8d6aeafc86c97773941fd36a9c98e",
+              "shortHash": "f25547bd",
+              "type": "feat",
+              "scope": "native",
+              "subject": "theme system, MiSans VF font bundling, autostart and UI fixes",
+              "breaking": false
+            },
+            {
+              "hash": "8370083ddfcc7d719f26905dce59589ae173e561",
+              "shortHash": "8370083d",
+              "type": "feat",
+              "scope": "native",
+              "subject": "add complete i18n support with zh-CN / en-US",
+              "breaking": false
+            },
+            {
+              "hash": "507994dfdcd65512e0186f4d9cb877db86593050",
+              "shortHash": "507994df",
+              "type": "feat",
+              "scope": "native",
+              "subject": "polish settings and labs UI aligned with tauri edition",
+              "breaking": false
+            },
+            {
+              "hash": "af72ab286838f6c1d7146005ff50468c5e503a05",
+              "shortHash": "af72ab28",
+              "type": "feat",
+              "scope": "native",
+              "subject": "align native settings with desktop, switch to Skia renderer and fix ICU link",
+              "breaking": false
+            },
+            {
+              "hash": "840360116c6c0ede3e18fc955a3d1d0324c2125c",
+              "shortHash": "84036011",
+              "type": "feat",
+              "scope": "native",
+              "subject": "integrate Remix Icon SVGs with Slint colorize across all native UI components",
+              "breaking": false
+            },
+            {
+              "hash": "3f89576f38609685bc855840cbd5de64bdebb9ec",
+              "shortHash": "3f89576f",
+              "type": "feat",
+              "scope": "native",
+              "subject": "integrate official limedl logo into sidebar, window title bar, and system tray",
+              "breaking": false
+            },
+            {
+              "hash": "8db5a7bb68a9467d6c9e661616a073c87f79b98c",
+              "shortHash": "8db5a7bb",
+              "type": "feat",
+              "scope": "native",
+              "subject": "implement Settings Center, BitTorrent tuning, Game Mode, and Overclock Mode controls",
+              "breaking": false
+            },
+            {
+              "hash": "3538578fbf60b7d75973cae9bbc828c5e61ac457",
+              "shortHash": "3538578f",
+              "type": "feat",
+              "scope": "native",
+              "subject": "implement Task Inspector, BT Peers/Trackers/Files, and dynamic Piece Map visualizer",
+              "breaking": false
+            },
+            {
+              "hash": "c103739081851bb6cd0e3a3d709c4c7b8fd1cd01",
+              "shortHash": "c1037390",
+              "type": "feat",
+              "scope": "native",
+              "subject": "implement search, sort, multi-selection, batch actions, and tray notifications",
+              "breaking": false
+            },
+            {
+              "hash": "0c899040b8b5e4826e26054ecc351f92ca015cec",
+              "shortHash": "0c899040",
+              "type": "feat",
+              "scope": "native",
+              "subject": "add experimental Slint native desktop UI with femtovg-wgpu",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "c5f0210c20988f58f23a3abc0011e768deeb0953",
+              "shortHash": "c5f0210c",
+              "type": "fix",
+              "scope": "build",
+              "subject": "update limedl-native in Cargo.lock and bump script",
+              "breaking": false
+            },
+            {
+              "hash": "4ffe6d8ada88bd48934ca45c0c6650f9d0b51605",
+              "shortHash": "4ffe6d8a",
+              "type": "fix",
+              "scope": "native",
+              "subject": "collapse the nested ifs in the Linux/macOS autostart cleanup",
+              "breaking": false
+            },
+            {
+              "hash": "9570cf2787d124d31b3b81cf0bef4ed91e510c32",
+              "shortHash": "9570cf27",
+              "type": "fix",
+              "scope": "native",
+              "subject": "build on macOS/Linux and stop running the Skia repro in CI",
+              "breaking": false
+            },
+            {
+              "hash": "0c9c362623997551555cc88ff6c073db43aff6b2",
+              "shortHash": "0c9c3626",
+              "type": "fix",
+              "scope": "native",
+              "subject": "start MSIX builds silently at login",
+              "breaking": false
+            },
+            {
+              "hash": "e8132e6ba28b4f05c0547c6d333858a5eec25b19",
+              "shortHash": "e8132e6b",
+              "type": "fix",
+              "scope": "native",
+              "subject": "category badge light-mode colors, anchor task menu at more button",
+              "breaking": false
+            },
+            {
+              "hash": "aac5d968bd4fcd8f71e407240ef1d987d763d2b6",
+              "shortHash": "aac5d968",
+              "type": "fix",
+              "scope": "native",
+              "subject": "settings dialog tab headers overflow the modal",
+              "breaking": false
+            },
+            {
+              "hash": "b4f0713d0c976127e42954500081f2b151f7b5bb",
+              "shortHash": "b4f0713d",
+              "type": "fix",
+              "scope": "native",
+              "subject": "fix input fields unclickable issue caused by placeholder text intercepting click events",
+              "breaking": false
+            },
+            {
+              "hash": "66c9c41bb5baedb60cf6aba96eda9297ffb0b734",
+              "shortHash": "66c9c41b",
+              "type": "fix",
+              "scope": "native",
+              "subject": "resolve icon vertical offset misalignment and add proper top spacing/padding",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "87bcd78ecf4498dbeac80deac0226e3c266a5d19",
+              "shortHash": "87bcd78e",
+              "type": "refactor",
+              "scope": "desktop",
+              "subject": "remove the retired Tauri shell",
+              "breaking": true
+            },
+            {
+              "hash": "5239feaa18a11c84dcec5d70b75bcc4d02cf2667",
+              "shortHash": "5239feaa",
+              "type": "refactor",
+              "scope": "native",
+              "subject": "modularize Slint architecture, polish UI matching Tauri edition, add native file pickers, unit inputs, and context menus",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.2.1",
+      "version": "0.2.1",
+      "date": "2026-08-28",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "2d61d85f6e122ed6da1c30b4ca9e11aa4371fca5",
+              "shortHash": "2d61d85f",
+              "type": "feat",
+              "scope": "checksum",
+              "subject": "auto-detect sha256 checksum files and support manual expected checksum",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "d17a7970c4a5f455520bc9b40eb4591cfd847537",
+              "shortHash": "d17a7970",
+              "type": "refactor",
+              "scope": "core",
+              "subject": "unify runtime architecture and consolidate dual systems",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.2.0",
+      "version": "0.2.0",
+      "date": "2026-08-28",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "82f02eba012252a25c4f276c8ea21707055132c5",
+              "shortHash": "82f02eba",
+              "type": "feat",
+              "scope": "io",
+              "subject": "implement unified global device-level I/O scheduler (DiskDeviceManager)",
+              "breaking": false
+            },
+            {
+              "hash": "aea5ab319672809dedba5ab4bb98ab5984a3e02d",
+              "shortHash": "aea5ab31",
+              "type": "feat",
+              "scope": "io",
+              "subject": "refactor same-volume temp files, write coalescing, and adaptive HDD sync",
+              "breaking": false
+            },
+            {
+              "hash": "95eb56190c83f72d7be0c43c5a6dad034c744bff",
+              "shortHash": "95eb5619",
+              "type": "feat",
+              "scope": "i18n",
+              "subject": "enhance type safety, key parity testing, and structured errors",
+              "breaking": false
+            },
+            {
+              "hash": "5ee57ad6dd0b46ccfa9ba31f978a4a3d688e924b",
+              "shortHash": "5ee57ad6",
+              "type": "feat",
+              "scope": "ui,cdn",
+              "subject": "integrate multi-cdn provider selection into labs cdn settings panel",
+              "breaking": false
+            },
+            {
+              "hash": "4d2ce4e9bdc717c978b417f4e27fabd0aee5ac09",
+              "shortHash": "4d2ce4e9",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "implement multi-cdn provider abstraction with fastly and custom support",
+              "breaking": false
+            },
+            {
+              "hash": "cfd31fa9f33573c410a38e715ec4da66436828a8",
+              "shortHash": "cfd31fa9",
+              "type": "feat",
+              "scope": "download",
+              "subject": "upgrade github mirror to url pattern rewrite engine",
+              "breaking": false
+            },
+            {
+              "hash": "74899a2b181d250cb3fbed6648c8231a6fbbe1ed",
+              "shortHash": "74899a2b",
+              "type": "feat",
+              "scope": "bt",
+              "subject": "add engine tuning passthrough and IP blocklist",
+              "breaking": false
+            },
+            {
+              "hash": "ba830d180d639837b5d017612fe83e1f22338711",
+              "shortHash": "ba830d18",
+              "type": "feat",
+              "scope": "bt",
+              "subject": "add anti-leech policy loop",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "5aa0472a346a659bfa38b7ec3d19618048912e53",
+              "shortHash": "5aa0472a",
+              "type": "fix",
+              "scope": "core",
+              "subject": "use libc::pwritev for stable Unix vectored writes",
+              "breaking": false
+            },
+            {
+              "hash": "4eddc93b7bd067ef23fe7d3a844da3108822edb6",
+              "shortHash": "4eddc93b",
+              "type": "fix",
+              "scope": "store",
+              "subject": "ensure patchProgress updates reactive summary proxy in downloads list",
+              "breaking": false
+            },
+            {
+              "hash": "e87628e05119bb07ea0c609dd3e77c5cc17b5f5f",
+              "shortHash": "e87628e0",
+              "type": "fix",
+              "scope": "engine",
+              "subject": "resolve out-of-order blake3 hash and add work-stealing chunk scheduler",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "performance",
+          "commits": [
+            {
+              "hash": "d71d0a22e35cdc6949afde284b25f36768515af9",
+              "shortHash": "d71d0a22",
+              "type": "perf",
+              "scope": "core",
+              "subject": "support pwritev vectored writes and sparse file preallocation",
+              "breaking": false
+            },
+            {
+              "hash": "df572f07fcd83a4869e9530e8cefc0f2b2416474",
+              "shortHash": "df572f07",
+              "type": "perf",
+              "scope": "db,ui",
+              "subject": "enable sqlite prepared statement caching and enhance ui floating positioning & a11y",
+              "breaking": false
+            },
+            {
+              "hash": "6a6035721f7cda5c3755b9a010cafb9e88488e6e",
+              "shortHash": "6a603572",
+              "type": "perf",
+              "scope": "core,web",
+              "subject": "implement atomic rate limiter fast-path, zero-copy io worker, and O(1) store indexing",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "db1bf1e523a5dfe57737eaa16e73280b6da4930d",
+              "shortHash": "db1bf1e5",
+              "type": "refactor",
+              "scope": "core,frontend",
+              "subject": "modularize core monoliths, isolate platform APIs, and govern stores",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.16",
+      "version": "0.1.16",
+      "date": "2026-08-19",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "61f53f343d3bfcb69e9b61eedb238e9644704958",
+              "shortHash": "61f53f34",
+              "type": "fix",
+              "scope": "settings",
+              "subject": "sync tailSprint/warmup toggles and unify connection-warmup default",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.15",
+      "version": "0.1.15",
+      "date": "2026-08-19",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "678440e5f5345129c5939546432e49ff37450b8c",
+              "shortHash": "678440e5",
+              "type": "fix",
+              "scope": "update",
+              "subject": "send Accept: application/octet-stream for self-update download",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.14",
+      "version": "0.1.14",
+      "date": "2026-08-19",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "ce8b2168c7006856d9ac672323dd4c19548f7d84",
+              "shortHash": "ce8b2168",
+              "type": "feat",
+              "scope": "queue",
+              "subject": "add empty-area context menu with new task & refresh",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "5cf1353e7a556689ca6d4ecdc94ef3903cc91c8b",
+              "shortHash": "5cf1353e",
+              "type": "fix",
+              "scope": "sonar",
+              "subject": "resolve remaining S6853/S5976; de-regex S8786",
+              "breaking": false
+            },
+            {
+              "hash": "940dcc3ee2bde9126e1322fd3faab05282485f55",
+              "shortHash": "940dcc3e",
+              "type": "fix",
+              "scope": "a11y",
+              "subject": "close NotificationToast <section> tag (region role swap)",
+              "breaking": false
+            },
+            {
+              "hash": "ec12283f99797f329b97568ed0c8c7327b38cfdd",
+              "shortHash": "ec12283f",
+              "type": "fix",
+              "scope": "a11y",
+              "subject": "associate SettingsField labels with their controls",
+              "breaking": false
+            },
+            {
+              "hash": "f321e1c74d1e0989bf5bdd3fb1546db7a4840f39",
+              "shortHash": "f321e1c7",
+              "type": "fix",
+              "scope": "a11y",
+              "subject": "give DownloadComposer form controls explicit accessible names",
+              "breaking": false
+            },
+            {
+              "hash": "89f6146e4bb60014da3a1015ea02bd71cae44d24",
+              "shortHash": "89f6146e",
+              "type": "fix",
+              "scope": "a11y",
+              "subject": "native language radio + dialog focus trap",
+              "breaking": false
+            },
+            {
+              "hash": "c900adcad97d0ad8536f20ead88b9af35281a0ca",
+              "shortHash": "c900adca",
+              "type": "fix",
+              "scope": "a11y",
+              "subject": "add accessible names and correct landmark/tablist roles",
+              "breaking": false
+            },
+            {
+              "hash": "cd8f24d5687e98860dab31a52cd8ea60cccaed35",
+              "shortHash": "cd8f24d5",
+              "type": "fix",
+              "scope": "sonar",
+              "subject": "resolve minor/style issues and finish draft prop refactor",
+              "breaking": false
+            },
+            {
+              "hash": "97e6319c7d712824b9f7736f98ac0301a2e6e7c0",
+              "shortHash": "97e6319c",
+              "type": "fix",
+              "scope": "sonar",
+              "subject": "address perf, test-standard, ref-scope & CSS issues",
+              "breaking": false
+            },
+            {
+              "hash": "a25803f8642bc629b75f42859279a56c787be463",
+              "shortHash": "a25803f8",
+              "type": "fix",
+              "scope": "autostart",
+              "subject": "create main window hidden on --hidden launch",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.13",
+      "version": "0.1.13",
+      "date": "2026-08-18",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "2d45ad6b105b806cb35785813dd409c6c9237948",
+              "shortHash": "2d45ad6b",
+              "type": "feat",
+              "scope": "cli",
+              "subject": "wire --header and add aria2c Stages 2-4 (input-file, conditional-get, RPC)",
+              "breaking": false
+            },
+            {
+              "hash": "6875f45676803ce76ac0a985f0a6bf353f7c3296",
+              "shortHash": "6875f456",
+              "type": "feat",
+              "scope": "cli",
+              "subject": "add aria2c-compatible subcommand (Stage 1, HTTP subset)",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "d05a26028ca064439d0538d04d9b9c7b8d3b56c8",
+              "shortHash": "d05a2602",
+              "type": "fix",
+              "scope": "cli",
+              "subject": "collapse nested if to satisfy clippy collapsible_if (-D warnings)",
+              "breaking": false
+            },
+            {
+              "hash": "6807f7a8d709db3d068bbf7054b301350c68f598",
+              "shortHash": "6807f7a8",
+              "type": "fix",
+              "scope": "e2e",
+              "subject": "disambiguate default-download-directory field selector",
+              "breaking": false
+            },
+            {
+              "hash": "d4fef37531afbb88629e3516d113b2b045946b2d",
+              "shortHash": "d4fef375",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve CI regressions from buffer cleanup + ESM global-setup",
+              "breaking": false
+            },
+            {
+              "hash": "7bf879c794c3462a5f8c71f8b5a363443d5084d6",
+              "shortHash": "7bf879c7",
+              "type": "fix",
+              "scope": "e2e",
+              "subject": "resolve __dirname ReferenceError in ESM global-setup",
+              "breaking": false
+            },
+            {
+              "hash": "7862e360732e554e117b971da1941b25a60203d4",
+              "shortHash": "7862e360",
+              "type": "fix",
+              "scope": "core",
+              "subject": "gate test-only drain_background with cfg(test)",
+              "breaking": false
+            },
+            {
+              "hash": "10c40174a06198c9a6299a0ee178366a69659355",
+              "shortHash": "10c40174",
+              "type": "fix",
+              "scope": "deps",
+              "subject": "patch brace-expansion DoS vulnerabilities via pnpm overrides",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "7fa938bd9314b542e100a2b706f9f4ca2ede33d7",
+              "shortHash": "7fa938bd",
+              "type": "refactor",
+              "scope": "e2e, a11y",
+              "subject": "remove fixed waits (S2925) + native roles & labels (S6819/S6853)",
+              "breaking": false
+            },
+            {
+              "hash": "74332b50f7967a6d6da486e58483465e7bc67879",
+              "shortHash": "74332b50",
+              "type": "refactor",
+              "scope": "settings",
+              "subject": "use defineModel for draft instead of mutating a prop (S8951)",
+              "breaking": false
+            },
+            {
+              "hash": "e9ce035a42b0f6e54b25464ab854abbe95275da0",
+              "shortHash": "e9ce035a",
+              "type": "refactor",
+              "scope": null,
+              "subject": "reduce cognitive complexity, fix security residuals & code smells",
+              "breaking": false
+            },
+            {
+              "hash": "ccecf4fe745b3458a67e9c82635d56ee83f1d395",
+              "shortHash": "ccecf4fe",
+              "type": "refactor",
+              "scope": "buffer",
+              "subject": "remove dead BufferMode::Local mode and stale #[allow(dead_code)]",
+              "breaking": false
+            },
+            {
+              "hash": "5afaee8d659ddce1f228a3dd7a96f51bce0d6f1f",
+              "shortHash": "5afaee8d",
+              "type": "refactor",
+              "scope": null,
+              "subject": "dedupe settings defaults and RPC command surface",
+              "breaking": false
+            },
+            {
+              "hash": "4514285944f35d4ea702eae307cc2dcff54a0e19",
+              "shortHash": "45142859",
+              "type": "refactor",
+              "scope": null,
+              "subject": "clear refactor leftovers — bt_backend rename, TaskId wire parser, Pinia migration",
+              "breaking": false
+            },
+            {
+              "hash": "1ad87373c54873059c1746bab77f677c3662b7ff",
+              "shortHash": "1ad87373",
+              "type": "refactor",
+              "scope": "deps",
+              "subject": "drop stale urlencoding and nonzero_ext crates",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.12",
+      "version": "0.1.12",
+      "date": "2026-08-18",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "fe9e71d86149687e71d015493f64a82db025fd4b",
+              "shortHash": "fe9e71d8",
+              "type": "feat",
+              "scope": "settings",
+              "subject": "add log directory picker and open log dir in file manager",
+              "breaking": false
+            },
+            {
+              "hash": "8f6fa35ac3b0a890cfc957daba273186176f5ef1",
+              "shortHash": "8f6fa35a",
+              "type": "feat",
+              "scope": "core",
+              "subject": "add SHA-1 checksum mode; make BT backend optional feature",
+              "breaking": false
+            },
+            {
+              "hash": "7fa05fbd57722b99a942399340644a8d0b4267f4",
+              "shortHash": "7fa05fbd",
+              "type": "feat",
+              "scope": null,
+              "subject": "cross-platform notifications, aria2 rpc, app info, autostart",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "8615a129eeaa79838f6db046fb7ee7a894bca460",
+              "shortHash": "8615a129",
+              "type": "fix",
+              "scope": "core",
+              "subject": "cache disk-type detection per drive letter on Windows",
+              "breaking": false
+            },
+            {
+              "hash": "e8e74ca62dfd5bba4c8950d52693fedb6f724732",
+              "shortHash": "e8e74ca6",
+              "type": "fix",
+              "scope": "core",
+              "subject": "prevent ping-pong buffer data loss and flush on cancel",
+              "breaking": false
+            },
+            {
+              "hash": "8fc5e1a7eb59a07b750681b292ab2202a704caca",
+              "shortHash": "8fc5e1a7",
+              "type": "fix",
+              "scope": "linux",
+              "subject": "autostart no longer leaves a blank unclosable window",
+              "breaking": false
+            },
+            {
+              "hash": "362cebbe4082c3b3a6e5e735e3d54dbf672053c8",
+              "shortHash": "362cebbe",
+              "type": "fix",
+              "scope": "linux",
+              "subject": "create window after core init, embed 512px icon",
+              "breaking": false
+            },
+            {
+              "hash": "9c76e136c7aef399665489a9949b31d4af90d5ee",
+              "shortHash": "9c76e136",
+              "type": "fix",
+              "scope": "clippy",
+              "subject": "satisfy -D warnings (io_other_error, collapsible_match)",
+              "breaking": false
+            },
+            {
+              "hash": "de8ff12ba5c55c2298ae5961f582d0cbdeea1578",
+              "shortHash": "de8ff12b",
+              "type": "fix",
+              "scope": "linux",
+              "subject": "repair open-in-explorer (BT no-op, silent xdg-open failure)",
+              "breaking": false
+            },
+            {
+              "hash": "aa27a40558c7f4a4cea2248b109f3499e7000359",
+              "shortHash": "aa27a405",
+              "type": "fix",
+              "scope": null,
+              "subject": "display real IPC error messages instead of [object Object]",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "13514f595ddcc702b50e2007b3c03743303f4f54",
+              "shortHash": "13514f59",
+              "type": "refactor",
+              "scope": null,
+              "subject": "remove dead DownloadLimits chain, gate test-only code, clean frontend leftovers",
+              "breaking": false
+            },
+            {
+              "hash": "fc20e5d3b7aea1fe48f70292b1854d26ac331358",
+              "shortHash": "fc20e5d3",
+              "type": "refactor",
+              "scope": null,
+              "subject": "move benchmarks into limedl-core, clean stale leftovers",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.11",
+      "version": "0.1.11",
+      "date": "2026-08-02",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "928105112732c0ed59b43e27b005e977e67ec935",
+              "shortHash": "92810511",
+              "type": "fix",
+              "scope": "linux",
+              "subject": "repair autostart blank window, stub tray menu, dev registration",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.10",
+      "version": "0.1.10",
+      "date": "2026-07-31",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "5629ab7600714238dad3b6d7db181410c96f02c2",
+              "shortHash": "5629ab76",
+              "type": "fix",
+              "scope": "scripts",
+              "subject": "include Cargo.lock in version bump; tag without editor",
+              "breaking": false
+            },
+            {
+              "hash": "47f7bebf20a2784a1390d43e2b32b0062c22197f",
+              "shortHash": "47f7bebf",
+              "type": "fix",
+              "scope": "linux",
+              "subject": "allow native Wayland backend in AppImage, drop forced X11",
+              "breaking": false
+            },
+            {
+              "hash": "89efd8d771f428406cc9ef71e8625a36f7ae7594",
+              "shortHash": "89efd8d7",
+              "type": "fix",
+              "scope": null,
+              "subject": "blank UI on first run (structuredClone rejects reactive proxy)",
+              "breaking": false
+            },
+            {
+              "hash": "0191d0c1425f3130f594b756a8b99db6da6dee63",
+              "shortHash": "0191d0c1",
+              "type": "fix",
+              "scope": "linux",
+              "subject": "workaround Wayland protocol error 71 on NVIDIA drivers",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.9",
+      "version": "0.1.9",
+      "date": "2026-07-30",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "1c39bce8dfadae97b092352ca7d772ef64f22b1d",
+              "shortHash": "1c39bce8",
+              "type": "fix",
+              "scope": null,
+              "subject": "strip BOM from bumped files, fix bump script to write UTF-8 without BOM",
+              "breaking": false
+            },
+            {
+              "hash": "cfdbefedef6476dcf56b88965fb406984d8e70f4",
+              "shortHash": "cfdbefed",
+              "type": "fix",
+              "scope": "linux",
+              "subject": "prune bundled libwayland from AppImage for Arch compatibility",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "13fd26be83208ffb993c0bc27f748216117cd645",
+              "shortHash": "13fd26be",
+              "type": "refactor",
+              "scope": null,
+              "subject": "rewrite bump-version in JS for cross-platform safety",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.8",
+      "version": "0.1.8",
+      "date": "2026-07-29",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "af5fb41481c89794e0a6bf5ad453e5712ddbf42d",
+              "shortHash": "af5fb414",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "warn when DNS resolves to private IP (TUN proxy interference)",
+              "breaking": false
+            },
+            {
+              "hash": "1459f0d7d19cf61d58f9370003ff5022939672eb",
+              "shortHash": "1459f0d7",
+              "type": "feat",
+              "scope": "rpc",
+              "subject": "refactor Aria2 RPC architecture and extend compatibility",
+              "breaking": false
+            },
+            {
+              "hash": "2e0396a9cdc508b81ce2ac65ca43df17bcaabeec",
+              "shortHash": "2e0396a9",
+              "type": "feat",
+              "scope": null,
+              "subject": "add log retention strategy UI controls",
+              "breaking": false
+            },
+            {
+              "hash": "4cd625a449d67a95acbb2e3d5edd938d356f0fa9",
+              "shortHash": "4cd625a4",
+              "type": "feat",
+              "scope": null,
+              "subject": "use limedl download engine for self-update downloads",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "9a5e80e57c0506f20a86bd1bdde843248be1bcd9",
+              "shortHash": "9a5e80e5",
+              "type": "fix",
+              "scope": null,
+              "subject": "restore UTF-8 encoding in package.json corrupted by bump script",
+              "breaking": false
+            },
+            {
+              "hash": "f52ba592d59a5ff3c3ffbf07bd49af8b27bdc10b",
+              "shortHash": "f52ba592",
+              "type": "fix",
+              "scope": null,
+              "subject": "restore UTF-8 encoding in Cargo.toml corrupted by bump script",
+              "breaking": false
+            },
+            {
+              "hash": "a24d2533b66a706d6052f7bca9a7f39d6eed1aa7",
+              "shortHash": "a24d2533",
+              "type": "fix",
+              "scope": null,
+              "subject": "repair tests, lint, and clippy warnings",
+              "breaking": false
+            },
+            {
+              "hash": "f567477a27277f3f1b2a04571e2288e0b66b2b1b",
+              "shortHash": "f567477a",
+              "type": "fix",
+              "scope": "bt",
+              "subject": "address architectural review findings for IrontideBtBackend",
+              "breaking": false
+            },
+            {
+              "hash": "7dd5fddb7693027b8eac001493bd9d2dbb259a8b",
+              "shortHash": "7dd5fddb",
+              "type": "fix",
+              "scope": null,
+              "subject": "display actual CDN node IP instead of generic 'CDN 加速' text",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.7",
+      "version": "0.1.7",
+      "date": "2026-07-27",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "f17d3a4e9023ff68f989ffec71ff7470b9eb5264",
+              "shortHash": "f17d3a4e",
+              "type": "feat",
+              "scope": "server",
+              "subject": "add brotli/gzip/zstd compression middleware for web UI",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "069ca24844b34e97d565306b19370c9822d2cd20",
+              "shortHash": "069ca248",
+              "type": "fix",
+              "scope": null,
+              "subject": "persist cdn_accelerated field to database to preserve CDN badge after restart",
+              "breaking": false
+            },
+            {
+              "hash": "09544ea1c0e61827de295dab702935cd284749af",
+              "shortHash": "09544ea1",
+              "type": "fix",
+              "scope": "settings",
+              "subject": "scan all drives for HDD detection, not just download directory",
+              "breaking": false
+            },
+            {
+              "hash": "3c8b22f9f57bacaa048e7c035c03f7dad6312ec9",
+              "shortHash": "3c8b22f9",
+              "type": "fix",
+              "scope": "ui",
+              "subject": "prevent UiSelect dropdown from rendering outside viewport",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "performance",
+          "commits": [
+            {
+              "hash": "2e00ab51bb735b1373c2ab487380f61f04d6ba87",
+              "shortHash": "2e00ab51",
+              "type": "perf",
+              "scope": "assets",
+              "subject": "convert logo from PNG to lossless WebP (1.4MB → 448KB)",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "dfdb0d5a32f969ae69b7fc5903a924e504023ba9",
+              "shortHash": "dfdb0d5a",
+              "type": "refactor",
+              "scope": null,
+              "subject": "structural decomposition across frontend and Rust",
+              "breaking": false
+            },
+            {
+              "hash": "31b0b5e9922a5fa089746e42920f5ec4c911a10a",
+              "shortHash": "31b0b5e9",
+              "type": "refactor",
+              "scope": null,
+              "subject": "migrate from composable singletons to Pinia stores",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.6",
+      "version": "0.1.6",
+      "date": "2026-07-26",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "efcc9dcb0abfd386d629ce87b47ce5bc9a4aee10",
+              "shortHash": "efcc9dcb",
+              "type": "feat",
+              "scope": null,
+              "subject": "configurable double-click action on download tasks",
+              "breaking": false
+            },
+            {
+              "hash": "8ee72b338c00206e52f23616c838d5b6da9a967c",
+              "shortHash": "8ee72b33",
+              "type": "feat",
+              "scope": null,
+              "subject": "click download-complete OS notification to open file in explorer",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "3b98632ee8b13a874d554fe08ba079b8829e225d",
+              "shortHash": "3b98632e",
+              "type": "fix",
+              "scope": "windows",
+              "subject": "remove broken rotation rate IOCTL, use seek penalty for HDD detection",
+              "breaking": false
+            },
+            {
+              "hash": "ade2854b165abdf873d4f7acc0ab033d0cfade30",
+              "shortHash": "ade2854b",
+              "type": "fix",
+              "scope": "test",
+              "subject": "add missing onAction mock and extra field to notification test",
+              "breaking": false
+            },
+            {
+              "hash": "9faeeeda6fa4e1869e3baaa717028aeffa19b303",
+              "shortHash": "9faeeeda",
+              "type": "fix",
+              "scope": "frontend",
+              "subject": "add missing ssdWriteCombineMb to SettingsAboutPanel default settings",
+              "breaking": false
+            },
+            {
+              "hash": "e3ce5a4bc6aabb0076a45a99c747189ba0a9c674",
+              "shortHash": "e3ce5a4b",
+              "type": "fix",
+              "scope": "frontend",
+              "subject": "add missing ssdWriteCombineMb to IoBaselineSettings construction sites",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "performance",
+          "commits": [
+            {
+              "hash": "0bf960150d0250de709b5371522299ef5864dd5c",
+              "shortHash": "0bf96015",
+              "type": "perf",
+              "scope": "db",
+              "subject": "SQLite optimizations — WAL checkpoint, batch writes, ANALYZE, vacuum, 32MB cache",
+              "breaking": false
+            },
+            {
+              "hash": "c8029245c5736736cf6b4bb396188b832d2949a3",
+              "shortHash": "c8029245",
+              "type": "perf",
+              "scope": "core",
+              "subject": "download engine optimizations",
+              "breaking": false
+            },
+            {
+              "hash": "3013de786acd7e2105302982d193860b6698097c",
+              "shortHash": "3013de78",
+              "type": "perf",
+              "scope": "buffer",
+              "subject": "SSD write-combining: contiguous merge, configurable limit, ping-pong mode",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.5",
+      "version": "0.1.5",
+      "date": "2026-07-25",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "a2092b7121189c5e4b10b3deb8a30cfa489377d0",
+              "shortHash": "a2092b71",
+              "type": "feat",
+              "scope": null,
+              "subject": "chunk interleaving, incremental Blake3 checksum, HTTP connection warmup",
+              "breaking": false
+            },
+            {
+              "hash": "78cda2628005efaacf4772cb8fd3d180d6771d91",
+              "shortHash": "78cda262",
+              "type": "feat",
+              "scope": "smart-chunk",
+              "subject": "extend adaptive chunk size tiers for large files",
+              "breaking": false
+            },
+            {
+              "hash": "8e99bb3a33d59eede0785bb4c4758520547e35bd",
+              "shortHash": "8e99bb3a",
+              "type": "feat",
+              "scope": null,
+              "subject": "tail sprint, game mode button polish, and remove monospace fonts",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "40a1b3bac9b79e15c383c2fbff1f494ed9d8ad71",
+              "shortHash": "40a1b3ba",
+              "type": "fix",
+              "scope": "core",
+              "subject": "IoWorker drain, multi-thread pool, persist retry, chunk clone elimination",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "bbc85d0bd5c5b2f0d5d322cca85442152e9b70f3",
+              "shortHash": "bbc85d0b",
+              "type": "refactor",
+              "scope": "aimd",
+              "subject": "fast-start, fast-increase, shorter cooldowns, hysteresis protection",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.4",
+      "version": "0.1.4",
+      "date": "2026-07-24",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "c4cba1e302904c0885458e808c2f5477d42a6222",
+              "shortHash": "c4cba1e3",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "add IPv6 support to CDN acceleration",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "a2fadec5d21e07da5726ad130eeed19a58295dd7",
+              "shortHash": "a2fadec5",
+              "type": "fix",
+              "scope": null,
+              "subject": "autostart toggle snapping back to off after enabling",
+              "breaking": false
+            },
+            {
+              "hash": "2ad6b09508169e18b39a115a3913fc9fc7ececdd",
+              "shortHash": "2ad6b095",
+              "type": "fix",
+              "scope": "windows",
+              "subject": "HDD detection now uses nominal media rotation rate as primary method",
+              "breaking": false
+            },
+            {
+              "hash": "e3349b72f3cbe2716c8237b683de725592cae59f",
+              "shortHash": "e3349b72",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve SonarCloud issues across 18 files",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.3",
+      "version": "0.1.3",
+      "date": "2026-07-24",
+      "groups": [
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "00e089108c59e6586c0f8c5afad56ca4f442b722",
+              "shortHash": "00e08910",
+              "type": "fix",
+              "scope": null,
+              "subject": "移除Command导入的#[cfg(windows)]守卫，macOS/Linux平台需要",
+              "breaking": false
+            },
+            {
+              "hash": "56f3b1af014293d0770f42e33b24f260592ae207",
+              "shortHash": "56f3b1af",
+              "type": "fix",
+              "scope": null,
+              "subject": "修复oracle分析发现的严重/高/中/低优先级问题",
+              "breaking": false
+            },
+            {
+              "hash": "0630dabe3bcc7b97d793f238cecd651fd65543d7",
+              "shortHash": "0630dabe",
+              "type": "fix",
+              "scope": null,
+              "subject": "修复关于页面内容泄露和托盘限速模式重启后自动勾选",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.2",
+      "version": "0.1.2",
+      "date": "2026-07-24",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "16b71e44cbeb8d566981f13ee0cd7a0dc8677638",
+              "shortHash": "16b71e44",
+              "type": "feat",
+              "scope": null,
+              "subject": "add factory reset / clear all data feature",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "7d2c6667687a2a1e05e7edcaf0c92ad1e6bde5a0",
+              "shortHash": "7d2c6667",
+              "type": "fix",
+              "scope": null,
+              "subject": "remove hardcoded 0.1.0 version fallback in about panel",
+              "breaking": false
+            },
+            {
+              "hash": "1977e49415f0893098e5c20e5121c7671576cdb4",
+              "shortHash": "1977e494",
+              "type": "fix",
+              "scope": null,
+              "subject": "themeColor default to amber in SettingsAppearancePanel.test.ts",
+              "breaking": false
+            },
+            {
+              "hash": "6580670457a9686f5796257360c390416d048df2",
+              "shortHash": "65806704",
+              "type": "fix",
+              "scope": null,
+              "subject": "SettingsAppearancePanel.test.ts use full createSettings() pattern",
+              "breaking": false
+            },
+            {
+              "hash": "2ba8c280078f632a00e1a0e8c4e896fa27cfdce3",
+              "shortHash": "2ba8c280",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve vue-tsc type errors and duplicate ref import",
+              "breaking": false
+            },
+            {
+              "hash": "1da48b307361282d9ffd87f5addfe2fc0a8d0162",
+              "shortHash": "1da48b30",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve tsgolint 7.x errors in new test files",
+              "breaking": false
+            },
+            {
+              "hash": "c068a4533cee02df94d8709fa7fa4b4cf0d8cde4",
+              "shortHash": "c068a453",
+              "type": "fix",
+              "scope": null,
+              "subject": "tungstenite 0.30 Message::Text requires Utf8Bytes, add .into()",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.1",
+      "version": "0.1.1",
+      "date": "2026-07-24",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "bb29b05a4d07c64bfbdd98fcc0636169705559ce",
+              "shortHash": "bb29b05a",
+              "type": "feat",
+              "scope": null,
+              "subject": "start app maximized",
+              "breaking": false
+            },
+            {
+              "hash": "664769c69bbc5876e897f2b61a2b9fc21d13feeb",
+              "shortHash": "664769c6",
+              "type": "feat",
+              "scope": "tray",
+              "subject": "i18n menu + pause all, speed limit, open dir, game mode, separators",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "684b54a9d27eb1e2a00f772c48e223facee3aede",
+              "shortHash": "684b54a9",
+              "type": "fix",
+              "scope": "lint",
+              "subject": "resolve oxlint errors and warnings",
+              "breaking": false
+            },
+            {
+              "hash": "24abb39e7e86fbdc65af64e7c43e70bd71f875c2",
+              "shortHash": "24abb39e",
+              "type": "fix",
+              "scope": "update",
+              "subject": "don't overwrite currentVersion to 0.0.0 when no update found in dev mode",
+              "breaking": false
+            },
+            {
+              "hash": "4916416912fbc09e2708fe1006e7a226d19f7213",
+              "shortHash": "49164169",
+              "type": "fix",
+              "scope": "i18n",
+              "subject": "call update_tray_language on initial load, not just on language change",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "v0.1.0",
+      "version": "0.1.0",
+      "date": "2026-07-24",
+      "groups": [
+        {
+          "id": "features",
+          "commits": [
+            {
+              "hash": "a1edfc788b668b97e9942571d482a6df4b639309",
+              "shortHash": "a1edfc78",
+              "type": "feat",
+              "scope": null,
+              "subject": "UX overhaul — settings simplification, setup wizard redesign, HDD buffer toggle, Aria2 Explorer recommendation",
+              "breaking": false
+            },
+            {
+              "hash": "0191315e6b2e665ee85a80057b52be647f754cc1",
+              "shortHash": "0191315e",
+              "type": "feat",
+              "scope": null,
+              "subject": "add close behavior setting (exit vs minimize to tray)",
+              "breaking": false
+            },
+            {
+              "hash": "12a087fb9de31af699ebd3b02aff7b2d20b9ac64",
+              "shortHash": "12a087fb",
+              "type": "feat",
+              "scope": null,
+              "subject": "add Linux/macOS disk type detection via sysfs and IOKit",
+              "breaking": false
+            },
+            {
+              "hash": "53e79047985202f273aaf0bbb7bbe29f1b712ea6",
+              "shortHash": "53e79047",
+              "type": "feat",
+              "scope": null,
+              "subject": "implement BT speed limit modal dialog",
+              "breaking": false
+            },
+            {
+              "hash": "24902e5982f5c764654bd93384e48185a2a02fca",
+              "shortHash": "24902e59",
+              "type": "feat",
+              "scope": null,
+              "subject": "embed NAS frontend into binary, add release workflow for Tauri + NAS",
+              "breaking": false
+            },
+            {
+              "hash": "88c4577e15949e358e64166b6ef6e0b234b341ad",
+              "shortHash": "88c4577e",
+              "type": "feat",
+              "scope": null,
+              "subject": "add criterion benchmark infrastructure",
+              "breaking": false
+            },
+            {
+              "hash": "7cb80bb70c55d205e13700f6fde8089273ff6ffd",
+              "shortHash": "7cb80bb7",
+              "type": "feat",
+              "scope": null,
+              "subject": "add auto-start, singleton, installer config, and system info",
+              "breaking": false
+            },
+            {
+              "hash": "2ca695dd1b00c1292fe2be51b43f829bd7ff0a1a",
+              "shortHash": "2ca695dd",
+              "type": "feat",
+              "scope": null,
+              "subject": "add self-update support with About panel in Settings",
+              "breaking": false
+            },
+            {
+              "hash": "ea21fa7cc2bb7ca7f0c66ce0a904e6e5ee7c7f99",
+              "shortHash": "ea21fa7c",
+              "type": "feat",
+              "scope": null,
+              "subject": "irontide BT backend + settings restructuring + subsystem documentation",
+              "breaking": false
+            },
+            {
+              "hash": "bf8fd2222022cc31b1bb578b0ee3aa91111b08e3",
+              "shortHash": "bf8fd222",
+              "type": "feat",
+              "scope": null,
+              "subject": "replace OwnBtBackend stub with irontide-based production backend",
+              "breaking": false
+            },
+            {
+              "hash": "a4aa22b9ba1cb0127ee120f48173185f55ce714e",
+              "shortHash": "a4aa22b9",
+              "type": "feat",
+              "scope": null,
+              "subject": "add overclock mode button to force max threads (bypass AIMD adjustment)",
+              "breaking": false
+            },
+            {
+              "hash": "a27e8e6c13df31ec585012b696a5097a2c80b4cc",
+              "shortHash": "a27e8e6c",
+              "type": "feat",
+              "scope": null,
+              "subject": "add UiUnitInput component with inline unit labels; simplify settings panel headers",
+              "breaking": false
+            },
+            {
+              "hash": "0e8bdf393d8ee71cd50f4d6ce4b865c470642bed",
+              "shortHash": "0e8bdf39",
+              "type": "feat",
+              "scope": null,
+              "subject": "优化 UI",
+              "breaking": false
+            },
+            {
+              "hash": "3339b9536c6a1ccbd0d4b41bff74a9bea3e7d5d8",
+              "shortHash": "3339b953",
+              "type": "feat",
+              "scope": null,
+              "subject": "HDD/SSD intelligent I/O buffer optimization",
+              "breaking": false
+            },
+            {
+              "hash": "2a4a1430b2fbfaaba0db4e8ab2e9cb3c11887247",
+              "shortHash": "2a4a1430",
+              "type": "feat",
+              "scope": null,
+              "subject": "GitHub mirror auto-link-replacement lab feature",
+              "breaking": false
+            },
+            {
+              "hash": "a948e090a1de283694aaf9b22a1d74c8f5b102d0",
+              "shortHash": "a948e090",
+              "type": "feat",
+              "scope": null,
+              "subject": "incremental progress update protocol (download-progress event)",
+              "breaking": false
+            },
+            {
+              "hash": "0ef209d4793221634c89c1ce8b127947e13bdd22",
+              "shortHash": "0ef209d4",
+              "type": "feat",
+              "scope": null,
+              "subject": "UI改进",
+              "breaking": false
+            },
+            {
+              "hash": "fd2ad1f8f22573ec3622bfa6fc040492a166400b",
+              "shortHash": "fd2ad1f8",
+              "type": "feat",
+              "scope": null,
+              "subject": "remove misleading HTTP speed limit fields + add queue search/filter",
+              "breaking": false
+            },
+            {
+              "hash": "3d16f24c53b859b7ec60361dd18c363506ddaf62",
+              "shortHash": "3d16f24c",
+              "type": "feat",
+              "scope": "notifications",
+              "subject": "OS desktop notifications for download completion/failure",
+              "breaking": false
+            },
+            {
+              "hash": "bd5ea8f129602e7872109eaacc5115d60036e34e",
+              "shortHash": "bd5ea8f1",
+              "type": "feat",
+              "scope": "bt",
+              "subject": "P0+P1 BT download enhancements",
+              "breaking": false
+            },
+            {
+              "hash": "21776a6c87e44b14d8c512bbdb81f4d362466968",
+              "shortHash": "21776a6c",
+              "type": "feat",
+              "scope": "ui",
+              "subject": "CDN acceleration settings panel, page integration, and IPC bridge",
+              "breaking": false
+            },
+            {
+              "hash": "5d6d67001831b17bfbd7a53572dcbcec0eff836e",
+              "shortHash": "5d6d6700",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "Tauri IPC commands, module registration, settings integration",
+              "breaking": false
+            },
+            {
+              "hash": "2f6a542d8ec035d561a32e053e837f0758a9f2be",
+              "shortHash": "2f6a542d",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "implement CdnAccelerator state machine",
+              "breaking": false
+            },
+            {
+              "hash": "989dddce5119983083b62a48d98357b7f8d29b57",
+              "shortHash": "989dddce",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "implement speed test orchestrator",
+              "breaking": false
+            },
+            {
+              "hash": "16c3479f83df0a8ca4968cc08ce278703719412a",
+              "shortHash": "16c3479f",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "implement HTTPS download throughput measurement",
+              "breaking": false
+            },
+            {
+              "hash": "f8746c9120cc5a7e617092075acd8b1bffde62b4",
+              "shortHash": "f8746c91",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "implement accelerated reqwest Client builder",
+              "breaking": false
+            },
+            {
+              "hash": "743808cdcad037ac28072c64d59ca5a8c7cee02a",
+              "shortHash": "743808cd",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "implement TCP connect latency screening",
+              "breaking": false
+            },
+            {
+              "hash": "52c65aadd52d5fb9d5a4b9e138e975767a85d456",
+              "shortHash": "52c65aad",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "implement IP range fetching with static fallback",
+              "breaking": false
+            },
+            {
+              "hash": "3cc40d1416aae162a1f5054b23442c064667ee49",
+              "shortHash": "3cc40d14",
+              "type": "feat",
+              "scope": "cdn",
+              "subject": "add Cloudflare IPv4 static range bundle",
+              "breaking": false
+            },
+            {
+              "hash": "420ec67590e4e29db40ed9b8ca8f835dc20f429a",
+              "shortHash": "420ec675",
+              "type": "feat",
+              "scope": "i18n",
+              "subject": "add CDN acceleration translation keys",
+              "breaking": false
+            },
+            {
+              "hash": "ed5784b88812619cbb59a07cfe867772881466be",
+              "shortHash": "ed5784b8",
+              "type": "feat",
+              "scope": "types",
+              "subject": "add CdnAccelerationSettings to AppSettings",
+              "breaking": false
+            },
+            {
+              "hash": "1d8061579b97cb785d88a5ed05e8e9209b16dd46",
+              "shortHash": "1d806157",
+              "type": "feat",
+              "scope": null,
+              "subject": "sftp/metalink",
+              "breaking": false
+            },
+            {
+              "hash": "bcf1f194fad39695163902a4aeee60ec98a79b28",
+              "shortHash": "bcf1f194",
+              "type": "feat",
+              "scope": null,
+              "subject": "改良右键",
+              "breaking": false
+            },
+            {
+              "hash": "8fbeabb6e67d3df8b946e4f9bc77742479fff9d2",
+              "shortHash": "8fbeabb6",
+              "type": "feat",
+              "scope": null,
+              "subject": "BT设置",
+              "breaking": false
+            },
+            {
+              "hash": "ed08114b412f0f6f3d58873e451d3b4a3f71d669",
+              "shortHash": "ed08114b",
+              "type": "feat",
+              "scope": null,
+              "subject": "BT暂停、主题配色",
+              "breaking": false
+            },
+            {
+              "hash": "0aeed36be1fa46ed9b0267f3147f2917c2ada97d",
+              "shortHash": "0aeed36b",
+              "type": "feat",
+              "scope": null,
+              "subject": "BT",
+              "breaking": false
+            },
+            {
+              "hash": "2ebc873ce01368a72260c85cc244f8e42c2e6b22",
+              "shortHash": "2ebc873c",
+              "type": "feat",
+              "scope": null,
+              "subject": "i18n",
+              "breaking": false
+            },
+            {
+              "hash": "236d00beeacba6d80161ee04a77d60c2c10dbca4",
+              "shortHash": "236d00be",
+              "type": "feat",
+              "scope": null,
+              "subject": "sha256/xxhash校验",
+              "breaking": false
+            },
+            {
+              "hash": "028fd6c5d78926e3eef7e1635d9cc9a727ee38cb",
+              "shortHash": "028fd6c5",
+              "type": "feat",
+              "scope": null,
+              "subject": "第二版",
+              "breaking": false
+            },
+            {
+              "hash": "a45d0414f4fe5980edce9567b0caedcf86699c65",
+              "shortHash": "a45d0414",
+              "type": "feat",
+              "scope": null,
+              "subject": "初版",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "fixes",
+          "commits": [
+            {
+              "hash": "448bd89ebd3c9fca1ece38365df96c626a7920cb",
+              "shortHash": "448bd89e",
+              "type": "fix",
+              "scope": "e2e",
+              "subject": "update settings tab test for advanced tabs collapse",
+              "breaking": false
+            },
+            {
+              "hash": "de1f383851122d049a8c1cca3f9da23968dbe5fa",
+              "shortHash": "de1f3838",
+              "type": "fix",
+              "scope": null,
+              "subject": "remove duplicate tray icon from tauri.conf.json",
+              "breaking": false
+            },
+            {
+              "hash": "4544d780f46f3fb38fb26f98945a6dd5eb495986",
+              "shortHash": "4544d780",
+              "type": "fix",
+              "scope": null,
+              "subject": "prevent tooltip flash at top-left on page load",
+              "breaking": false
+            },
+            {
+              "hash": "9a469fef5de36d78602cef0cd0da0f79397e0cf2",
+              "shortHash": "9a469fef",
+              "type": "fix",
+              "scope": null,
+              "subject": "remove find_active_by_url race from bootstrap test",
+              "breaking": false
+            },
+            {
+              "hash": "30aabee57d533c0a8f71672ac98c60268b916d58",
+              "shortHash": "30aabee5",
+              "type": "fix",
+              "scope": null,
+              "subject": "replace example.com with localhost:1 in bootstrap test to prevent race",
+              "breaking": false
+            },
+            {
+              "hash": "7339ba2d7c9d0ced0a4d676121215a1ff19ed6aa",
+              "shortHash": "7339ba2d",
+              "type": "fix",
+              "scope": null,
+              "subject": "stabilize automatic_mode_prioritizes_larger_file test",
+              "breaking": false
+            },
+            {
+              "hash": "267a9a6b7305f2c97a2443e931881302270c9d46",
+              "shortHash": "267a9a6b",
+              "type": "fix",
+              "scope": null,
+              "subject": "remove unnecessary *const i8 casts on c-string pointers",
+              "breaking": false
+            },
+            {
+              "hash": "75058dc089445fae8ca677c18761b5706c022fb6",
+              "shortHash": "75058dc0",
+              "type": "fix",
+              "scope": null,
+              "subject": "clippy warnings on macOS target and scheduler test race",
+              "breaking": false
+            },
+            {
+              "hash": "fd20a4015ab84ffb183825b74c93993f2f34edd3",
+              "shortHash": "fd20a401",
+              "type": "fix",
+              "scope": null,
+              "subject": "Rust 2024 edition compliance for macOS IOKit FFI in file_ops",
+              "breaking": false
+            },
+            {
+              "hash": "7b653b960a42db4858fd51694254eee4e0d056e1",
+              "shortHash": "7b653b96",
+              "type": "fix",
+              "scope": null,
+              "subject": "remove unnecessary unsafe blocks from libc::major/minor calls",
+              "breaking": false
+            },
+            {
+              "hash": "1cbddec1857a2a9f8f73abf7ce77559aa7ac353c",
+              "shortHash": "1cbddec1",
+              "type": "fix",
+              "scope": null,
+              "subject": "harden production and test code against fragility audit findings",
+              "breaking": false
+            },
+            {
+              "hash": "07177e5a8acec8a3bcf6dd946f4cfadcd9b95c30",
+              "shortHash": "07177e5a",
+              "type": "fix",
+              "scope": null,
+              "subject": "clippy warnings across workspace (all targets clean)",
+              "breaking": false
+            },
+            {
+              "hash": "4c3b08d2f2f483b6479d3204c5406f6085e24cd0",
+              "shortHash": "4c3b08d2",
+              "type": "fix",
+              "scope": null,
+              "subject": "clippy warnings + re-skip flaky E2E tests",
+              "breaking": false
+            },
+            {
+              "hash": "e4164bd302fe398852d908cb7ba2e4fb73161c2b",
+              "shortHash": "e4164bd3",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve TASK_IDS unused variable lint error",
+              "breaking": false
+            },
+            {
+              "hash": "90bd73b6e4e8285ea49658c385b11d2111479e62",
+              "shortHash": "90bd73b6",
+              "type": "fix",
+              "scope": null,
+              "subject": "clippy warnings + CI E2E test failures",
+              "breaking": false
+            },
+            {
+              "hash": "f1ad2b49673dfd882033f05195652de3e16484d2",
+              "shortHash": "f1ad2b49",
+              "type": "fix",
+              "scope": null,
+              "subject": "add contents:write permission to release workflow",
+              "breaking": false
+            },
+            {
+              "hash": "1d6a7a0c3d7b35cc2226fa6713138e64250976f4",
+              "shortHash": "1d6a7a0c",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve CVT1100 duplicate VERSION resource, switch to rust-lld linker, migrate logo SVG→PNG",
+              "breaking": false
+            },
+            {
+              "hash": "903d9cd601dd78637c0539a06a5e08da00927a09",
+              "shortHash": "903d9cd6",
+              "type": "fix",
+              "scope": null,
+              "subject": "relax concurrent_token_fairness ratio 100x -> 1000x",
+              "breaking": false
+            },
+            {
+              "hash": "565a0c7fd5ef0532b0450f0551046fc3974789a9",
+              "shortHash": "565a0c7f",
+              "type": "fix",
+              "scope": null,
+              "subject": "bump traditional_mode_limits_running_tasks timeout 30s -> 60s",
+              "breaking": false
+            },
+            {
+              "hash": "47498c868f3ef679ebe499ee02c5edc29d7d0abd",
+              "shortHash": "47498c86",
+              "type": "fix",
+              "scope": null,
+              "subject": "tighten scheduler flaky test fixes after CI feedback",
+              "breaking": false
+            },
+            {
+              "hash": "ec1311301b843f5981decfb698d202c344d342ab",
+              "shortHash": "ec131130",
+              "type": "fix",
+              "scope": null,
+              "subject": "eliminate all remaining flaky test patterns across 7 files",
+              "breaking": false
+            },
+            {
+              "hash": "c1298b1041b2dfcfd81147ea480a69d77095e199",
+              "shortHash": "c1298b10",
+              "type": "fix",
+              "scope": null,
+              "subject": "replace fixed sleeps with polling loops in scheduler/manager tests",
+              "breaking": false
+            },
+            {
+              "hash": "afe5bdd984f850eb3b1c018438a2a14422fc8406",
+              "shortHash": "afe5bdd9",
+              "type": "fix",
+              "scope": null,
+              "subject": "scheduler_handles_completion_and_starts_next poll accepts any non-Pending state",
+              "breaking": false
+            },
+            {
+              "hash": "fc76f3e97e950d594923f93364b84c0612939d09",
+              "shortHash": "fc76f3e9",
+              "type": "fix",
+              "scope": null,
+              "subject": "skip custom manifest when tauri-winres resource.lib exists",
+              "breaking": false
+            },
+            {
+              "hash": "b921b77c6700cd00321969b80a12a09c6d767184",
+              "shortHash": "b921b77c",
+              "type": "fix",
+              "scope": null,
+              "subject": "remove unused s2 binding in scheduler test polling loop",
+              "breaking": false
+            },
+            {
+              "hash": "8bb52974eeb233b41b5d7b7553250cfea90b78b1",
+              "shortHash": "8bb52974",
+              "type": "fix",
+              "scope": null,
+              "subject": "scheduler test race condition and bench dead_code on CI",
+              "breaking": false
+            },
+            {
+              "hash": "985a4c4f1c32a1299223014d8d8f83e7e268e627",
+              "shortHash": "985a4c4f",
+              "type": "fix",
+              "scope": null,
+              "subject": "bump manager test timeouts from 10s to 30s for CI stability",
+              "breaking": false
+            },
+            {
+              "hash": "5739aa257030dc842d9885c6c92f278dfa230104",
+              "shortHash": "5739aa25",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve src-tauri compilation errors on test/bench targets",
+              "breaking": false
+            },
+            {
+              "hash": "ea141e3656965da90b3897911fb2c0519689e6fa",
+              "shortHash": "ea141e36",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve scheduler test race conditions on macOS CI",
+              "breaking": false
+            },
+            {
+              "hash": "b63eca4b1ab15d3068a37812c933d5de43fc9067",
+              "shortHash": "b63eca4b",
+              "type": "fix",
+              "scope": null,
+              "subject": "add --ignore flags to cargo audit in CI for known quick-xml advisories",
+              "breaking": false
+            },
+            {
+              "hash": "71ec14438f28de9704556f6253ba93925827f4dd",
+              "shortHash": "71ec1443",
+              "type": "fix",
+              "scope": null,
+              "subject": "cross-platform PermissionDenied test and cargo-llvm-cov flag",
+              "breaking": false
+            },
+            {
+              "hash": "84fa2e612a724fec2e2164c3538d31f1a308b624",
+              "shortHash": "84fa2e61",
+              "type": "fix",
+              "scope": null,
+              "subject": "UiDialog test assertion for style attribute semicolon",
+              "breaking": false
+            },
+            {
+              "hash": "364d5809b80f2c0cd907b4694690ab700007818a",
+              "shortHash": "364d5809",
+              "type": "fix",
+              "scope": "manager",
+              "subject": "eliminate spawn_download fresh-atomic snapshot via self: &Arc<Self>",
+              "breaking": false
+            },
+            {
+              "hash": "ff283f119e1dd44d72171f9a265c985e0dd5f775",
+              "shortHash": "ff283f11",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve all rust clippy & js oxlint warnings, remove dead code",
+              "breaking": false
+            },
+            {
+              "hash": "94425ca02d54d88b63ef26cbe9deea7bd6c0de44",
+              "shortHash": "94425ca0",
+              "type": "fix",
+              "scope": null,
+              "subject": "add missing autostart field in Rust test fixtures",
+              "breaking": false
+            },
+            {
+              "hash": "c985e7d28a1d30922986232e9eda74d705998a6c",
+              "shortHash": "c985e7d2",
+              "type": "fix",
+              "scope": null,
+              "subject": "change beforeBuildCommand/devCommand from bun to pnpm",
+              "breaking": false
+            },
+            {
+              "hash": "ebc6d69237de3f65a1f5bcfa894d18804b168ca4",
+              "shortHash": "ebc6d692",
+              "type": "fix",
+              "scope": "tests",
+              "subject": "relax rate limiter fairness ratio for CI; gate Windows-only tests",
+              "breaking": false
+            },
+            {
+              "hash": "892e0f8aeaf312f724aee9e9d5dc496f7b057183",
+              "shortHash": "892e0f8a",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve 9 clippy errors in tests (unused_parens, unused_variables, dead_code, unused_imports)",
+              "breaking": false
+            },
+            {
+              "hash": "2b03f4d2f80ee229ee2221f816526ecdcdc5228b",
+              "shortHash": "2b03f4d2",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve 21 clippy errors (unused import, collapsible_if, let_and_return, explicit_auto_deref, etc.)",
+              "breaking": false
+            },
+            {
+              "hash": "79eb1889936fac72a5f1991bccc6eaacc6714fd8",
+              "shortHash": "79eb1889",
+              "type": "fix",
+              "scope": "deps",
+              "subject": "force glob >=10.5.0 via pnpm-workspace.yaml override",
+              "breaking": false
+            },
+            {
+              "hash": "36244ca9be99690b28e5ca881a384ee13b8b9f25",
+              "shortHash": "36244ca9",
+              "type": "fix",
+              "scope": null,
+              "subject": "resolve 15 oxlint type-assertion errors in test files",
+              "breaking": false
+            },
+            {
+              "hash": "fe6b88dc8deb525dfd307633ccbf871cd2706123",
+              "shortHash": "fe6b88dc",
+              "type": "fix",
+              "scope": "deps",
+              "subject": "bump time to 0.3.53 and serde_with to 3.21.0 for security advisories",
+              "breaking": false
+            },
+            {
+              "hash": "db854667ef31e34477149b8858b4062e7d324c5e",
+              "shortHash": "db854667",
+              "type": "fix",
+              "scope": null,
+              "subject": "emit download-updated event after RPC task creation for immediate frontend display",
+              "breaking": false
+            },
+            {
+              "hash": "b724f4572460723f90e2b726680d2486eca14c39",
+              "shortHash": "b724f457",
+              "type": "fix",
+              "scope": null,
+              "subject": "修复test失败",
+              "breaking": false
+            },
+            {
+              "hash": "4f73f7aa9a2d14250144f0a9b273d96c73c5f4e4",
+              "shortHash": "4f73f7aa",
+              "type": "fix",
+              "scope": "bt",
+              "subject": "Oracle CRITICAL/HIGH/MEDIUM findings; P1 hardcoded tsc/lint; P2 hardening",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "performance",
+          "commits": [
+            {
+              "hash": "cfb9398ceadbf1235f2c682dd854d91e585ccfaf",
+              "shortHash": "cfb9398c",
+              "type": "perf",
+              "scope": null,
+              "subject": "wave 3 IoWorker dedicated I/O thread replaces spawn_blocking for file flush",
+              "breaking": false
+            },
+            {
+              "hash": "1181040aec4d46f56632c70264ff724fa539a615",
+              "shortHash": "1181040a",
+              "type": "perf",
+              "scope": null,
+              "subject": "wave 2 — buffer_pool BTreeMap, DB dual-conn read/write split + named_params, snapshot COW chunks",
+              "breaking": false
+            },
+            {
+              "hash": "9aefb8d889f71f79e15d0907beeffa115a7350ea",
+              "shortHash": "9aefb8d8",
+              "type": "perf",
+              "scope": null,
+              "subject": "wave 1 — EventBus capacity+throttle, buffer_pool single spawn, scheduler presnap, CDN atomic progress, rate_limiter batch consume",
+              "breaking": false
+            },
+            {
+              "hash": "067b6fd15ea120a51ee3b88565580b171db41f09",
+              "shortHash": "067b6fd1",
+              "type": "perf",
+              "scope": null,
+              "subject": "P0 fixes + architecture improvements + low-priority cleanup",
+              "breaking": false
+            }
+          ]
+        },
+        {
+          "id": "refactoring",
+          "commits": [
+            {
+              "hash": "2df3b7c8b373374bd02c00dfa0f6ee25318c512c",
+              "shortHash": "2df3b7c8",
+              "type": "refactor",
+              "scope": null,
+              "subject": "eliminate string-prefix TaskId routing with typed variants (Http(Uuid)/Bt(Id20))",
+              "breaking": false
+            },
+            {
+              "hash": "1219798c217099e3245de508de16991511504372",
+              "shortHash": "1219798c",
+              "type": "refactor",
+              "scope": null,
+              "subject": "extract core crate, arch improvements, +22 E2E tests",
+              "breaking": false
+            },
+            {
+              "hash": "4e8d4ea4a1d9d088154c5ca6087539d40f2eb766",
+              "shortHash": "4e8d4ea4",
+              "type": "refactor",
+              "scope": null,
+              "subject": "migrate from Bun to Node.js 24 + pnpm v11 (corepack)",
+              "breaking": false
+            },
+            {
+              "hash": "4df669e11cb45a832336754564fd867e487221c6",
+              "shortHash": "4df669e1",
+              "type": "refactor",
+              "scope": null,
+              "subject": "multi-protocol architecture + module reorganization + test expansion",
+              "breaking": false
+            },
+            {
+              "hash": "45caf6f94b3122da5345838332c624b1bca2ce7f",
+              "shortHash": "45caf6f9",
+              "type": "refactor",
+              "scope": null,
+              "subject": "UI component library migration, BT backend abstraction, and settings restructuring",
+              "breaking": false
+            },
+            {
+              "hash": "1df1613c254e3c80f82d81c301b87c8ede43bbb6",
+              "shortHash": "1df1613c",
+              "type": "refactor",
+              "scope": "ui",
+              "subject": "redesign DownloadComposer with Apple-style UX",
+              "breaking": false
+            },
+            {
+              "hash": "f645d7e22560acfdb6d3257ad95c5ac3fe8c8abd",
+              "shortHash": "f645d7e2",
+              "type": "refactor",
+              "scope": null,
+              "subject": "UI 综合改进",
+              "breaking": false
+            },
+            {
+              "hash": "faa4c3fb29023d51542eae28f244950361672149",
+              "shortHash": "faa4c3fb",
+              "type": "refactor",
+              "scope": null,
+              "subject": "remove network learning feature + group queue table props",
+              "breaking": false
+            },
+            {
+              "hash": "0adeb12539ef6559f2334498a69fe6f6ff3e4469",
+              "shortHash": "0adeb125",
+              "type": "refactor",
+              "scope": null,
+              "subject": "remove SFTP and Metalink protocol support",
+              "breaking": false
+            },
+            {
+              "hash": "3b48f97fb223761537184e37494721754cdb8dba",
+              "shortHash": "3b48f97f",
+              "type": "refactor",
+              "scope": null,
+              "subject": "DownloadProtocol trait + event-driven frontend refresh",
+              "breaking": false
+            },
+            {
+              "hash": "7707ee82d0b6860d4b4670d0d88bfe57eb5ebbf8",
+              "shortHash": "7707ee82",
+              "type": "refactor",
+              "scope": "manager",
+              "subject": "split god object into focused modules + P0/P1 hardening",
+              "breaking": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

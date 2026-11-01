@@ -5,7 +5,7 @@ description: How to acquire, install, and verify the limedl native desktop clien
 
 # Installation Guide
 
-limedl provides natively compiled release artifacts for all major desktop platforms. Every published binary is cryptographically signed using **Minisign** and verifiable against SHA-256 digests.
+limedl provides natively compiled release artifacts for all major desktop platforms. Every desktop artifact is dual-signed with **Minisign + ML-DSA-65**; the headless server binaries are not part of the self-update signing chain. File names below use `v0.6.1` as an example — substitute the version you actually downloaded.
 
 :::tip[Quick Download]
 You can always head over to the official [Download Page](/en/download/), which automatically highlights the recommended package format for your current operating system.
@@ -18,7 +18,7 @@ You can always head over to the official [Download Page](/en/download/), which a
 | Operating System | Architecture | Minimum Version | Runtime Dependencies |
 | :--- | :--- | :--- | :--- |
 | **Windows** | x86_64 (64-bit) | Windows 10 (1809+) or Windows 11 | Bundled standard C++ runtimes, no extra install |
-| **macOS** | Apple Silicon (aarch64) | macOS Monterey 12.0 or later | Native M1 / M2 / M3 / M4 support |
+| **macOS** | Apple Silicon (aarch64) | macOS 11.0 (Big Sur) or later (the bundle's declared minimum) | Native M1 / M2 / M3 / M4 support; no Intel (x86_64) build |
 | **Linux** | x86_64 (64-bit) | glibc ≥ 2.17 (e.g. Debian 10+, Ubuntu 18.04+, CentOS 7+) | `xdg-desktop-portal` (Dialogs) · StatusNotifier host (Tray) |
 
 ---
@@ -42,7 +42,7 @@ Windows users can choose from three distribution formats based on their deployme
 
 ### 3. MSIX Modern Package (.msix)
 - **Features**: Packaged using Windows modern app containerization, offering strict sandbox security, zero residual uninstallation, and seamless Windows 10/11 system integration.
-- **Updates**: MSIX builds update through **Microsoft Store**; in-app self-update applies to the Setup.exe and portable builds only.
+- **Updates**: MSIX builds update through **Microsoft Store**; in-app self-update applies to the Setup.exe and portable builds only. See [Self-Update Channels & Rollback](/en/advanced/self-update-channels/) for detection, fallback, and rollback details.
 
 ---
 
@@ -108,6 +108,8 @@ cd limedl-native
 
 ### 1. Check SHA-256 Hashes
 
+GitHub Releases shows a SHA-256 digest for every asset; compute the digest locally and compare it byte for byte. The project does not publish a separate `SHA256SUMS` file.
+
 **Windows (PowerShell)**:
 ```powershell
 Get-FileHash -Algorithm SHA256 .\limedl-native-v0.6.1-windows-x86_64-setup.exe
@@ -125,16 +127,18 @@ sha256sum limedl-native-v0.6.1-linux-x86_64.AppImage
 
 ### 2. Minisign Verification
 
-The release pipeline dual-signs all build artifacts with **Minisign (Ed25519) + ML-DSA-65 (NIST FIPS 204 Post-Quantum Cryptography)** (publishing `.sig` and `.pqc.sig` files). You can verify the Ed25519 signature using the standard `minisign` CLI:
+The release pipeline dual-signs all desktop artifacts with **Minisign (Ed25519) + ML-DSA-65 (NIST FIPS 204 Post-Quantum Cryptography)**, publishing a `.sig` and `.pqc.sig` next to each desktop asset. You can verify the Ed25519 signature using the standard `minisign` CLI:
 
 Official Release Public Key:
 ```text
 RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7
 ```
 
-Verify signature:
+Verify signature (`-x` points at the `.sig` sidecar):
 ```bash
-minisign -Vm limedl-native-v0.6.1-windows-x86_64-setup.exe -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
+minisign -Vm limedl-native-v0.6.1-windows-x86_64-setup.exe \
+  -x limedl-native-v0.6.1-windows-x86_64-setup.exe.sig \
+  -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
 ```
 If verified, the command outputs `Signature and comment signature verified`.
 

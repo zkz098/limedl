@@ -5,12 +5,15 @@ import FeaturesGrid from '../../components/FeaturesGrid.astro';
 import ComparisonTable from '../../components/ComparisonTable.astro';
 import IntegrationShowcase from '../../components/IntegrationShowcase.astro';
 import CtaSection from '../../components/CtaSection.astro';
+import { APP_TAG } from '../../lib/version';
+import { softwareApplicationJsonLd, webSiteJsonLd } from '../../lib/seo';
 ---
 
 <Layout
   title="limedl - Blazing Fast Multi-Protocol Download Manager | Rust & Slint"
   description="limedl is a fast, ultra-lightweight multi-protocol download manager powered by Rust and Slint native UI. Features HTTP AIMD dynamic concurrency, BitTorrent, CDN edge probing, and Aria2 RPC compatibility."
   lang="en"
+  jsonLd={[webSiteJsonLd(), softwareApplicationJsonLd(APP_TAG)]}
 >
   <Hero lang="en" />
   <FeaturesGrid lang="en" />

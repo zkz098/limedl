@@ -103,3 +103,5 @@ Add a regex rewrite rule:
   ```
 
 Once active, submitting standard GitHub release links via the clipboard or browser extension will automatically rewrite the URL to the designated mirror before dispatch, preserving file metadata and checksum validation intact.
+
+See [URL Rewrite & Custom CDN](/en/guides/url-rewrite-and-cdn-providers/) for every match type, prefix-proxy/template mode, URL encoding, and fallback field.

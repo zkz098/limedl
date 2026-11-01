@@ -1,0 +1,20 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ChangelogView from '../../components/ChangelogView.astro';
+import { collectionPageJsonLd } from '../../lib/seo';
+
+const description =
+  'Stable limedl releases: features, fixes, performance work, and refactoring, generated from Conventional Commits.';
+---
+
+<Layout
+  title="Changelog - limedl"
+  description={description}
+  lang="en"
+  rss="/en/changelog.xml"
+  jsonLd={[
+    collectionPageJsonLd('limedl changelog', description, 'https://limedl.com/en/changelog/'),
+  ]}
+>
+  <ChangelogView lang="en" />
+</Layout>
