@@ -390,7 +390,6 @@ jobs:
           preserve_order: true
           files: |
             dist/limedl-native-v*-darwin-aarch64-portable.tar.gz
-            dist/limedl-native-v*-darwin-aarch64-portable.tar.gz.sig
           body: ${{ needs.changelog.outputs.body }}
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
         env:
@@ -870,6 +869,14 @@ jobs:
             dist/latest-native.json
             dist/latest-native.json.sig
             dist/latest-native.json.pqc.sig
+            dist/limedl-native-v*-windows-x86_64-setup.exe.sig
+            dist/limedl-native-v*-windows-x86_64-setup.exe.pqc.sig
+            dist/limedl-native-v*-windows-x86_64-portable.zip.sig
+            dist/limedl-native-v*-windows-x86_64-portable.zip.pqc.sig
+            dist/limedl-native-v*-darwin-aarch64-portable.tar.gz.sig
+            dist/limedl-native-v*-darwin-aarch64-portable.tar.gz.pqc.sig
+            dist/limedl-native-v*-linux-x86_64-portable.tar.gz.sig
+            dist/limedl-native-v*-linux-x86_64-portable.tar.gz.pqc.sig
             dist/limedl-native-v*-windows-x86_64.msix.sig
             dist/limedl-native-v*-windows-x86_64.msix.pqc.sig
             dist/limedl-native-v*-linux-x86_64.deb.sig
