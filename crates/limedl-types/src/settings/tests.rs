@@ -571,24 +571,29 @@ fn test_load_settings_rewrites_legacy_checksum_without_resetting_the_file() {
     for legacy in ["sha1", "xxh3_128"] {
         let dir = tempdir().unwrap();
         let path = dir.path().join("settings.json");
-        fs::write(
-            &path,
-            format!(
-                r#"{{
-                    "proxy": {{"mode": "manual", "manualUrl": "http://proxy:8080"}},
-                    "download": {{"defaultDownloadDir": "/downloads", "defaultMaxRetries": 7, "defaultChecksum": "{legacy}"}},
-                    "autostart": true
-                }}"#
-            ),
-        )
-        .unwrap();
+        // A Unix-style "/downloads" is not absolute on Windows, so the
+        // normalizer would blank it there; the temp dir is absolute everywhere.
+        let download_dir = dir.path().join("downloads");
+        let json = serde_json::json!({
+            "proxy": {"mode": "manual", "manualUrl": "http://proxy:8080"},
+            "download": {
+                "defaultDownloadDir": download_dir.to_string_lossy(),
+                "defaultMaxRetries": 7,
+                "defaultChecksum": legacy,
+            },
+            "autostart": true,
+        });
+        fs::write(&path, json.to_string()).unwrap();
 
         let loaded = load_settings(&path).expect("a legacy checksum must not fail the load");
 
         assert_eq!(loaded.proxy.mode, ProxyMode::Manual, "legacy={legacy}");
         assert_eq!(loaded.download.default_checksum, ChecksumMode::Blake3);
         assert_eq!(loaded.download.default_max_retries, 7);
-        assert_eq!(loaded.download.default_download_dir, "/downloads");
+        assert_eq!(
+            loaded.download.default_download_dir,
+            download_dir.to_string_lossy()
+        );
         assert!(loaded.autostart);
         assert!(
             !path.with_extension("json.corrupt").exists(),
