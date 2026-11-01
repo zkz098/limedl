@@ -2,8 +2,8 @@
 id: desktop/self-update-and-distribution
 title: Self-Update and Distribution Channels
 status: verified
-generated_at: 2026-10-31T14:49:43Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T01:50:36Z
+commit: dbfe66c803b3450791d8272db7464e318b2189bb
 evidence:
 - path: crates/limedl-native/src/update/mod.rs
   lines:
@@ -15,8 +15,9 @@ evidence:
   lines:
   - 1
   - 15
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: b8e96276f0c2b83850066a7d1f5845ec12d15967
+  note: drift-projected L1-L15@8ffb6ce1 -> L1-L15 (similarity 1.00)
 - path: crates/limedl-native/src/update/mod.rs
   lines:
   - 193
@@ -79,10 +80,11 @@ evidence:
   snippet_sha1: 4615516ae6e18e104d76007d2a6c82ed8f08c176
 - path: .github/workflows/release.yml
   lines:
-  - 798
-  - 808
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 799
+  - 809
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 2712ed56a8c815bd58dd6057b3cf22c4299c7556
+  note: drift-projected L798-L808@8ffb6ce1 -> L799-L809 (similarity 1.00)
 - path: crates/limedl-native/src/update/mod.rs
   lines:
   - 242
@@ -205,10 +207,11 @@ evidence:
   snippet_sha1: e6cf54e3b11cfcd7bf2e1cea200e0025db77ae42
 - path: .github/workflows/release.yml
   lines:
-  - 785
-  - 790
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 786
+  - 791
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 854f21a13beca62f3878bafe3de7ca398d03e1f6
+  note: drift-projected L785-L790@8ffb6ce1 -> L786-L791 (similarity 1.00)
 - path: crates/limedl-native/src/update/mod.rs
   lines:
   - 386
@@ -243,110 +246,128 @@ evidence:
   lines:
   - 16
   - 27
-  blob: 85916f8f0fc23a02beee24b8da49f85296d0f6ab
+  blob: 133ae2eb897fb64a5a19a0a24396bb08d2cd4d8a
   snippet_sha1: 331afc573fbb28fa2d7fc41a5b4feff0dd0896e0
+  note: drift-projected L16-L27@85916f8f -> L16-L27 (similarity 1.00)
 - path: docs/update-signing-key.md
   lines:
   - 29
   - 59
-  blob: 85916f8f0fc23a02beee24b8da49f85296d0f6ab
+  blob: 133ae2eb897fb64a5a19a0a24396bb08d2cd4d8a
   snippet_sha1: dd0a48e053349fa10d50f9a42e6a8e545f538d13
+  note: drift-projected L29-L59@85916f8f -> L29-L59 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 32
   - 34
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 32215564f0f821268692bf6000f0e31571d63e77
+  note: drift-projected L32-L34@8ffb6ce1 -> L32-L34 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 50
   - 67
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: a5962e3716f7a4b830ad8c0c1d2aae36146b8cda
+  note: drift-projected L50-L67@8ffb6ce1 -> L50-L67 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 74
   - 112
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 723bd1e075877689e68c4f1a5d28e67bf658c599
+  note: drift-projected L74-L112@8ffb6ce1 -> L74-L112 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 123
   - 132
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: d12006a9cbc036801a6de934950469b58c5ddbc5
+  note: drift-projected L123-L132@8ffb6ce1 -> L123-L132 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 332
   - 335
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: da4aaaf7ca8cb9ffd8fed43b181640e6990a85c9
+  note: drift-projected L332-L335@8ffb6ce1 -> L332-L335 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 400
   - 420
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 9c973ff7abdea14840c961a82bc12f15706ec518
+  note: drift-projected L400-L420@8ffb6ce1 -> L400-L420 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 474
   - 482
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: aae9ac9bfa711b81c50f7b5c446ce35f8c2966eb
+  note: drift-projected L474-L482@8ffb6ce1 -> L474-L482 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 533
-  - 556
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
-  snippet_sha1: f2acb8080f70331c09217c9efb481a03301a8b9e
+  - 557
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  snippet_sha1: 22ad300cbf4111fe6896bab9630a3ce5513f209a
+  note: drift-projected L533-L556@8ffb6ce1 -> L533-L557 (similarity 0.96)
 - path: .github/workflows/release.yml
   lines:
-  - 605
-  - 615
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 606
+  - 616
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 76dca7a47b5fe59b921a6952642f122fe02a48d0
+  note: drift-projected L605-L615@8ffb6ce1 -> L606-L616 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 640
-  - 647
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 641
+  - 648
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: de44e4ef24619497bbc18e4b3b47d6d49adff692
+  note: drift-projected L640-L647@8ffb6ce1 -> L641-L648 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 683
-  - 719
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 684
+  - 720
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 78c4e78c20161a6b935e9433293e0ffafc4a396a
+  note: drift-projected L683-L719@8ffb6ce1 -> L684-L720 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 460
   - 471
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: b2d37fcfca95fa8bfb59492ebaec91ff0b1d7b21
+  note: drift-projected L460-L471@8ffb6ce1 -> L460-L471 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 584
-  - 595
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 585
+  - 596
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: b2d37fcfca95fa8bfb59492ebaec91ff0b1d7b21
+  note: drift-projected L584-L595@8ffb6ce1 -> L585-L596 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 725
-  - 743
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 726
+  - 744
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 8af56a494f1f650c9817968c4314f618637e30db
+  note: drift-projected L725-L743@8ffb6ce1 -> L726-L744 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 764
-  - 854
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 765
+  - 855
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 937a34d0688fea3735ae186e89cc739d6e7e184a
+  note: drift-projected L764-L854@8ffb6ce1 -> L765-L855 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 730
-  - 733
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 731
+  - 734
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: c0257cb56839232c348ee64657f133eeb8528bde
+  note: drift-projected L730-L733@8ffb6ce1 -> L731-L734 (similarity 1.00)
 - path: crates/limedl-native/src/update/mod.rs
   lines:
   - 262
@@ -361,16 +382,18 @@ evidence:
   snippet_sha1: 2948f631358c551a304cfa2eaf46f23fdbc3e209
 - path: .github/workflows/release.yml
   lines:
-  - 735
-  - 742
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 736
+  - 743
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: c5caf798b085e239096d388e2e48db0ccda3174d
+  note: drift-projected L735-L742@8ffb6ce1 -> L736-L743 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 860
-  - 879
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 861
+  - 880
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 5b64488a0f825913dd0a2981c3c5dc9e0d615b4f
+  note: drift-projected L860-L879@8ffb6ce1 -> L861-L880 (similarity 1.00)
 - path: xtask/src/manifest.rs
   lines:
   - 110
@@ -393,8 +416,9 @@ evidence:
   lines:
   - 400
   - 411
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: f9cf79ccc647f81d5dc3a74669162abeaa98dfa1
+  note: drift-projected L400-L411@8ffb6ce1 -> L400-L411 (similarity 1.00)
 - path: .cargo/config.toml
   lines:
   - 10

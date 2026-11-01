@@ -2,8 +2,8 @@
 id: integrations/headless-server-daemon
 title: Headless Server Daemon (limedl-server)
 status: verified
-generated_at: 2026-10-31T14:49:54Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T01:50:36Z
+commit: dbfe66c803b3450791d8272db7464e318b2189bb
 evidence:
 - path: crates/limedl-server/src/lib.rs
   lines:
@@ -243,32 +243,37 @@ evidence:
   lines:
   - 533
   - 538
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: f3562acc529c693835b6157840ff6709fff7f66c
+  note: drift-projected L533-L538@8ffb6ce1 -> L533-L538 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 539
-  - 546
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
-  snippet_sha1: 1570cb22c45d50fcbaebf6e02af35a388c860240
+  - 547
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  snippet_sha1: ebaa465246bf874f34ae6fd8dd496276ca46d6b8
+  note: drift-projected L539-L546@8ffb6ce1 -> L539-L547 (similarity 0.88)
 - path: .github/workflows/release.yml
   lines:
-  - 559
-  - 564
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 560
+  - 565
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 2a15bf42188ff1d64a377acb2ecd2a6bb83551a4
+  note: drift-projected L559-L564@8ffb6ce1 -> L560-L565 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 597
-  - 612
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 598
+  - 613
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: c4875b94e3940160ac4ec99395d308c677dbe87b
+  note: drift-projected L597-L612@8ffb6ce1 -> L598-L613 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 543
   - 544
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 545
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 4890528cdf973d719ac9830ef714acfb00ab857b
+  note: drift-projected L543-L544@8ffb6ce1 -> L544-L545 (similarity 1.00)
 - path: .cargo/config.toml
   lines:
   - 36
@@ -277,10 +282,11 @@ evidence:
   snippet_sha1: 0d3a7d0ada9349a6c6baaa5cdd2827a972916efb
 - path: .github/workflows/release.yml
   lines:
-  - 631
-  - 647
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 632
+  - 648
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 93e2a034af796fa610079e419c8d955b4999967b
+  note: drift-projected L631-L647@8ffb6ce1 -> L632-L648 (similarity 1.00)
 - path: crates/limedl-server/src/cli.rs
   lines:
   - 91
@@ -309,8 +315,9 @@ evidence:
   lines:
   - 596
   - 603
-  blob: 5c8150eda778c6d0b1f463635a371c86d2f145b4
+  blob: b805362d0c2226ae25f8ee0f69d0f30239b365bd
   snippet_sha1: 901c5378cc4165c563a176b529c89789a04ea0a8
+  note: drift-projected L596-L603@5c8150ed -> L596-L603 (similarity 1.00)
 type: integration
 ---
 # Headless Server Daemon (`limedl-server`)

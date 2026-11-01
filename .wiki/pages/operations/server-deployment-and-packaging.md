@@ -2,15 +2,16 @@
 id: operations/server-deployment-and-packaging
 title: Server Deployment and Packaging
 status: verified
-generated_at: 2026-10-31T14:48:10Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T01:50:36Z
+commit: dbfe66c803b3450791d8272db7464e318b2189bb
 evidence:
 - path: .github/workflows/release.yml
   lines:
-  - 600
-  - 612
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 601
+  - 613
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 1c92d66b78b05d9fd11a8c34e3c70fd3020b61cf
+  note: drift-projected L600-L612@8ffb6ce1 -> L601-L613 (similarity 1.00)
 - path: packaging/server/systemd/limedl-server.service
   lines:
   - 7
@@ -92,9 +93,10 @@ evidence:
 - path: .github/workflows/release.yml
   lines:
   - 540
-  - 543
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
-  snippet_sha1: 60531c950a658b99170650e737f6721cf05bea6e
+  - 544
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  snippet_sha1: 69cad3873aa016d173869e05e202a28154ed5ff5
+  note: drift-projected L540-L543@8ffb6ce1 -> L540-L544 (similarity 0.75)
 - path: packaging/server/Dockerfile
   lines:
   - 13
@@ -133,16 +135,18 @@ evidence:
   snippet_sha1: 1c51386f54a9ecec20ba26251b68ec1bccf66264
 - path: .github/workflows/release.yml
   lines:
-  - 659
-  - 703
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 660
+  - 704
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: d21924cae2de0f8292866fe12329f719e5f4e42b
+  note: drift-projected L659-L703@8ffb6ce1 -> L660-L704 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 548
   - 549
-  blob: 8ffb6ce1ff3270e1597c5c5376f1b2bca483ded4
+  - 550
+  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
   snippet_sha1: 467637f8ea50c73dd57ec7bb565777bed3324c0b
+  note: drift-projected L548-L549@8ffb6ce1 -> L549-L550 (similarity 1.00)
 - path: docs/server-daemon.md
   lines:
   - 24
@@ -153,8 +157,9 @@ evidence:
   lines:
   - 1
   - 11
-  blob: 80a56e502bd318bff63b980f8c06f12a59286e91
-  snippet_sha1: d3b0806889aa236bc63769d728a13b2090d25336
+  blob: 2473e7990f774c992deaa0e842c6d58ece2f59e2
+  snippet_sha1: 04753bc9c8654f60bcf6d82ff8c3f7ab15bc01c6
+  note: drift-projected L1-L11@80a56e50 -> L1-L11 (similarity 0.91)
 type: operations
 ---
 # Server Deployment and Packaging

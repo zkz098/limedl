@@ -2,21 +2,23 @@
 id: testing/slint-ui-testing
 title: Slint UI Testing
 status: verified
-generated_at: 2026-10-31T15:15:00Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T01:50:36Z
+commit: dbfe66c803b3450791d8272db7464e318b2189bb
 evidence:
 - path: AGENTS.md
   lines:
   - 15
   - 16
-  blob: ff4dfd4f475d7a6d31797243ab5ee62df3065bd8
+  blob: 418ad7104660029eaae4d99b75cbf592b5392d56
   snippet_sha1: 5acce1c51c5cc1ffab8b5d445d085083924ca802
+  note: drift-projected L15-L16@ff4dfd4f -> L15-L16 (similarity 1.00)
 - path: AGENTS.md
   lines:
   - 121
   - 126
-  blob: ff4dfd4f475d7a6d31797243ab5ee62df3065bd8
+  blob: 418ad7104660029eaae4d99b75cbf592b5392d56
   snippet_sha1: 708f1c9f06b888fb8c881fab476d8f2f2efd63df
+  note: drift-projected L121-L126@ff4dfd4f -> L121-L126 (similarity 1.00)
 - path: crates/limedl-native/src/ui_tests/mod.rs
   lines:
   - 1
@@ -219,32 +221,37 @@ evidence:
   lines:
   - 13
   - 31
-  blob: 8514f92f7c063c1725f59c091756e6606fb5fc13
-  snippet_sha1: 6fdd16eba9a4844332c8658361526f388d57b81c
+  blob: 536a49bab675b3999b8cd35231cf1d6f1f3e9d59
+  snippet_sha1: 6e389a41a561e865131a4bb2575b65dc1a50a665
+  note: drift-projected L13-L31@8514f92f -> L13-L31 (similarity 0.95)
 - path: AGENTS.md
   lines:
   - 21
   - 23
-  blob: ff4dfd4f475d7a6d31797243ab5ee62df3065bd8
+  blob: 418ad7104660029eaae4d99b75cbf592b5392d56
   snippet_sha1: 79eae2e8dc01b5ec7b4e1a0eab01025cdaec4dff
+  note: drift-projected L21-L23@ff4dfd4f -> L21-L23 (similarity 1.00)
 - path: docs/manual-smoke-testing.md
   lines:
   - 32
   - 35
-  blob: 8514f92f7c063c1725f59c091756e6606fb5fc13
+  blob: 536a49bab675b3999b8cd35231cf1d6f1f3e9d59
   snippet_sha1: b50abf3f7c6a8e60a4fa9e9c0039a27f4a3fd8e2
+  note: drift-projected L32-L35@8514f92f -> L32-L35 (similarity 1.00)
 - path: docs/manual-smoke-testing.md
   lines:
   - 36
   - 38
-  blob: 8514f92f7c063c1725f59c091756e6606fb5fc13
+  blob: 536a49bab675b3999b8cd35231cf1d6f1f3e9d59
   snippet_sha1: b96222e1cfcd488c579637cd1fdb596c2f9c6f62
+  note: drift-projected L36-L38@8514f92f -> L36-L38 (similarity 1.00)
 - path: docs/manual-smoke-testing.md
   lines:
   - 39
   - 45
-  blob: 8514f92f7c063c1725f59c091756e6606fb5fc13
+  blob: 536a49bab675b3999b8cd35231cf1d6f1f3e9d59
   snippet_sha1: 5dee730ccb9161b19909037738873c9b5aab6c15
+  note: drift-projected L39-L45@8514f92f -> L39-L45 (similarity 1.00)
 type: testing
 ---
 # Slint UI Testing

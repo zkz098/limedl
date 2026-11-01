@@ -2,8 +2,8 @@
 id: systems/settings-and-configuration
 title: Settings and Configuration
 status: verified
-generated_at: 2026-10-31T15:56:39Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T01:54:58Z
+commit: d6f16212a5cd22070417e4ff6342949d7a4e5bc1
 evidence:
 - path: crates/limedl-types/src/types/settings.rs
   lines:
@@ -333,20 +333,23 @@ evidence:
   lines:
   - 515
   - 543
-  blob: b219f61d311ca29f9032d292c3981394d719b3dc
+  blob: ecd658e269aeb0ebe7e11f18a56fcccc3e94829b
   snippet_sha1: 5c01186fbca13bd02fa018f2438d6023d15fec25
+  note: drift-projected L515-L543@b219f61d -> L515-L543 (similarity 1.00)
 - path: crates/limedl-types/src/settings/tests.rs
   lines:
   - 545
   - 557
-  blob: b219f61d311ca29f9032d292c3981394d719b3dc
+  blob: ecd658e269aeb0ebe7e11f18a56fcccc3e94829b
   snippet_sha1: 5f123566ccef26de5d3cc3eb5156093bb8badaf4
+  note: drift-projected L545-L557@b219f61d -> L545-L557 (similarity 1.00)
 - path: crates/limedl-types/src/settings/tests.rs
   lines:
   - 559
   - 567
-  blob: b219f61d311ca29f9032d292c3981394d719b3dc
+  blob: ecd658e269aeb0ebe7e11f18a56fcccc3e94829b
   snippet_sha1: b50a7062540872eb352cdd53e1cec97e069bd2cf
+  note: drift-projected L559-L567@b219f61d -> L559-L567 (similarity 1.00)
 - path: crates/limedl-native/src/settings_sync.rs
   lines:
   - 143

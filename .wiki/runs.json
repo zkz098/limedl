@@ -1964,6 +1964,22 @@
       "started_at": "2026-10-31T15:59:51Z",
       "base_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
       "target_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "status": "superseded",
+      "tasks": []
+    },
+    {
+      "id": "run-6-dbfe66c8",
+      "started_at": "2026-11-01T01:50:36Z",
+      "base_commit": "b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b",
+      "target_commit": "dbfe66c803b3450791d8272db7464e318b2189bb",
+      "status": "superseded",
+      "tasks": []
+    },
+    {
+      "id": "run-7-d6f16212",
+      "started_at": "2026-11-01T01:54:58Z",
+      "base_commit": "dbfe66c803b3450791d8272db7464e318b2189bb",
+      "target_commit": "d6f16212a5cd22070417e4ff6342949d7a4e5bc1",
       "status": "active",
       "tasks": []
     }
