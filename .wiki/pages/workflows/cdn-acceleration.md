@@ -2,8 +2,8 @@
 id: workflows/cdn-acceleration
 title: CDN Acceleration
 status: verified
-generated_at: 2026-10-31T15:02:35Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T04:57:39Z
+commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
 evidence:
 - path: crates/limedl-engine/src/cdn/mod.rs
   lines:
@@ -26,9 +26,15 @@ evidence:
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
   - 99
+  - 124
+  blob: 3aa9714fe5bb0d23ed29a41d83caca87014d571d
+  snippet_sha1: d82d64fefa8df9642cc686afb7849e11a75bd434
+- path: crates/limedl-engine/src/cdn/accelerator.rs
+  lines:
+  - 128
   - 145
   blob: 3aa9714fe5bb0d23ed29a41d83caca87014d571d
-  snippet_sha1: 5f252417e07fc8ac4b14650762f338fa722dbeb4
+  snippet_sha1: 0e4656c7ecc46fee8d1e5fb3f05d933c165452ca
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
   - 145
@@ -178,7 +184,8 @@ claiming a hardcoded Cloudflare is stale)
 
 `start_test(settings)` is idempotent (a no-op while `Testing`), builds the
 provider from settings, clears prior results, creates a cancellation token and
-spawns the work [[cite:crates/limedl-engine/src/cdn/accelerator.rs:L99-L145]]:
+spawns the work [[cite:crates/limedl-engine/src/cdn/accelerator.rs:L99-L124]]
+[[cite:crates/limedl-engine/src/cdn/accelerator.rs:L128-L145]]:
 
 1. **FetchingRanges** — `provider.fetch_ip_ranges(...)`; cancellation or an empty
    IP list moves the state to `Idle`/`Error`

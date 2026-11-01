@@ -2,8 +2,8 @@
 id: systems/networking-and-rate-control
 title: Networking, HTTP Clients and Rate Control
 status: verified
-generated_at: 2026-10-31T15:02:55Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T04:57:39Z
+commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
 evidence:
 - path: crates/limedl-http/src/lib.rs
   lines:
@@ -278,9 +278,15 @@ evidence:
 - path: crates/limedl-engine/src/retry/mod.rs
   lines:
   - 25
+  - 31
+  blob: 502dbddc7f6c6a8849c762f2548591307114e226
+  snippet_sha1: 657e5fc738d18bbbb7a70a1ea292298037312de8
+- path: crates/limedl-engine/src/retry/mod.rs
+  lines:
+  - 35
   - 66
   blob: 502dbddc7f6c6a8849c762f2548591307114e226
-  snippet_sha1: d590e54658e6483041b3c252735f34623568fa73
+  snippet_sha1: 84321b97301e63f214dd78aa254a8c4b4b20c699
 - path: crates/limedl-engine/src/retry/mod.rs
   lines:
   - 68
@@ -610,7 +616,8 @@ attempt loop under a cancellation token:
 - `register_retry_penalty` sets the task to `Retrying`, records the error and
   marks an AIMD penalty for connection backpressure.
 
-[[cite:crates/limedl-engine/src/retry/mod.rs:L25-L66]]
+[[cite:crates/limedl-engine/src/retry/mod.rs:L25-L31]]
+[[cite:crates/limedl-engine/src/retry/mod.rs:L35-L66]]
 [[cite:crates/limedl-engine/src/retry/mod.rs:L68-L143]]
 [[cite:crates/limedl-http/src/http/mod.rs:L18-L34]]
 [[cite:crates/limedl-engine/src/retry/mod.rs:L153-L171]]

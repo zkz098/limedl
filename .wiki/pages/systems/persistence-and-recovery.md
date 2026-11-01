@@ -2,8 +2,8 @@
 id: systems/persistence-and-recovery
 title: SQLite Persistence, Durable Progress and Crash Recovery
 status: verified
-generated_at: 2026-10-31T15:12:07Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T04:55:52Z
+commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
 evidence:
 - path: crates/limedl-core/src/context.rs
   lines:
@@ -215,6 +215,96 @@ evidence:
   - 394
   blob: 92bf201147bcb3f00cdffb7f077cd9d448f95ae1
   snippet_sha1: d85d8da470ae982a74bd722f50a26c6cd4ec8a6f
+- path: crates/limedl-types/src/types/common.rs
+  lines:
+  - 15
+  - 27
+  blob: 22d9bc8410a3945fcd353adba848b94dd013180b
+  snippet_sha1: aa9c900b8d9fa2ea1a884bfa6e5c1f48ecf7d3b3
+- path: crates/limedl-types/src/checksum/mod.rs
+  lines:
+  - 18
+  - 41
+  blob: 2e7e0d9ae916d869ccaf128453542a39b74d0c0e
+  snippet_sha1: c36b626a6609c434b94d352d68bbe908e9516e7b
+- path: crates/limedl-types/src/checksum/mod.rs
+  lines:
+  - 63
+  - 100
+  blob: 2e7e0d9ae916d869ccaf128453542a39b74d0c0e
+  snippet_sha1: 25ac353ed3cee29747449899754c0690b4ad4468
+- path: crates/limedl-types/src/types/common.rs
+  lines:
+  - 21
+  - 29
+  blob: 22d9bc8410a3945fcd353adba848b94dd013180b
+  snippet_sha1: 013c2a081bf902466efb4b0f55850bc0b480ae1f
+- path: crates/limedl-types/src/types/settings.rs
+  lines:
+  - 360
+  - 379
+  blob: d36d3f34aad95b687828c40c0c27eaae53fccddb
+  snippet_sha1: 6aecedf4c9cceee499a1e641b3107e86aebf935f
+- path: crates/limedl-types/src/checksum/mod.rs
+  lines:
+  - 18
+  - 100
+  blob: 2e7e0d9ae916d869ccaf128453542a39b74d0c0e
+  snippet_sha1: 16923ef8001ba9784a79c3f656f25b32cb6ea6df
+- path: crates/limedl-store/src/database/manifest_repo.rs
+  lines:
+  - 68
+  - 99
+  blob: 92bf201147bcb3f00cdffb7f077cd9d448f95ae1
+  snippet_sha1: 7752248fd8bf98ca63cbe47fdc0bba13a4275ce2
+- path: crates/limedl-rpc/src/options.rs
+  lines:
+  - 431
+  - 463
+  blob: 3bf801ef8406717e6ada43b881f3036601097eb8
+  snippet_sha1: 58b30ed4cabc78f1be742edee9e8a6d8b3fe8fa9
+- path: crates/limedl-native/src/bridge/forms/enums.rs
+  lines:
+  - 73
+  - 86
+  blob: 23e2b4df2fe65e0734fce0496db8835ae305dc2f
+  snippet_sha1: 65f9bc292209373ac21817a4f85852764f6784f0
+- path: crates/limedl-native/src/bridge/forms/combo.rs
+  lines:
+  - 11
+  - 11
+  blob: 30046b35548db5d380cdd08cbb1a22fb5e81fe5c
+  snippet_sha1: 9b47065be84b9cf9502662069765f54c0de16666
+- path: crates/limedl-native/ui/types.slint
+  lines:
+  - 187
+  - 187
+  blob: da4c0080fe336bc1ff5d19c55af480fc2bde2258
+  snippet_sha1: ad7ad0fe5fd0c4ed7a362d2285f7c3f6244d59e4
+- path: crates/limedl-native/ui/components/settings/tab_download.slint
+  lines:
+  - 73
+  - 79
+  blob: e89247504e1a556c92c6a796cbbb2c0d1cbee0a5
+  snippet_sha1: f23b9f2f0ee999d6d1b96f3300bbbc91f87574f4
+- path: crates/limedl-native/lang/en/LC_MESSAGES/limedl-native.po
+  lines:
+  - 917
+  - 924
+  blob: 0fe3a52debcdb0899e1f300597f2845bff6d2b1d
+  snippet_sha1: 0ae6fdde940b8a786dbbd8e4085c34e33dc0909e
+- path: crates/limedl-native/lang/zh_CN/LC_MESSAGES/limedl-native.po
+  lines:
+  - 917
+  - 926
+  blob: e10359c9c13848ee31617092e9a5f06b2dd48967
+  snippet_sha1: f92c2e88e3f9b997d4dad7cb611e458e92b49f6f
+- path: crates/limedl-types/src/settings/mod.rs
+  lines:
+  - 522
+  - 545
+  blob: e8fe36a862b028e422dacb74d56b0e135d9c84bf
+  snippet_sha1: 24b6c9540a21553230cce34dfbcc1147c0aad9a7
 - path: crates/limedl-types/src/manifest.rs
   lines:
   - 75
@@ -561,6 +651,54 @@ inserts row plus all chunks, an existing id updates the row and upserts only the
 [[cite:crates/limedl-store/src/database/manifest_repo.rs:L126-L194]]
 [[cite:crates/limedl-store/src/database/manifest_repo.rs:L330-L394]]
 
+## Adding a checksum algorithm
+
+The supported set is deliberately narrow: BLAKE3 (the default), SHA-256 and
+SHA-512. `ChecksumMode::None` is not an algorithm — it means "no verification" —
+and the weak or non-cryptographic digests (SHA-1, XXH3-128) were removed because a
+checksum mismatch triggers a re-download, so a collision-forgeable digest defeats
+the mechanism.
+[[cite:crates/limedl-types/src/types/common.rs:L15-L27]]
+
+`ChecksumHasher` wraps the three algorithms and refuses `None`; BLAKE3 output is
+`to_hex()`, while the two SHA-2 variants share the module-private `hex_lower()`.
+`hash_slices()` is the synchronous fast path for in-memory buffers.
+[[cite:crates/limedl-types/src/checksum/mod.rs:L18-L41]]
+[[cite:crates/limedl-types/src/checksum/mod.rs:L63-L100]]
+
+Adding one means touching every site below; missing one leaves verification
+silently inert at that boundary:
+
+- **Enum and defaults** — add the variant and the default it lands on.
+  [[cite:crates/limedl-types/src/types/common.rs:L21-L29]]
+  [[cite:crates/limedl-types/src/types/settings.rs:L360-L379]]
+- **Hasher** — `ChecksumHasher::new`/`update`/`finalize` and `hash_slices`.
+  [[cite:crates/limedl-types/src/checksum/mod.rs:L18-L100]]
+- **SQLite text mapping** — `checksum_mode_to_text` / `text_to_checksum_mode`;
+  unknown values must still error.
+  [[cite:crates/limedl-store/src/database/manifest_repo.rs:L68-L99]]
+- **Aria2 RPC** — `parse_checksum_option` accepts the `sha-256` / `sha-512` /
+  `blake3` spellings of the `checksum` option.
+  [[cite:crates/limedl-rpc/src/options.rs:L431-L463]]
+- **Desktop form** — `checksum_to_str` / `str_to_checksum`, the index-aligned
+  `combo::CHECKSUMS`, the `SettingsFormData.download_checksum_idx` mirror and the
+  `@tr` item list in the download settings tab.
+  [[cite:crates/limedl-native/src/bridge/forms/enums.rs:L73-L86]]
+  [[cite:crates/limedl-native/src/bridge/forms/combo.rs:L11-L11]]
+  [[cite:crates/limedl-native/ui/types.slint:L187-L187]]
+  [[cite:crates/limedl-native/ui/components/settings/tab_download.slint:L73-L79]]
+- **Catalogs** — every `.po` catalog must carry the same labels.
+  [[cite:crates/limedl-native/lang/en/LC_MESSAGES/limedl-native.po:L917-L924]]
+  [[cite:crates/limedl-native/lang/zh_CN/LC_MESSAGES/limedl-native.po:L917-L926]]
+
+Two upgrade paths must survive the change. Historical `sha1` / `xxh3_128` rows
+map to `None` with a warning, because their digest belongs to a removed algorithm;
+mapping them onto a live one would fail every re-check for the life of the row.
+A leftover `defaultChecksum` in `settings.json` is rewritten to `blake3` before
+deserialization, so one stale enum value cannot quarantine the whole file.
+[[cite:crates/limedl-store/src/database/manifest_repo.rs:L77-L99]]
+[[cite:crates/limedl-types/src/settings/mod.rs:L522-L545]]
+
 ## What gets persisted is the durable progress
 
 A chunk carries two progress counters and the database stores only one of them:
@@ -617,9 +755,7 @@ covers a process crash, `SIGKILL` and the OOM killer, but not power loss (those
 bytes are in the page cache, and so are the WAL commits, so the two are lost
 together). See
 [[wiki:systems/disk-io-and-storage]] for the flush-observer contract
-that feeds these counters, and
-[../../docs/troubleshooting.md](../../docs/troubleshooting.md) for the operational
-note.
+that feeds these counters.
 [[cite:crates/limedl-engine/src/download/managed.rs:L184-L196]]
 
 ## Crash recovery on startup

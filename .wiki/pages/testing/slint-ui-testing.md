@@ -2,8 +2,8 @@
 id: testing/slint-ui-testing
 title: Slint UI Testing
 status: verified
-generated_at: 2026-11-01T01:50:36Z
-commit: dbfe66c803b3450791d8272db7464e318b2189bb
+generated_at: 2026-11-01T04:54:50Z
+commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
 evidence:
 - path: AGENTS.md
   lines:
@@ -11,14 +11,12 @@ evidence:
   - 16
   blob: 418ad7104660029eaae4d99b75cbf592b5392d56
   snippet_sha1: 5acce1c51c5cc1ffab8b5d445d085083924ca802
-  note: drift-projected L15-L16@ff4dfd4f -> L15-L16 (similarity 1.00)
 - path: AGENTS.md
   lines:
   - 121
   - 126
   blob: 418ad7104660029eaae4d99b75cbf592b5392d56
   snippet_sha1: 708f1c9f06b888fb8c881fab476d8f2f2efd63df
-  note: drift-projected L121-L126@ff4dfd4f -> L121-L126 (similarity 1.00)
 - path: crates/limedl-native/src/ui_tests/mod.rs
   lines:
   - 1
@@ -217,41 +215,120 @@ evidence:
   - 127
   blob: 3108e91fe5985856d4300ed0e8752710d426dc76
   snippet_sha1: b34928bf76873f77215332a3d9c711dd6a0db6e2
+- path: crates/limedl-native/src/ui_tests/shell.rs
+  lines:
+  - 202
+  - 258
+  blob: c88c93ce9e07e006495458f2cc65bc8a6db00c05
+  snippet_sha1: 98bed51218fdb5e0733c142eb4b0ca890ea06497
+- path: crates/limedl-native/src/ui_tests/shell.rs
+  lines:
+  - 260
+  - 284
+  blob: c88c93ce9e07e006495458f2cc65bc8a6db00c05
+  snippet_sha1: 81126fca5830b07975cbad972c60f090356eac07
+- path: crates/limedl-native/src/ui_tests/list.rs
+  lines:
+  - 289
+  - 322
+  blob: edd9051667d90736861198edab4a990d93e306d1
+  snippet_sha1: 0e3c4418429c72f6aedb1015087e174574fc2aae
+- path: crates/limedl-native/src/ui_tests/layout.rs
+  lines:
+  - 30
+  - 123
+  blob: 3108e91fe5985856d4300ed0e8752710d426dc76
+  snippet_sha1: 4bc4c6e3e3115a36e245b625c2377de6672a88a0
+- path: crates/limedl-native/src/ui_tests/layout.rs
+  lines:
+  - 155
+  - 199
+  blob: 3108e91fe5985856d4300ed0e8752710d426dc76
+  snippet_sha1: 0aeeadeafc21a5071091db53d6f2bff27c737332
+- path: crates/limedl-native/src/ui_tests/layout.rs
+  lines:
+  - 126
+  - 151
+  blob: 3108e91fe5985856d4300ed0e8752710d426dc76
+  snippet_sha1: 4a12da3f1cf5c1676aaa4f4cd19b2b5df6b5543c
+- path: crates/limedl-native/src/ui_tests/layout.rs
+  lines:
+  - 36
+  - 76
+  blob: 3108e91fe5985856d4300ed0e8752710d426dc76
+  snippet_sha1: 80ad09c23317f8a5bd194d10f161678b2242e95c
+- path: crates/limedl-native/src/ui_tests/layout.rs
+  lines:
+  - 321
+  - 366
+  blob: 3108e91fe5985856d4300ed0e8752710d426dc76
+  snippet_sha1: 45d0a5707169005c4a6dd2a0ca521b4e309a1d98
+- path: crates/limedl-native/src/ui_tests/layout.rs
+  lines:
+  - 246
+  - 319
+  blob: 3108e91fe5985856d4300ed0e8752710d426dc76
+  snippet_sha1: cfb95f8db6e82123f72478b09c48539723a95ded
+- path: crates/limedl-native/src/platform_win.rs
+  lines:
+  - 565
+  - 589
+  blob: 9fb3b7ab297eaae0bf8ad08ec514413903e7ff36
+  snippet_sha1: 29df679ec1394ed91c08b396efbd0848536a3b19
+- path: crates/limedl-native/src/platform_win.rs
+  lines:
+  - 1077
+  - 1132
+  blob: 9fb3b7ab297eaae0bf8ad08ec514413903e7ff36
+  snippet_sha1: 6d8f5aec5893ab5344ff92c3b2e9745ebbdaa3e4
+- path: crates/limedl-native/ui/components/task_table.slint
+  lines:
+  - 96
+  - 102
+  blob: 2f1df83db7d2a54e7771f4e14ff957eca91e74fd
+  snippet_sha1: 1b4ca9f87b7452714fcceb3352a3d992ab5f20c9
+- path: crates/limedl-native/ui/components/task_table.slint
+  lines:
+  - 134
+  - 137
+  blob: 2f1df83db7d2a54e7771f4e14ff957eca91e74fd
+  snippet_sha1: 75ee0e27daef2e07f56311fe66226840a7c3f8e4
+- path: crates/limedl-native/src/ui_tests/layout.rs
+  lines:
+  - 498
+  - 524
+  blob: 3108e91fe5985856d4300ed0e8752710d426dc76
+  snippet_sha1: 5c87cdfcb47e14ea5d23db07dc5602efebc4a4cd
 - path: docs/manual-smoke-testing.md
   lines:
   - 13
   - 31
   blob: 536a49bab675b3999b8cd35231cf1d6f1f3e9d59
   snippet_sha1: 6e389a41a561e865131a4bb2575b65dc1a50a665
-  note: drift-projected L13-L31@8514f92f -> L13-L31 (similarity 0.95)
 - path: AGENTS.md
   lines:
   - 21
   - 23
   blob: 418ad7104660029eaae4d99b75cbf592b5392d56
   snippet_sha1: 79eae2e8dc01b5ec7b4e1a0eab01025cdaec4dff
-  note: drift-projected L21-L23@ff4dfd4f -> L21-L23 (similarity 1.00)
 - path: docs/manual-smoke-testing.md
   lines:
   - 32
   - 35
   blob: 536a49bab675b3999b8cd35231cf1d6f1f3e9d59
   snippet_sha1: b50abf3f7c6a8e60a4fa9e9c0039a27f4a3fd8e2
-  note: drift-projected L32-L35@8514f92f -> L32-L35 (similarity 1.00)
 - path: docs/manual-smoke-testing.md
   lines:
   - 36
   - 38
   blob: 536a49bab675b3999b8cd35231cf1d6f1f3e9d59
   snippet_sha1: b96222e1cfcd488c579637cd1fdb596c2f9c6f62
-  note: drift-projected L36-L38@8514f92f -> L36-L38 (similarity 1.00)
 - path: docs/manual-smoke-testing.md
   lines:
   - 39
   - 45
   blob: 536a49bab675b3999b8cd35231cf1d6f1f3e9d59
   snippet_sha1: 5dee730ccb9161b19909037738873c9b5aab6c15
-  note: drift-projected L39-L45@8514f92f -> L39-L45 (similarity 1.00)
 type: testing
 ---
 # Slint UI Testing
@@ -474,6 +551,58 @@ minimum size is unreachable; layout assertions therefore run at the declared
 collapse *before* they push the toolbar actions past the window edge.
 [[cite:crates/limedl-native/src/ui_tests/layout.rs:L27-L34]]
 [[cite:crates/limedl-native/src/ui_tests/layout.rs:L113-L127]]
+
+## Regressions these tests pin
+
+The in-process layer exists for failures the type system cannot see: an overlay
+closed in the wrong order, a control pushed outside the window, a footer below its
+modal. Each item names the test that now holds the line.
+
+- **Escape unwinds one overlay per press.** `escape_unwinds_the_overlays_one_layer_at_a_time`
+  walks the seven-layer chain top-down and asserts every lower layer stays open;
+  the first-run wizard is deliberately exempt.
+  [[cite:crates/limedl-native/src/ui_tests/shell.rs:L202-L258]]
+- **An open dialog swallows global shortcuts.** Clicking a text field first would
+  move focus away from the root `FocusScope`, so the test presses keys without
+  clicking; `Ctrl+N` must not stack a second modal over Settings.
+  [[cite:crates/limedl-native/src/ui_tests/shell.rs:L260-L284]]
+- **A new column sorts ascending.** `sorting_from_a_column_header_applies_immediately_and_toggles_on_repeat`
+  pins the field, the direction and the store after the first and the second
+  click.
+  [[cite:crates/limedl-native/src/ui_tests/list.rs:L289-L322]]
+- **The chrome fits at 1100x660 and under English labels.** `MIN_SIZE` records
+  that the toolbar clipped its last button at 1000px; the English-locale test is
+  the one that grows the labels, and both assert every chrome id stays inside the
+  window at the minimum size and at 2x scale.
+  [[cite:crates/limedl-native/src/ui_tests/layout.rs:L30-L123]]
+  [[cite:crates/limedl-native/src/ui_tests/layout.rs:L155-L199]]
+- **BT status pills collapse before they clip the toolbar.** They are the widest
+  optional group; the test shows them at the preferred width and requires them
+  collapsed at the minimum, because a maximized window has no horizontal scroll.
+  [[cite:crates/limedl-native/src/ui_tests/layout.rs:L126-L151]]
+- **Low-resolution work areas keep the chrome reachable.** 1024x540 and 1024x576
+  work areas are exercised with and without BT pills, in both locales; the
+  secondary toolbar buttons and every chrome id must stay inside the window.
+  [[cite:crates/limedl-native/src/ui_tests/layout.rs:L36-L76]]
+- **Dialog footers stay inside their modal, including the piece-map tab and the
+  wizard language cards.** `dialogs_fit_on_small_work_areas` opens single, batch
+  and torrent-preview states plus the inspector's piece-map tab; the
+  minimum-size test also proves the three `LanguageCard`s fit and the `en-US` one
+  is clickable.
+  [[cite:crates/limedl-native/src/ui_tests/layout.rs:L321-L366]]
+  [[cite:crates/limedl-native/src/ui_tests/layout.rs:L246-L319]]
+- **Saved geometry is clamped to the target monitor.** `clamp_geometry_to_work_area`
+  clamps width, height, x and y, and its unit test covers in-bounds, oversized
+  (4K to 1366x768), hanging and off-top-left rectangles.
+  [[cite:crates/limedl-native/src/platform_win.rs:L565-L589]]
+  [[cite:crates/limedl-native/src/platform_win.rs:L1077-L1132]]
+- **Data columns never overlap the pinned action column.** The table has no
+  horizontal scroll; the action column is pinned at `root.width - 138px` and the
+  file column shrinks to 140px, and the layout test pins ETA's right edge against
+  the pause button.
+  [[cite:crates/limedl-native/ui/components/task_table.slint:L96-L102]]
+  [[cite:crates/limedl-native/ui/components/task_table.slint:L134-L137]]
+  [[cite:crates/limedl-native/src/ui_tests/layout.rs:L498-L524]]
 
 ## L2: the MCP server
 

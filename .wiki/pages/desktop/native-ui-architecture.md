@@ -2,8 +2,8 @@
 id: desktop/native-ui-architecture
 title: Native Desktop UI (Slint)
 status: verified
-generated_at: 2026-11-01T01:50:35Z
-commit: dbfe66c803b3450791d8272db7464e318b2189bb
+generated_at: 2026-11-01T04:57:39Z
+commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
 evidence:
 - path: crates/limedl-native/src/ui_boot.rs
   lines:
@@ -104,9 +104,15 @@ evidence:
 - path: crates/limedl-native/src/ui_sync.rs
   lines:
   - 70
+  - 108
+  blob: 595efc59053649e4c9c40881dc7862fd28496da5
+  snippet_sha1: ce6f284918f39c54fc247b5d0d0639a31c6e1ffb
+- path: crates/limedl-native/src/ui_sync.rs
+  lines:
+  - 112
   - 121
   blob: 595efc59053649e4c9c40881dc7862fd28496da5
-  snippet_sha1: 7fde43984046fca3f9c0c6e59af39fdb6c1cefde
+  snippet_sha1: c5847236f3f44da21c286e8df1e12fc265752e76
 - path: crates/limedl-native/src/handlers/settings/disk_overrides.rs
   lines:
   - 83
@@ -461,7 +467,6 @@ evidence:
   - 101
   blob: 0b6dc79c1105fec265f728a543882c645f0f4b6b
   snippet_sha1: cd3dbdb4c310c4bb3e23383b1e77c3425e3ed4b3
-  note: drift-projected L95-L101@c9158b3c -> L95-L101 (similarity 1.00)
 - path: crates/limedl-native/src/power.rs
   lines:
   - 374
@@ -498,7 +503,6 @@ evidence:
   - 94
   blob: 0b6dc79c1105fec265f728a543882c645f0f4b6b
   snippet_sha1: 2f2b475a80953665ad5cdffbacb3288b8499edcf
-  note: drift-projected L91-L94@c9158b3c -> L91-L94 (similarity 1.00)
 - path: crates/limedl-native/src/platform_win.rs
   lines:
   - 347
@@ -699,7 +703,8 @@ domain-focused modules: `models`, `forms` (`combo`, `enums`, `to_form`,
 List-style editors follow one contract: their **editing state lives in the UI
 model** and Rust parses it only at Save (`read_schedule_rows`,
 `read_disk_override_rows`, `read_aria2_client_rows`).
-[[cite:crates/limedl-native/src/ui_sync.rs:L70-L121]]
+[[cite:crates/limedl-native/src/ui_sync.rs:L70-L108]]
+[[cite:crates/limedl-native/src/ui_sync.rs:L112-L121]]
 Inline edits go through `set_row_data` so the in-progress input does not lose
 its cursor; adding or removing rows rebuilds the model.
 [[cite:crates/limedl-native/src/handlers/settings/disk_overrides.rs:L83-L124]]

@@ -2,8 +2,8 @@
 id: architecture/bootstrap-and-services
 title: Bootstrap, SystemContext and Shared Services
 status: verified
-generated_at: 2026-10-31T14:51:16Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T04:57:39Z
+commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
 evidence:
 - path: crates/limedl-core/src/bootstrap.rs
   lines:
@@ -50,9 +50,15 @@ evidence:
 - path: crates/limedl-core/src/context.rs
   lines:
   - 42
+  - 83
+  blob: 26aa8d3d8e5c1669ccede7ef4f1c3f9670669554
+  snippet_sha1: 66f6c6ed902162d38fa20a6d6903effd129d0594
+- path: crates/limedl-core/src/context.rs
+  lines:
+  - 86
   - 99
   blob: 26aa8d3d8e5c1669ccede7ef4f1c3f9670669554
-  snippet_sha1: 87e104ec47bfa1115765f917ebbe2b89233208d5
+  snippet_sha1: d7166eb2bff0fd195fb3e3d2b1dff3f3bb7ee948
 - path: crates/limedl-server/src/config.rs
   lines:
   - 32
@@ -209,12 +215,6 @@ evidence:
   - 76
   blob: db33f43e46019b79e0d8eeb7a1198a4d39812a40
   snippet_sha1: 72ab92b0e09c86b3b5d9379ae20d6c95774d0f8e
-- path: crates/limedl-core/src/context.rs
-  lines:
-  - 26
-  - 27
-  blob: 26aa8d3d8e5c1669ccede7ef4f1c3f9670669554
-  snippet_sha1: 9a6ade801c865e8bc0f8910cdff27cbafc1c4c60
 - path: crates/limedl-core/src/backend_registry/mod.rs
   lines:
   - 116
@@ -279,7 +279,8 @@ a default `RateLimiter` and an `EventBus` with capacity **8192**, then delegates
 to `with_components`; tests and CLI paths can inject their own rate limiter and
 event bus through that second constructor. [[cite:crates/limedl-core/src/context.rs:L29-L37]]
 
-`with_components` performs the state-dependent construction: [[cite:crates/limedl-core/src/context.rs:L42-L99]]
+`with_components` performs the state-dependent construction: [[cite:crates/limedl-core/src/context.rs:L42-L83]]
+[[cite:crates/limedl-core/src/context.rs:L86-L99]]
 
 - `state_dir` is created if missing, and the settings file is derived as its
   **parent** joined with `settings.json` — the state directory itself is
@@ -465,7 +466,7 @@ Note that this path crosses four crates in one call: the facade is in
 ## Lifecycle and shutdown
 
 `SystemContext` carries a `CancellationToken` for cooperative cancellation of
-background work. [[cite:crates/limedl-core/src/context.rs:L26-L27]] Frontends shut
+background work. [[cite:crates/limedl-core/src/context.rs:L86-L99]] Frontends shut
 the engine down through `registry.shutdown_all()`, which awaits each backend's
 `shutdown()` in iteration order. [[cite:crates/limedl-core/src/backend_registry/mod.rs:L116-L121]]
 The desktop additionally saves window geometry and flips the RPC `watch` channel

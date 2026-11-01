@@ -2,8 +2,8 @@
 id: workflows/http-download-lifecycle
 title: HTTP Download Lifecycle
 status: verified
-generated_at: 2026-10-31T14:58:09Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T04:57:39Z
+commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
 evidence:
 - path: crates/limedl-core/src/manager.rs
   lines:
@@ -164,9 +164,15 @@ evidence:
 - path: crates/limedl-engine/src/http_executor/single.rs
   lines:
   - 38
+  - 41
+  blob: b39f476924d7685e34bb874806ba1366b92cd35b
+  snippet_sha1: 81f629e01aa9e33369a8a97eaeb02f58772a6a7e
+- path: crates/limedl-engine/src/http_executor/single.rs
+  lines:
+  - 45
   - 93
   blob: b39f476924d7685e34bb874806ba1366b92cd35b
-  snippet_sha1: 4366420ead6835edabd4147e5f87375e1cd563ab
+  snippet_sha1: 9c6f999d89679f7693a7a1c3923b2458667cce90
 - path: crates/limedl-engine/src/http_executor/single.rs
   lines:
   - 141
@@ -284,9 +290,15 @@ evidence:
 - path: crates/limedl-engine/src/http_executor/finalize.rs
   lines:
   - 18
+  - 20
+  blob: 98508e0c71004d01fdccd3e13ccca55eeb40160b
+  snippet_sha1: 0c8bd584d5713d69545a9d1d92a9ab71dfac54f6
+- path: crates/limedl-engine/src/http_executor/finalize.rs
+  lines:
+  - 24
   - 228
   blob: 98508e0c71004d01fdccd3e13ccca55eeb40160b
-  snippet_sha1: ffafbf1cb09433f19abae892a780406ea04b2168
+  snippet_sha1: 6a4f124a590d0e7edeb2c6a480774fb3dd534143
 - path: crates/limedl-engine/src/http_executor/finalize.rs
   lines:
   - 119
@@ -482,7 +494,8 @@ the request through `request_with_retry` (with an opportunistic HTTP/3 attempt
 from the Alt-Svc cache), stream the body into `write_chunk_bytes` while
 accounting the rate limiter (`BatchLimiter`) and throttling persist/progress,
 and guard the received content length
-[[cite:crates/limedl-engine/src/http_executor/single.rs:L38-L93]],
+[[cite:crates/limedl-engine/src/http_executor/single.rs:L38-L41]]
+[[cite:crates/limedl-engine/src/http_executor/single.rs:L45-L93]],
 [[cite:crates/limedl-engine/src/http_executor/single.rs:L141-L219]].
 
 The loop is bounded: `RequestBudget::new(MAX_SINGLE_STREAM_REQUESTS = 64)` is
@@ -579,7 +592,8 @@ Two consequences worth remembering when touching this area:
 ## Phase 5 — Finalization
 
 `finalize_download`
-[[cite:crates/limedl-engine/src/http_executor/finalize.rs:L18-L228]]:
+[[cite:crates/limedl-engine/src/http_executor/finalize.rs:L18-L20]]
+[[cite:crates/limedl-engine/src/http_executor/finalize.rs:L24-L228]]:
 
 1. bails out if already canceled, then sets the task to `Verifying` (connection
    and allocated threads zeroed) and persists.

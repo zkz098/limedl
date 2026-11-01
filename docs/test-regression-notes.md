@@ -5,63 +5,14 @@ and the test areas whose intent is easy to break. Test layout and conventions ar
 in [`.wiki/pages/testing/testing-strategy.md`](../.wiki/pages/testing/testing-strategy.md)
 and [`.wiki/pages/testing/slint-ui-testing.md`](../.wiki/pages/testing/slint-ui-testing.md).
 
-## Real bugs the UI tests caught
+## UI regressions
 
-When adding UI test cases, aim at these directions:
-
-- The `FocusScope` holding `handle_key_escape` had a bare
-  `if … { reject }` for "a dialog is open, swallow shortcuts", and the value was
-  dropped — so `Ctrl+A` / `Space` / `Delete` acted on the list **behind** the
-  modal (`Delete` deleted the selection). It is now part of an `else if` chain.
-- Clicking a table column header called `set_sort_field`, which did not reset the
-  direction — switching columns could land on descending, contradicting the
-  documented "new column sorts ascending". It now uses `apply_sort(field, true)`.
-- At `min-width` (1000 px) the toolbar overflowed the right edge and `ta_new_task`
-  was clipped by ~18 px. Fixed by raising `min-width` to 1100 px; `layout.rs` pins
-  it under English labels too.
-- The toolbar's BT runtime pills are only turned on by the runtime poller
-  (`bt_status_visible`), which the in-process fixture never set — so the 1100 px
-  `min-width` was validated against a toolbar ~107 px narrower than the one users
-  get. With BT connected, a small or HiDPI maximized window (work area < ~1160
-  logical px) clipped the right-hand actions, `New Task` included, with no
-  horizontal scroll to reach them. Fixed by collapsing the pills below
-  `bt_pills_min_width` (1280 px) in `appwindow.slint`; `layout.rs` now drives
-  `bt_status_visible` and pins the breakpoint in both locales.
-- On low-resolution or scaled displays (e.g. 720p/768p at 125% DPI scale where a
-  maximized window has work area ~1024x540), Windows forces the window to the
-  monitor work area, bypassing `min-width: 1100px` and `min-height: 660px`. The
-  toolbar secondary buttons ("Pause All", "Resume All", "Clear Completed")
-  pushed `New Task` off-screen, and the left sidebar cut off the "Settings" and
-  "Labs" buttons at the bottom. Fixed by collapsing secondary toolbar button text
-  below 1200 px (or below 1360 px when BT status pills are visible) while retaining
-  tooltips, and giving the left sidebar responsive vertical spacing plus a
-  `ScrollView` so Settings and Labs always remain reachable. `layout.rs` pins the
-  1024x540 / 1024x576 work area in both zh-CN and en-US.
-- The new-task dialog modal had a fixed height (600 px when
-  `preview_state == "ready"` or in batch mode), while low-resolution or scaled
-  displays (work area height ~540 px) forced the modal outside the window,
-  clipping the footer ("Start Download" / "Add Batch Tasks") and header. Fixed by
-  capping the modal height to `min(parent.height - 32px, ...)`, adding
-  `min-height: 0px` to its `ScrollView`, and applying compact spacing when height
-  is below 600 px. `layout.rs::dialogs_fit_on_small_work_areas` pins the dialog
-  in both locales across single, batch, and torrent preview states.
-- The task inspector's Tab 3 (Piece Map) hardcoded its image height to 380 px
-  without a `ScrollView`, overflowing the 440 px modal panel on small work areas.
-  Fixed by wrapping Tab 3 in a `ScrollView` and applying adaptive image height
-  below 600 px.
-- Restoring saved window geometry from a high-resolution display (e.g. 4K) on a
-  smaller monitor could restore oversized dimensions exceeding the screen. Fixed
-  by clamping restored geometry to the target monitor's work area in
-  `platform_win::clamp_geometry_to_work_area`.
-- The table view's inline action column was clipped out of the visible area at
-  default and minimum widths (the table has no horizontal scroll). Fixed by
-  pinning the action column to the right edge (`root.width - 138px`), letting data
-  columns clip behind it, and shrinking the file column `min-width` from 260 px to
-  140 px so the default column set shows a few columns at minimum width.
-- The setup wizard's step 2 had three `LanguageCard`s in one row at `width: 50%`
-  each (150 % plus gaps), so the `en-US` card overflowed the modal at any width and
-  the English option was unclickable. Fixed by giving the three cards
-  `horizontal-stretch: 1`.
+The UI regressions the in-process suite caught are documented with citations in
+[`.wiki/pages/testing/slint-ui-testing.md`](../.wiki/pages/testing/slint-ui-testing.md#regressions-these-tests-pin):
+the Escape chain, dialog-swallowed shortcuts, ascending column sorts, the
+1100px/low-resolution toolbar and modal geometry, the piece-map tab, the wizard
+language cards, window-geometry clamping and the pinned table action column.
+When adding a UI test case, start from those directions.
 
 ## Logging rotation / retention tests
 
@@ -108,7 +59,7 @@ points:
 ## Crash-consistency / startup hardening changes (2026-10)
 
 The durable-progress rework (see
-[`troubleshooting.md`](troubleshooting.md#durable-vs-received-progress-crash-consistency))
+[`.wiki/pages/systems/persistence-and-recovery.md`](../.wiki/pages/systems/persistence-and-recovery.md))
 landed a set of changes whose failure modes are only visible from the outside, so
 the notes below are worth keeping:
 

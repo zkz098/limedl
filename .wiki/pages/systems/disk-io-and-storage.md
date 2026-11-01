@@ -2,8 +2,8 @@
 id: systems/disk-io-and-storage
 title: Disk I/O, Buffer Pool and Storage Detection
 status: verified
-generated_at: 2026-10-31T14:57:33Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T04:57:39Z
+commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
 evidence:
 - path: crates/limedl-disk/src/buffer_pool/mod.rs
   lines:
@@ -80,9 +80,15 @@ evidence:
 - path: crates/limedl-disk/src/buffer_pool/download_buffer.rs
   lines:
   - 294
+  - 348
+  blob: 4a1d4e3cf3cd778927ac17aa7a35df143f3cbbba
+  snippet_sha1: 39b148e0adc0949966522cfeb66cea1730137b62
+- path: crates/limedl-disk/src/buffer_pool/download_buffer.rs
+  lines:
+  - 352
   - 396
   blob: 4a1d4e3cf3cd778927ac17aa7a35df143f3cbbba
-  snippet_sha1: 19597c0ac79350c9436bbfdb00c6c7b221a63dc9
+  snippet_sha1: a5337929d5e1668f5244edd394be4e90edcc835a
 - path: crates/limedl-disk/src/buffer_pool/download_buffer.rs
   lines:
   - 32
@@ -377,6 +383,48 @@ evidence:
   - 372
   blob: fa2c301dce0e94dfff5d64faea9fa56e053c3b70
   snippet_sha1: 84e99ce806e3c98621ac4cad57421f42bfffe658
+- path: crates/limedl-core/src/bootstrap.rs
+  lines:
+  - 63
+  - 66
+  blob: e7734589a56cfbec112230cb3856dab3b3ef1e19
+  snippet_sha1: 0e0a2febf00c4ff186ab8949727dd899714764cd
+- path: crates/limedl-core/src/manager.rs
+  lines:
+  - 451
+  - 453
+  blob: fa2c301dce0e94dfff5d64faea9fa56e053c3b70
+  snippet_sha1: 603aec5fc8f8d03de9919f45a5bfadf56101720d
+- path: crates/limedl-engine/src/http_executor/finalize.rs
+  lines:
+  - 120
+  - 175
+  blob: 98508e0c71004d01fdccd3e13ccca55eeb40160b
+  snippet_sha1: 6a6ea7411dda808893bd310ee639ae632e19bb8e
+- path: crates/limedl-native/src/update/mod.rs
+  lines:
+  - 578
+  - 646
+  blob: 594a999f50c27ef1c5555accc6b7e73755260561
+  snippet_sha1: 3664d45c82253010c170e121c2fc78f889b5031b
+- path: crates/limedl-native/src/update/mod.rs
+  lines:
+  - 664
+  - 673
+  blob: 594a999f50c27ef1c5555accc6b7e73755260561
+  snippet_sha1: 76653b7f279ca9e12268e78f800dd725a2aec3fd
+- path: crates/limedl-native/src/update/mod.rs
+  lines:
+  - 633
+  - 638
+  blob: 594a999f50c27ef1c5555accc6b7e73755260561
+  snippet_sha1: 6328c92c9c3dc8980d2ef0f4e8d8556a3b3e6b13
+- path: crates/limedl-native/src/update/tests.rs
+  lines:
+  - 175
+  - 186
+  blob: 6c4322f48d1daa5d22ec8a3b9e2c06340232ffee
+  snippet_sha1: 9bd34f7c0e8e2e65218dce5237f433aca79c4ab7
 type: system
 ---
 # Disk I/O, Buffer Pool and Storage Detection
@@ -452,7 +500,8 @@ released by `FlipTokenGuard` even on panic. If a background flush failed, the
 error flag is checked before every iteration and at each await point, so the call
 fails immediately rather than downloading data destined for a failed write.
 [[cite:crates/limedl-disk/src/buffer_pool/download_buffer.rs:L18-L30]]
-[[cite:crates/limedl-disk/src/buffer_pool/download_buffer.rs:L294-L396]]
+[[cite:crates/limedl-disk/src/buffer_pool/download_buffer.rs:L294-L348]]
+[[cite:crates/limedl-disk/src/buffer_pool/download_buffer.rs:L352-L396]]
 
 ### The flush observer: the buffer is the durability oracle
 
@@ -693,6 +742,30 @@ settings save.
 [[cite:crates/limedl-disk/src/io_scheduler/mod.rs:L53-L80]]
 [[cite:crates/limedl-core/src/context.rs:L68-L76]]
 [[cite:crates/limedl-core/src/manager.rs:L368-L372]]
+
+## Async paths never call `std::fs`
+
+Async functions and async blocks must use `tokio::fs` (or `spawn_blocking` for a
+genuinely synchronous chunk) rather than `std::fs`; SonarQube reports the latter
+as `rust:S7493`. The engine's async paths follow that shape — bootstrap creates
+the BT state/output directories through `tokio::fs`, the manager creates the
+destination, and finalization renames a corrupt temp file through `tokio::fs`.
+[[cite:crates/limedl-core/src/bootstrap.rs:L63-L66]]
+[[cite:crates/limedl-core/src/manager.rs:L451-L453]]
+[[cite:crates/limedl-engine/src/http_executor/finalize.rs:L120-L175]]
+
+The exception is genuinely synchronous flows: the self-update executable
+extraction and `clean_update_work_dir` are synchronous and would otherwise drag a
+runtime into code that does not have one, so they keep `std::fs`.
+[[cite:crates/limedl-native/src/update/mod.rs:L578-L646]]
+[[cite:crates/limedl-native/src/update/mod.rs:L664-L673]]
+
+On Unix the extracted updater executable is written with mode `0o700`, not
+`0o755`: it lives in the user's own work directory and is executed only by that
+user, so group/other bits would be unnecessary surface on a file that replaces
+the running process.
+[[cite:crates/limedl-native/src/update/mod.rs:L633-L638]]
+[[cite:crates/limedl-native/src/update/tests.rs:L175-L186]]
 
 Related pages: [[wiki:workflows/http-download-lifecycle]],
 [[wiki:systems/settings-and-configuration]],

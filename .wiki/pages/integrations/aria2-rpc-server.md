@@ -2,8 +2,8 @@
 id: integrations/aria2-rpc-server
 title: Aria2 JSON-RPC Compatibility Server
 status: verified
-generated_at: 2026-10-31T14:49:50Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-01T04:59:08Z
+commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
 evidence:
 - path: crates/limedl-rpc/Cargo.toml
   lines:
@@ -362,9 +362,15 @@ evidence:
 - path: crates/limedl-rpc/src/options.rs
   lines:
   - 399
+  - 419
+  blob: 3bf801ef8406717e6ada43b881f3036601097eb8
+  snippet_sha1: f469d8cb4db7ea90e5b6f753c3ab31b136cf9090
+- path: crates/limedl-rpc/src/options.rs
+  lines:
+  - 423
   - 429
   blob: 3bf801ef8406717e6ada43b881f3036601097eb8
-  snippet_sha1: 5ef3d12614d1cfed335f521cd54d132598e3da8e
+  snippet_sha1: b1285d39b3b43d5c4ed9436c97a73aa6712dccdf
 - path: crates/limedl-rpc/src/options.rs
   lines:
   - 431
@@ -1046,7 +1052,7 @@ request options into a `StartDownloadRequest`:
 
 | aria2 option | Effect |
 | --- | --- |
-| `header`, `referer`, `http-user`/`http-passwd` | request headers (Basic auth is synthesized) [[cite:crates/limedl-rpc/src/options.rs:L399-L429]] |
+| `header`, `referer`, `http-user`/`http-passwd` | request headers (Basic auth is synthesized) [[cite:crates/limedl-rpc/src/options.rs:L399-L419]] [[cite:crates/limedl-rpc/src/options.rs:L423-L429]] |
 | `checksum` (`TYPE=DIGEST`) | maps to `ChecksumMode` + expected digest (sha-256/sha-512/blake3); an unsupported algorithm is rejected, not silently skipped [[cite:crates/limedl-rpc/src/options.rs:L431-L464]] |
 | `user-agent`, `split`, `max-tries`, `out`, `dir` | carried onto the request; `dir` defaults to the configured download dir [[cite:crates/limedl-rpc/src/download.rs:L65-L93]] |
 | `pause` | start the task paused (also accepts the string `"true"`) [[cite:crates/limedl-rpc/src/download.rs:L129-L132]] |
