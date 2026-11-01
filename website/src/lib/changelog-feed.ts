@@ -1,6 +1,7 @@
 import changelog from '../data/changelog.json';
+import { SITE_URL } from './seo';
 
-const SITE = 'https://limedl.com';
+const SITE = SITE_URL;
 
 const labels = {
   'zh-CN': {

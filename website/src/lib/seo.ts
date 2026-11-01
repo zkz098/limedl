@@ -1,4 +1,4 @@
-export const SITE_URL = 'https://limedl.com';
+export const SITE_URL = 'https://limedl.zkz098.cn';
 export const OG_IMAGE_URL = `${SITE_URL}/images/og-preview.png`;
 export const GITHUB_URL = 'https://github.com/zkz098/limedl';
 

@@ -1,7 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import ChangelogView from '../components/ChangelogView.astro';
-import { collectionPageJsonLd } from '../lib/seo';
+import { collectionPageJsonLd, SITE_URL } from '../lib/seo';
 
 const description =
   'limedl 稳定版本更新日志：新功能、问题修复、性能优化与重构，由 Conventional Commits 自动生成。';
@@ -13,7 +13,7 @@ const description =
   lang="zh-CN"
   rss="/changelog.xml"
   jsonLd={[
-    collectionPageJsonLd('limedl 更新日志', description, 'https://limedl.com/changelog/'),
+    collectionPageJsonLd('limedl 更新日志', description, `${SITE_URL}/changelog/`),
   ]}
 >
   <ChangelogView lang="zh-CN" />

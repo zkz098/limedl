@@ -60,7 +60,7 @@ const sidebar = sidebarGroups.map(([label, en, pages]) => ({
 }));
 
 export default defineConfig({
-  site: 'https://limedl.com',
+  site: 'https://limedl.zkz098.cn',
   integrations: [
     UnoCSS({
       injectReset: false,

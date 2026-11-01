@@ -4,31 +4,31 @@
 
 ## Docs
 
-- [Overview](https://limedl.com/en/getting-started/overview/): design goals, architecture, and feature comparison.
-- [Installation](https://limedl.com/en/getting-started/installation/): per-platform setup and signature verification.
-- [Platform Support](https://limedl.com/en/getting-started/platform-support/): supported OS versions, CPU baselines, and restrictions.
-- [Configuration](https://limedl.com/en/getting-started/configuration/): every desktop setting and default.
-- [Tasks & Concurrency](https://limedl.com/en/guides/tasks/): AIMD, chunk scheduling, priorities, and checksums.
-- [CDN Acceleration](https://limedl.com/en/guides/cdn/): edge IP probing and DNS rewriting.
-- [URL Rewrite & Custom CDN](https://limedl.com/en/guides/url-rewrite-and-cdn-providers/): mirror rules and provider configuration.
-- [BitTorrent Tuning](https://limedl.com/en/guides/bittorrent/): DHT, UPnP, anti-leech, and seeding.
-- [CLI & Protocol](https://limedl.com/en/guides/cli/): command line, protocol handlers, and environment variables.
-- [Troubleshooting](https://limedl.com/en/guides/troubleshooting/): 403s, BitTorrent, Gatekeeper, tray, and logs.
-- [Browser Integration](https://limedl.com/en/ecosystem/browser/): Aria2 Explorer, Camtd, and userscripts.
-- [Aria2 RPC](https://limedl.com/en/ecosystem/aria2-rpc/): supported methods, auth, CORS, and client examples.
-- [Headless Server](https://limedl.com/en/ecosystem/server-daemon/): NAS, Docker, systemd, and reverse proxy.
-- [Security & Verification](https://limedl.com/en/security/): Minisign + ML-DSA-65 signatures and trust boundaries.
-- [FAQ](https://limedl.com/en/faq/): compatibility, telemetry, SmartScreen, RPC safety, and backups.
-- [Metalink & Mirrors](https://limedl.com/en/advanced/metalink-and-mirrors/): parsing, scoring, leases, and verification.
-- [Self-Update Channels](https://limedl.com/en/advanced/self-update-channels/): per-install update paths and rollback.
-- [Disk Media & Buffer Tuning](https://limedl.com/en/advanced/disk-media-and-buffer-tuning/): SSD/HDD/network detection and overrides.
-- [Expert Settings & HTTP/3](https://limedl.com/en/advanced/expert-settings-and-http3/): scheduler, AIMD, timeouts, and Alt-Svc.
-- [Data Backup & Aria2 Import](https://limedl.com/en/guides/data-backup-and-migration/): data layout, migration, and option mapping.
-- [Benchmarks](https://limedl.com/en/advanced/benchmarks/): reproducible in-repo measurements.
+- [Overview](https://limedl.zkz098.cn/en/getting-started/overview/): design goals, architecture, and feature comparison.
+- [Installation](https://limedl.zkz098.cn/en/getting-started/installation/): per-platform setup and signature verification.
+- [Platform Support](https://limedl.zkz098.cn/en/getting-started/platform-support/): supported OS versions, CPU baselines, and restrictions.
+- [Configuration](https://limedl.zkz098.cn/en/getting-started/configuration/): every desktop setting and default.
+- [Tasks & Concurrency](https://limedl.zkz098.cn/en/guides/tasks/): AIMD, chunk scheduling, priorities, and checksums.
+- [CDN Acceleration](https://limedl.zkz098.cn/en/guides/cdn/): edge IP probing and DNS rewriting.
+- [URL Rewrite & Custom CDN](https://limedl.zkz098.cn/en/guides/url-rewrite-and-cdn-providers/): mirror rules and provider configuration.
+- [BitTorrent Tuning](https://limedl.zkz098.cn/en/guides/bittorrent/): DHT, UPnP, anti-leech, and seeding.
+- [CLI & Protocol](https://limedl.zkz098.cn/en/guides/cli/): command line, protocol handlers, and environment variables.
+- [Troubleshooting](https://limedl.zkz098.cn/en/guides/troubleshooting/): 403s, BitTorrent, Gatekeeper, tray, and logs.
+- [Browser Integration](https://limedl.zkz098.cn/en/ecosystem/browser/): Aria2 Explorer, Camtd, and userscripts.
+- [Aria2 RPC](https://limedl.zkz098.cn/en/ecosystem/aria2-rpc/): supported methods, auth, CORS, and client examples.
+- [Headless Server](https://limedl.zkz098.cn/en/ecosystem/server-daemon/): NAS, Docker, systemd, and reverse proxy.
+- [Security & Verification](https://limedl.zkz098.cn/en/security/): Minisign + ML-DSA-65 signatures and trust boundaries.
+- [FAQ](https://limedl.zkz098.cn/en/faq/): compatibility, telemetry, SmartScreen, RPC safety, and backups.
+- [Metalink & Mirrors](https://limedl.zkz098.cn/en/advanced/metalink-and-mirrors/): parsing, scoring, leases, and verification.
+- [Self-Update Channels](https://limedl.zkz098.cn/en/advanced/self-update-channels/): per-install update paths and rollback.
+- [Disk Media & Buffer Tuning](https://limedl.zkz098.cn/en/advanced/disk-media-and-buffer-tuning/): SSD/HDD/network detection and overrides.
+- [Expert Settings & HTTP/3](https://limedl.zkz098.cn/en/advanced/expert-settings-and-http3/): scheduler, AIMD, timeouts, and Alt-Svc.
+- [Data Backup & Aria2 Import](https://limedl.zkz098.cn/en/guides/data-backup-and-migration/): data layout, migration, and option mapping.
+- [Benchmarks](https://limedl.zkz098.cn/en/advanced/benchmarks/): reproducible in-repo measurements.
 
 ## Optional
 
-- [Changelog](https://limedl.com/en/changelog/): stable release notes generated from Conventional Commits.
-- [Changelog RSS](https://limedl.com/en/changelog.xml)
-- [Download](https://limedl.com/en/download/): official installers and checksums.
+- [Changelog](https://limedl.zkz098.cn/en/changelog/): stable release notes generated from Conventional Commits.
+- [Changelog RSS](https://limedl.zkz098.cn/en/changelog.xml)
+- [Download](https://limedl.zkz098.cn/en/download/): official installers and checksums.
 - [GitHub](https://github.com/zkz098/limedl)
