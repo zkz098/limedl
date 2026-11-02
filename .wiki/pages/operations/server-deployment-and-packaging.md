@@ -2,16 +2,16 @@
 id: operations/server-deployment-and-packaging
 title: Server Deployment and Packaging
 status: verified
-generated_at: 2026-11-01T01:50:36Z
-commit: dbfe66c803b3450791d8272db7464e318b2189bb
+generated_at: 2026-11-02T11:19:52Z
+commit: 8dc6f4da89661bc08ca60d0f37c9de1aa2da9eda
 evidence:
 - path: .github/workflows/release.yml
   lines:
-  - 601
-  - 613
-  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  - 600
+  - 612
+  blob: 1a1b85bb55ba6e761661176ea569b89e8ec4de14
   snippet_sha1: 1c92d66b78b05d9fd11a8c34e3c70fd3020b61cf
-  note: drift-projected L600-L612@8ffb6ce1 -> L601-L613 (similarity 1.00)
+  note: drift-projected L601-L613@85d18be5 -> L600-L612 (similarity 1.00)
 - path: packaging/server/systemd/limedl-server.service
   lines:
   - 7
@@ -92,11 +92,11 @@ evidence:
   snippet_sha1: 0682dea6bccafdce66b840c150571f623e85a74b
 - path: .github/workflows/release.yml
   lines:
-  - 540
-  - 544
-  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  - 539
+  - 543
+  blob: 1a1b85bb55ba6e761661176ea569b89e8ec4de14
   snippet_sha1: 69cad3873aa016d173869e05e202a28154ed5ff5
-  note: drift-projected L540-L543@8ffb6ce1 -> L540-L544 (similarity 0.75)
+  note: drift-projected L540-L544@85d18be5 -> L539-L543 (similarity 1.00)
 - path: packaging/server/Dockerfile
   lines:
   - 13
@@ -135,18 +135,18 @@ evidence:
   snippet_sha1: 1c51386f54a9ecec20ba26251b68ec1bccf66264
 - path: .github/workflows/release.yml
   lines:
-  - 660
-  - 704
-  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  - 659
+  - 703
+  blob: 1a1b85bb55ba6e761661176ea569b89e8ec4de14
   snippet_sha1: d21924cae2de0f8292866fe12329f719e5f4e42b
-  note: drift-projected L659-L703@8ffb6ce1 -> L660-L704 (similarity 1.00)
+  note: drift-projected L660-L704@85d18be5 -> L659-L703 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
+  - 548
   - 549
-  - 550
-  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  blob: 1a1b85bb55ba6e761661176ea569b89e8ec4de14
   snippet_sha1: 467637f8ea50c73dd57ec7bb565777bed3324c0b
-  note: drift-projected L548-L549@8ffb6ce1 -> L549-L550 (similarity 1.00)
+  note: drift-projected L549-L550@85d18be5 -> L548-L549 (similarity 1.00)
 - path: docs/server-daemon.md
   lines:
   - 24

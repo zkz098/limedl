@@ -2,21 +2,23 @@
 id: testing/slint-ui-testing
 title: Slint UI Testing
 status: verified
-generated_at: 2026-11-01T04:54:50Z
-commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
+generated_at: 2026-11-02T11:19:52Z
+commit: 8dc6f4da89661bc08ca60d0f37c9de1aa2da9eda
 evidence:
 - path: AGENTS.md
   lines:
   - 15
   - 16
-  blob: 418ad7104660029eaae4d99b75cbf592b5392d56
+  blob: dfad3e0735a83faa3d6069fddecedcae8a13a25c
   snippet_sha1: 5acce1c51c5cc1ffab8b5d445d085083924ca802
+  note: drift-projected L15-L16@418ad710 -> L15-L16 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 121
-  - 126
-  blob: 418ad7104660029eaae4d99b75cbf592b5392d56
+  - 120
+  - 125
+  blob: dfad3e0735a83faa3d6069fddecedcae8a13a25c
   snippet_sha1: 708f1c9f06b888fb8c881fab476d8f2f2efd63df
+  note: drift-projected L121-L126@418ad710 -> L120-L125 (similarity 1.00)
 - path: crates/limedl-native/src/ui_tests/mod.rs
   lines:
   - 1
@@ -309,8 +311,9 @@ evidence:
   lines:
   - 21
   - 23
-  blob: 418ad7104660029eaae4d99b75cbf592b5392d56
+  blob: dfad3e0735a83faa3d6069fddecedcae8a13a25c
   snippet_sha1: 79eae2e8dc01b5ec7b4e1a0eab01025cdaec4dff
+  note: drift-projected L21-L23@418ad710 -> L21-L23 (similarity 1.00)
 - path: docs/manual-smoke-testing.md
   lines:
   - 32

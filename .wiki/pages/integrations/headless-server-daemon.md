@@ -2,8 +2,8 @@
 id: integrations/headless-server-daemon
 title: Headless Server Daemon (limedl-server)
 status: verified
-generated_at: 2026-11-01T01:50:36Z
-commit: dbfe66c803b3450791d8272db7464e318b2189bb
+generated_at: 2026-11-02T11:19:52Z
+commit: 8dc6f4da89661bc08ca60d0f37c9de1aa2da9eda
 evidence:
 - path: crates/limedl-server/src/lib.rs
   lines:
@@ -241,39 +241,39 @@ evidence:
   snippet_sha1: 843e63f358cf33928e2b537fc4a765f4df45da9b
 - path: .github/workflows/release.yml
   lines:
-  - 533
-  - 538
-  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  - 532
+  - 537
+  blob: 1a1b85bb55ba6e761661176ea569b89e8ec4de14
   snippet_sha1: f3562acc529c693835b6157840ff6709fff7f66c
-  note: drift-projected L533-L538@8ffb6ce1 -> L533-L538 (similarity 1.00)
+  note: drift-projected L533-L538@85d18be5 -> L532-L537 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 539
-  - 547
-  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  - 538
+  - 546
+  blob: 1a1b85bb55ba6e761661176ea569b89e8ec4de14
   snippet_sha1: ebaa465246bf874f34ae6fd8dd496276ca46d6b8
-  note: drift-projected L539-L546@8ffb6ce1 -> L539-L547 (similarity 0.88)
+  note: drift-projected L539-L547@85d18be5 -> L538-L546 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 560
-  - 565
-  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  - 559
+  - 564
+  blob: 1a1b85bb55ba6e761661176ea569b89e8ec4de14
   snippet_sha1: 2a15bf42188ff1d64a377acb2ecd2a6bb83551a4
-  note: drift-projected L559-L564@8ffb6ce1 -> L560-L565 (similarity 1.00)
+  note: drift-projected L560-L565@85d18be5 -> L559-L564 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
-  - 598
-  - 613
-  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  - 597
+  - 612
+  blob: 1a1b85bb55ba6e761661176ea569b89e8ec4de14
   snippet_sha1: c4875b94e3940160ac4ec99395d308c677dbe87b
-  note: drift-projected L597-L612@8ffb6ce1 -> L598-L613 (similarity 1.00)
+  note: drift-projected L598-L613@85d18be5 -> L597-L612 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
+  - 543
   - 544
-  - 545
-  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  blob: 1a1b85bb55ba6e761661176ea569b89e8ec4de14
   snippet_sha1: 4890528cdf973d719ac9830ef714acfb00ab857b
-  note: drift-projected L543-L544@8ffb6ce1 -> L544-L545 (similarity 1.00)
+  note: drift-projected L544-L545@85d18be5 -> L543-L544 (similarity 1.00)
 - path: .cargo/config.toml
   lines:
   - 36
@@ -282,11 +282,11 @@ evidence:
   snippet_sha1: 0d3a7d0ada9349a6c6baaa5cdd2827a972916efb
 - path: .github/workflows/release.yml
   lines:
-  - 632
-  - 648
-  blob: 85d18be58b6879e1776a76bc4a66e514a74fb15c
+  - 631
+  - 647
+  blob: 1a1b85bb55ba6e761661176ea569b89e8ec4de14
   snippet_sha1: 93e2a034af796fa610079e419c8d955b4999967b
-  note: drift-projected L631-L647@8ffb6ce1 -> L632-L648 (similarity 1.00)
+  note: drift-projected L632-L648@85d18be5 -> L631-L647 (similarity 1.00)
 - path: crates/limedl-server/src/cli.rs
   lines:
   - 91
@@ -315,9 +315,9 @@ evidence:
   lines:
   - 596
   - 603
-  blob: b805362d0c2226ae25f8ee0f69d0f30239b365bd
+  blob: a6164b5e0c6079310fbc23db67d73a29e278507a
   snippet_sha1: 901c5378cc4165c563a176b529c89789a04ea0a8
-  note: drift-projected L596-L603@5c8150ed -> L596-L603 (similarity 1.00)
+  note: drift-projected L596-L603@b805362d -> L596-L603 (similarity 1.00)
 type: integration
 ---
 # Headless Server Daemon (`limedl-server`)
