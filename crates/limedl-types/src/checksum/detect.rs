@@ -72,18 +72,16 @@ pub fn parse_sha256_file(content: &str, target_file_name: Option<&str>) -> Optio
         if line.is_empty() || line.starts_with('#') || line.starts_with("-----") {
             continue;
         }
-        if line.len() >= 64 {
-            let candidate = &line[0..64];
-            if is_valid_sha256_hex(candidate) {
-                if target_base.is_none() {
-                    return Some(candidate.to_ascii_lowercase());
-                }
-                let rest = line[64..].trim_start_matches([' ', '*', '\t']);
-                if rest.is_empty()
-                    || extract_basename(rest).eq_ignore_ascii_case(target_base.unwrap())
-                {
-                    return Some(candidate.to_ascii_lowercase());
-                }
+        if let Some((candidate, remainder)) = line.split_at_checked(64)
+            && is_valid_sha256_hex(candidate)
+        {
+            if target_base.is_none() {
+                return Some(candidate.to_ascii_lowercase());
+            }
+            let rest = remainder.trim_start_matches([' ', '*', '\t']);
+            if rest.is_empty() || extract_basename(rest).eq_ignore_ascii_case(target_base.unwrap())
+            {
+                return Some(candidate.to_ascii_lowercase());
             }
         }
     }
@@ -151,16 +149,14 @@ fn parse_bsd_line(line: &str, target_base: Option<&str>) -> Option<String> {
 }
 
 fn parse_gnu_line(line: &str, target_base: Option<&str>) -> Option<String> {
-    if line.len() < 64 {
-        return None;
-    }
-
-    let hash_part = &line[0..64];
+    // A byte length check is not enough: byte 64 can fall inside a multi-byte
+    // character, and slicing there panics. `split_at_checked` returns `None`
+    // unless both halves land on UTF-8 boundaries.
+    let (hash_part, remainder) = line.split_at_checked(64)?;
     if !is_valid_sha256_hex(hash_part) {
         return None;
     }
 
-    let remainder = &line[64..];
     if remainder.is_empty() {
         if target_base.is_none() {
             return Some(hash_part.to_ascii_lowercase());
@@ -496,6 +492,26 @@ mod tests {
             parse_sha256_file(&format!("  {SAMPLE_HASH_UPPER}\n"), Some("file.iso")),
             Some(SAMPLE_HASH.to_string())
         );
+    }
+
+    /// Byte 64 can fall inside a multi-byte character. Slicing there used to
+    /// panic (found by the `sha256_manifest` fuzz target); the line must simply
+    /// be skipped.
+    #[test]
+    fn test_multibyte_character_at_hash_boundary_does_not_panic() {
+        let line = format!("{}{}in", "a".repeat(63), 'ѝ');
+        assert_eq!(parse_sha256_file(&line, None), None);
+        assert_eq!(parse_sha256_file(&line, Some("x")), None);
+        assert_eq!(parse_sha256sums(&line, "x"), None);
+
+        // Exact fuzz reproducer: the multi-byte character straddles the
+        // 64-byte prefix of the second line.
+        let repro = "# geror\n\
+                     e3b:c44298fc1c149afbf4c899-fb92427ae41e463856*1 b9957852*test-rѝin\n\
+                     t-rѝin\n1e";
+        assert_eq!(parse_sha256_file(repro, None), None);
+        assert_eq!(parse_sha256_file(repro, Some("test-file.bin")), None);
+        assert_eq!(parse_sha256sums(repro, "test-file.bin"), None);
     }
 
     #[test]
