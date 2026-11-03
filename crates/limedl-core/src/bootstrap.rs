@@ -36,6 +36,8 @@ pub struct CoreSystems {
     /// The desktop client turns this into a one-time notice: those tasks cannot
     /// be restored, but the downloaded files are left untouched.
     pub legacy_bt_resume_files: usize,
+    /// Path where a corrupted `downloads.db` was backed up during startup, if any.
+    pub quarantined_db_path: Option<PathBuf>,
 }
 
 /// Initialize all core subsystems in the correct order.
@@ -139,5 +141,6 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
         disk_io_service: context.disk_io.clone(),
         concurrency: context.concurrency.clone(),
         legacy_bt_resume_files,
+        quarantined_db_path: context.db.quarantined_path().map(PathBuf::from),
     })
 }

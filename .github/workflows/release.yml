@@ -782,6 +782,14 @@ jobs:
           name: native-linux-x86_64
           path: dist
 
+      - name: Download server artifacts
+        if: needs.build-server.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: server-*-linux-musl
+          path: dist
+          merge-multiple: true
+
       # ── Minisign & PQC: the update trust chain ─────────────────────────
       # `sign` writes <file>.sig and <file>.pqc.sig for each artifact; `cargo xtask manifest`
       # inlines those signatures into the manifest; `guard` then re-verifies
@@ -850,6 +858,18 @@ jobs:
               $guarded += $appimage
             }
           }
+          if ($env:HAS_SERVER -eq 'true') {
+            foreach ($serverArchive in @(
+              "dist/limedl-server-v${{ steps.version.outputs.VERSION }}-x86_64-linux-musl.tar.gz",
+              "dist/limedl-server-v${{ steps.version.outputs.VERSION }}-aarch64-linux-musl.tar.gz"
+            )) {
+              if (Test-Path $serverArchive) {
+                cargo xtask sign $serverArchive
+                if ($LASTEXITCODE -ne 0) { throw "signing $serverArchive failed" }
+                $guarded += $serverArchive
+              }
+            }
+          }
 
           cargo xtask guard @guarded
           if ($LASTEXITCODE -ne 0) { throw "release guard failed" }
@@ -857,10 +877,11 @@ jobs:
           HAS_WINDOWS: ${{ needs.build-native.result == 'success' }}
           HAS_MACOS: ${{ needs.build-native-macos.result == 'success' }}
           HAS_LINUX: ${{ needs.build-native-linux.result == 'success' }}
+          HAS_SERVER: ${{ needs.build-server.result == 'success' }}
 
       # The manifest always exists (it just omits a platform whose leg failed),
-      # so the release flips out of prerelease here — by then every desktop job
-      # has finished and "latest" resolves to a complete set.
+      # and the release flips out of prerelease here only when all build legs
+      # succeeded and the version is not an alpha/beta/rc tag.
       - name: Upload manifest
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
         with:
@@ -883,7 +904,11 @@ jobs:
             dist/limedl-native-v*-linux-x86_64.deb.pqc.sig
             dist/limedl-native-v*-linux-x86_64.AppImage.sig
             dist/limedl-native-v*-linux-x86_64.AppImage.pqc.sig
+            dist/limedl-server-v*-x86_64-linux-musl.tar.gz.sig
+            dist/limedl-server-v*-x86_64-linux-musl.tar.gz.pqc.sig
+            dist/limedl-server-v*-aarch64-linux-musl.tar.gz.sig
+            dist/limedl-server-v*-aarch64-linux-musl.tar.gz.pqc.sig
           body: ${{ needs.changelog.outputs.body }}
-          prerelease: false
+          prerelease: ${{ !(needs.build-native.result == 'success' && needs.build-native-macos.result == 'success' && needs.build-native-linux.result == 'success' && needs.build-server.result == 'success') || contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

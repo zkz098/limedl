@@ -2369,3 +2369,6 @@ msgstr "已清理舊版 BT 引擎的續傳資料（{} 個檔案）。這些任�
 
 msgid "Changes apply to the BT session after restart."
 msgstr "變更將在 BT 會話重新啟動後生效。"
+
+msgid "Corrupted task database was backed up to {}; task history has been reset (downloaded files are untouched)."
+msgstr "偵測到任務資料庫損毀，已備份至 {} 並重設任務歷史（已下載檔案不受影響）。"

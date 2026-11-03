@@ -10,6 +10,7 @@
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+pub mod aria2_cli;
 pub mod checksum;
 pub mod error;
 pub mod event_bus;
@@ -20,6 +21,7 @@ pub mod settings;
 pub mod slot_guard;
 pub mod types;
 pub mod url_rewrite;
+pub mod url_utils;
 
 pub use checksum::{calculate_checksum, calculate_checksum_with_progress};
 pub use error::DownloadError;

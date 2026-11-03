@@ -183,3 +183,19 @@ async fn range_bitflip_endpoint_corrupts_content() -> TestResult {
     assert_eq!(&body[1..], &expected[1..32]);
     Ok(())
 }
+
+#[tokio::test]
+async fn stream_reset_endpoint_aborts_mid_stream() -> TestResult {
+    let server = TestServer::new(64 * 1024).await;
+    let url = server.file_url_stream_reset(512);
+
+    let client = reqwest::Client::builder().no_proxy().build()?;
+    let response = client.get(&url).send().await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.content_length(), Some(64 * 1024));
+    assert!(
+        response.bytes().await.is_err(),
+        "stream-reset endpoint must abort the response body before Content-Length is reached"
+    );
+    Ok(())
+}

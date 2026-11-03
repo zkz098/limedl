@@ -2409,3 +2409,6 @@ msgstr "Legacy BitTorrent resume data was removed ({} files). Those tasks cannot
 
 msgid "Changes apply to the BT session after restart."
 msgstr "Changes apply to the BT session after restart."
+
+msgid "Corrupted task database was backed up to {}; task history has been reset (downloaded files are untouched)."
+msgstr "Corrupted task database was backed up to {}; task history has been reset (downloaded files are untouched)."

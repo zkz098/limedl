@@ -123,6 +123,7 @@ impl TestServer {
             )
             .route("/file/delayed/{ms}", get(serve_file_delayed))
             .route("/file/truncated/{bytes}", get(serve_file_truncated))
+            .route("/file/stream-reset/{bytes}", get(serve_file_stream_reset))
             .route("/file/slow/{ms}", get(serve_file_slow))
             .route("/file/bandwidth/{bps}", get(serve_file_bandwidth))
             .route("/file/redirect/{code}", get(serve_file_redirect))
@@ -343,6 +344,13 @@ impl TestServer {
     /// prematurely.  This tests how the executor handles a Content-Length mismatch.
     pub fn file_url_wrong_length(&self) -> String {
         format!("{}/file/wrong-length", self.addr)
+    }
+
+    /// URL that advertises the full `Content-Length`, streams the first
+    /// `bytes_before_reset` bytes, and then aborts the HTTP response body stream
+    /// with a simulated `ConnectionReset` error.
+    pub fn file_url_stream_reset(&self, bytes_before_reset: usize) -> String {
+        format!("{}/file/stream-reset/{bytes_before_reset}", self.addr)
     }
 
     /// URL that returns the given HTTP status code with an empty body.
@@ -684,6 +692,51 @@ async fn serve_file_truncated(
     headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
     add_checksum_headers(&mut headers, &state);
     (StatusCode::OK, headers, truncated.to_vec()).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// GET /file/stream-reset/{bytes}
+// ---------------------------------------------------------------------------
+
+/// Advertise the full `Content-Length`, stream `bytes_before_reset` bytes, and
+/// then abort the response body stream with a simulated `ConnectionReset`.
+async fn serve_file_stream_reset(
+    State(state): State<Arc<ServerState>>,
+    Path(bytes_before_reset): Path<usize>,
+) -> impl IntoResponse {
+    let total_len = state.data.len();
+    let limit = bytes_before_reset.min(total_len);
+    let prefix = Bytes::copy_from_slice(&state.data[..limit]);
+
+    let stream = stream::unfold(0u8, move |step| {
+        let prefix = prefix.clone();
+        async move {
+            match step {
+                0 => Some((Ok::<Bytes, std::io::Error>(prefix), 1)),
+                1 => {
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                    Some((
+                        Err(std::io::Error::new(
+                            std::io::ErrorKind::ConnectionReset,
+                            "simulated mid-stream connection reset",
+                        )),
+                        2,
+                    ))
+                }
+                _ => None,
+            }
+        }
+    });
+
+    let mut headers = HeaderMap::new();
+    headers.insert(header::CONTENT_LENGTH, usize_header_value(total_len));
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_static("attachment; filename*=UTF-8''test-file.bin"),
+    );
+    add_checksum_headers(&mut headers, &state);
+
+    (StatusCode::OK, headers, Body::from_stream(stream)).into_response()
 }
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use parking_lot::RwLock;
+use parking_lot::Mutex;
 
 use anyhow::Context;
 use tracing::level_filters::LevelFilter;
@@ -22,83 +22,153 @@ use tracing_subscriber::{
 /// console behavior of the desktop/server apps).
 const DEFAULT_CONSOLE_FILTER: &str = "info,limedl=debug";
 
+/// Maximum size of the active log file before runtime in-place rotation (10 MiB).
+const MAX_LOG_FILE_BYTES: u64 = 10 * 1024 * 1024;
+
 use super::types::{LogLevel, LogSettings};
 
 static LOGGER_CONTROL: OnceLock<LoggerControl> = OnceLock::new();
 
-#[derive(Clone)]
 struct LoggerRuntime {
     enabled: bool,
     file_path: PathBuf,
+    retention_count: Option<u32>,
+    retention_days: Option<u32>,
+    max_file_bytes: u64,
+    writer: Option<BufWriter<fs::File>>,
+    written_bytes: u64,
 }
 
-struct LoggerControl {
-    runtime: Arc<RwLock<LoggerRuntime>>,
-    level_reload: reload::Handle<LevelFilter, tracing_subscriber::Registry>,
-}
-
-#[derive(Clone)]
-struct DynamicFileWriter {
-    runtime: Arc<RwLock<LoggerRuntime>>,
-}
-
-struct DynamicFileWriterGuard {
-    file: Option<BufWriter<fs::File>>,
-}
-
-impl Write for DynamicFileWriterGuard {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if let Some(file) = &mut self.file {
-            file.write(buf)
-        } else {
-            Ok(buf.len())
+impl LoggerRuntime {
+    fn new(
+        enabled: bool,
+        file_path: PathBuf,
+        retention_count: Option<u32>,
+        retention_days: Option<u32>,
+    ) -> Self {
+        let mut rt = Self {
+            enabled,
+            file_path,
+            retention_count,
+            retention_days,
+            max_file_bytes: MAX_LOG_FILE_BYTES,
+            writer: None,
+            written_bytes: 0,
+        };
+        if enabled {
+            rt.open_writer();
         }
+        rt
     }
 
-    fn flush(&mut self) -> io::Result<()> {
-        if let Some(file) = &mut self.file {
-            file.flush()
-        } else {
-            Ok(())
-        }
-    }
-}
-
-impl<'a> MakeWriter<'a> for DynamicFileWriter {
-    type Writer = DynamicFileWriterGuard;
-
-    fn make_writer(&'a self) -> Self::Writer {
-        let runtime = self.runtime.read();
-
-        if !runtime.enabled {
-            return DynamicFileWriterGuard { file: None };
+    fn open_writer(&mut self) {
+        if !self.enabled {
+            self.writer = None;
+            self.written_bytes = 0;
+            return;
         }
 
-        if let Some(parent) = runtime.file_path.parent()
+        if let Some(parent) = self.file_path.parent()
             && let Err(error) = fs::create_dir_all(parent)
         {
             eprintln!(
                 "[limedl] failed to create log directory {}: {error}",
                 parent.display()
             );
-            return DynamicFileWriterGuard { file: None };
+            self.writer = None;
+            self.written_bytes = 0;
+            return;
         }
 
-        let file = OpenOptions::new()
+        match OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&runtime.file_path)
-            .map_err(|error| {
+            .open(&self.file_path)
+        {
+            Ok(file) => {
+                let len = file.metadata().map(|m| m.len()).unwrap_or(0);
+                self.writer = Some(BufWriter::with_capacity(8192, file));
+                self.written_bytes = len;
+            }
+            Err(error) => {
                 eprintln!(
                     "[limedl] failed to open log file {}: {error}",
-                    runtime.file_path.display()
+                    self.file_path.display()
                 );
-                error
-            })
-            .ok()
-            .map(|f| BufWriter::with_capacity(8192, f));
+                self.writer = None;
+                self.written_bytes = 0;
+            }
+        }
+    }
+}
 
-        DynamicFileWriterGuard { file }
+struct LoggerControl {
+    runtime: Arc<Mutex<LoggerRuntime>>,
+    level_reload: reload::Handle<LevelFilter, tracing_subscriber::Registry>,
+}
+
+#[derive(Clone)]
+struct DynamicFileWriter {
+    runtime: Arc<Mutex<LoggerRuntime>>,
+}
+
+struct DynamicFileWriterGuard<'a> {
+    runtime: &'a Mutex<LoggerRuntime>,
+}
+
+impl Write for DynamicFileWriterGuard<'_> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let mut rt = self.runtime.lock();
+        if !rt.enabled {
+            return Ok(buf.len());
+        }
+        if rt.writer.is_none() {
+            rt.open_writer();
+        }
+        let n = match &mut rt.writer {
+            Some(writer) => writer.write(buf)?,
+            None => return Ok(buf.len()),
+        };
+        rt.written_bytes = rt.written_bytes.saturating_add(n as u64);
+        if rt.written_bytes >= rt.max_file_bytes {
+            if let Some(mut writer) = rt.writer.take() {
+                let _ = writer.flush();
+            }
+            let path = rt.file_path.clone();
+            let count = rt.retention_count;
+            let days = rt.retention_days;
+            perform_startup_rotation(&path, count, days);
+            rt.open_writer();
+        }
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        let mut rt = self.runtime.lock();
+        if let Some(writer) = &mut rt.writer {
+            writer.flush()
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Drop for DynamicFileWriterGuard<'_> {
+    fn drop(&mut self) {
+        let mut rt = self.runtime.lock();
+        if let Some(writer) = &mut rt.writer {
+            let _ = writer.flush();
+        }
+    }
+}
+
+impl<'a> MakeWriter<'a> for DynamicFileWriter {
+    type Writer = DynamicFileWriterGuard<'a>;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        DynamicFileWriterGuard {
+            runtime: &self.runtime,
+        }
     }
 }
 
@@ -116,10 +186,12 @@ pub fn init_logging(settings: &LogSettings, state_dir: &Path) -> anyhow::Result<
         settings.retention_days,
     );
 
-    let runtime = Arc::new(RwLock::new(LoggerRuntime {
-        enabled: settings.enabled,
+    let runtime = Arc::new(Mutex::new(LoggerRuntime::new(
+        settings.enabled,
         file_path,
-    }));
+        settings.retention_count,
+        settings.retention_days,
+    )));
 
     let (level_layer, level_reload) = reload::Layer::new(to_level_filter(settings.level));
 
@@ -190,9 +262,19 @@ pub fn apply_logging_settings(settings: &LogSettings, state_dir: &Path) -> anyho
     }
     filter_applied.context("failed to update tracing level filter")?;
 
-    let mut runtime = control.runtime.write();
+    let next_path = resolve_log_file_path(settings, state_dir);
+    let mut runtime = control.runtime.lock();
+    let reopen_needed = runtime.enabled != settings.enabled || runtime.file_path != next_path;
     runtime.enabled = settings.enabled;
-    runtime.file_path = resolve_log_file_path(settings, state_dir);
+    runtime.file_path = next_path;
+    runtime.retention_count = settings.retention_count;
+    runtime.retention_days = settings.retention_days;
+    if reopen_needed {
+        if let Some(mut writer) = runtime.writer.take() {
+            let _ = writer.flush();
+        }
+        runtime.open_writer();
+    }
     let log_path = runtime.file_path.clone();
     drop(runtime);
 
@@ -665,10 +747,7 @@ mod tests {
     fn dynamic_file_writer_honors_enabled_and_survives_open_failure() {
         let tmp = tempdir().expect("tempdir");
         let runtime = |enabled, path: PathBuf| DynamicFileWriter {
-            runtime: Arc::new(RwLock::new(LoggerRuntime {
-                enabled,
-                file_path: path,
-            })),
+            runtime: Arc::new(Mutex::new(LoggerRuntime::new(enabled, path, None, None))),
         };
 
         // Disabled: writes are accepted and discarded, no file appears.
@@ -696,5 +775,31 @@ mod tests {
             .write_all(b"discarded")
             .expect("an unopenable log file must degrade to a sink");
         assert!(as_directory.is_dir());
+    }
+
+    #[test]
+    fn dynamic_file_writer_rotates_in_place_when_exceeding_size_threshold() {
+        let tmp = tempdir().expect("tempdir");
+        let log_path = tmp.path().join("limedl.log");
+        let mut rt = LoggerRuntime::new(true, log_path.clone(), Some(2), None);
+        rt.max_file_bytes = 16;
+        let writer = DynamicFileWriter {
+            runtime: Arc::new(Mutex::new(rt)),
+        };
+
+        writer
+            .make_writer()
+            .write_all(b"0123456789abcdef")
+            .expect("write 16 bytes triggers rotation");
+        writer
+            .make_writer()
+            .write_all(b"after")
+            .expect("write after rotation");
+
+        assert_eq!(
+            fs::read_to_string(tmp.path().join("limedl.1.log")).unwrap(),
+            "0123456789abcdef"
+        );
+        assert_eq!(fs::read_to_string(&log_path).unwrap(), "after");
     }
 }

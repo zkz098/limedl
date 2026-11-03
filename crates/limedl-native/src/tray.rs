@@ -64,6 +64,11 @@ thread_local! {
     pub static TRAY_INSTANCE: std::cell::RefCell<Option<TrayIcon>> = const { std::cell::RefCell::new(None) };
 }
 
+/// Whether the system tray icon was successfully created on the UI thread.
+pub fn is_tray_available() -> bool {
+    TRAY_INSTANCE.with(|cell| cell.borrow().is_some())
+}
+
 /// Update the system tray menu and tooltip on the UI thread without periodic polling timers.
 pub fn update_tray_menu_and_tooltip(lang: Language, speed_limit_active: bool) {
     TRAY_INSTANCE.with(|cell| {

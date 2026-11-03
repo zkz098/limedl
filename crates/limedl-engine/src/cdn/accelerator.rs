@@ -53,6 +53,9 @@ pub struct CdnAccelerator {
     ip_cache: RwLock<Option<CdnIpCache>>,
     /// Active CDN Provider (defaults to Cloudflare).
     provider: RwLock<Arc<dyn CdnProvider>>,
+    /// Whether the provider was explicitly injected via [`Self::with_provider`]
+    /// and should not be overwritten from `AppSettings` during `start_test`.
+    custom_provider: bool,
 }
 
 impl Default for CdnAccelerator {
@@ -64,7 +67,9 @@ impl Default for CdnAccelerator {
 impl CdnAccelerator {
     /// Create a new accelerator in [`AccelState::Idle`].
     pub fn new() -> Self {
-        Self::with_provider(Arc::new(CloudflareProvider))
+        let mut this = Self::with_provider(Arc::new(CloudflareProvider));
+        this.custom_provider = false;
+        this
     }
 
     /// Create a new accelerator with a specific [`CdnProvider`].
@@ -82,6 +87,7 @@ impl CdnAccelerator {
             default_node: RwLock::new(None),
             ip_cache: RwLock::new(None),
             provider: RwLock::new(provider),
+            custom_provider: true,
         }
     }
 
@@ -115,9 +121,11 @@ impl CdnAccelerator {
             *state = AccelState::Testing;
         }
 
-        // Set provider from settings.
-        let provider = create_provider_from_settings(&settings);
-        self.set_provider(provider).await;
+        if !self.custom_provider {
+            // Set provider from settings.
+            let provider = create_provider_from_settings(&settings);
+            self.set_provider(provider).await;
+        }
 
         // Reset stored results from any previous run.
         *self.active_ip.write().await = None;

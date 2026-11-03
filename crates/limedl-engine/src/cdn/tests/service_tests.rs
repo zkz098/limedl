@@ -19,12 +19,49 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::cdn::accelerator::AccelState;
+use tokio_util::sync::CancellationToken;
+
+use crate::cdn::accelerator::{AccelState, CdnAccelerator};
+use crate::cdn::ip_ranges::CdnIpCache;
+use crate::cdn::provider::{CdnProvider, CdnProviderKind};
 use crate::cdn::service::CdnService;
 use crate::event_bus::{DownloadEvent, EventBus};
 use crate::types::AppSettings;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
+/// Offline test provider whose `fetch_ip_ranges` stays pending until cancelled,
+/// keeping `CdnAccelerator` deterministically in `FetchingRanges` with zero
+/// external network I/O.
+struct PendingTestProvider;
+
+#[async_trait::async_trait]
+impl CdnProvider for PendingTestProvider {
+    fn kind(&self) -> CdnProviderKind {
+        CdnProviderKind::Custom
+    }
+
+    fn name(&self) -> &str {
+        "PendingTest"
+    }
+
+    fn default_test_url(&self) -> &str {
+        "http://127.0.0.1:9/test"
+    }
+
+    fn fallback_ipv4_cidrs(&self) -> &'static [&'static str] {
+        &[]
+    }
+
+    fn fallback_ipv6_cidrs(&self) -> &'static [&'static str] {
+        &[]
+    }
+
+    async fn fetch_ip_ranges(&self, cancel: CancellationToken) -> CdnIpCache {
+        cancel.cancelled().await;
+        self.fallback_cache()
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Test: monitor_test emits CdnProgress + CdnComplete when test finishes Ready
@@ -34,10 +71,13 @@ async fn monitor_test_emits_progress_and_complete_ready() -> TestResult {
     let event_bus = Arc::new(EventBus::new(1024));
     let mut rx = event_bus.subscribe();
 
-    let cdn = Arc::new(CdnService::new());
+    let cdn = Arc::new(CdnService::from_accelerator(Arc::new(
+        CdnAccelerator::with_provider(Arc::new(PendingTestProvider)),
+    )));
 
     // Phase 1: start a CDN test — this sets state → Testing and spawns a
-    // background task that immediately sets phase → FetchingRanges + (0,0).
+    // background task that immediately sets phase → FetchingRanges + (0,0)
+    // and waits on cancellation without touching the network.
     cdn.start_test(AppSettings::default()).await?;
     assert_eq!(cdn.status().await, AccelState::Testing);
 
@@ -174,6 +214,7 @@ async fn monitor_test_emits_progress_and_complete_ready() -> TestResult {
         assert!(outcome.active_speed_mbps.is_some());
     }
 
+    cdn.cancel_test();
     Ok(())
 }
 
@@ -187,9 +228,15 @@ async fn monitor_test_emits_complete_on_error() -> TestResult {
 
     let cdn = Arc::new(CdnService::new());
 
-    // Start a test, then immediately apply an error scenario by setting
-    // the accelerator state to Error(...) directly through apply_ip failure.
-    cdn.start_test(AppSettings::default()).await?;
+    // Configure an offline custom provider with empty CIDRs so `start_test`
+    // transitions deterministically to `AccelState::Error("no Custom IPs available")`
+    // without touching any external network endpoints.
+    let mut settings = AppSettings::default();
+    settings.cdn_acceleration.provider = "custom".to_string();
+    settings.cdn_acceleration.custom_cidrs = Some(String::new());
+    settings.cdn_acceleration.custom_test_url = Some("http://127.0.0.1:9/test".to_string());
+
+    cdn.start_test(settings).await?;
     assert_eq!(cdn.status().await, AccelState::Testing);
     tokio::task::yield_now().await;
 
@@ -197,18 +244,7 @@ async fn monitor_test_emits_complete_on_error() -> TestResult {
     let monitor_eb = Arc::clone(&event_bus);
     let monitor_handle = tokio::spawn(async move { monitor_cdn.monitor_test(monitor_eb).await });
 
-    // Wait for a poll cycle, then drive the accelerator into an error
-    // state that monitor_test can observe. The background task from
-    // start_test will eventually fail, but we simulate an explicit Ready
-    // state and then let the background override — however, to make the
-    // test deterministic, we let the background task fail naturally by
-    // waiting for events with a reasonable timeout.
-    //
-    // Note: in environments without internet this will fail quickly with
-    // "no Cloudflare IPs available". With internet it may take longer as
-    // get_ip_ranges actually downloads them.
-
-    let deadline = tokio::time::sleep(Duration::from_secs(25));
+    let deadline = tokio::time::sleep(Duration::from_secs(5));
     tokio::pin!(deadline);
 
     let mut got_complete = false;
@@ -222,10 +258,9 @@ async fn monitor_test_emits_complete_on_error() -> TestResult {
                     }
                     DownloadEvent::CdnComplete { state, .. } => {
                         got_complete = true;
-                        // Accept any terminal state string
                         assert!(
-                            state == "Ready" || state.starts_with("Error:"),
-                            "CdnComplete state must be 'Ready' or 'Error: ...', got: {state}"
+                            state.starts_with("Error:"),
+                            "CdnComplete state must be 'Error: ...', got: {state}"
                         );
                         break;
                     }

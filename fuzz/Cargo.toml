@@ -64,5 +64,12 @@ test = false
 doc = false
 bench = false
 
+[[bin]]
+name = "aria2_cli_and_batch"
+path = "fuzz_targets/aria2_cli_and_batch.rs"
+test = false
+doc = false
+bench = false
+
 [profile.release]
 debug = 1

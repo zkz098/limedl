@@ -182,6 +182,7 @@ pub(crate) static CATALOG: &[Entry] = &[
     Entry { msgid: "Copy Download Link", translations: ["复制下载链接", "複製下載連結", "Copy Download Link"] },
     Entry { msgid: "Copy File Name", translations: ["复制文件名", "複製檔名", "Copy File Name"] },
     Entry { msgid: "Core Technology Stack:", translations: ["核心技术栈:", "核心技術棧:", "Core Technology Stack:"] },
+    Entry { msgid: "Corrupted task database was backed up to {}; task history has been reset (downloaded files are untouched).", translations: ["检测到任务数据库损坏，已备份至 {} 并重置任务历史（已下载文件不受影响）。", "偵測到任務資料庫損毀，已備份至 {} 並重設任務歷史（已下載檔案不受影響）。", "Corrupted task database was backed up to {}; task history has been reset (downloaded files are untouched)."] },
     Entry { msgid: "Create New Task", translations: ["新建任务", "新建任務", "Create New Task"] },
     Entry { msgid: "Created", translations: ["创建时间", "建立時間", "Created"] },
     Entry { msgid: "Critical speed crash ratio (0.10-0.80) that triggers emergency backoff to minimum threads (default 0.60).", translations: ["触发紧急避险减容的暴跌阈值（默认 0.60，即速度跌破 60% 时立即回退到最低基础线程）。", "觸發緊急避險減容的暴跌閾值（預設 0.60，即速度跌破 60% 時立即回退到最低基礎執行緒）。", "Critical speed crash ratio (0.10-0.80) that triggers emergency backoff to minimum threads (default 0.60)."] },

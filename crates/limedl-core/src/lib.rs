@@ -15,6 +15,7 @@ pub mod bootstrap;
 #[cfg(feature = "bt")]
 pub use limedl_bt as bt_backend;
 pub mod context;
+pub mod crash;
 pub mod dispatcher;
 pub mod logging;
 pub mod manager;
@@ -23,8 +24,8 @@ pub mod manager;
 // re-export has to preserve the *module* path, because the engine and the test
 // tree reach for `crate::<module>::Item` and not `crate::Item`.
 pub use limedl_types::{
-    checksum, error, event_bus, manifest, platform, protocol, settings, slot_guard, types,
-    url_rewrite,
+    aria2_cli, checksum, error, event_bus, manifest, platform, protocol, settings, slot_guard,
+    types, url_rewrite, url_utils,
 };
 pub use limedl_types::{lock, now_ms};
 

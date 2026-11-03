@@ -389,11 +389,26 @@ fn sign_minisign(artifact: &[u8]) -> (String, String) {
     (pubkey_b64, b64(signature.to_string()))
 }
 
+/// Generate a throwaway ML-DSA-65 key pair and sign `artifact`.
+fn sign_pqc(artifact: &[u8]) -> (String, String) {
+    use ml_dsa::{KeyExport, Keypair, MlDsa65, SignatureEncoding, SigningKey};
+    let seed = ml_dsa::Seed::from([0x5Au8; 32]);
+    let sk = SigningKey::<MlDsa65>::from_seed(&seed);
+    let pk = sk.verifying_key();
+    let sig = sk
+        .expanded_key()
+        .sign_deterministic(artifact, b"limedl-artifact")
+        .expect("sign artifact with ML-DSA-65");
+    (b64(pk.to_bytes()), b64(sig.to_bytes()))
+}
+
 #[tokio::test]
 async fn download_and_verify_accepts_minisign_and_handles_pqc() {
     let artifact = b"signed update artifact bytes".repeat(128);
     let (pubkey_b64, signature) = sign_minisign(&artifact);
+    let (pqc_pubkey_b64, pqc_signature) = sign_pqc(&artifact);
     TEST_MINISIGN_PUBKEY.set(pubkey_b64).ok();
+    TEST_PQC_PUBKEY.set(pqc_pubkey_b64).ok();
     let server = limedl_testkit::TestServer::from_bytes(artifact.clone()).await;
     let tmp = tempfile::tempdir().unwrap();
     let settings = AppSettings::default();
@@ -403,7 +418,7 @@ async fn download_and_verify_accepts_minisign_and_handles_pqc() {
     let update = available_update(
         server.file_url(),
         signature.clone(),
-        None,
+        Some(pqc_signature),
         Some(server.sha256_hash.clone()),
     );
     let verified = download_and_verify(&update, &settings, tmp.path(), &move |done, total| {
@@ -421,8 +436,22 @@ async fn download_and_verify_accepts_minisign_and_handles_pqc() {
         assert_eq!(seen.last().unwrap().1, Some(artifact.len() as u64));
     }
 
-    // A present but bogus PQC signature must be rejected, while a missing one
-    // is only a warning (covered above).
+    // A missing PQC signature must be rejected (fail-closed against downgrade).
+    let missing_pqc = available_update(
+        server.file_url(),
+        signature.clone(),
+        None,
+        Some(server.sha256_hash.clone()),
+    );
+    let error = download_and_verify(&missing_pqc, &settings, tmp.path(), &|_, _| {})
+        .await
+        .expect_err("a missing PQC signature must be rejected");
+    assert!(
+        format!("{error:#}").contains("post-quantum"),
+        "unexpected error: {error:#}"
+    );
+
+    // A present but bogus PQC signature must also be rejected.
     let bad_pqc = available_update(
         server.file_url(),
         signature,

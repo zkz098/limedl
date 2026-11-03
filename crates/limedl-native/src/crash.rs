@@ -1,44 +1,14 @@
 //! Crash reporting for the native client.
 //!
-//! The release profile builds with `panic = "abort"` (see the workspace
-//! `Cargo.toml`) to keep unwinding machinery out of the binary. The panic hook
-//! is still invoked on the way to `abort()`, so installing one here is the only
-//! chance to leave evidence behind: without it a panic in a GUI process — which
-//! has no console (`windows_subsystem = "windows"`) — makes the window vanish
-//! with nothing written anywhere.
-//!
-//! The report goes to `<state_dir>/logs/crash.log`, next to the regular log, and
-//! is also echoed to stderr for terminal launches.
+//! Shared panic-hook and crash-log formatting/rotation live in
+//! [`limedl_core::crash`]; this module adds the GUI startup-failure modal
+//! dialog (`rfd::MessageDialog`).
 
-use std::io::Write as _;
-use std::path::{Path, PathBuf};
-
-/// Rotation threshold: once the crash log passes this size the previous file is
-/// moved aside, so a crash loop cannot fill the disk.
-const CRASH_LOG_MAX_BYTES: u64 = 1024 * 1024;
-
-/// Where the crash report is written, given the core state directory.
-pub fn crash_log_path(state_dir: &Path) -> PathBuf {
-    state_dir.join("logs").join("crash.log")
-}
-
-/// Install the process-wide panic hook. Call once, as early as possible.
-pub fn install_panic_hook(state_dir: &Path) {
-    let path = crash_log_path(state_dir);
-    rotate_if_needed(&path);
-
-    std::panic::set_hook(Box::new(move |info| {
-        let thread = std::thread::current();
-        let report = format_crash_report(
-            thread.name().unwrap_or("<unnamed>"),
-            info.payload_as_str()
-                .unwrap_or("<non-string panic payload>"),
-            info.location().map(|l| (l.file(), l.line())),
-            &std::backtrace::Backtrace::force_capture().to_string(),
-        );
-        write_crash_report(&path, &report);
-    }));
-}
+#[cfg(test)]
+use limedl_core::crash::{CRASH_LOG_MAX_BYTES, rotate_if_needed, timestamp_utc};
+pub use limedl_core::crash::{
+    crash_log_path, format_crash_report, install_panic_hook, write_crash_report,
+};
 
 /// Surface a fatal startup error to the user and record it.
 ///
@@ -65,86 +35,6 @@ pub fn report_startup_failure(error: &anyhow::Error) {
         .set_description(body)
         .set_buttons(rfd::MessageButtons::Ok)
         .show();
-}
-
-/// Render one crash, including a `file:line` location and the payload.
-fn format_crash_report(
-    thread: &str,
-    payload: &str,
-    location: Option<(&str, u32)>,
-    backtrace: &str,
-) -> String {
-    let location = match location {
-        Some((file, line)) => format!("{file}:{line}"),
-        None => "<unknown>".to_string(),
-    };
-    format!(
-        "\n===== limedl panic at {} =====\nthread: {thread}\nlocation: {location}\nmessage: {payload}\n--- backtrace ---\n{backtrace}\n",
-        timestamp_utc(),
-    )
-}
-
-/// Append `report` to `path`, creating the parent directory if needed.
-///
-/// Best effort by design: a panic hook that itself panics would abort the
-/// process without a report, so every failure here is swallowed after being
-/// mirrored to stderr.
-fn write_crash_report(path: &Path, report: &str) {
-    eprintln!("{report}");
-    if let Some(parent) = path.parent()
-        && let Err(error) = std::fs::create_dir_all(parent)
-    {
-        eprintln!("[limedl] could not create crash log directory: {error}");
-        return;
-    }
-    match std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-    {
-        Ok(mut file) => {
-            if let Err(error) = file.write_all(report.as_bytes()) {
-                eprintln!("[limedl] could not write crash log: {error}");
-            }
-        }
-        Err(error) => eprintln!(
-            "[limedl] could not open crash log {}: {error}",
-            path.display()
-        ),
-    }
-}
-
-/// Rotate `path` to `<name>.1` once it exceeds the size cap.
-fn rotate_if_needed(path: &Path) {
-    let too_big = std::fs::metadata(path)
-        .map(|meta| meta.len() > CRASH_LOG_MAX_BYTES)
-        .unwrap_or(false);
-    if !too_big {
-        return;
-    }
-    let rotated = path.with_extension("log.1");
-    if let Err(error) = std::fs::rename(path, &rotated) {
-        eprintln!(
-            "[limedl] could not rotate crash log {}: {error}",
-            path.display()
-        );
-    }
-}
-
-/// `YYYY-MM-DDThh:mm:ssZ`, built from calendar components so it needs neither
-/// the `formatting` feature nor a resolvable local UTC offset (the hook must
-/// never be the thing that fails).
-fn timestamp_utc() -> String {
-    let now = time::OffsetDateTime::now_utc();
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        now.year(),
-        now.month() as u8,
-        now.day(),
-        now.hour(),
-        now.minute(),
-        now.second()
-    )
 }
 
 #[cfg(test)]

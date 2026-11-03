@@ -48,6 +48,8 @@ pub async fn run_with(config: Config, shutdown: impl Future<Output = ()>) -> any
         .await
         .with_context(|| format!("create the state directory {}", state_dir.display()))?;
 
+    limedl_core::crash::install_panic_hook(&state_dir);
+
     // Install logging before bootstrap so engine start-up messages are kept.
     let mut early_logging = LogSettings::default();
     if let Some(level) = log_level {

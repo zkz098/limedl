@@ -321,19 +321,14 @@ async fn fetch_manifest(settings: &AppSettings) -> Result<UpdateManifest> {
     verify_signature_text(&bytes, &sig_text)
         .context("update manifest signature verification failed")?;
 
-    if !PQC_PUBKEY_B64.is_empty() {
-        match fetch_text(&client, MANIFEST_PQC_SIG_URL).await {
-            Ok(pqc_sig_text) => {
-                verify_pqc_signature_text(&bytes, &pqc_sig_text).context(
-                    "update manifest ML-DSA-65 post-quantum signature verification failed",
-                )?;
-            }
-            Err(e) => {
-                tracing::warn!(
-                    "update manifest PQC signature not available ({e:#}); verified classical signature only"
-                );
-            }
-        }
+    if !updater_pqc_pubkey_b64().is_empty() {
+        let pqc_sig_text = fetch_text(&client, MANIFEST_PQC_SIG_URL)
+            .await
+            .context(
+                "update manifest ML-DSA-65 post-quantum signature is missing — refusing an unsigned manifest",
+            )?;
+        verify_pqc_signature_text(&bytes, &pqc_sig_text)
+            .context("update manifest ML-DSA-65 post-quantum signature verification failed")?;
     }
 
     serde_json::from_slice(&bytes).context("parse update manifest")
@@ -457,14 +452,15 @@ pub async fn download_and_verify(
     verify_signature(&bytes, &update.asset.signature)
         .context("minisign signature verification failed (update not authentic)")?;
 
-    if !PQC_PUBKEY_B64.is_empty() {
-        if let Some(pqc_sig) = update.asset.pqc_signature.as_deref() {
-            verify_pqc_signature(&bytes, pqc_sig).context(
-                "ML-DSA-65 post-quantum signature verification failed (update not authentic)",
-            )?;
-        } else {
-            tracing::warn!("update asset has no pqcSignature; verified classical signature only");
-        }
+    if !updater_pqc_pubkey_b64().is_empty() {
+        let pqc_sig = update.asset.pqc_signature.as_deref().ok_or_else(|| {
+            anyhow!(
+                "update asset is missing ML-DSA-65 post-quantum signature (pqcSignature) — refusing downgrade"
+            )
+        })?;
+        verify_pqc_signature(&bytes, pqc_sig).context(
+            "ML-DSA-65 post-quantum signature verification failed (update not authentic)",
+        )?;
     }
 
     Ok(dest)
@@ -606,9 +602,17 @@ fn extract_executable(update: &AvailableUpdate, verified_file: &Path) -> Result<
                 .file_name()
                 .unwrap_or(std::ffi::OsStr::new("limedl-native.exe")),
         );
-        let mut src = zip.by_index(exe_index)?;
+        let src = zip.by_index(exe_index)?;
+        let mut bounded = std::io::Read::take(src, MAX_UPDATE_BYTES + 1);
         let mut out = std::fs::File::create(&out_path)?;
-        std::io::copy(&mut src, &mut out)?;
+        let copied = std::io::copy(&mut bounded, &mut out)?;
+        if copied > MAX_UPDATE_BYTES {
+            drop(out);
+            let _ = std::fs::remove_file(&out_path);
+            bail!(
+                "extracted executable exceeded the {MAX_UPDATE_BYTES} byte limit (refusing to unpack)"
+            );
+        }
         return Ok(Some(out_path));
     }
 
@@ -619,15 +623,23 @@ fn extract_executable(update: &AvailableUpdate, verified_file: &Path) -> Result<
         let gz = flate2::read::GzDecoder::new(std::io::BufReader::new(archive));
         let mut tar = tar::Archive::new(gz);
         for entry in tar.entries().context("read tar entries")? {
-            let mut entry = entry.context("read tar entry")?;
+            let entry = entry.context("read tar entry")?;
             let path = entry.path().context("tar entry path")?.into_owned();
             let is_exec = path.file_name().is_some_and(|n| n == "limedl-native");
             if !is_exec {
                 continue;
             }
             let out_path = staging.join("limedl-native");
+            let mut bounded = std::io::Read::take(entry, MAX_UPDATE_BYTES + 1);
             let mut out = std::fs::File::create(&out_path)?;
-            std::io::copy(&mut entry, &mut out)?;
+            let copied = std::io::copy(&mut bounded, &mut out)?;
+            if copied > MAX_UPDATE_BYTES {
+                drop(out);
+                let _ = std::fs::remove_file(&out_path);
+                bail!(
+                    "extracted executable exceeded the {MAX_UPDATE_BYTES} byte limit (refusing to unpack)"
+                );
+            }
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -742,6 +754,17 @@ fn updater_pubkey_b64() -> &'static str {
 #[cfg(test)]
 static TEST_MINISIGN_PUBKEY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
+fn updater_pqc_pubkey_b64() -> &'static str {
+    #[cfg(test)]
+    if let Some(pubkey) = TEST_PQC_PUBKEY.get() {
+        return pubkey.as_str();
+    }
+    PQC_PUBKEY_B64
+}
+
+#[cfg(test)]
+static TEST_PQC_PUBKEY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
 // ── Crypto verification ──────────────────────────────────────────────────────
 
 fn verify_signature(data: &[u8], signature_b64: &str) -> Result<()> {
@@ -796,12 +819,13 @@ fn verify_pqc_signature_text(data: &[u8], signature_text: &str) -> Result<()> {
 fn verify_pqc_signature_bytes(data: &[u8], sig_bytes: &[u8], context: &[u8]) -> Result<()> {
     use ml_dsa::{MlDsa65, Signature};
 
-    if PQC_PUBKEY_B64.is_empty() {
+    let pqc_pubkey_b64 = updater_pqc_pubkey_b64();
+    if pqc_pubkey_b64.is_empty() {
         return Ok(());
     }
 
     let pubkey_bytes = base64::engine::general_purpose::STANDARD
-        .decode(PQC_PUBKEY_B64.trim())
+        .decode(pqc_pubkey_b64.trim())
         .context("decode embedded PQC public key base64")?;
     let pubkey = parse_pqc_public_key(&pubkey_bytes)?;
 

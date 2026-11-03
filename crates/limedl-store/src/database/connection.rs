@@ -17,6 +17,7 @@ const MAX_INTEGRITY_CHECK_BYTES: u64 = 128 * 1024 * 1024;
 pub struct Database {
     pub(crate) write_conn: Arc<Mutex<Connection>>,
     pub(crate) read_conn: Arc<Mutex<Connection>>,
+    quarantined_path: Option<std::path::PathBuf>,
 }
 
 impl Database {
@@ -29,7 +30,7 @@ impl Database {
         // touches it. Otherwise the first real query fails with an opaque
         // "database disk image is malformed" and the app is unusable with no way
         // forward for the user.
-        quarantine_if_corrupt(path)?;
+        let quarantined_path = quarantine_if_corrupt(path)?;
 
         let mut write_conn = Connection::open(path)
             .with_context(|| format!("failed to open database at {}", path.display()))?;
@@ -153,6 +154,7 @@ impl Database {
         Ok(Self {
             write_conn: Arc::new(Mutex::new(write_conn)),
             read_conn: Arc::new(Mutex::new(read_conn)),
+            quarantined_path,
         })
     }
 
@@ -184,7 +186,14 @@ impl Database {
         Ok(Self {
             write_conn: conn.clone(),
             read_conn: conn,
+            quarantined_path: None,
         })
+    }
+
+    /// If a corrupt database file was moved aside when opening this instance,
+    /// returns the path where the corrupt copy was preserved.
+    pub fn quarantined_path(&self) -> Option<&Path> {
+        self.quarantined_path.as_deref()
     }
 
     pub fn lock_write(&self) -> parking_lot::MutexGuard<'_, Connection> {
@@ -316,14 +325,14 @@ fn quick_check(conn: &Connection) -> Option<String> {
 /// only a file SQLite cannot read, or one that fails `quick_check`, is moved
 /// aside so a fresh database can be created and the app stays usable. The
 /// download files themselves are never touched.
-fn quarantine_if_corrupt(path: &Path) -> Result<()> {
+fn quarantine_if_corrupt(path: &Path) -> Result<Option<std::path::PathBuf>> {
     let size = match std::fs::metadata(path) {
         Ok(metadata) => metadata.len(),
         // Missing (first run) or unreadable: let the normal open path report it.
-        Err(_) => return Ok(()),
+        Err(_) => return Ok(None),
     };
     if size == 0 {
-        return Ok(());
+        return Ok(None);
     }
     if size > MAX_INTEGRITY_CHECK_BYTES {
         tracing::info!(
@@ -332,7 +341,7 @@ fn quarantine_if_corrupt(path: &Path) -> Result<()> {
             size,
             MAX_INTEGRITY_CHECK_BYTES
         );
-        return Ok(());
+        return Ok(None);
     }
 
     let probe = match Connection::open(path) {
@@ -354,7 +363,7 @@ fn quarantine_if_corrupt(path: &Path) -> Result<()> {
                 "the unreadable database was preserved at {}",
                 destination.display()
             );
-            return Ok(());
+            return Ok(Some(destination));
         }
     };
     // Match the writer's patience so a transient lock is waited out rather than
@@ -365,7 +374,7 @@ fn quarantine_if_corrupt(path: &Path) -> Result<()> {
     drop(probe);
 
     let Some(problem) = problem else {
-        return Ok(());
+        return Ok(None);
     };
 
     tracing::error!(
@@ -378,5 +387,5 @@ fn quarantine_if_corrupt(path: &Path) -> Result<()> {
          files on disk are untouched",
         destination.display()
     );
-    Ok(())
+    Ok(Some(destination))
 }

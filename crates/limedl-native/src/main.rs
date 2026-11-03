@@ -183,6 +183,19 @@ async fn run() -> anyhow::Result<()> {
         );
     }
 
+    if let Some(quarantined) = &core.quarantined_db_path {
+        push_toast(
+            &ctx.ui_weak,
+            &ctx.toast_queue,
+            i18n::format_toast_quarantined_database(
+                &quarantined.display().to_string(),
+                initial_lang,
+            ),
+            "warning",
+            Duration::from_secs(20),
+        );
+    }
+
     // Everything from here on needs the operating system: the real window
     // handle only exists once the event loop runs, and theme/geometry talk to
     // the windowing system. Keeping them out of `ui_boot::build_ui` is what

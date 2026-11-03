@@ -37,6 +37,15 @@ pub async fn handle_jsonrpc_http(
     }
 }
 
+/// Unauthenticated liveness probe for container / systemd `HEALTHCHECK`.
+pub async fn handle_healthz() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "application/json")],
+        r#"{"status":"ok"}"#,
+    )
+}
+
 pub async fn handle_websocket_upgrade(
     ws: WebSocketUpgrade,
     axum::extract::State(ctx): axum::extract::State<Arc<RpcContext>>,

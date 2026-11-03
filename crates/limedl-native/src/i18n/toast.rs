@@ -38,6 +38,14 @@ pub fn format_toast_legacy_bt_resume(count: usize, lang: Language) -> String {
     )
 }
 
+pub fn format_toast_quarantined_database(path: &str, lang: Language) -> String {
+    tr_fmt(
+        "Corrupted task database was backed up to {}; task history has been reset (downloaded files are untouched).",
+        lang,
+        &[&path],
+    )
+}
+
 pub fn format_toast_tracker_synced(count: usize, lang: Language) -> String {
     tr_fmt("Tracker list synced: {} entries", lang, &[&count])
 }

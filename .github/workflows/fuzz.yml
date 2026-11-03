@@ -38,6 +38,7 @@ jobs:
           - rpc_options
           - metalink_headers
           - url_rewrite_and_name
+          - aria2_cli_and_batch
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -53,6 +54,7 @@ jobs:
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           shared-key: fuzz
+          save-if: ${{ matrix.target == 'sha256_manifest' }}
           cache-on-failure: true
       # Corpus is the regression memory: every generated input that reached a
       # new path is kept, and a fixed crash immediately replays from here.

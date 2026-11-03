@@ -2,7 +2,7 @@
 
 use super::bind::{format_bind_addr, is_loopback_bind_address};
 use super::context::{AuthConfig, RpcContext};
-use super::transport::{handle_jsonrpc_http, handle_websocket_upgrade};
+use super::transport::{handle_healthz, handle_jsonrpc_http, handle_websocket_upgrade};
 use crate::backend_registry::BackendRegistry;
 use crate::dispatcher::Dispatcher;
 use crate::event_bus::EventBus;
@@ -204,6 +204,7 @@ impl Aria2RpcServer {
                 "/jsonrpc",
                 post(handle_jsonrpc_http).get(handle_websocket_upgrade),
             )
+            .route("/healthz", axum::routing::get(handle_healthz))
             .layer(cors)
             .with_state(self.ctx);
 

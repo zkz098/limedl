@@ -37,14 +37,20 @@ pub fn register(ctx: &AppContext) {
                     .unwrap_or_default(),
                 CloseBehavior::MinimizeToTray
             );
-            if minimize_to_tray {
+            if minimize_to_tray && crate::tray::is_tray_available() {
                 if let Some(ui) = ui_weak.upgrade() {
                     let _ = ui.hide();
                     platform_win::hide_window(ui.window());
                 }
                 tracing::info!("窗口已最小化到托盘");
             } else {
-                tracing::info!("窗口关闭，退出应用");
+                if minimize_to_tray {
+                    tracing::warn!(
+                        "当前桌面环境未提供系统托盘宿主，无法最小化到托盘，改为退出应用"
+                    );
+                } else {
+                    tracing::info!("窗口关闭，退出应用");
+                }
                 let _ = slint::quit_event_loop();
             }
             CloseRequestResponse::HideWindow
