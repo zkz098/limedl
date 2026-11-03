@@ -17,8 +17,10 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 serde_json = "1"
+http = "1"
 limedl-types = { path = "../crates/limedl-types", default-features = false }
 limedl-engine = { path = "../crates/limedl-engine", default-features = false }
+limedl-rpc = { path = "../crates/limedl-rpc" }
 
 [[bin]]
 name = "sha256_manifest"
@@ -37,6 +39,27 @@ bench = false
 [[bin]]
 name = "settings_json"
 path = "fuzz_targets/settings_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rpc_options"
+path = "fuzz_targets/rpc_options.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "metalink_headers"
+path = "fuzz_targets/metalink_headers.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "url_rewrite_and_name"
+path = "fuzz_targets/url_rewrite_and_name.rs"
 test = false
 doc = false
 bench = false

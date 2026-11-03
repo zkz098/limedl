@@ -1,0 +1,1 @@
+<https://example.com/file.meta4>; rel=describedby; type="application/metalink4+xml"

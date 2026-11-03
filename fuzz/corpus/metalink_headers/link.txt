@@ -1,0 +1,1 @@
+<https://de.mirror.example/file.iso>; rel=duplicate; pri=1; geo=de, <https://us.mirror.example/file.iso>; rel=duplicate; pri=2; pref; geo=us

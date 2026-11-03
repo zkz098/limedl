@@ -41,6 +41,19 @@ pub use system::cleanup_old_aria2_temp_files;
 // plaintext to the user exactly once.
 pub use token::{generate_token, hash_token};
 
+/// Pure aria2 option parsers, exposed for the fuzz target in `fuzz/`.
+///
+/// `#[doc(hidden)]`: these are not part of the RPC API. They live in the
+/// private `options` module; the re-export exists so the cargo-fuzz crate can
+/// drive them without pulling the JSON-RPC server or the engine into the test.
+#[doc(hidden)]
+pub mod fuzz_api {
+    pub use crate::options::{
+        collect_request_headers, extract_option_headers, find_header_value, parse_checksum_option,
+        parse_select_file, split_aria2_tail,
+    };
+}
+
 #[cfg(test)]
 mod tests;
 

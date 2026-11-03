@@ -35,6 +35,9 @@ jobs:
           - sha256_manifest
           - metalink_xml
           - settings_json
+          - rpc_options
+          - metalink_headers
+          - url_rewrite_and_name
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
