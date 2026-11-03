@@ -28,9 +28,13 @@ use crate::aimd::AimdState;
 use crate::download::DownloadCore;
 use crate::error::DownloadError;
 use crate::manifest::Manifest;
-use crate::retry::{backoff_delay, jittered_backoff_delay, request_with_retry};
+use crate::retry::{
+    backoff_delay, backoff_delay_with_config, jittered_backoff_delay,
+    jittered_backoff_delay_with_config, request_with_retry,
+};
 use crate::types::{ChecksumMode, DownloadSnapshot, DownloadState, Priority, TaskKind, ThreadMode};
 use limedl_testkit::TestServer;
+use proptest::prelude::*;
 
 // ---------------------------------------------------------------------------
 // Type alias
@@ -708,4 +712,47 @@ fn jittered_backoff_is_not_in_lockstep() {
     let first = jittered_backoff_delay(4);
     let spread = (0..200).any(|_| jittered_backoff_delay(4) != first);
     assert!(spread, "200 samples of the same attempt were all identical");
+}
+
+proptest! {
+    /// The schedule is `min(base * 2^min(attempt, 8), max)`: exponential until
+    /// the cap, and never above the configured maximum.
+    #[test]
+    fn backoff_matches_the_capped_exponential(
+        attempt in 0u32..=64,
+        base_ms in 1u64..=10_000,
+        max_ms in 1u64..=60_000,
+    ) {
+        let delay = backoff_delay_with_config(attempt, base_ms, max_ms).as_millis() as u64;
+        let expected = base_ms
+            .saturating_mul(2u64.saturating_pow(attempt.min(8)))
+            .min(max_ms);
+        prop_assert_eq!(delay, expected);
+        prop_assert!(delay <= max_ms);
+
+        let next = backoff_delay_with_config(attempt.saturating_add(1), base_ms, max_ms)
+            .as_millis() as u64;
+        prop_assert!(next >= delay, "backoff must not shrink with another attempt");
+    }
+
+    #[test]
+    fn jitter_stays_in_the_configured_band(
+        attempt in 0u32..=16,
+        base_ms in 1u64..=10_000,
+        max_ms in 1u64..=60_000,
+        percent in 0u64..=100,
+    ) {
+        let base = backoff_delay_with_config(attempt, base_ms, max_ms).as_millis() as u64;
+        let jittered =
+            jittered_backoff_delay_with_config(attempt, base_ms, max_ms, percent).as_millis()
+                as u64;
+        let upper = base + base * percent / 100;
+        prop_assert!(jittered >= base);
+        prop_assert!(jittered <= upper);
+    }
+
+    #[test]
+    fn default_backoff_never_exceeds_four_seconds(attempt in 0u32..=64) {
+        prop_assert!(backoff_delay(attempt) <= Duration::from_secs(4));
+    }
 }

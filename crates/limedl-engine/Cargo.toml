@@ -50,6 +50,7 @@ test-utils = [
 [dev-dependencies]
 divan = { workspace = true }
 axum = { workspace = true }
+proptest = { workspace = true }
 # The retry suite drives real HTTP responses through the shared harness; the
 # crate has no production dependency on it (and must not grow one).
 limedl-testkit = { path = "../limedl-testkit" }

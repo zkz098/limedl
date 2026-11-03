@@ -296,7 +296,15 @@ pub fn contiguous_prefix_end(manifest: &Manifest) -> u64 {
 #[cfg(test)]
 mod tests {
 
-    use super::{CHUNK_SIZE, adaptive_chunk_size, plan_chunks};
+    use super::{
+        CHUNK_SIZE, ChunkManifest, Manifest, adaptive_chunk_size, contiguous_prefix_end,
+        has_partial_chunk_progress, plan_chunks, resolve_chunk_size,
+    };
+    use crate::types::{
+        ChecksumMode, ChunkSizeStrategy, DownloadState, Priority, ThreadMode,
+        default_http_user_agent,
+    };
+    use proptest::prelude::*;
 
     #[test]
     fn plans_stable_chunk_boundaries() {
@@ -395,5 +403,203 @@ mod tests {
             adaptive_chunk_size(64 * 1024 * 1024 * 1024 - 1),
             64 * 1024 * 1024
         );
+    }
+
+    /// A manifest carrying `chunks`; only the fields these properties read are
+    /// meaningful, but every field has to be present.
+    fn manifest_with(chunks: Vec<ChunkManifest>, downloaded_bytes: u64) -> Manifest {
+        Manifest {
+            id: "prop".into(),
+            url: "https://example.com/file.bin".into(),
+            final_url: "https://example.com/file.bin".into(),
+            user_agent: default_http_user_agent(),
+            extra_headers: Vec::new(),
+            destination_dir: "/tmp".into(),
+            file_name: "file.bin".into(),
+            file_name_locked: true,
+            destination_path: "/tmp/file.bin".into(),
+            temp_path: "/tmp/file.bin.part".into(),
+            total_bytes: None,
+            downloaded_bytes,
+            supports_ranges: true,
+            chunk_size: CHUNK_SIZE,
+            connection_count: 0,
+            thread_mode: ThreadMode::Adaptive,
+            requested_thread_count: None,
+            desired_thread_count: None,
+            allocated_thread_count: None,
+            adaptive_profile_snapshot: None,
+            thread_note: None,
+            etag: None,
+            last_modified: None,
+            state: DownloadState::Downloading,
+            cdn_accelerated: false,
+            cdn_node_ip: None,
+            checksum_mode: ChecksumMode::None,
+            checksum: None,
+            expected_checksum: None,
+            error: None,
+            priority: Priority::Normal,
+            created_at_ms: 0,
+            updated_at_ms: 0,
+            mirror_url: None,
+            mirror_urls: Vec::new(),
+            current_mirror_index: 0,
+            chunks,
+        }
+    }
+
+    proptest! {
+        /// Chunks must tile `[0, total)` exactly: no gap, no overlap, no
+        /// undersized/oversized chunk, and the planned size is capped.
+        #[test]
+        fn plan_chunks_covers_the_file_exactly(
+            total in 1u64..=64 * 1024 * 1024,
+            chunk_size in 1u64..=8 * 1024 * 1024,
+        ) {
+            let chunks = plan_chunks(Some(total), true, chunk_size);
+            prop_assert!(!chunks.is_empty());
+            prop_assert_eq!(chunks.first().unwrap().start, 0);
+            prop_assert_eq!(chunks.last().unwrap().end, total - 1);
+
+            let mut next_start = 0u64;
+            for (index, chunk) in chunks.iter().enumerate() {
+                prop_assert_eq!(chunk.index, index);
+                prop_assert_eq!(chunk.start, next_start);
+                prop_assert!(chunk.end >= chunk.start);
+                prop_assert!(chunk.byte_len() >= 1);
+                prop_assert!(chunk.byte_len() <= chunk_size);
+                prop_assert!(!chunk.completed);
+                prop_assert_eq!(chunk.downloaded, 0);
+                prop_assert_eq!(chunk.durable_downloaded, 0);
+                prop_assert!(chunk.claimed_by.is_none());
+                prop_assert!(!chunk.dirty);
+                next_start = chunk.end + 1;
+            }
+            prop_assert_eq!(next_start, total);
+            prop_assert_eq!(chunks.iter().map(ChunkManifest::byte_len).sum::<u64>(), total);
+        }
+
+        #[test]
+        fn plan_chunks_zero_chunk_size_uses_default(
+            total in 1u64..=16 * 1024 * 1024,
+        ) {
+            let zero = plan_chunks(Some(total), true, 0);
+            let default = plan_chunks(Some(total), true, CHUNK_SIZE);
+            prop_assert_eq!(zero.len(), default.len());
+            for (left, right) in zero.iter().zip(default.iter()) {
+                prop_assert_eq!((left.start, left.end), (right.start, right.end));
+            }
+        }
+
+        #[test]
+        fn plan_chunks_is_empty_without_ranges_or_total(
+            total in any::<u64>(),
+            chunk_size in any::<u64>(),
+        ) {
+            prop_assert!(plan_chunks(Some(total), false, chunk_size).is_empty());
+            prop_assert!(plan_chunks(None, true, chunk_size).is_empty());
+            prop_assert!(plan_chunks(None, false, chunk_size).is_empty());
+            prop_assert!(plan_chunks(Some(0), true, chunk_size).is_empty());
+        }
+
+        #[test]
+        fn resolved_chunk_size_matches_the_strategy(
+            strategy in prop_oneof![
+                Just(ChunkSizeStrategy::Fixed),
+                Just(ChunkSizeStrategy::Adaptive),
+            ],
+            total in prop::option::of(any::<u64>()),
+        ) {
+            let resolved = resolve_chunk_size(strategy, total);
+            let expected = match strategy {
+                ChunkSizeStrategy::Fixed => CHUNK_SIZE,
+                ChunkSizeStrategy::Adaptive => total.map(adaptive_chunk_size).unwrap_or(CHUNK_SIZE),
+            };
+            prop_assert_eq!(resolved, expected);
+        }
+
+        #[test]
+        fn adaptive_chunk_size_is_tiered_and_monotone(a in any::<u64>(), b in any::<u64>()) {
+            let (lo, hi) = if a <= b { (a, b) } else { (b, a) };
+            let small = adaptive_chunk_size(lo);
+            let large = adaptive_chunk_size(hi);
+            prop_assert!(small <= large);
+            let mib = 1024 * 1024;
+            prop_assert!([4, 8, 32, 64, 128].contains(&(small / mib)));
+            prop_assert!([4, 8, 32, 64, 128].contains(&(large / mib)));
+        }
+
+        /// The resume prefix is the end (exclusive) of the longest run of
+        /// completed chunks starting at offset 0.
+        #[test]
+        fn contiguous_prefix_end_tracks_the_completed_prefix(
+            total in 1u64..=16 * 1024 * 1024,
+            chunk_size in 64 * 1024u64..=4 * 1024 * 1024,
+            completed in 0usize..=512,
+        ) {
+            let mut chunks = plan_chunks(Some(total), true, chunk_size);
+            let complete_count = completed.min(chunks.len());
+            for chunk in chunks.iter_mut().take(complete_count) {
+                chunk.completed = true;
+            }
+            let expected = if complete_count == 0 {
+                0
+            } else {
+                chunks[complete_count - 1].end + 1
+            };
+            let manifest = manifest_with(chunks, 0);
+            prop_assert_eq!(contiguous_prefix_end(&manifest), expected);
+        }
+
+        #[test]
+        fn contiguous_prefix_end_falls_back_to_received_without_chunks(
+            downloaded in any::<u64>(),
+        ) {
+            let manifest = manifest_with(Vec::new(), downloaded);
+            prop_assert_eq!(contiguous_prefix_end(&manifest), downloaded);
+        }
+
+        #[test]
+        fn partial_progress_matches_the_chunk_view(
+            total in 1u64..=16 * 1024 * 1024,
+            chunk_size in 64 * 1024u64..=4 * 1024 * 1024,
+            states in prop::collection::vec((any::<bool>(), 0u8..=255), 0..=512),
+        ) {
+            let mut chunks = plan_chunks(Some(total), true, chunk_size);
+            for (chunk, (completed, downloaded)) in chunks.iter_mut().zip(states.iter()) {
+                chunk.completed = *completed;
+                chunk.downloaded = u64::from(*downloaded) % (chunk.byte_len() + 1);
+            }
+            let expected = chunks
+                .iter()
+                .any(|chunk| chunk.downloaded > 0 && !chunk.completed);
+            let manifest = manifest_with(chunks, 0);
+            prop_assert_eq!(has_partial_chunk_progress(&manifest), expected);
+        }
+
+        #[test]
+        fn durable_bytes_never_exceeds_received(
+            start in any::<u64>(),
+            len in 1u64..=1_000_000,
+            downloaded in any::<u64>(),
+            durable in any::<u64>(),
+        ) {
+            let chunk = ChunkManifest {
+                index: 0,
+                start,
+                end: start.saturating_add(len - 1),
+                downloaded,
+                completed: false,
+                durable_downloaded: durable,
+                claimed_by: None,
+                dirty: false,
+            };
+            prop_assert!(chunk.durable_bytes() <= chunk.downloaded);
+            prop_assert_eq!(
+                chunk.durable_complete(),
+                chunk.durable_bytes() >= chunk.byte_len()
+            );
+        }
     }
 }

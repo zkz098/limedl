@@ -287,6 +287,7 @@ impl ManagedDownload {
 mod tests {
     use super::*;
     use crate::manifest::{ChunkManifest, plan_chunks};
+    use proptest::prelude::*;
 
     /// A minimal valid manifest; tests override the fields they care about with
     /// struct-update syntax.
@@ -518,5 +519,141 @@ mod tests {
         reset_received_to_durable(&managed);
 
         assert_eq!(managed.lock_core().manifest.downloaded_bytes, 50);
+    }
+
+    proptest! {
+        /// Received counters are additive per chunk and at task level, and a
+        /// chunk flips to `completed` exactly when its received bytes reach its
+        /// byte length.
+        #[test]
+        fn received_progress_accounting_is_additive(
+            total in 1u64..=200_000,
+            chunk_size in 1_000u64..=50_000,
+            steps in prop::collection::vec((0usize..=16, 0u64..=10_000), 1..=24),
+        ) {
+            let manifest = Manifest {
+                total_bytes: Some(total),
+                chunk_size,
+                chunks: plan_chunks(Some(total), true, chunk_size),
+                ..test_manifest()
+            };
+            let lengths: Vec<u64> = manifest
+                .chunks
+                .iter()
+                .map(ChunkManifest::byte_len)
+                .collect();
+            let chunk_count = lengths.len();
+            prop_assume!(chunk_count > 0);
+            let managed = ManagedDownload::from_manifest(manifest);
+
+            let mut expected = vec![0u64; chunk_count];
+            let mut expected_total = 0u64;
+            for (raw_index, bytes) in &steps {
+                let index = raw_index % chunk_count;
+                record_progress_on_managed(&managed, Some(index), *bytes);
+                expected[index] = expected[index].saturating_add(*bytes);
+                expected_total = expected_total.saturating_add(*bytes);
+
+                let core = managed.lock_core();
+                prop_assert_eq!(core.manifest.chunks[index].downloaded, expected[index]);
+                prop_assert_eq!(
+                    core.manifest.chunks[index].completed,
+                    expected[index] >= lengths[index]
+                );
+                prop_assert_eq!(core.manifest.downloaded_bytes, expected_total);
+                prop_assert_eq!(core.snapshot.downloaded_bytes, expected_total);
+            }
+        }
+
+        #[test]
+        fn single_stream_progress_only_moves_the_totals(
+            total in 0u64..=1_000_000,
+            bytes in 0u64..=1_000_000,
+        ) {
+            let managed = ManagedDownload::from_manifest(Manifest {
+                total_bytes: Some(total),
+                chunks: Vec::new(),
+                ..test_manifest()
+            });
+            record_progress_on_managed(&managed, None, bytes);
+            let core = managed.lock_core();
+            prop_assert_eq!(core.manifest.downloaded_bytes, bytes);
+            prop_assert_eq!(core.snapshot.downloaded_bytes, bytes);
+            prop_assert!(core.manifest.chunks.is_empty());
+        }
+
+        /// A flush prefix of `[0, prefix)` is credited to every chunk it
+        /// overlaps, the durable total equals the prefix, and a failed-run
+        /// rewind moves the received counters back exactly to that prefix.
+        #[test]
+        fn durable_flush_credits_the_prefix_and_reset_rewinds(
+            total in 1u64..=200_000,
+            chunk_size in 1_000u64..=50_000,
+            prefix_seed in 0u64..=200_000,
+            splits in prop::collection::vec(any::<u8>(), 1..=8),
+        ) {
+            let manifest = Manifest {
+                total_bytes: Some(total),
+                chunk_size,
+                chunks: plan_chunks(Some(total), true, chunk_size),
+                ..test_manifest()
+            };
+            let starts: Vec<u64> = manifest.chunks.iter().map(|chunk| chunk.start).collect();
+            let lengths: Vec<u64> = manifest
+                .chunks
+                .iter()
+                .map(ChunkManifest::byte_len)
+                .collect();
+            let managed = ManagedDownload::from_manifest(manifest);
+
+            // Receive everything first: `durable_bytes()` clamps to received,
+            // so this keeps the assertions about the durable view exact.
+            for (index, length) in lengths.iter().enumerate() {
+                record_progress_on_managed(&managed, Some(index), *length);
+            }
+
+            let prefix = prefix_seed.min(total);
+            let mut entries = Vec::new();
+            let mut cursor = 0u64;
+            for split in &splits {
+                if cursor >= prefix {
+                    break;
+                }
+                let remaining = prefix - cursor;
+                let len = (u64::from(*split) % remaining).saturating_add(1).min(remaining);
+                entries.push((cursor, len));
+                cursor += len;
+            }
+            if cursor < prefix {
+                entries.push((cursor, prefix - cursor));
+            }
+            record_durable_bytes(&managed, &entries);
+
+            for index in 0..lengths.len() {
+                let expected = prefix
+                    .min(starts[index] + lengths[index])
+                    .saturating_sub(starts[index]);
+                prop_assert_eq!(durable_of(&managed, index), expected);
+            }
+            prop_assert_eq!(managed.lock_core().durable_bytes, prefix);
+
+            reset_received_to_durable(&managed);
+            let core = managed.lock_core();
+            let mut received = 0u64;
+            for index in 0..lengths.len() {
+                let expected = prefix
+                    .min(starts[index] + lengths[index])
+                    .saturating_sub(starts[index]);
+                prop_assert_eq!(core.manifest.chunks[index].downloaded, expected);
+                prop_assert_eq!(
+                    core.manifest.chunks[index].completed,
+                    expected == lengths[index]
+                );
+                prop_assert!(core.manifest.chunks[index].claimed_by.is_none());
+                received = received.saturating_add(expected);
+            }
+            prop_assert_eq!(core.manifest.downloaded_bytes, received);
+            prop_assert_eq!(core.snapshot.downloaded_bytes, received);
+        }
     }
 }

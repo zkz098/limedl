@@ -1,5 +1,7 @@
 use super::*;
 use crate::types::{MatchType, ReplacementMode, RewriteTarget, UrlRewriteRule, UrlRewriteSettings};
+use proptest::prelude::*;
+use std::collections::HashSet;
 
 #[test]
 fn test_wildcard_matching() {
@@ -171,4 +173,133 @@ fn test_invalid_regex_does_not_panic() {
     let url = "https://example.com/file.zip";
     let result = rewrite_url(url, &settings);
     assert_eq!(result, vec!["https://example.com/file.zip"]);
+}
+
+/// Regression: the `*` branch must be checked before literal equality, or a
+/// `*` in the text is consumed as a literal match of the pattern's `*`.
+#[test]
+fn wildcard_handles_stars_in_the_text() {
+    assert!(wildcard_match("*", "*0"));
+    assert!(wildcard_match("*0", "*0"));
+    assert!(wildcard_match("a*b", "a*b"));
+    assert!(wildcard_match("*", "***"));
+    assert!(wildcard_match("a?b", "a*b"));
+}
+
+fn any_text() -> impl Strategy<Value = String> {
+    prop::collection::vec(any::<char>(), 0..64).prop_map(|chars| chars.into_iter().collect())
+}
+
+fn literal_text() -> impl Strategy<Value = String> {
+    prop::collection::vec(
+        any::<char>().prop_filter("not a wildcard", |c| *c != '*' && *c != '?'),
+        0..64,
+    )
+    .prop_map(|chars| chars.into_iter().collect())
+}
+
+fn rule(
+    match_type: MatchType,
+    pattern: &str,
+    templates: &[&str],
+    fallback: bool,
+    encode_url: bool,
+) -> UrlRewriteRule {
+    UrlRewriteRule {
+        id: "prop".into(),
+        name: "prop".into(),
+        enabled: true,
+        match_type,
+        pattern: pattern.into(),
+        replacement_mode: ReplacementMode::PrefixProxy,
+        targets: templates
+            .iter()
+            .enumerate()
+            .map(|(order, template)| RewriteTarget {
+                url_template: (*template).into(),
+                enabled: true,
+                order: order as u32,
+            })
+            .collect(),
+        encode_url,
+        fallback_to_original: fallback,
+        order: 0,
+    }
+}
+
+proptest! {
+    #[test]
+    fn wildcard_literal_patterns_match_themselves(text in literal_text()) {
+        prop_assert!(wildcard_match(&text, &text));
+    }
+
+    #[test]
+    fn wildcard_star_matches_everything(text in any_text()) {
+        prop_assert!(wildcard_match("*", &text));
+    }
+
+    #[test]
+    fn wildcard_question_matches_exactly_one_character(c in any::<char>()) {
+        prop_assert!(wildcard_match("?", &c.to_string()));
+        prop_assert!(!wildcard_match("??", &c.to_string()));
+    }
+
+    #[test]
+    fn empty_pattern_matches_only_empty_input(text in any_text()) {
+        prop_assert_eq!(wildcard_match("", &text), text.is_empty());
+    }
+
+    #[test]
+    fn rewrite_returns_the_original_when_disabled(url in any_text()) {
+        let disabled = UrlRewriteSettings {
+            enabled: false,
+            rules: vec![rule(MatchType::Wildcard, "*", &["https://mirror.example"], true, true)],
+        };
+        prop_assert_eq!(rewrite_url(&url, &disabled), vec![url.clone()]);
+
+        let no_rules = UrlRewriteSettings {
+            enabled: true,
+            rules: Vec::new(),
+        };
+        prop_assert_eq!(rewrite_url(&url, &no_rules), vec![url]);
+    }
+
+    #[test]
+    fn rewrite_candidates_are_nonempty_unique_and_keep_the_fallback(url in any_text()) {
+        let settings = UrlRewriteSettings {
+            enabled: true,
+            rules: vec![rule(
+                MatchType::Wildcard,
+                "*",
+                &["https://mirror1.example", "https://mirror2.example"],
+                true,
+                true,
+            )],
+        };
+        let candidates = rewrite_url(&url, &settings);
+        prop_assert!(!candidates.is_empty());
+        let unique: HashSet<&String> = candidates.iter().collect();
+        prop_assert_eq!(unique.len(), candidates.len());
+        prop_assert!(candidates.iter().any(|candidate| candidate == &url));
+    }
+
+    #[test]
+    fn regex_rules_never_panic(pattern in any_text(), url in any_text()) {
+        let settings = UrlRewriteSettings {
+            enabled: true,
+            rules: vec![rule(MatchType::Regex, &pattern, &["https://mirror.example"], true, false)],
+        };
+        let candidates = rewrite_url(&url, &settings);
+        prop_assert!(!candidates.is_empty());
+    }
+
+    #[test]
+    fn host_rules_never_panic(pattern in any_text(), url in any_text()) {
+        let settings = UrlRewriteSettings {
+            enabled: true,
+            rules: vec![rule(MatchType::Host, &pattern, &["https://mirror.example"], false, false)],
+        };
+        let candidates = rewrite_url(&url, &settings);
+        prop_assert!(!candidates.is_empty());
+    }
 }

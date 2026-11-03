@@ -1,4 +1,5 @@
 use super::*;
+use proptest::prelude::*;
 use std::time::{Duration, Instant};
 
 // ── initial_desired_threads ──────────────────────────────
@@ -204,4 +205,73 @@ fn record_sample_saturating_add_does_not_overflow() {
     state.record_sample(1.0);
     // Should saturate at u32::MAX
     assert_eq!(state.throughput_sample_count, u32::MAX);
+}
+
+fn profile_strategy() -> impl Strategy<Value = AdaptiveProfile> {
+    prop_oneof![
+        Just(AdaptiveProfile::Conservative),
+        Just(AdaptiveProfile::Balanced),
+        Just(AdaptiveProfile::Aggressive),
+    ]
+}
+
+proptest! {
+    #[test]
+    fn initial_threads_stay_within_the_cap(
+        profile in profile_strategy(),
+        cap in 0usize..=1024,
+    ) {
+        let threads = initial_desired_threads(profile, cap);
+        prop_assert!(threads >= 1);
+        prop_assert!(threads <= cap.max(1));
+    }
+
+    #[test]
+    fn reduce_threads_respects_the_profile_and_floor(
+        profile in profile_strategy(),
+        current in 1usize..=1024,
+        min_threads in 0usize..=512,
+    ) {
+        let reduced = match profile {
+            AdaptiveProfile::Conservative => ((current as f64) * 0.7).ceil() as usize,
+            AdaptiveProfile::Balanced | AdaptiveProfile::Aggressive => {
+                ((current as f64) * 0.5).ceil() as usize
+            }
+        };
+        let expected = reduced.max(min_threads.max(1));
+        prop_assert_eq!(reduce_threads(current, profile, min_threads), expected);
+        prop_assert!(expected >= min_threads.max(1));
+        prop_assert!(expected <= current.max(min_threads.max(1)));
+    }
+
+    #[test]
+    fn record_sample_ignores_non_positive_and_non_finite(
+        value in prop_oneof![
+            Just(f64::NAN),
+            Just(f64::INFINITY),
+            Just(f64::NEG_INFINITY),
+            Just(0.0f64),
+            -1.0e9f64..0.0f64,
+        ],
+    ) {
+        let mut state = AimdState::initial(None, None);
+        state.record_sample(value);
+        prop_assert_eq!(state.throughput_sample_count, 0);
+        prop_assert_eq!(state.peak_throughput, 0.0);
+        prop_assert_eq!(state.throughput_sum, 0.0);
+        prop_assert!(!state.peak_throughput.is_nan());
+    }
+
+    #[test]
+    fn record_sample_tracks_count_sum_and_peak(
+        a in 0.001f64..=1.0e9f64,
+        b in 0.001f64..=1.0e9f64,
+    ) {
+        let mut state = AimdState::initial(None, None);
+        state.record_sample(a);
+        state.record_sample(b);
+        prop_assert_eq!(state.throughput_sample_count, 2);
+        prop_assert_eq!(state.peak_throughput, a.max(b));
+        prop_assert!((state.throughput_sum - (a + b)).abs() <= (a + b) * 1e-12);
+    }
 }
