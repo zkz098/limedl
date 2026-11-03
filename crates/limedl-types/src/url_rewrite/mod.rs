@@ -22,13 +22,18 @@ pub fn wildcard_match(pattern: &str, text: &str) -> bool {
     let mut match_idx = 0;
 
     while t_idx < t_chars.len() {
-        if p_idx < p_chars.len() && (p_chars[p_idx] == '?' || p_chars[p_idx] == t_chars[t_idx]) {
-            p_idx += 1;
-            t_idx += 1;
-        } else if p_idx < p_chars.len() && p_chars[p_idx] == '*' {
+        // `*` must be handled before the literal comparison: otherwise a `*`
+        // in the *text* would be consumed as a literal match of the pattern's
+        // `*`, and `wildcard_match("*", "*0")` would fail.
+        if p_idx < p_chars.len() && p_chars[p_idx] == '*' {
             star_idx = Some(p_idx);
             p_idx += 1;
             match_idx = t_idx;
+        } else if p_idx < p_chars.len()
+            && (p_chars[p_idx] == '?' || p_chars[p_idx] == t_chars[t_idx])
+        {
+            p_idx += 1;
+            t_idx += 1;
         } else if let Some(star) = star_idx {
             p_idx = star + 1;
             match_idx += 1;
