@@ -18,10 +18,13 @@ use crate::{lock, now_ms};
 impl RqbitBtBackend {
     // ── Private helpers ────────────────────────────────────────────────
 
+    /// Maximum `.torrent` file size accepted over HTTP (16 MiB).
+    const MAX_TORRENT_BYTES: usize = 16 * 1024 * 1024;
+
     /// Fetch bytes from a URL using the configured HTTP client (with proxy support).
     pub async fn fetch_url_bytes(&self, url: &str) -> Result<Vec<u8>> {
         let client = { self.http_client.read().clone() };
-        let resp = client.get(url).send().await.map_err(|e| {
+        let mut resp = client.get(url).send().await.map_err(|e| {
             DownloadError::TorrentNetwork(format!("failed to fetch .torrent URL {url}: {e}"))
         })?;
 
@@ -32,11 +35,30 @@ impl RqbitBtBackend {
             )));
         }
 
-        let bytes = resp.bytes().await.map_err(|e| {
-            DownloadError::TorrentNetwork(format!("failed to read .torrent response {url}: {e}"))
-        })?;
+        if let Some(len) = resp.content_length()
+            && len > Self::MAX_TORRENT_BYTES as u64
+        {
+            return Err(DownloadError::TorrentInvalidData(format!(
+                ".torrent response from {url} exceeds maximum allowed size ({} bytes > {} bytes)",
+                len,
+                Self::MAX_TORRENT_BYTES
+            )));
+        }
 
-        Ok(bytes.to_vec())
+        let mut buf = Vec::new();
+        while let Some(chunk) = resp.chunk().await.map_err(|e| {
+            DownloadError::TorrentNetwork(format!("failed to read .torrent response {url}: {e}"))
+        })? {
+            if buf.len().saturating_add(chunk.len()) > Self::MAX_TORRENT_BYTES {
+                return Err(DownloadError::TorrentInvalidData(format!(
+                    ".torrent response from {url} exceeds maximum allowed size ({} bytes)",
+                    Self::MAX_TORRENT_BYTES
+                )));
+            }
+            buf.extend_from_slice(&chunk);
+        }
+
+        Ok(buf)
     }
 
     /// Try to acquire a slot for a new BT download.
@@ -139,6 +161,7 @@ impl RqbitBtBackend {
             let paused = Arc::new(AtomicBool::new(request.start_paused));
             let session = self.session.clone();
             let pending_map = self.pending_magnets.clone();
+            let slot_guards = self.bt_slot_guards.clone();
             let paused_flag = paused.clone();
             let magnet_source = magnet_str.clone();
 
@@ -154,6 +177,10 @@ impl RqbitBtBackend {
                         }
                     }
                     Err(e) => {
+                        // Release the active concurrency slot when background
+                        // resolution terminates without adding a torrent handle,
+                        // while keeping the pending entry visible to status/remove.
+                        slot_guards.remove(&info_hash);
                         let ih_str = info_hash.as_string();
                         tracing::debug!("magnet resolution ended for {ih_str}: {e}");
                     }

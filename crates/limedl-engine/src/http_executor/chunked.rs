@@ -635,11 +635,11 @@ async fn handle_worker_outcome(
         }
         ChunkWorkerOutcome::RestartSingle => {
             shutdown_chunk_workers(managed, workers, active_worker_ids).await;
-            // Data is deliberately discarded (fresh temp file) — clear
-            // the buffer so the Drop canary doesn't misfire a false
-            // "data lost" warning.
+            // Data is deliberately discarded (fresh temp file) — wait for any
+            // in-flight background flush and clear the buffer so the Drop canary
+            // doesn't misfire or write stale bytes after truncation.
             if let Some(buf) = write_buffer {
-                buf.clear();
+                buf.clear_and_wait().await;
             }
             Ok(SupervisorStep::RestartSingle)
         }

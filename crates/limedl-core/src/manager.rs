@@ -1210,6 +1210,44 @@ impl DownloadManager {
             .context("failed to persist download to database")?;
         Ok(())
     }
+
+    /// Spawn workers for any downloads recovered in an active state from a
+    /// previous crashed session (which have `runtime == None` after `load_downloads_from_db`).
+    pub async fn resume_recovered_downloads(self: &Arc<Self>) {
+        let recovered: Vec<Arc<ManagedDownload>> = {
+            let downloads = self.downloads.read().await;
+            downloads
+                .values()
+                .filter(|m| {
+                    m.lock_runtime().is_none()
+                        && matches!(
+                            m.lock_core().manifest.state,
+                            DownloadState::Downloading
+                                | DownloadState::Retrying
+                                | DownloadState::Verifying
+                        )
+                })
+                .cloned()
+                .collect()
+        };
+        if recovered.is_empty() {
+            return;
+        }
+        for managed in recovered {
+            let dm = self.clone();
+            if let Err(error) = self
+                .task_lifecycle
+                .spawn_download(dm, managed, DEFAULT_RETRIES)
+                .await
+            {
+                tracing::warn!("spawn recovered download failed: {error}");
+            }
+        }
+        if let Err(error) = self.scheduler.rebalance_allocations(&**self).await {
+            tracing::warn!("rebalance recovered downloads failed: {error}");
+        }
+        self.controls.rebalance_notify.notify_waiters();
+    }
 }
 
 // ── `ManagerState` seam ────────────────────────────────────────────────────

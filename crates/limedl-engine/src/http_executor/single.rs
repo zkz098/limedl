@@ -215,7 +215,11 @@ impl SingleRun<'_> {
     /// Where the next request must resume from: the durable contiguous prefix.
     fn contiguous_prefix(&self) -> u64 {
         let core = self.managed.lock_core();
-        contiguous_prefix_end(&core.manifest)
+        if core.manifest.chunks.is_empty() {
+            core.durable_bytes.min(core.manifest.downloaded_bytes)
+        } else {
+            contiguous_prefix_end(&core.manifest)
+        }
     }
 
     fn plain_request(
@@ -379,8 +383,17 @@ impl SingleRun<'_> {
         tracing::warn!("Single-stream download interrupted at offset {absolute_offset}: {err}");
         register_retry_penalty(self.managed, err.to_string());
         self.note_interrupted(absolute_offset);
+        flush_write_buffer(self.write_buffer, "stream_error_retry").await;
+        crate::download::reset_received_to_durable(self.managed);
+        {
+            let mut core = self.managed.lock_core();
+            if core.manifest.chunks.is_empty() {
+                let durable = core.durable_bytes.min(core.manifest.downloaded_bytes);
+                core.manifest.downloaded_bytes = durable;
+                core.snapshot.downloaded_bytes = durable;
+            }
+        }
         if *self.consecutive_stream_errors > self.max_retries {
-            flush_write_buffer(self.write_buffer, "error").await;
             return Err(DownloadError::from(err));
         }
         let cancelled = tokio::select! {
@@ -604,11 +617,11 @@ async fn single_start_offset(
         return Ok(start_offset);
     }
     if start_offset > 0 {
+        if let Some(buf) = write_buffer {
+            buf.clear_and_wait().await;
+        }
         reset_download_file(file, managed.lock_core().manifest.total_bytes)?;
         dm.reset_progress(managed, true);
-        if let Some(buf) = write_buffer {
-            buf.clear();
-        }
     }
     Ok(0)
 }

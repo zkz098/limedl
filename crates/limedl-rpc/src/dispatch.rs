@@ -20,6 +20,9 @@ use super::query::{
 use super::system::handle_shutdown;
 use serde_json::Value;
 
+/// Maximum number of calls allowed in a single `system.multicall` request.
+const MAX_MULTICALL_SIZE: usize = 256;
+
 /// Dispatch a JSON-RPC method, enforcing the secret token first.
 ///
 /// The check lives here rather than in each handler. When every handler owned
@@ -46,7 +49,7 @@ pub async fn dispatch_method(
     ) {
         return dispatch_authorized(ctx, method, strip_token(params)).await;
     }
-    check_token(ctx, &params)?;
+    check_token(ctx, &params).await?;
     dispatch_authorized(ctx, method, strip_token(params)).await
 }
 
@@ -111,12 +114,26 @@ pub async fn handle_multicall(ctx: &RpcContext, params: Vec<Value>) -> Result<Va
         .and_then(|v| v.as_array())
         .ok_or_else(|| make_error(ERR_INVALID_PARAMS, "Missing methods array"))?;
 
+    if calls.len() > MAX_MULTICALL_SIZE {
+        return Err(make_error(
+            ERR_INVALID_PARAMS,
+            format!("multicall exceeds maximum batch size of {MAX_MULTICALL_SIZE}"),
+        ));
+    }
+
     let mut results = Vec::with_capacity(calls.len());
     for call in calls {
         let method = call
             .get("methodName")
             .and_then(|v| v.as_str())
             .unwrap_or("");
+        if matches!(method, "system.multicall" | "aria2.multicall") {
+            results.push(Value::Array(vec![serde_json::json!({
+                "code": ERR_INVALID_PARAMS,
+                "message": "Nested multicall is not permitted",
+            })]));
+            continue;
+        }
         let call_params = call
             .get("params")
             .and_then(|v| v.as_array())

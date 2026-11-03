@@ -378,7 +378,42 @@ fn validate_segment_response_non_bytes_unit() {
     assert!(validate_segment_response(&resp, 0, 99).is_ok());
 }
 
+#[test]
+fn validate_segment_response_rejects_end_ge_total() {
+    let resp = make_response(206, &[("content-range", "bytes 100-199/150")]);
+    assert!(validate_segment_response(&resp, 100, 199).is_err());
+}
+
+#[test]
+fn validate_segment_total_checks_expected_size() {
+    let resp = make_response(206, &[("content-range", "bytes 0-99/1000")]);
+    assert!(validate_segment_total(&resp, Some(1000)).is_ok());
+    assert!(validate_segment_total(&resp, None).is_ok());
+    assert!(validate_segment_total(&resp, Some(500)).is_err());
+
+    let wildcard = make_response(206, &[("content-range", "bytes 0-99/*")]);
+    assert!(validate_segment_total(&wildcard, Some(1000)).is_ok());
+}
+
 // ── if_range_header ─────────────────────────────────────
+
+#[test]
+fn if_range_skips_weak_etag_and_falls_back_to_last_modified() {
+    let manifest = Manifest {
+        etag: Some("W/\"weak-etag\"".into()),
+        last_modified: Some("Mon, 01 Jan 2024 00:00:00 GMT".into()),
+        ..make_minimal_manifest()
+    };
+    let (_, value) = if_range_header(&manifest).expect("fallback to last_modified");
+    assert_eq!(value.to_str().unwrap(), "Mon, 01 Jan 2024 00:00:00 GMT");
+
+    let weak_only = Manifest {
+        etag: Some("w/\"weak-etag\"".into()),
+        last_modified: None,
+        ..make_minimal_manifest()
+    };
+    assert!(if_range_header(&weak_only).is_none());
+}
 
 #[test]
 fn if_range_uses_etag_when_present() {

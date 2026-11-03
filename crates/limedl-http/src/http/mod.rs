@@ -166,7 +166,7 @@ pub fn validate_segment_response(
             "invalid content-range format",
         )));
     };
-    let Some((range, _total)) = range_part.split_once('/') else {
+    let Some((range, total)) = range_part.split_once('/') else {
         return Err(DownloadError::InvalidResponse(String::from(
             "invalid content-range payload",
         )));
@@ -190,13 +190,54 @@ pub fn validate_segment_response(
         )));
     }
 
+    if total != "*" {
+        let parsed_total = total.parse::<u64>().map_err(|_| {
+            DownloadError::InvalidResponse(String::from("invalid content-range total"))
+        })?;
+        if parsed_end >= parsed_total {
+            return Err(DownloadError::InvalidResponse(format!(
+                "content-range end {parsed_end} exceeds total {parsed_total}"
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+/// Verify that the `/total` suffix of a `Content-Range` header matches the
+/// download's expected `total_bytes` (when both are known).
+pub fn validate_segment_total(response: &Response, expected_total: Option<u64>) -> Result<()> {
+    let Some(expected) = expected_total else {
+        return Ok(());
+    };
+    let Some(content_range) = header_string(response.headers(), header::CONTENT_RANGE) else {
+        return Ok(());
+    };
+    let Some((_, total)) = content_range
+        .strip_prefix("bytes ")
+        .and_then(|s| s.split_once('/'))
+    else {
+        return Ok(());
+    };
+    if total != "*"
+        && let Ok(parsed_total) = total.parse::<u64>()
+        && parsed_total != expected
+    {
+        return Err(DownloadError::InvalidResponse(format!(
+            "content-range total {parsed_total} does not match expected {expected}"
+        )));
+    }
     Ok(())
 }
 
 pub fn if_range_header(manifest: &Manifest) -> Option<(header::HeaderName, HeaderValue)> {
-    manifest
+    // RFC 9110 §13.1.5 forbids weak entity-tags (`W/"..."`) in `If-Range`.
+    let strong_etag = manifest
         .etag
         .as_deref()
+        .map(str::trim)
+        .filter(|etag| !etag.is_empty() && !etag.starts_with("W/") && !etag.starts_with("w/"));
+    strong_etag
         .or(manifest.last_modified.as_deref())
         .and_then(|value| HeaderValue::from_str(value).ok())
         .map(|value| (header::IF_RANGE, value))

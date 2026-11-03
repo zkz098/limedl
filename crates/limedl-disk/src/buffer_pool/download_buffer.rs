@@ -649,11 +649,6 @@ impl DownloadBuffer {
     }
 
     /// Wait for any in-progress background flush to complete, discarding its result.
-    ///
-    /// `feature = "test-utils"` as well as `test`: now that this file is its own
-    /// crate, `cfg(test)` is false when `limedl-core`'s tests link it as a
-    /// dependency.
-    #[cfg(any(test, feature = "test-utils"))]
     pub async fn drain_background(&self) {
         match &self.mode {
             BufferMode::Double { flush_handle, .. } => {
@@ -669,6 +664,13 @@ impl DownloadBuffer {
                 }
             }
         }
+    }
+
+    /// Wait for any in-flight background flush to finish, then clear all
+    /// buffered data without flushing.
+    pub async fn clear_and_wait(&self) {
+        self.drain_background().await;
+        self.clear();
     }
 
     /// Clear all buffered data without flushing.

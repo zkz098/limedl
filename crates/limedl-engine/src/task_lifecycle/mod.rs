@@ -64,7 +64,7 @@ impl TaskLifecycle {
             if let Some(token) = managed.lock_runtime().take() {
                 token.cancel();
             }
-            managed.stop_notify.notify_one();
+            managed.stop_notify.notify_waiters();
         }
     }
 
@@ -156,7 +156,7 @@ impl TaskLifecycle {
                             let mut runtime = managed.lock_runtime();
                             *runtime = None;
                         }
-                        managed.stop_notify.notify_one();
+                        managed.stop_notify.notify_waiters();
                         return;
                     }
                     Err(error) => {
@@ -214,7 +214,7 @@ impl TaskLifecycle {
                 let mut runtime = managed.lock_runtime();
                 *runtime = None;
             }
-            managed.stop_notify.notify_one();
+            managed.stop_notify.notify_waiters();
             manager.controls().rebalance_notify.notify_waiters();
         });
 
@@ -275,9 +275,6 @@ impl TaskLifecycle {
 
     /// Wait until a download's runtime token is dropped (worker exited).
     pub async fn wait_until_stopped(&self, managed: &Arc<ManagedDownload>) {
-        if managed.lock_runtime().is_none() {
-            return;
-        }
         let notified = managed.stop_notify.notified();
         if managed.lock_runtime().is_none() {
             return;

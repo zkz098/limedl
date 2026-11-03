@@ -142,12 +142,16 @@ impl InstanceClaim {
             };
             std::thread::spawn(move || {
                 for stream in listener.incoming() {
-                    let mut stream = match stream {
+                    let stream = match stream {
                         Ok(stream) => stream,
                         Err(_) => continue,
                     };
+                    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
                     let mut buf = String::new();
-                    let _ = std::io::Read::read_to_string(&mut stream, &mut buf);
+                    let _ = std::io::Read::read_to_string(
+                        &mut std::io::Read::take(stream, 16 * 1024),
+                        &mut buf,
+                    );
                     let payload = buf
                         .strip_prefix("open:")
                         .map(|s| s.trim().to_string())
@@ -158,6 +162,29 @@ impl InstanceClaim {
         }
         #[cfg(windows)]
         let _ = activate;
+    }
+
+    /// Explicitly release the single-instance lock/mutex before spawning a
+    /// replacement process during self-update restart so the new process wins
+    /// the primary claim instead of delegating back to the exiting process.
+    pub fn release(self) {
+        match self.state {
+            #[cfg(windows)]
+            ClaimState::Primary(PrimaryHandle::Windows(handle)) => {
+                if !handle.is_invalid() {
+                    unsafe {
+                        let _ = windows::Win32::Foundation::CloseHandle(handle);
+                    }
+                }
+            }
+            #[cfg(not(windows))]
+            ClaimState::Primary(PrimaryHandle::Unix { lock, listener }) => {
+                drop(listener);
+                let _ = std::fs::remove_file(activation_socket_path(&self.base_dir));
+                drop(lock);
+            }
+            ClaimState::Secondary => {}
+        }
     }
 }
 
@@ -409,6 +436,13 @@ mod tests {
 
         let second = InstanceClaim::claim(dir.path());
         assert!(second.is_secondary(), "the second claim must lose");
+
+        first.release();
+        let after_release = InstanceClaim::claim(dir.path());
+        assert!(
+            !after_release.is_secondary(),
+            "releasing the primary claim must allow a replacement instance to win"
+        );
     }
 
     #[test]

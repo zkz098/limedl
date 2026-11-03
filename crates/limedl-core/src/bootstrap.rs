@@ -51,6 +51,7 @@ pub async fn bootstrap(state_dir: PathBuf) -> Result<CoreSystems> {
         .scheduler
         .clone()
         .start_scheduler_loop(download_manager.clone());
+    download_manager.resume_recovered_downloads().await;
 
     // Initialize BT backend using ConcurrencyManager slots. This is lazy: the
     // BT session (socket binds, DHT/LSD, resume-state load, blocklist parse)

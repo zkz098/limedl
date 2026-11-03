@@ -275,7 +275,7 @@ async fn finish_install(ctx: UpdateCtx, update: &AvailableUpdate, verified: &Pat
                 4,
             );
             tokio::time::sleep(Duration::from_millis(800)).await;
-            std::process::exit(0);
+            update::request_quit();
         }
         Err(err) => {
             let msg = format!("{err:#}");

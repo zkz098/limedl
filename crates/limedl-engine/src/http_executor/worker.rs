@@ -18,6 +18,7 @@ use crate::error::{DownloadError, Result};
 use crate::file_ops::{read_all_at, write_all_at};
 use crate::http::{
     build_segment_request, if_range_header, is_too_many_requests_error, validate_segment_response,
+    validate_segment_total,
 };
 use crate::manager_state::ManagerState;
 use crate::manifest::ChunkManifest;
@@ -318,6 +319,7 @@ struct ChunkAttempt<'a> {
     original_end: u64,
     budget: RequestBudget,
     retry: StreamRetry,
+    last_mirror_url: Option<String>,
     batch: &'a mut BatchLimiter,
     throttle: &'a mut ProgressThrottle,
 }
@@ -389,28 +391,51 @@ impl ChunkWorkerCtx {
         batch: &mut BatchLimiter,
         throttle: &mut ProgressThrottle,
     ) -> Result<ChunkWorkerOutcome> {
-        let start = chunk.start + chunk.downloaded;
-        let mut state = ChunkAttempt {
-            current: start,
-            original_end: chunk.end,
-            budget: RequestBudget::new(MAX_SEGMENT_FETCHES_PER_CHUNK),
-            retry: StreamRetry::new(start),
-            batch,
-            throttle,
-        };
+        let mut piece_retries = 0u32;
+        loop {
+            let start = {
+                let core = self.managed.lock_core();
+                core.manifest
+                    .chunks
+                    .get(chunk.index)
+                    .map(|c| c.start + c.downloaded)
+                    .unwrap_or(chunk.start + chunk.downloaded)
+            };
+            let mut state = ChunkAttempt {
+                current: start,
+                original_end: chunk.end,
+                budget: RequestBudget::new(MAX_SEGMENT_FETCHES_PER_CHUNK),
+                retry: StreamRetry::new(start),
+                last_mirror_url: None,
+                batch,
+                throttle,
+            };
 
-        if state.current > self.dynamic_end(chunk.index, state.original_end) {
-            self.release(chunk.index);
-            return Ok(ChunkWorkerOutcome::Finished);
-        }
+            if state.current > self.dynamic_end(chunk.index, state.original_end) {
+                self.release(chunk.index);
+                return Ok(ChunkWorkerOutcome::Finished);
+            }
 
-        while state.current <= self.dynamic_end(chunk.index, state.original_end) {
-            if let SegmentStep::Done(outcome) = self.fetch_segment_once(chunk, &mut state).await? {
-                return Ok(outcome);
+            while state.current <= self.dynamic_end(chunk.index, state.original_end) {
+                if let SegmentStep::Done(outcome) =
+                    self.fetch_segment_once(chunk, &mut state).await?
+                {
+                    return Ok(outcome);
+                }
+            }
+
+            match self
+                .verify_piece_and_mark_complete(
+                    chunk,
+                    state.last_mirror_url.as_deref(),
+                    &mut piece_retries,
+                )
+                .await?
+            {
+                Some(outcome) => return Ok(outcome),
+                None => continue,
             }
         }
-
-        self.verify_piece_and_mark_complete(chunk).await
     }
 
     /// One pass of the chunk loop: fetch a segment, drain it, and fold the result
@@ -442,6 +467,9 @@ impl ChunkWorkerCtx {
             .as_ref()
             .and_then(|p| p.lease_best_mirror());
         let target_url = mirror_lease.as_ref().map(|l| l.url.clone());
+        if let Some(ref url) = target_url {
+            state.last_mirror_url = Some(url.clone());
+        }
 
         let response = match self
             .fetch_segment(state.current, dynamic_end, target_url.as_deref())
@@ -469,7 +497,14 @@ impl ChunkWorkerCtx {
             return Ok(SegmentStep::Done(ChunkWorkerOutcome::RestartSingle));
         }
 
-        validate_segment_response(&response, state.current, dynamic_end)?;
+        let expected_total = self.managed.lock_core().manifest.total_bytes;
+        if let Err(error) = validate_segment_response(&response, state.current, dynamic_end)
+            .and_then(|()| validate_segment_total(&response, expected_total))
+        {
+            note_mirror_failure(mirror_lease.as_ref());
+            self.release(chunk.index);
+            return Err(error);
+        }
 
         self.mark_retrying_as_downloading();
 
@@ -542,18 +577,28 @@ impl ChunkWorkerCtx {
     }
 
     /// Verify the chunk's piece hash when metalink pieces are configured, then
-    /// mark it complete. A mismatch resets the chunk so it is re-downloaded.
+    /// mark it complete. A mismatch isolates the mirror that served the corrupt
+    /// piece, resets the chunk, and retries (when mirrors remain) or fails.
     async fn verify_piece_and_mark_complete(
         &self,
         chunk: &ChunkManifest,
-    ) -> Result<ChunkWorkerOutcome> {
+        last_mirror_url: Option<&str>,
+        piece_retries: &mut u32,
+    ) -> Result<Option<ChunkWorkerOutcome>> {
         if !self.verify_chunk_piece(chunk).await? {
             tracing::warn!(
                 "Worker {} chunk {} failed piece checksum verification",
                 self.worker_id,
                 chunk.index
             );
+            if let (Some(pool), Some(url)) = (&self.mirror_pool, last_mirror_url) {
+                pool.report_corrupted_piece(url);
+            }
             self.reset_chunk_for_retry(chunk.index);
+            if self.mirror_pool.is_some() && *piece_retries < self.max_retries {
+                *piece_retries += 1;
+                return Ok(None);
+            }
             self.release(chunk.index);
             return Err(DownloadError::InvalidResponse(format!(
                 "piece checksum mismatch for chunk {}",
@@ -562,15 +607,24 @@ impl ChunkWorkerCtx {
         }
 
         self.mark_complete(chunk.index);
-        Ok(ChunkWorkerOutcome::Finished)
+        Ok(Some(ChunkWorkerOutcome::Finished))
     }
 
     /// Zero a chunk's progress so the next attempt re-downloads it.
     fn reset_chunk_for_retry(&self, chunk_idx: usize) {
         let mut core = self.managed.lock_core();
         if let Some(c) = core.manifest.chunks.get_mut(chunk_idx) {
+            let prev_received = c.downloaded;
+            let prev_durable = c.durable_downloaded;
             c.downloaded = 0;
+            c.durable_downloaded = 0;
+            c.completed = false;
             c.dirty = true;
+            core.manifest.downloaded_bytes =
+                core.manifest.downloaded_bytes.saturating_sub(prev_received);
+            core.snapshot.downloaded_bytes =
+                core.snapshot.downloaded_bytes.saturating_sub(prev_received);
+            core.durable_bytes = core.durable_bytes.saturating_sub(prev_durable);
         }
     }
 
@@ -584,13 +638,19 @@ impl ChunkWorkerCtx {
     ) -> std::result::Result<Response, FetchSegmentError> {
         let (url, user_agent, extra_headers, validator) = {
             let core = self.managed.lock_core();
+            let primary_url = &core.manifest.final_url;
+            let is_primary = override_url.is_none_or(|u| u == primary_url);
             (
                 override_url
                     .map(String::from)
-                    .unwrap_or_else(|| core.manifest.final_url.clone()),
+                    .unwrap_or_else(|| primary_url.clone()),
                 core.manifest.user_agent.clone(),
                 core.manifest.extra_headers.clone(),
-                if_range_header(&core.manifest),
+                if is_primary {
+                    if_range_header(&core.manifest)
+                } else {
+                    None
+                },
             )
         };
 
@@ -768,6 +828,11 @@ impl ChunkWorkerCtx {
             local_buf.extend_from_slice(&to_write);
             *current += to_write.len() as u64;
 
+            if !self.owns_claim(chunk_idx) {
+                batch.flush(&self.rate_limiter).await;
+                return Ok(SegmentBody::Stop(ChunkWorkerOutcome::Finished));
+            }
+
             if local_buf.len() >= MICRO_BATCH_SIZE
                 || (!local_buf.is_empty() && last_flush.elapsed() >= MICRO_BATCH_MAX_INTERVAL)
             {
@@ -785,21 +850,16 @@ impl ChunkWorkerCtx {
                 break;
             }
 
-            if !self.owns_claim(chunk_idx) {
-                if !local_buf.is_empty() {
-                    let b = Bytes::from(std::mem::take(&mut local_buf));
-                    let _ = self.write_bytes(batch_start_offset, &b).await;
-                    record_progress_on_managed(&self.managed, Some(chunk_idx), b.len() as u64);
-                }
-                batch.flush(&self.rate_limiter).await;
-                return Ok(SegmentBody::Stop(ChunkWorkerOutcome::Finished));
-            }
             throttle
                 .tick(&self.db, self.manager.as_ref(), &self.managed)
                 .await?;
         }
 
         if !local_buf.is_empty() {
+            if !self.owns_claim(chunk_idx) {
+                batch.flush(&self.rate_limiter).await;
+                return Ok(SegmentBody::Stop(ChunkWorkerOutcome::Finished));
+            }
             let coalesced = Bytes::from(std::mem::take(&mut local_buf));
             self.write_bytes(batch_start_offset, &coalesced).await?;
             record_progress_on_managed(&self.managed, Some(chunk_idx), coalesced.len() as u64);

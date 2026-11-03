@@ -645,13 +645,37 @@ fn extract_executable(update: &AvailableUpdate, verified_file: &Path) -> Result<
 
 // ── Restart ──────────────────────────────────────────────────────────────────
 
-/// Spawn the (already replaced) executable and exit the current process.
+static RESTART_REQUESTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Ask the Slint event loop to quit cleanly so `run()` in `main.rs` can flush
+/// manifests, checkpoint the SQLite WAL, and shut down the BitTorrent session.
+pub fn request_quit() {
+    let _ = slint::invoke_from_event_loop(|| {
+        let _ = slint::quit_event_loop();
+    });
+}
+
+/// Request a graceful shutdown followed by spawning the updated executable.
 pub fn restart_application() -> Result<()> {
+    // Validate that the executable path resolves before initiating shutdown.
+    let _exe = std::env::current_exe().context("resolve current executable")?;
+    RESTART_REQUESTED.store(true, std::sync::atomic::Ordering::SeqCst);
+    request_quit();
+    Ok(())
+}
+
+/// Take the pending restart flag after the event loop and engine have shut down.
+pub fn take_restart_requested() -> bool {
+    RESTART_REQUESTED.swap(false, std::sync::atomic::Ordering::SeqCst)
+}
+
+/// Spawn the replacement executable after the single-instance lock is released.
+pub fn spawn_replacement_process() -> Result<()> {
     let exe = std::env::current_exe().context("resolve current executable")?;
     std::process::Command::new(exe)
         .spawn()
         .context("relaunch after update")?;
-    std::process::exit(0);
+    Ok(())
 }
 
 // ── Work dir housekeeping ────────────────────────────────────────────────────

@@ -787,6 +787,7 @@ fn peer_info_to_aria2_peer_no_port() {
 /// A context over the given registry/event bus.
 fn make_ctx_with(registry: Arc<BackendRegistry>, event_bus: Arc<EventBus>) -> RpcContext {
     let dispatcher = Dispatcher::new(registry.clone(), event_bus.clone());
+    let (shutdown_tx, _) = tokio::sync::watch::channel(false);
     RpcContext {
         registry,
         dispatcher,
@@ -796,6 +797,7 @@ fn make_ctx_with(registry: Arc<BackendRegistry>, event_bus: Arc<EventBus>) -> Rp
         session_id: "test-session".to_string(),
         exit_on_shutdown: false,
         shutdown_notify: Arc::new(Notify::new()),
+        shutdown_tx,
     }
 }
 
@@ -906,6 +908,36 @@ async fn empty_batch_is_an_invalid_request() {
     assert_eq!(resp["error"]["code"], -32600, "{resp}");
 }
 
+/// Oversized JSON-RPC batches and nested `system.multicall` payloads are rejected.
+#[tokio::test]
+async fn oversized_batch_and_nested_multicall_are_rejected() {
+    let ctx = make_ctx();
+    let oversized: Vec<Value> = (0..257)
+        .map(|id| json!({"jsonrpc": "2.0", "id": id, "method": "aria2.getVersion", "params": []}))
+        .collect();
+    let resp: Value = serde_json::from_str(
+        &process_jsonrpc_message(&ctx, &Value::Array(oversized).to_string()).await,
+    )
+    .expect("valid JSON response");
+    assert_eq!(resp["error"]["code"], ERR_INVALID_REQUEST, "{resp}");
+
+    let nested = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "system.multicall",
+        "params": [[
+            {"methodName": "system.multicall", "params": [[]]}
+        ]]
+    });
+    let resp: Value =
+        serde_json::from_str(&process_jsonrpc_message(&ctx, &nested.to_string()).await)
+            .expect("valid JSON response");
+    assert_eq!(
+        resp["result"][0][0]["code"], ERR_INVALID_PARAMS,
+        "nested multicall must fail with invalid params: {resp}"
+    );
+}
+
 /// `resolve_gid` scans the registered backends on a cache miss and caches the
 /// result; `aria2.remove` must evict that entry so the cache cannot grow for
 /// the lifetime of the RPC server.
@@ -920,17 +952,7 @@ async fn resolve_gid_scans_backends_and_remove_clears_the_cache() {
     registry.register_arc(TaskKind::Http, dm.clone());
     let registry = Arc::new(registry);
     let event_bus = Arc::new(EventBus::new(64));
-    let dispatcher = Dispatcher::new(registry.clone(), event_bus.clone());
-    let ctx = RpcContext {
-        registry,
-        dispatcher,
-        auth: AuthConfig::Disabled,
-        event_bus,
-        gid_cache: Mutex::new(HashMap::default()),
-        session_id: "test-session".to_string(),
-        exit_on_shutdown: false,
-        shutdown_notify: Arc::new(Notify::new()),
-    };
+    let ctx = make_ctx_with(registry, event_bus);
 
     let gid = internal_id_to_gid(&id);
     // Cache miss → backend scan → hit cached for the next call.

@@ -129,10 +129,23 @@ pub async fn run_with(config: Config, shutdown: impl Future<Output = ()>) -> any
     }
 
     let serve_result = match early_exit {
-        Some(joined) => joined,
-        None => serve_task.await,
-    }
-    .map_err(|error| anyhow::anyhow!("the RPC server task panicked: {error}"))?;
+        Some(joined) => {
+            joined.map_err(|error| anyhow::anyhow!("the RPC server task panicked: {error}"))?
+        }
+        None => {
+            match tokio::time::timeout(std::time::Duration::from_secs(5), &mut serve_task).await {
+                Ok(joined) => joined
+                    .map_err(|error| anyhow::anyhow!("the RPC server task panicked: {error}"))?,
+                Err(_) => {
+                    tracing::warn!(
+                        "RPC server graceful drain timed out after 5s; aborting listener to flush engine state"
+                    );
+                    serve_task.abort();
+                    Ok(())
+                }
+            }
+        }
+    };
 
     // Flush manifests, checkpoint the WAL and release the BT session even when
     // the server failed.

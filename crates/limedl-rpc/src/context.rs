@@ -66,6 +66,9 @@ pub struct RpcContext {
     /// Fired by `aria2.shutdown` when `exit_on_shutdown` is set. Owned by the
     /// server and cloned out via `Aria2RpcServer::shutdown_notify`.
     pub(crate) shutdown_notify: Arc<Notify>,
+    /// Broadcasts server shutdown to active WebSocket connections so they close
+    /// promptly instead of hanging `axum::serve(...).with_graceful_shutdown(...)`.
+    pub(crate) shutdown_tx: tokio::sync::watch::Sender<bool>,
 }
 
 impl RpcContext {
@@ -98,7 +101,7 @@ impl RpcContext {
 /// exemptions (`system.listMethods`, `system.listNotifications`, and the outer
 /// `multicall` call), so a new handler is protected automatically. Only the
 /// `token:`-prefixed first parameter is accepted, matching aria2's wire format.
-pub(crate) fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), JsonRpcError> {
+pub(crate) async fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), JsonRpcError> {
     if !ctx.auth.is_enabled() {
         return Ok(());
     }
@@ -117,7 +120,7 @@ pub(crate) fn check_token(ctx: &RpcContext, params: &[Value]) -> Result<(), Json
                 Err(unauthorized())
             }
         }
-        AuthConfig::PerClient(auth) => match auth.verify(token) {
+        AuthConfig::PerClient(auth) => match auth.verify_async(token).await {
             Some(client) => {
                 tracing::debug!(client = %client.name, id = %client.id, "aria2 rpc: per-client token accepted");
                 Ok(())

@@ -81,11 +81,14 @@ impl RqbitBtBackend {
 
         let mut ratelimits = librqbit::limits::LimitsConfig::default();
         if bt.global_download_rate_limit > 0 {
-            ratelimits.download_bps =
-                std::num::NonZeroU32::new(bt.global_download_rate_limit as u32);
+            ratelimits.download_bps = std::num::NonZeroU32::new(
+                u32::try_from(bt.global_download_rate_limit).unwrap_or(u32::MAX),
+            );
         }
         if bt.global_upload_rate_limit > 0 {
-            ratelimits.upload_bps = std::num::NonZeroU32::new(bt.global_upload_rate_limit as u32);
+            ratelimits.upload_bps = std::num::NonZeroU32::new(
+                u32::try_from(bt.global_upload_rate_limit).unwrap_or(u32::MAX),
+            );
         }
         opts.ratelimits = ratelimits;
 
@@ -180,6 +183,7 @@ impl RqbitBtBackend {
             entry.value().abort_handle.abort();
         }
         self.pending_magnets.clear();
+        self.bt_slot_guards.clear();
 
         // Phase 3: stop session
         self.session.stop().await;
@@ -198,8 +202,12 @@ impl RqbitBtBackend {
             ),
         }
 
-        let down_limit = std::num::NonZeroU32::new(bt.global_download_rate_limit as u32);
-        let up_limit = std::num::NonZeroU32::new(bt.global_upload_rate_limit as u32);
+        let down_limit = std::num::NonZeroU32::new(
+            u32::try_from(bt.global_download_rate_limit).unwrap_or(u32::MAX),
+        );
+        let up_limit = std::num::NonZeroU32::new(
+            u32::try_from(bt.global_upload_rate_limit).unwrap_or(u32::MAX),
+        );
         self.session.ratelimits.set_download_bps(down_limit);
         self.session.ratelimits.set_upload_bps(up_limit);
 

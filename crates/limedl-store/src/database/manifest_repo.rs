@@ -342,10 +342,27 @@ impl Database {
             .unwrap_or(true);
 
         if is_new {
-            insert_manifest_row(&conn, manifest)?;
+            conn.execute_batch("BEGIN IMMEDIATE")
+                .context("failed to begin transaction")?;
 
-            if !manifest.chunks.is_empty() {
-                self.replace_chunks_inner(&conn, &manifest.id, &manifest.chunks)?;
+            let result = (|| -> Result<()> {
+                insert_manifest_row(&conn, manifest)?;
+
+                if !manifest.chunks.is_empty() {
+                    self.replace_chunks_inner(&conn, &manifest.id, &manifest.chunks)?;
+                }
+                Ok(())
+            })();
+
+            match result {
+                Ok(()) => {
+                    conn.execute_batch("COMMIT")
+                        .context("failed to commit transaction")?;
+                }
+                Err(e) => {
+                    let _ = conn.execute_batch("ROLLBACK");
+                    return Err(e);
+                }
             }
         } else {
             conn.execute_batch("BEGIN IMMEDIATE")
@@ -354,7 +371,13 @@ impl Database {
             let result = (|| -> Result<()> {
                 update_manifest_row(&conn, manifest)?;
 
-                if !manifest.chunks.is_empty() {
+                if manifest.chunks.is_empty() {
+                    conn.execute(
+                        "DELETE FROM chunks WHERE download_id = ?1",
+                        params![manifest.id],
+                    )
+                    .context("failed to clear stale chunks")?;
+                } else {
                     let dirty_chunks: Vec<&ChunkManifest> =
                         manifest.chunks.iter().filter(|c| c.dirty).collect();
                     if !dirty_chunks.is_empty() {

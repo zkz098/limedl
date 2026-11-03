@@ -25,11 +25,11 @@ impl RqbitBtBackend {
         upload_limit_bps: Option<u64>,
     ) {
         if let Some(bps) = download_limit_bps {
-            let limit = NonZeroU32::new(bps as u32);
+            let limit = NonZeroU32::new(u32::try_from(bps).unwrap_or(u32::MAX));
             self.session.ratelimits.set_download_bps(limit);
         }
         if let Some(bps) = upload_limit_bps {
-            let limit = NonZeroU32::new(bps as u32);
+            let limit = NonZeroU32::new(u32::try_from(bps).unwrap_or(u32::MAX));
             self.session.ratelimits.set_upload_bps(limit);
         }
     }

@@ -317,7 +317,7 @@ impl AltSvcManager {
         self.cache.remove(key);
         let db = self.db.clone();
         let host = origin_host.to_string();
-        tokio::spawn(async move {
+        tokio::task::spawn_blocking(move || {
             if let Err(e) = db.clear_alt_svc_for_origin(&host, origin_port) {
                 warn!("Failed to clear Alt-Svc in db for {host}:{origin_port}: {e}");
             }
@@ -393,7 +393,7 @@ impl AltSvcManager {
         }
 
         let db = self.db.clone();
-        tokio::spawn(async move {
+        tokio::task::spawn_blocking(move || {
             for rec in records {
                 if let Err(e) = db.upsert_alt_svc(&rec) {
                     warn!(
@@ -425,7 +425,7 @@ impl AltSvcManager {
 
         if !to_persist.is_empty() {
             let db = self.db.clone();
-            tokio::spawn(async move {
+            tokio::task::spawn_blocking(move || {
                 for rec in to_persist {
                     let _ = db.upsert_alt_svc(&rec);
                 }
@@ -450,7 +450,7 @@ impl AltSvcManager {
 
         if !to_persist.is_empty() {
             let db = self.db.clone();
-            tokio::spawn(async move {
+            tokio::task::spawn_blocking(move || {
                 for rec in to_persist {
                     let _ = db.upsert_alt_svc(&rec);
                 }
@@ -466,7 +466,7 @@ impl AltSvcManager {
         });
 
         let db = self.db.clone();
-        tokio::spawn(async move {
+        tokio::task::spawn_blocking(move || {
             let _ = db.clean_expired_alt_svc(now_ms);
         });
     }

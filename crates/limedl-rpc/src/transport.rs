@@ -15,6 +15,16 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::Value;
 use std::sync::Arc;
+use std::time::Duration;
+
+/// Maximum top-level JSON-RPC batch size accepted per request.
+const MAX_BATCH_SIZE: usize = 256;
+/// Maximum WebSocket frame/message size (2 MiB, matching Axum's HTTP body cap).
+const MAX_WS_MESSAGE_BYTES: usize = 2 * 1024 * 1024;
+/// Bounded outbound queue per WebSocket client.
+const WS_OUTBOX_CAPACITY: usize = 128;
+/// Per-frame send timeout for slow/stalled WebSocket clients.
+const WS_SEND_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub async fn handle_jsonrpc_http(
     axum::extract::State(ctx): axum::extract::State<Arc<RpcContext>>,
@@ -31,15 +41,32 @@ pub async fn handle_websocket_upgrade(
     ws: WebSocketUpgrade,
     axum::extract::State(ctx): axum::extract::State<Arc<RpcContext>>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| websocket_loop(socket, ctx))
+    ws.max_message_size(MAX_WS_MESSAGE_BYTES)
+        .max_frame_size(MAX_WS_MESSAGE_BYTES)
+        .on_upgrade(move |socket| websocket_loop(socket, ctx))
 }
 
 pub async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
-    let (sender, mut receiver) = socket.split();
-    let sender = Arc::new(tokio::sync::Mutex::new(sender));
+    let mut shutdown_rx = ctx.shutdown_tx.subscribe();
+    if *shutdown_rx.borrow() {
+        return;
+    }
+
+    let (mut sender, mut receiver) = socket.split();
+    let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<Message>(WS_OUTBOX_CAPACITY);
     let mut event_rx = ctx.event_bus.subscribe();
 
-    let sender_events = sender.clone();
+    let mut writer_task = tokio::spawn(async move {
+        while let Some(msg) = out_rx.recv().await {
+            match tokio::time::timeout(WS_SEND_TIMEOUT, sender.send(msg)).await {
+                Ok(Ok(())) => {}
+                Ok(Err(_)) | Err(_) => break,
+            }
+        }
+        let _ = tokio::time::timeout(Duration::from_secs(1), sender.close()).await;
+    });
+
+    let out_tx_events = out_tx.clone();
     let mut send_events = tokio::spawn(async move {
         loop {
             match event_rx.recv().await {
@@ -50,14 +77,12 @@ pub async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
                         params: vec![serde_json::json!({"gid": gid})],
                     })
                     .unwrap_or_default();
-                    if sender_events
-                        .lock()
-                        .await
-                        .send(Message::Text(notification.into()))
-                        .await
-                        .is_err()
-                    {
-                        break;
+                    match out_tx_events.try_send(Message::Text(notification.into())) {
+                        Ok(()) => {}
+                        // Slow consumer: drop transient notification rather than blocking
+                        // or starving RPC responses.
+                        Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => continue,
+                        Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => break,
                     }
                 }
                 Ok(_) => {} // ignore non-Aria2 events
@@ -67,9 +92,9 @@ pub async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
         }
     });
 
-    let sender_reqs = sender.clone();
+    let out_tx_reqs = out_tx;
     let ctx2 = ctx.clone();
-    let recv_requests = tokio::spawn(async move {
+    let mut recv_requests = tokio::spawn(async move {
         while let Some(Ok(msg)) = receiver.next().await {
             match msg {
                 Message::Text(text) => {
@@ -77,13 +102,7 @@ pub async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
                         // Nothing to send for an all-notification batch.
                         continue;
                     };
-                    if sender_reqs
-                        .lock()
-                        .await
-                        .send(Message::Text(resp.into()))
-                        .await
-                        .is_err()
-                    {
+                    if out_tx_reqs.send(Message::Text(resp.into())).await.is_err() {
                         break;
                     }
                 }
@@ -94,10 +113,25 @@ pub async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
     });
 
     tokio::select! {
-        _ = &mut send_events => {}
-        _ = recv_requests => {}
+        _ = &mut writer_task => {
+            send_events.abort();
+            recv_requests.abort();
+        }
+        _ = &mut send_events => {
+            recv_requests.abort();
+            writer_task.abort();
+        }
+        _ = &mut recv_requests => {
+            send_events.abort();
+            let _ = tokio::time::timeout(Duration::from_secs(2), &mut writer_task).await;
+            writer_task.abort();
+        }
+        _ = shutdown_rx.changed() => {
+            send_events.abort();
+            recv_requests.abort();
+            writer_task.abort();
+        }
     }
-    send_events.abort();
 }
 
 /// Process one HTTP or WebSocket body.
@@ -128,6 +162,13 @@ pub async fn process_jsonrpc_payload(ctx: &RpcContext, body: &str) -> Option<Str
                     None,
                     ERR_INVALID_REQUEST,
                     "Invalid Request",
+                )));
+            }
+            if items.len() > MAX_BATCH_SIZE {
+                return Some(serialize_response(&error_response(
+                    None,
+                    ERR_INVALID_REQUEST,
+                    format!("Batch size exceeds maximum of {MAX_BATCH_SIZE}"),
                 )));
             }
 

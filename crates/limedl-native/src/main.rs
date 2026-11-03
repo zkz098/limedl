@@ -314,6 +314,13 @@ async fn run() -> anyhow::Result<()> {
     }
     core.registry.shutdown_all().await;
 
+    // Release the single-instance lock/mutex before spawning a replacement
+    // process so the new instance claims primary ownership cleanly.
+    instance_claim.release();
+    if update::take_restart_requested() {
+        update::spawn_replacement_process()?;
+    }
+
     Ok(())
 }
 

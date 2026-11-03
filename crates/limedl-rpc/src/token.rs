@@ -15,7 +15,7 @@
 //! only inserted after a full Argon2 verification succeeded, so a database or
 //! settings-file leak cannot be replayed against the running server.
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use argon2::Argon2;
 use argon2::password_hash::{PasswordHasher, PasswordVerifier};
@@ -33,6 +33,8 @@ const SALT_BYTES: usize = 16;
 /// client can ever be inserted, so this only guards against a future bug
 /// leaking entries.
 const CACHE_CAPACITY: usize = 256;
+/// Maximum number of concurrent Argon2id cache-miss verifications.
+const MAX_CONCURRENT_ARGON2: usize = 4;
 
 /// One configured client, as seen by the verifier.
 #[derive(Debug, Clone)]
@@ -45,25 +47,30 @@ pub(crate) struct ClientToken {
 
 /// Per-client authentication state.
 pub(crate) struct PerClientAuth {
-    clients: Vec<ClientToken>,
+    clients: Arc<[ClientToken]>,
     /// BLAKE3 digest of a plaintext token -> index into `clients`. Filled only
     /// after a successful Argon2 verification.
-    verified: Mutex<HashMap<[u8; 32], usize>>,
+    verified: Arc<Mutex<HashMap<[u8; 32], usize>>>,
+    /// Bounds concurrent Argon2id verifications on cache misses so a burst of
+    /// uncached tokens cannot saturate the blocking thread pool.
+    semaphore: Arc<tokio::sync::Semaphore>,
 }
 
 impl PerClientAuth {
     pub fn new(clients: Vec<ClientToken>) -> Self {
         Self {
-            clients,
-            verified: Mutex::new(HashMap::default()),
+            clients: Arc::from(clients),
+            verified: Arc::new(Mutex::new(HashMap::default())),
+            semaphore: Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_ARGON2)),
         }
     }
 
-    /// Verify `token` and return the matching client.
+    /// Verify `token` synchronously and return the matching client.
     ///
     /// Argon2 runs only on the first request bearing a given token; later
     /// requests hit the digest cache. An empty client list rejects everything
     /// (fail closed) rather than degrading into "no authentication".
+    #[cfg(test)]
     pub fn verify(&self, token: &str) -> Option<&ClientToken> {
         if self.clients.is_empty() {
             return None;
@@ -82,6 +89,47 @@ impl PerClientAuth {
             .clients
             .iter()
             .position(|client| verify_token(token, &client.token_hash))?;
+
+        if let Ok(mut cache) = self.verified.lock() {
+            if cache.len() >= CACHE_CAPACITY {
+                cache.clear();
+            }
+            cache.insert(digest, index);
+        }
+        self.clients.get(index)
+    }
+
+    /// Verify `token` asynchronously, offloading cache-miss Argon2id hashing to
+    /// `spawn_blocking` under a bounded concurrency semaphore so Tokio worker
+    /// threads are never stalled.
+    pub async fn verify_async(&self, token: &str) -> Option<&ClientToken> {
+        if self.clients.is_empty() {
+            return None;
+        }
+
+        let digest: [u8; 32] = blake3::hash(token.as_bytes()).into();
+        if let Ok(cache) = self.verified.lock()
+            && let Some(&index) = cache.get(&digest)
+        {
+            return self.clients.get(index);
+        }
+
+        let _permit = self.semaphore.acquire().await.ok()?;
+        if let Ok(cache) = self.verified.lock()
+            && let Some(&index) = cache.get(&digest)
+        {
+            return self.clients.get(index);
+        }
+
+        let clients = self.clients.clone();
+        let token_owned = token.to_string();
+        let index = tokio::task::spawn_blocking(move || {
+            clients
+                .iter()
+                .position(|client| verify_token(&token_owned, &client.token_hash))
+        })
+        .await
+        .ok()??;
 
         if let Ok(mut cache) = self.verified.lock() {
             if cache.len() >= CACHE_CAPACITY {

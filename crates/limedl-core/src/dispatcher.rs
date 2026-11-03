@@ -376,8 +376,10 @@ impl Dispatcher {
         vec![url.to_string()]
     }
 
-    /// Fetch and normalize tracker list from remote URL.
+    /// Fetch and normalize tracker list from remote URL (capped at 2 MiB).
     pub async fn fetch_tracker_list(&self, url: &str) -> Result<Vec<String>> {
+        const MAX_TRACKER_LIST_BYTES: usize = 2 * 1024 * 1024;
+
         let client = if let Some(c) = &self.http_client {
             c.clone()
         } else {
@@ -388,14 +390,31 @@ impl Dispatcher {
                 .map_err(|e| DownloadError::Internal(format!("Failed to build HTTP client: {e}")))?
         };
 
-        let resp =
+        let mut resp =
             client.get(url).send().await.map_err(|e| {
                 DownloadError::Internal(format!("Failed to fetch tracker list: {e}"))
             })?;
-        let text = resp
-            .text()
+        if let Some(len) = resp.content_length()
+            && len > MAX_TRACKER_LIST_BYTES as u64
+        {
+            return Err(DownloadError::Internal(format!(
+                "Tracker list response exceeds maximum allowed size ({len} bytes > {MAX_TRACKER_LIST_BYTES} bytes)"
+            )));
+        }
+        let mut raw = Vec::new();
+        while let Some(chunk) = resp
+            .chunk()
             .await
-            .map_err(|e| DownloadError::Internal(format!("Failed to read tracker list: {e}")))?;
+            .map_err(|e| DownloadError::Internal(format!("Failed to read tracker list: {e}")))?
+        {
+            if raw.len().saturating_add(chunk.len()) > MAX_TRACKER_LIST_BYTES {
+                return Err(DownloadError::Internal(format!(
+                    "Tracker list response exceeds maximum allowed size ({MAX_TRACKER_LIST_BYTES} bytes)"
+                )));
+            }
+            raw.extend_from_slice(&chunk);
+        }
+        let text = String::from_utf8_lossy(&raw);
         let normalized = crate::settings::normalize_tracker_list_lossy(&text);
         Ok(normalized
             .lines()

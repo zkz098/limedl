@@ -362,6 +362,9 @@ fn apply_probe_to_manifest(
     {
         manifest.downloaded_bytes = 0;
         manifest.chunks = plan_chunks(metadata.total_bytes, supports_parallel, chunk_size);
+        for chunk in &mut manifest.chunks {
+            chunk.dirty = true;
+        }
         manifest.chunk_size = chunk_size;
         manifest.checksum = None;
         manifest.supports_ranges = supports_parallel;

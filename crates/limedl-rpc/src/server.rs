@@ -137,6 +137,7 @@ impl Aria2RpcServer {
         let auth = AuthConfig::from_settings(settings);
 
         let dispatcher = Dispatcher::new(registry.clone(), event_bus.clone());
+        let (shutdown_tx, _) = tokio::sync::watch::channel(false);
         let ctx = Arc::new(RpcContext {
             registry,
             auth,
@@ -146,6 +147,7 @@ impl Aria2RpcServer {
             session_id: uuid::Uuid::new_v4().to_string(),
             exit_on_shutdown: settings.exit_on_shutdown,
             shutdown_notify: Arc::new(Notify::new()),
+            shutdown_tx,
         });
 
         Aria2RpcServer {
@@ -195,6 +197,7 @@ impl Aria2RpcServer {
         }
 
         let cors = build_cors_layer(&self.cors_allowed_origins, self.cors_allow_any_origin);
+        let ctx_shutdown_tx = self.ctx.shutdown_tx.clone();
 
         let app = Router::new()
             .route(
@@ -210,6 +213,7 @@ impl Aria2RpcServer {
         axum::serve(listener, app)
             .with_graceful_shutdown(async move {
                 let _ = shutdown.changed().await;
+                let _ = ctx_shutdown_tx.send(true);
             })
             .await?;
         Ok(())
