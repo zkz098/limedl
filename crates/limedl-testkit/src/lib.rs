@@ -16,7 +16,7 @@
 
 use std::convert::Infallible;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use axum::{
@@ -105,6 +105,7 @@ impl TestServer {
             sha256_hash: sha256_hash.clone(),
             sha512_hash: sha512_hash.clone(),
             encoded_responses: Arc::new(AtomicUsize::new(0)),
+            range_failure_served: AtomicBool::new(false),
         });
         let encoded_responses = state.encoded_responses.clone();
 
@@ -112,6 +113,10 @@ impl TestServer {
             .route("/file", get(serve_file))
             .route("/file/range", get(serve_file_range))
             .route("/file/range/slow/{ms}", get(serve_file_range_slow))
+            .route(
+                "/file/range/fail-once/{after}",
+                get(serve_file_range_fail_once),
+            )
             .route(
                 "/file/range/bandwidth/{bps}",
                 get(serve_file_range_bandwidth),
@@ -206,6 +211,17 @@ impl TestServer {
     /// transfer. The limit is per connection, so N chunk workers share N×`bps`.
     pub fn file_url_range_bandwidth(&self, bps: u64) -> String {
         format!("{}/file/range/bandwidth/{bps}", self.addr)
+    }
+
+    /// URL for a range-capable file whose first request starting at or beyond
+    /// `after` bytes fails with `500`; every later request is served normally.
+    ///
+    /// A chunked download already mid-transfer has data in its write buffer and
+    /// possibly received-complete chunks behind it when the failure lands, which
+    /// is the state that used to leave the buffered bytes counted as progress
+    /// but absent from the file.
+    pub fn file_url_range_fail_once(&self, after: u64) -> String {
+        format!("{}/file/range/fail-once/{after}", self.addr)
     }
 
     /// URL for a range-capable file whose first response is delayed by
@@ -370,6 +386,8 @@ struct ServerState {
     sha256_hash: String,
     sha512_hash: String,
     encoded_responses: Arc<AtomicUsize>,
+    /// Set once `/file/range/fail-once/{after}` has served its one 500.
+    range_failure_served: AtomicBool,
 }
 
 // ---------------------------------------------------------------------------
@@ -439,6 +457,29 @@ async fn serve_file_range_slow(
     req_headers: HeaderMap,
 ) -> Response {
     sleep(Duration::from_millis(delay_ms)).await;
+    serve_range_identity(&state, &req_headers)
+}
+
+/// Range response whose first request starting at or beyond `after` fails.
+///
+/// The failure is one-shot: once the `500` has been served the route behaves
+/// exactly like `/file/range`, so a retry can finish the download. Requests
+/// without a `Range` header (the probe's HEAD) are always served.
+async fn serve_file_range_fail_once(
+    State(state): State<Arc<ServerState>>,
+    Path(after): Path<u64>,
+    req_headers: HeaderMap,
+) -> Response {
+    let starts_at_or_after = req_headers
+        .get(header::RANGE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("bytes="))
+        .and_then(|value| value.split('-').next())
+        .and_then(|value| value.parse::<u64>().ok())
+        .is_some_and(|start| start >= after);
+    if starts_at_or_after && !state.range_failure_served.swap(true, Ordering::SeqCst) {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
     serve_range_identity(&state, &req_headers)
 }
 

@@ -218,6 +218,42 @@ pub fn record_durable_bytes(managed: &Arc<ManagedDownload>, entries: &[(u64, u64
         }
     }
 }
+/// Rewind the received progress to the durable one after a run failed.
+///
+/// A failed chunked run drops its write buffer without flushing it (see
+/// `DownloadBuffer::drop`), but every byte it held was already counted as
+/// received — and possibly marked `completed`. A retry starts each chunk at
+/// `start + downloaded`, so keeping those counters would make it skip the
+/// dropped tail for good and finalization would refuse the resulting hole
+/// (`ensure_core_fully_durable`). Clamping to the durable prefix costs a
+/// re-download of exactly the missing tail.
+///
+/// Safe against a late flush: `durable_bytes()` clamps to `downloaded`, so an
+/// observer that runs after this can only re-download, never over-report.
+pub fn reset_received_to_durable(managed: &Arc<ManagedDownload>) {
+    let mut core = managed.lock_core();
+    if core.manifest.chunks.is_empty() {
+        return;
+    }
+    let mut received = 0u64;
+    for chunk in &mut core.manifest.chunks {
+        let durable = chunk.durable_bytes();
+        let completed = durable >= chunk.byte_len();
+        if chunk.downloaded != durable || chunk.completed != completed {
+            chunk.downloaded = durable;
+            chunk.completed = completed;
+            chunk.dirty = true;
+        }
+        // The run that owned these claims is gone; a fresh attempt must be able
+        // to claim the re-downloadable range again.
+        chunk.claimed_by = None;
+        received = received.saturating_add(chunk.downloaded);
+    }
+    core.manifest.downloaded_bytes = received;
+    core.snapshot.downloaded_bytes = received;
+    core.manifest.updated_at_ms = now_ms();
+}
+
 pub fn cancellation_outcome(managed: &Arc<ManagedDownload>) -> RunOutcome {
     match managed.lock_core().snapshot.state {
         DownloadState::Canceled => RunOutcome::Canceled,
@@ -405,5 +441,82 @@ mod tests {
         assert_eq!(core.durable_bytes, 100);
         assert_eq!(core.manifest.chunks[0].durable_bytes(), 100);
         assert!(core.manifest.chunks[0].durable_complete());
+    }
+
+    #[test]
+    fn a_failed_run_rewinds_received_progress_to_the_durable_prefix() {
+        let managed = ManagedDownload::from_manifest(Manifest {
+            chunks: two_chunks(),
+            ..test_manifest()
+        });
+        // Received-complete but never flushed: the state a run leaves behind
+        // when its write buffer is dropped on the error path.
+        record_progress_on_managed(&managed, Some(0), 100);
+        record_progress_on_managed(&managed, Some(1), 40);
+        record_durable_bytes(&managed, &[(0, 30)]);
+        {
+            let mut core = managed.lock_core();
+            core.manifest.chunks[0].claimed_by = Some(7);
+            core.manifest.chunks[1].claimed_by = Some(8);
+        }
+
+        reset_received_to_durable(&managed);
+
+        let core = managed.lock_core();
+        assert_eq!(
+            core.manifest.chunks[0].downloaded, 30,
+            "kept the flushed prefix"
+        );
+        assert!(
+            !core.manifest.chunks[0].completed,
+            "a received-complete chunk with a dropped tail is not complete"
+        );
+        assert_eq!(
+            core.manifest.chunks[1].downloaded, 0,
+            "unflushed bytes are re-downloaded"
+        );
+        assert!(
+            !core.manifest.chunks[1].completed,
+            "a chunk with no durable bytes is not complete"
+        );
+        assert!(core.manifest.chunks.iter().all(|c| c.claimed_by.is_none()));
+        assert_eq!(
+            core.manifest.downloaded_bytes, 30,
+            "the task-level received counter follows the chunks"
+        );
+        assert_eq!(core.snapshot.downloaded_bytes, 30);
+    }
+
+    #[test]
+    fn reconciling_a_fully_durable_run_changes_nothing() {
+        let managed = ManagedDownload::from_manifest(Manifest {
+            chunks: two_chunks(),
+            ..test_manifest()
+        });
+        record_progress_on_managed(&managed, Some(0), 100);
+        record_progress_on_managed(&managed, Some(1), 100);
+        record_durable_bytes(&managed, &[(0, 200)]);
+
+        reset_received_to_durable(&managed);
+
+        let core = managed.lock_core();
+        assert_eq!(core.manifest.chunks[0].downloaded, 100);
+        assert_eq!(core.manifest.chunks[1].downloaded, 100);
+        assert!(core.manifest.chunks[0].completed);
+        assert!(core.manifest.chunks[1].completed);
+        assert_eq!(core.manifest.downloaded_bytes, 200);
+    }
+
+    #[test]
+    fn reconciling_a_single_stream_download_is_a_no_op() {
+        let managed = ManagedDownload::from_manifest(Manifest {
+            chunks: Vec::new(),
+            ..test_manifest()
+        });
+        record_progress_on_managed(&managed, None, 50);
+
+        reset_received_to_durable(&managed);
+
+        assert_eq!(managed.lock_core().manifest.downloaded_bytes, 50);
     }
 }

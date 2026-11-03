@@ -6,6 +6,7 @@ mod bt_backend_tests;
 mod buffer_integrity_tests;
 mod cdn_e2e_tests;
 mod checksum_e2e_tests;
+mod chunked_retry_tests;
 mod corruption_oracle_tests;
 mod resume_corruption_tests;
 // `pub(crate)`: the aria2 RPC tests reuse `make_manager`/`inject_download` from

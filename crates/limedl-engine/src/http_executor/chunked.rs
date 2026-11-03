@@ -10,7 +10,10 @@ use super::{
     finish_buffer_flush, flush_write_buffer, wait_or_stop,
 };
 use crate::buffer_pool::DownloadBuffer;
-use crate::download::{ChunkWorkerOutcome, ManagedDownload, RunOutcome, cancellation_outcome};
+use crate::download::{
+    ChunkWorkerOutcome, ManagedDownload, RunOutcome, cancellation_outcome,
+    reset_received_to_durable,
+};
 use crate::error::{DownloadError, Result};
 use crate::file_ops::open_download_file;
 use crate::manager_state::ManagerState;
@@ -26,6 +29,14 @@ use tokio::task::JoinSet;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
+/// Everything a chunked run opens before its supervisor loop.
+struct ChunkedTarget {
+    file: Arc<std::fs::File>,
+    disk_type: DiskType,
+    write_buffer: Option<Arc<DownloadBuffer>>,
+    tail_sprint_enabled: bool,
+}
+
 impl HttpExecutor {
     pub(super) async fn download_chunked(
         &self,
@@ -38,6 +49,51 @@ impl HttpExecutor {
         let (file, disk_type, write_buffer, tail_sprint_enabled) =
             open_chunked_target(&dm, &managed, &client).await?;
         let write_buffer = Some(write_buffer);
+
+        let outcome = self
+            .run_chunked(
+                dm,
+                managed.clone(),
+                client,
+                token,
+                max_retries,
+                ChunkedTarget {
+                    file,
+                    disk_type,
+                    write_buffer: write_buffer.clone(),
+                    tail_sprint_enabled,
+                },
+            )
+            .await;
+
+        if outcome.is_err() {
+            // The failed run is about to drop its write buffer, but every byte
+            // it still held was counted as received — and may have marked its
+            // chunk complete. A retry resumes at `start + downloaded`, so
+            // leaving those counters alone would skip that tail for good and
+            // finalization would refuse the hole. Flush what can still be
+            // written, then rewind to what provably reached the file.
+            flush_write_buffer(&write_buffer, "error").await;
+            reset_received_to_durable(&managed);
+        }
+        outcome
+    }
+
+    async fn run_chunked(
+        &self,
+        dm: Arc<dyn ManagerState>,
+        managed: Arc<ManagedDownload>,
+        client: Client,
+        token: CancellationToken,
+        max_retries: u32,
+        target: ChunkedTarget,
+    ) -> Result<RunOutcome> {
+        let ChunkedTarget {
+            file,
+            disk_type,
+            write_buffer,
+            tail_sprint_enabled,
+        } = target;
 
         let settings = dm.settings_service().get().await;
         let (work_steal_min_split, tail_sprint_stall_limit, tail_sprint_min_split) =
