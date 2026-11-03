@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metalink xmlns="urn:ietf:params:xml:ns:metalink">
+  <published>2026-10-05T12:00:00Z</published>
+  <origin>https://example.org/download.meta4</origin>
+  <file name="example-linux.iso">
+    <size>104857600</size>
+    <hash type="sha-256">2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae</hash>
+    <pieces length="1048576" type="sha-256">
+      <hash>e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</hash>
+    </pieces>
+    <url priority="1" location="de" maxconnections="4">https://mirror1.example.org/example.iso</url>
+  </file>
+</metalink>

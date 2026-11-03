@@ -1,0 +1,69 @@
+name: Fuzz
+
+# Parser fuzzing runs on a schedule, not on every push: cargo-fuzz needs a
+# nightly sanitizer toolchain and a time budget, and a crash is only actionable
+# once it has a reproducer in `fuzz/artifacts`. `workflow_dispatch` is for
+# hunting a specific parser before a release.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # cargo-fuzz sets RUSTFLAGS for the sanitizer build, which makes cargo ignore
+  # `.cargo/config.toml` (and its `--cfg reqwest_unstable`). reqwest's `http3`
+  # feature is enabled by the workspace dependency and hard-errors without it,
+  # so repeat the one flag cargo-fuzz would otherwise drop. cargo-fuzz appends
+  # this value to its own flags.
+  RUSTFLAGS: "--cfg reqwest_unstable"
+
+jobs:
+  fuzz:
+    name: fuzz-${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - sha256_manifest
+          - metalink_xml
+          - settings_json
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: nightly
+          cache: false
+          rustflags: ""
+      # taiki-e/install-action has no cargo-fuzz entry, so build the runner
+      # itself. It is a weekly job; the cost is a few minutes, not a release gate.
+      - run: cargo +nightly install cargo-fuzz --locked
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          shared-key: fuzz
+          cache-on-failure: true
+      # Corpus is the regression memory: every generated input that reached a
+      # new path is kept, and a fixed crash immediately replays from here.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_number }}
+          restore-keys: |
+            fuzz-corpus-${{ matrix.target }}-
+      - name: Fuzz ${{ matrix.target }}
+        run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=60 -timeout=10 -rss_limit_mb=4096
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: failure()
+        with:
+          name: fuzz-artifacts-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}
+          if-no-files-found: ignore

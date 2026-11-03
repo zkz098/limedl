@@ -85,6 +85,8 @@ axum = { workspace = true }
 tempfile = { workspace = true }
 rand = { workspace = true }
 divan = { workspace = true }
+# Randomized fault-matrix E2E tests (`src/tests/fault_schedule_tests.rs`).
+proptest = { workspace = true }
 # Encoders for the compression test endpoints, needed under `cfg(test)` where
 # the optional normal deps above are not enabled. See the `test-utils` feature.
 

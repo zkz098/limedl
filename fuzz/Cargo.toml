@@ -1,0 +1,45 @@
+[package]
+name = "limedl-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+# Kept out of the root workspace (`exclude = ["fuzz"]`) so `ci_parity` does not
+# expect a nextest/llvm-cov line for it. Run with:
+#   RUSTFLAGS="--cfg reqwest_unstable" cargo +nightly fuzz run <target> -- -max_total_time=60
+#
+# The RUSTFLAGS prefix is required because cargo-fuzz drives the build through
+# RUSTFLAGS, which overrides the root `.cargo/config.toml`; reqwest's `http3`
+# feature (enabled by the workspace dependency) hard-requires that cfg.
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+limedl-types = { path = "../crates/limedl-types", default-features = false }
+limedl-engine = { path = "../crates/limedl-engine", default-features = false }
+
+[[bin]]
+name = "sha256_manifest"
+path = "fuzz_targets/sha256_manifest.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "metalink_xml"
+path = "fuzz_targets/metalink_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "settings_json"
+path = "fuzz_targets/settings_json.rs"
+test = false
+doc = false
+bench = false
+
+[profile.release]
+debug = 1

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metalink version="3.0" xmlns="http://www.metalinker.org/">
+  <files>
+    <file name="example.tar.gz">
+      <size>5242880</size>
+      <verification>
+        <hash type="sha256">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</hash>
+      </verification>
+      <resources>
+        <url type="http" preference="100" location="cn">https://cn.mirror.org/file.tar.gz</url>
+      </resources>
+    </file>
+  </files>
+</metalink>

@@ -14,6 +14,10 @@ members = [
     "crates/limedl-types",
     "xtask",
 ]
+# `cargo-fuzz` builds against a nightly sanitizer runtime and must not become a
+# workspace member: `ci_parity` requires every member on a CI nextest/llvm-cov
+# line, and the fuzz targets are run by their own scheduled workflow instead.
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.6.1"
@@ -98,6 +102,7 @@ clap = { version = "4", features = ["derive"] }
 tempfile = "3"
 tokio-tungstenite = "0.30"
 divan = "0.1"
+proptest = "1"
 slint = { version = "1.18", default-features = false }
 slint-build = "1.18"
 # In-process Slint UI testing backend (see `crates/limedl-native/src/ui_tests/`).
