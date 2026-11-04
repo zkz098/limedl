@@ -2015,8 +2015,6 @@ dependencies = [
  "reqwest",
  "tokio",
  "tracing",
- "uuid",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -2027,7 +2025,6 @@ dependencies = [
  "async-trait",
  "bytes",
  "foldhash",
- "futures-util",
  "limedl-bt",
  "limedl-disk",
  "limedl-engine",
@@ -2036,7 +2033,6 @@ dependencies = [
  "limedl-types",
  "open",
  "parking_lot 0.13.0",
- "rand 0.10.3",
  "reqwest",
  "sanitize-filename",
  "serde_json",
@@ -2091,7 +2087,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "uuid",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -2115,7 +2110,6 @@ dependencies = [
  "percent-encoding",
  "reqwest",
  "sanitize-filename",
- "time",
  "tokio",
 ]
 
@@ -2131,16 +2125,14 @@ dependencies = [
  "foldhash",
  "futures-util",
  "limedl-core",
- "percent-encoding",
  "rand 0.10.3",
  "serde",
  "serde_json",
  "subtle",
  "tokio",
- "tower-http 0.7.1",
+ "tower-http",
  "tracing",
  "uuid",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -2148,7 +2140,6 @@ name = "limedl-store"
 version = "0.6.1"
 dependencies = [
  "anyhow",
- "dashmap",
  "foldhash",
  "http",
  "limedl-types",
@@ -2890,7 +2881,7 @@ dependencies = [
  "tokio-rustls",
  "tokio-util",
  "tower",
- "tower-http 0.6.11",
+ "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -3690,21 +3681,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tower-http"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08a05a66a4fdd61cbbe0a1d755ffe0ca6aba159dd4820936a0ff8a8278245b9c"
-dependencies = [
- "bitflags 2.13.2",
- "bytes",
- "http",
- "percent-encoding",
- "pin-project-lite",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
 name = "tower-layer"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4285,12 +4261,6 @@ checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
 ]
-
-[[package]]
-name = "xxhash-rust"
-version = "0.8.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "550a2b930b62486a393c52d5c3b84bff264b28aa437ed64694d31e93b1757af7"
 
 [[package]]
 name = "yoke"

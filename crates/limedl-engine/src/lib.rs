@@ -21,7 +21,8 @@ use limedl_disk::{buffer_pool, file_ops, services};
 use limedl_http::{http, http_client_factory, rate_limiter};
 use limedl_store::{alt_svc, database};
 use limedl_types::{
-    calculate_checksum_with_progress, checksum, error, event_bus, lock, manifest, now_ms, types,
+    calculate_checksum_with_progress, checksum, error, event_bus, internal_id_to_gid, lock,
+    manifest, now_ms, types,
 };
 
 pub mod aimd;

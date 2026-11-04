@@ -25,11 +25,9 @@ tokio = { workspace = true }
 async-trait = { workspace = true }
 parking_lot = { workspace = true }
 tracing = { workspace = true }
-xxhash-rust = { workspace = true }
 open = { workspace = true }
 # `DownloadBackend::start` builds the HTTP client for a torrent's http seeds.
 reqwest = { workspace = true }
-uuid = { workspace = true }
 
 [features]
 # The store's test-only helpers (`Database::open_in_memory`, the single-download
@@ -40,6 +38,7 @@ test-utils = ["limedl-store/test-utils"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
+uuid = { workspace = true }
 # This crate's own tests drive `Database::open_in_memory`, which is a
 # `limedl-store` test seam (`cfg(any(test, feature = "test-utils"))`); from here
 # `cfg(test)` is false inside the store, so the feature has to be asked for.

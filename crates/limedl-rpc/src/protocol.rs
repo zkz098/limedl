@@ -12,8 +12,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 pub fn internal_id_to_gid(internal_id: &str) -> String {
-    let hash = xxhash_rust::xxh3::xxh3_64(internal_id.as_bytes());
-    format!("{:016x}", hash)
+    limedl_core::internal_id_to_gid(internal_id)
 }
 
 /// Resolve a wire GID (or an unambiguous GID prefix) to a task.

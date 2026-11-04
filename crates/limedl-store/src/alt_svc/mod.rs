@@ -12,11 +12,11 @@
 
 use std::sync::Arc;
 
-use dashmap::DashMap;
 use tracing::{debug, info, warn};
 
 use crate::database::Database;
 use crate::error::Result;
+use crate::types::FastDashMap;
 
 /// SQLite repository: `impl Database` for the `alt_svc_cache` table.
 pub mod repo;
@@ -208,7 +208,7 @@ fn parse_single_entry(item: &str) -> Option<ParsedAltSvcEntry> {
 
 /// Manages L1 in-memory Alt-Svc cache and L2 SQLite persistence.
 pub struct AltSvcManager {
-    cache: DashMap<(String, u16), Vec<AltSvcRecord>>,
+    cache: FastDashMap<(String, u16), Vec<AltSvcRecord>>,
     db: Arc<Database>,
 }
 
@@ -216,7 +216,7 @@ impl AltSvcManager {
     /// Create a new AltSvcManager backed by the database.
     pub fn new(db: Arc<Database>) -> Self {
         Self {
-            cache: DashMap::new(),
+            cache: FastDashMap::default(),
             db,
         }
     }

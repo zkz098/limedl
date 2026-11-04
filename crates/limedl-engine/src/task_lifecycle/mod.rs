@@ -186,10 +186,7 @@ impl TaskLifecycle {
                         manager.emit_single_summary(&managed);
 
                         let download_id = managed.lock_core().snapshot.id.clone();
-                        let gid = format!(
-                            "{:016x}",
-                            xxhash_rust::xxh3::xxh3_64(download_id.as_bytes())
-                        );
+                        let gid = crate::internal_id_to_gid(&download_id);
                         manager
                             .event_bus()
                             .publish(DownloadEvent::Aria2Notification {

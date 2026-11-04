@@ -59,8 +59,7 @@ pub fn info_hash_to_engine(hash: &InfoHash) -> Id20 {
 /// Compute an Aria2-compatible GID from an info hash.
 pub fn internal_id_to_gid(info_hash: &Id20) -> String {
     let hex = info_hash.as_string();
-    let hash = xxhash_rust::xxh3::xxh3_64(hex.as_bytes());
-    format!("{:016x}", hash)
+    limedl_types::internal_id_to_gid(&hex)
 }
 
 // ---------------------------------------------------------------------------

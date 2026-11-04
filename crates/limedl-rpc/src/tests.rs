@@ -331,7 +331,7 @@ fn internal_id_to_gid_bt_prefix() {
 
 #[test]
 fn internal_id_to_gid_empty_string() {
-    // xxh3_64 of empty bytes still produces 16 hex chars
+    // BLAKE3 prefix of empty bytes still produces 16 hex chars
     let gid = internal_id_to_gid("");
     assert_eq!(gid.len(), 16);
     assert!(gid.chars().all(|c| c.is_ascii_hexdigit()));

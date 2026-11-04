@@ -6,7 +6,7 @@ use super::*;
 fn test_internal_id_to_gid_known_hash() {
     let ih = Id20::new([0u8; 20]);
     let gid = internal_id_to_gid(&ih);
-    // xxh3_64 of 40 zero hex chars should be deterministic
+    // BLAKE3 prefix of 40 zero hex chars should be deterministic
     assert_eq!(gid.len(), 16);
     assert!(gid.chars().all(|c| c.is_ascii_hexdigit()));
 }

@@ -40,3 +40,12 @@ pub fn now_ms() -> u64 {
         .unwrap_or_else(|_| Duration::from_secs(0))
         .as_millis() as u64
 }
+
+/// Deterministically map an internal task ID (`UUID` or 40-char `InfoHash` hex)
+/// to an Aria2-compatible 16-character lowercase hex GID using BLAKE3.
+pub fn internal_id_to_gid(internal_id: &str) -> String {
+    let digest = blake3::hash(internal_id.as_bytes());
+    let b = digest.as_bytes();
+    let prefix = u64::from_be_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]);
+    format!("{prefix:016x}")
+}

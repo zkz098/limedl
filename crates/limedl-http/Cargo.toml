@@ -21,7 +21,6 @@ tokio = { workspace = true }
 parking_lot = { workspace = true }
 percent-encoding = { workspace = true }
 sanitize-filename = { workspace = true }
-time = { workspace = true }
 
 [features]
 # `rate_limiter` exposes its occupancy counters to the engine's tests only.

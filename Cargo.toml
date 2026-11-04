@@ -59,7 +59,6 @@ sha2 = "0.11"
 argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"] }
 # Constant-time comparison for the shared-secret path.
 subtle = "2"
-xxhash-rust = { version = "0.8", features = ["xxh3"] }
 sanitize-filename = "0.6"
 thiserror = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
@@ -74,7 +73,7 @@ time = { version = ">=0.3.37, <0.4", features = ["local-offset"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
 axum = { version = "0.8", features = ["ws"] }
-tower-http = { version = "0.7", features = ["cors"] }
+tower-http = { version = "0.6", features = ["cors"] }
 base64 = "0.23"
 rusqlite = { version = "0.41", features = ["bundled", "cache"] }
 async-trait = "0.1"
@@ -100,7 +99,7 @@ ml-dsa = { version = "0.1.1", default-features = false, features = ["alloc", "ge
 mimalloc = "0.1"
 clap = { version = "4", features = ["derive"] }
 tempfile = "3"
-tokio-tungstenite = "0.30"
+tokio-tungstenite = "0.29"
 divan = "0.1"
 proptest = "1"
 slint = { version = "1.18", default-features = false }

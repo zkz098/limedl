@@ -32,7 +32,6 @@ limedl-store = { path = "../limedl-store", default-features = false }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 reqwest = { workspace = true }
-futures-util = { workspace = true }
 sanitize-filename = { workspace = true }
 uuid = { workspace = true }
 anyhow = { workspace = true }
@@ -44,7 +43,6 @@ bytes = { workspace = true }
 foldhash = { workspace = true }
 parking_lot = { workspace = true }
 serde_json = { workspace = true }
-rand = { workspace = true }
 open = { workspace = true }
 
 [features]
@@ -83,6 +81,7 @@ limedl-testkit = { path = "../limedl-testkit" }
 axum = { workspace = true }
 
 tempfile = { workspace = true }
+futures-util = { workspace = true }
 rand = { workspace = true }
 divan = { workspace = true }
 # Randomized fault-matrix E2E tests (`src/tests/fault_schedule_tests.rs`).

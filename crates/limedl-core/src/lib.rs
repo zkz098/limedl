@@ -27,7 +27,7 @@ pub use limedl_types::{
     aria2_cli, checksum, error, event_bus, manifest, platform, protocol, settings, slot_guard,
     types, url_rewrite, url_utils,
 };
-pub use limedl_types::{lock, now_ms};
+pub use limedl_types::{internal_id_to_gid, lock, now_ms};
 
 // Disk/I/O substrate. Re-exported as modules for the same reason as the
 // foundation layer: `crate::file_ops::…` / `crate::buffer_pool::…` keep

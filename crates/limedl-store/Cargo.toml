@@ -21,7 +21,6 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 parking_lot = { workspace = true }
 foldhash = { workspace = true }
-dashmap = { workspace = true }
 # `alt_svc` stores and matches `reqwest::Url`/header values.
 url = { workspace = true }
 http = { workspace = true }
