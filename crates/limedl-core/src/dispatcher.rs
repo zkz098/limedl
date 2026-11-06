@@ -28,7 +28,7 @@ use crate::bt_backend::{LazyBtBackend, info_hash_to_engine};
 use crate::cdn::CdnService;
 use crate::error::{DownloadError, Result};
 use crate::event_bus::{DownloadEvent, EventBus};
-use crate::services::{ConcurrencyManager, DiskIoService, SettingsService};
+use crate::services::{ConcurrencyManager, DiskIoService, IoStatusSnapshot, SettingsService};
 use crate::types::{
     AppSettings, ChecksumMode, DiskType, DownloadProgress, DownloadSnapshot, DownloadState,
     DownloadSummary, IntegrityVerificationResult, Priority, StartDownloadRequest, TaskId,
@@ -444,7 +444,7 @@ impl Dispatcher {
     }
 
     /// Get buffer pool and IO status payload.
-    pub fn get_io_status(&self) -> Result<serde_json::Value> {
+    pub fn get_io_status(&self) -> Result<IoStatusSnapshot> {
         if let Some(disk) = &self.disk_io {
             Ok(disk.get_io_status())
         } else {

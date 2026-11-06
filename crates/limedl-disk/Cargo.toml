@@ -21,7 +21,6 @@ tracing = { workspace = true }
 parking_lot = { workspace = true }
 bytes = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 foldhash = { workspace = true }
 async-trait = { workspace = true }
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use limedl_core::services::IoStatusSnapshot;
 use limedl_core::types::DiskType;
 
 use crate::i18n::{self, Language};
@@ -57,25 +58,12 @@ pub fn format_disk_types_map(disks: &HashMap<String, DiskType>, lang: Language) 
     parts.join(" | ")
 }
 
-/// Format buffer pool / IO status JSON payload.
-pub fn format_io_status_json(val: &serde_json::Value, lang: Language) -> String {
-    let allocated = val
-        .get("allocatedBytes")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
-    let capacity = val
-        .get("capacityBytes")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(1024 * 1024 * 1024);
-    let active_buffers = val
-        .get("activeBuffers")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
-
+/// Format buffer pool / IO status snapshot.
+pub fn format_io_status(status: &IoStatusSnapshot, lang: Language) -> String {
     i18n::format_io_status_line(
-        &format_bytes(allocated),
-        &format_bytes(capacity),
-        active_buffers,
+        &format_bytes(status.buffer_usage_bytes),
+        &format_bytes(status.buffer_limit_bytes),
+        status.active_slots as u64,
         lang,
     )
 }

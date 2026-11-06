@@ -800,13 +800,18 @@ fn test_disk_types_and_io_status() {
         "No disk information detected"
     );
 
-    let io_val = serde_json::json!({
-        "allocatedBytes": 1024 * 1024 * 64,
-        "capacityBytes": 1024 * 1024 * 1024,
-        "activeBuffers": 2
-    });
-    let io_text = format_io_status_json(&io_val, Language::ZhCn);
-    let io_text_en = format_io_status_json(&io_val, Language::EnUs);
+    let io_status = limedl_core::services::IoStatusSnapshot {
+        game_mode: false,
+        buffer_usage_bytes: 1024 * 1024 * 64,
+        buffer_limit_bytes: 1024 * 1024 * 1024,
+        active_slots: 2,
+        max_slots: 16,
+        queued_count: 0,
+        degradation_count: 0,
+        devices: Vec::new(),
+    };
+    let io_text = format_io_status(&io_status, Language::ZhCn);
+    let io_text_en = format_io_status(&io_status, Language::EnUs);
     assert!(!io_text_en.contains("已用缓存"));
     assert!(io_text.contains("64.00 MB"));
     assert!(io_text.contains("1.00 GB"));

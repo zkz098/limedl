@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 
 use crate::buffer_pool::BufferPool;
 use crate::file_ops::{detect_all_disk_types, detect_disk_type, lookup_media_override};
-use crate::io_scheduler::DiskDeviceManager;
+use crate::io_scheduler::{DeviceMetric, DiskDeviceManager};
 use crate::services::SettingsService;
 use crate::types::DiskType;
 
@@ -104,19 +104,19 @@ impl DiskIoService {
     }
 
     /// Return full I/O baseline and buffer pool status payload.
-    pub fn get_io_status(&self) -> serde_json::Value {
+    pub fn get_io_status(&self) -> IoStatusSnapshot {
         let pool = &self.buffer_pool;
         let devices = self.device_manager.get_device_metrics();
-        serde_json::json!({
-            "gameMode": pool.game_mode(),
-            "bufferUsageBytes": pool.current_usage(),
-            "bufferLimitBytes": pool.effective_limit(),
-            "activeSlots": pool.active_slots(),
-            "maxSlots": pool.max_slots(),
-            "queuedCount": pool.queued_count(),
-            "degradationCount": pool.degradation_count(),
-            "devices": devices,
-        })
+        IoStatusSnapshot {
+            game_mode: pool.game_mode(),
+            buffer_usage_bytes: pool.current_usage(),
+            buffer_limit_bytes: pool.effective_limit(),
+            active_slots: pool.active_slots(),
+            max_slots: pool.max_slots(),
+            queued_count: pool.queued_count(),
+            degradation_count: pool.degradation_count(),
+            devices,
+        }
     }
 
     pub fn game_mode(&self) -> bool {
@@ -137,4 +137,18 @@ impl DiskIoService {
     pub fn buffer_pool(&self) -> &Arc<BufferPool> {
         &self.buffer_pool
     }
+}
+
+/// Point-in-time snapshot of the buffer pool and device I/O status.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IoStatusSnapshot {
+    pub game_mode: bool,
+    pub buffer_usage_bytes: u64,
+    pub buffer_limit_bytes: u64,
+    pub active_slots: u32,
+    pub max_slots: u32,
+    pub queued_count: u32,
+    pub degradation_count: usize,
+    pub devices: Vec<DeviceMetric>,
 }

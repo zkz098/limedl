@@ -12,7 +12,7 @@ use crate::bridge::{
     app_settings_to_labs_form, aria2_clients_from_settings, aria2_clients_to_slint,
     cdn_candidates_to_slint, column_is_visible, disk_override_rows_from_settings,
     disk_override_rows_to_slint, evaluate_url_rewrite, field_to_sort_key, format_disk_types_map,
-    format_io_status_json, format_speed, index_is_hdd, speed_limit_slots_from_settings,
+    format_io_status, format_speed, index_is_hdd, speed_limit_slots_from_settings,
     speed_limit_slots_to_slint, url_rewrite_rules_to_slint,
 };
 use crate::i18n::{self, Language};
@@ -245,7 +245,7 @@ pub fn refresh_settings_state(
     lang: Language,
 ) {
     let io_status_str = match dispatcher.get_io_status() {
-        Ok(v) => format_io_status_json(&v, lang),
+        Ok(v) => format_io_status(&v, lang),
         Err(_) => i18n::format_io_status_not_ready(lang).to_string(),
     };
     let disk_types = dispatcher.detect_all_disk_types();

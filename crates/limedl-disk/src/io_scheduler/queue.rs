@@ -19,7 +19,7 @@ use crate::file_ops::write_coalesced_entries;
 use crate::types::DiskType;
 
 /// Metrics for a single storage device queue.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DeviceMetric {
     pub device_id: DeviceId,
     pub disk_type: DiskType,
