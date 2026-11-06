@@ -20,7 +20,7 @@ members = [
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "0.6.1"
+version = "0.6.2"
 license = "GPL-3.0-or-later"
 
 [workspace.dependencies]
