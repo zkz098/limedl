@@ -58,37 +58,11 @@ impl ConcurrencyManager {
 
     /// Try to acquire an HTTP download slot.
     pub fn try_acquire_http(&self) -> Result<DownloadSlotGuard, DownloadError> {
-        let max = self.max_concurrent_http.load(Ordering::Acquire);
-        let counter = &self.active_http_count;
-        loop {
-            let current = counter.load(Ordering::Acquire);
-            if current >= max {
-                return Err(DownloadError::TooManyConcurrentDownloads);
-            }
-            if counter
-                .compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
-                .is_ok()
-            {
-                return Ok(DownloadSlotGuard::new(self.active_http_count.clone()));
-            }
-        }
+        DownloadSlotGuard::try_acquire(&self.active_http_count, &self.max_concurrent_http)
     }
 
     /// Try to acquire a BT download slot.
     pub fn try_acquire_bt(&self) -> Result<DownloadSlotGuard, DownloadError> {
-        let max = self.max_concurrent_bt.load(Ordering::Acquire);
-        let counter = &self.active_bt_count;
-        loop {
-            let current = counter.load(Ordering::Acquire);
-            if current >= max {
-                return Err(DownloadError::TooManyConcurrentDownloads);
-            }
-            if counter
-                .compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
-                .is_ok()
-            {
-                return Ok(DownloadSlotGuard::new(self.active_bt_count.clone()));
-            }
-        }
+        DownloadSlotGuard::try_acquire(&self.active_bt_count, &self.max_concurrent_bt)
     }
 }

@@ -63,20 +63,7 @@ impl RqbitBtBackend {
 
     /// Try to acquire a slot for a new BT download.
     fn try_acquire_bt_slot(&self) -> Result<DownloadSlotGuard> {
-        let max = self.max_concurrent_bt.load(Ordering::Acquire);
-        let counter = &self.active_bt_count;
-        loop {
-            let current = counter.load(Ordering::Acquire);
-            if current >= max {
-                return Err(DownloadError::TooManyConcurrentDownloads);
-            }
-            if counter
-                .compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
-                .is_ok()
-            {
-                return Ok(DownloadSlotGuard::new(self.active_bt_count.clone()));
-            }
-        }
+        DownloadSlotGuard::try_acquire(&self.active_bt_count, &self.max_concurrent_bt)
     }
 
     // ── Download operations ───────────────────────────────────────────────

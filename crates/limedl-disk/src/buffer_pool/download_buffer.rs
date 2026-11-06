@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use bytes::Bytes;
 use parking_lot::Mutex;
@@ -24,7 +24,7 @@ pub struct FlipTokenGuard<'a> {
 
 impl<'a> Drop for FlipTokenGuard<'a> {
     fn drop(&mut self) {
-        self.token.store(false, Ordering::Release);
+        self.token.store(false, Ordering::SeqCst);
         self.notify.notify_waiters();
     }
 }
@@ -54,15 +54,100 @@ struct PingPongCfg<'a> {
     observer: Option<&'a FlushObserver>,
 }
 
+/// Synchronized foreground accumulation half for [`DownloadBuffer`].
+///
+/// Keeping the offset map and its tracked byte count inside a single
+/// `parking_lot::Mutex` ensures capacity checks, overlapping-offset
+/// replacements, and flip drains execute atomically without multi-variable
+/// tear windows. The second ("pong") half of the double-buffer is the
+/// `Vec<(u64, Bytes)>` batch owned by the in-flight background flush task in
+/// `flush_handle`.
+#[derive(Default)]
+pub struct PingPongState {
+    entries: BTreeMap<u64, Bytes>,
+    usage: u64,
+}
+
+impl PingPongState {
+    /// Try to insert `(offset, data)` if it fits within `half_size`.
+    ///
+    /// Accounts for overlapping-offset replacements so `self.usage` and the
+    /// global `pool` counter always match the exact sum of buffered bytes.
+    fn try_insert(
+        &mut self,
+        offset: u64,
+        data: &Bytes,
+        half_size: u64,
+        pool: Option<&Arc<BufferPool>>,
+    ) -> bool {
+        let len = data.len() as u64;
+        let prev_len = self.entries.get(&offset).map_or(0, |b| b.len() as u64);
+        let next_usage = self.usage - prev_len + len;
+        if next_usage > half_size {
+            return false;
+        }
+        self.entries.insert(offset, data.clone());
+        self.usage = next_usage;
+        adjust_pool_usage(pool, prev_len, len);
+        true
+    }
+
+    /// Insert `(offset, data)` into a freshly drained state.
+    fn insert_fresh(&mut self, offset: u64, data: Bytes, pool: Option<&Arc<BufferPool>>) {
+        let len = data.len() as u64;
+        let prev_len = self
+            .entries
+            .insert(offset, data)
+            .map_or(0, |b| b.len() as u64);
+        self.usage = self.usage - prev_len + len;
+        adjust_pool_usage(pool, prev_len, len);
+    }
+
+    /// Drain all buffered entries in offset order and reset tracked usage.
+    fn drain(&mut self, pool: Option<&Arc<BufferPool>>) -> Vec<(u64, Bytes)> {
+        if self.entries.is_empty() {
+            self.usage = 0;
+            return Vec::new();
+        }
+        let entries: Vec<(u64, Bytes)> = std::mem::take(&mut self.entries).into_iter().collect();
+        let bytes = std::mem::replace(&mut self.usage, 0);
+        if let Some(p) = pool
+            && bytes > 0
+        {
+            p.sub_usage(bytes);
+        }
+        entries
+    }
+
+    /// Discard all buffered entries and return the number of bytes cleared.
+    fn clear(&mut self, pool: Option<&Arc<BufferPool>>) -> u64 {
+        self.entries.clear();
+        let bytes = std::mem::replace(&mut self.usage, 0);
+        if let Some(p) = pool
+            && bytes > 0
+        {
+            p.sub_usage(bytes);
+        }
+        bytes
+    }
+}
+
+/// Update global pool usage when a buffered entry changes size from `prev_len` to `new_len`.
+fn adjust_pool_usage(pool: Option<&Arc<BufferPool>>, prev_len: u64, new_len: u64) {
+    if let Some(p) = pool {
+        if new_len > prev_len {
+            p.add_usage(new_len - prev_len);
+        } else if prev_len > new_len {
+            p.sub_usage(prev_len - new_len);
+        }
+    }
+}
+
 /// Internal mode for `DownloadBuffer`.
 pub enum BufferMode {
     /// Double-buffer mode used for HDD downloads.
     Double {
-        half_a: Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        half_b: Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        active_is_a: AtomicBool, // true = half_a is receiving writes
-        usage_a: AtomicU64,
-        usage_b: AtomicU64,
+        state: Mutex<PingPongState>,
         half_size: u64,
         flush_handle: Mutex<Option<JoinHandle<()>>>,
         notify: Arc<Notify>,
@@ -76,11 +161,7 @@ pub enum BufferMode {
     /// Local ping-pong mode for SSD write combining.
     /// Same double-buffer logic as HDD but without global pool/slot management.
     LocalPingPong {
-        half_a: Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        half_b: Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        active_is_a: AtomicBool,
-        usage_a: AtomicU64,
-        usage_b: AtomicU64,
+        state: Mutex<PingPongState>,
         half_size: u64,
         flush_handle: Mutex<Option<JoinHandle<()>>>,
         notify: Arc<Notify>,
@@ -128,11 +209,7 @@ impl DownloadBuffer {
         let half_size = pool.half_size();
         Self {
             mode: BufferMode::Double {
-                half_a: Arc::new(Mutex::new(BTreeMap::new())),
-                half_b: Arc::new(Mutex::new(BTreeMap::new())),
-                active_is_a: AtomicBool::new(true),
-                usage_a: AtomicU64::new(0),
-                usage_b: AtomicU64::new(0),
+                state: Mutex::new(PingPongState::default()),
                 half_size,
                 flush_handle: Mutex::new(None),
                 notify: Arc::new(Notify::new()),
@@ -160,11 +237,7 @@ impl DownloadBuffer {
         let half_size = pool.half_size();
         Self {
             mode: BufferMode::Double {
-                half_a: Arc::new(Mutex::new(BTreeMap::new())),
-                half_b: Arc::new(Mutex::new(BTreeMap::new())),
-                active_is_a: AtomicBool::new(true),
-                usage_a: AtomicU64::new(0),
-                usage_b: AtomicU64::new(0),
+                state: Mutex::new(PingPongState::default()),
                 half_size,
                 flush_handle: Mutex::new(None),
                 notify: Arc::new(Notify::new()),
@@ -193,11 +266,7 @@ impl DownloadBuffer {
     ) -> Self {
         Self {
             mode: BufferMode::LocalPingPong {
-                half_a: Arc::new(Mutex::new(BTreeMap::new())),
-                half_b: Arc::new(Mutex::new(BTreeMap::new())),
-                active_is_a: AtomicBool::new(true),
-                usage_a: AtomicU64::new(0),
-                usage_b: AtomicU64::new(0),
+                state: Mutex::new(PingPongState::default()),
                 half_size,
                 flush_handle: Mutex::new(None),
                 notify: Arc::new(Notify::new()),
@@ -221,11 +290,7 @@ impl DownloadBuffer {
     pub async fn buffer_chunk(&self, offset: u64, data: Bytes) -> Result<(), DownloadError> {
         match &self.mode {
             BufferMode::Double {
-                half_a,
-                half_b,
-                active_is_a,
-                usage_a,
-                usage_b,
+                state,
                 half_size,
                 flush_handle,
                 notify,
@@ -237,11 +302,7 @@ impl DownloadBuffer {
             } => {
                 self.buffer_chunk_double(
                     PingPongRefs {
-                        half_a,
-                        half_b,
-                        active_is_a,
-                        usage_a,
-                        usage_b,
+                        state,
                         half_size: *half_size,
                         flush_handle,
                         notify,
@@ -256,11 +317,7 @@ impl DownloadBuffer {
                 .await
             }
             BufferMode::LocalPingPong {
-                half_a,
-                half_b,
-                active_is_a,
-                usage_a,
-                usage_b,
+                state,
                 half_size,
                 flush_handle,
                 notify,
@@ -271,11 +328,7 @@ impl DownloadBuffer {
             } => {
                 self.buffer_chunk_local_pingpong(
                     PingPongRefs {
-                        half_a,
-                        half_b,
-                        active_is_a,
-                        usage_a,
-                        usage_b,
+                        state,
                         half_size: *half_size,
                         flush_handle,
                         notify,
@@ -318,30 +371,28 @@ impl DownloadBuffer {
                 ));
             }
 
-            let is_a = halves.active_is_a.load(Ordering::Acquire);
-            let selected = halves.select(is_a);
-
-            // Fast path — room available in the active half.
-            let current = selected.active_usage.load(Ordering::Acquire);
-            if current + len <= halves.half_size {
-                let mut active_guard = selected.active_map.lock();
-                if halves.active_is_a.load(Ordering::Acquire) != is_a {
-                    // The active half switched while we awaited the lock — retry.
-                    continue;
-                }
-                active_guard.insert(offset, data);
-                selected.active_usage.fetch_add(len, Ordering::Release);
-                if let Some(p) = cfg.pool {
-                    p.add_usage(len);
-                }
+            // Fast path — check capacity and insert atomically under `state` lock.
+            if halves
+                .state
+                .lock()
+                .try_insert(offset, &data, halves.half_size, cfg.pool)
+            {
                 return Ok(());
             }
 
             // Active half is full → need to flip.
+            // Register notification interest BEFORE attempting to acquire `flip_token`
+            // so that a concurrent flipper dropping `FlipTokenGuard` (calling
+            // `notify_waiters()`) between our `swap(true)` and `.await` cannot lose
+            // the wakeup.
+            let notified = halves.notify.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+
             // Acquire the flip token to serialise flips.
-            if halves.flip_token.swap(true, Ordering::Acquire) {
+            if halves.flip_token.swap(true, Ordering::SeqCst) {
                 // Someone else is flipping — wait for room.
-                halves.notify.notified().await;
+                notified.await;
                 continue;
             }
 
@@ -351,7 +402,18 @@ impl DownloadBuffer {
                 notify: halves.notify,
             };
 
-            // We hold the flip token. Check if a background flush is still running.
+            // Re-check capacity under `state` lock in case another flipper just
+            // rotated the buffer right before we acquired `flip_token`.
+            if halves
+                .state
+                .lock()
+                .try_insert(offset, &data, halves.half_size, cfg.pool)
+            {
+                return Ok(());
+            }
+
+            // We hold the flip token and the active half is full. Wait for any
+            // previous background flush to finish before rotating the active half out.
             let prev_handle = halves.flush_handle.lock().take();
             if let Some(h) = prev_handle {
                 let _ = h.await;
@@ -360,20 +422,18 @@ impl DownloadBuffer {
                         "background buffer flush failed".into(),
                     ));
                 }
-                continue;
             }
 
-            let folded = fold_leftovers(selected.inactive_map, selected.inactive_usage, &cfg);
+            // Lock `state` to atomically drain the full half, spawn its background
+            // flush, record the flush handle, and insert the new chunk into the
+            // freshly drained active half.
+            let mut state = halves.state.lock();
+            if state.try_insert(offset, &data, halves.half_size, cfg.pool) {
+                return Ok(());
+            }
 
             // ---- FLIP ----
-            let old_entries = take_entries_with(selected.active_map, folded);
-            let old_bytes: u64 = old_entries.iter().map(|(_, d)| d.len() as u64).sum();
-            selected.active_usage.store(0, Ordering::Release);
-            if let Some(p) = cfg.pool {
-                p.sub_usage(old_bytes);
-            }
-
-            // Spawn background flush for the old active half's data.
+            let old_entries = state.drain(cfg.pool);
             let bg_handle = spawn_background_flush(
                 self.flush_sink.as_ref(),
                 &cfg,
@@ -382,14 +442,8 @@ impl DownloadBuffer {
                 halves.notify,
                 old_entries,
             );
-
             *halves.flush_handle.lock() = Some(bg_handle);
-
-            // Atomically flip the active half.
-            halves.active_is_a.store(!is_a, Ordering::Release);
-
-            // Insert the current chunk into the new active half.
-            insert_new_active(&halves, &cfg, offset, data, len);
+            state.insert_fresh(offset, data, cfg.pool);
 
             return Ok(());
         }
@@ -433,231 +487,118 @@ impl DownloadBuffer {
             .await
     }
 
-    /// Flush a single half's buffer to disk without pool tracking.
-    /// Used by `flush_all` for LocalPingPong mode.
-    async fn flush_one_half_local(
-        half: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        usage: &AtomicU64,
-        file: &Arc<File>,
-        sink: Option<&FlushSink>,
-        observer: Option<&FlushObserver>,
-    ) -> Result<(), DownloadError> {
-        let entries: Vec<(u64, Bytes)> = {
-            let mut map = half.lock();
-            if map.is_empty() {
-                return Ok(());
-            }
-            std::mem::take(&mut *map).into_iter().collect()
-        };
-        let ranges = entry_ranges(&entries);
-        usage.store(0, Ordering::Release);
-        if let Some(sink) = sink {
-            sink.worker
-                .write_batch(&sink.path, file.clone(), entries, SyncMode::None)
-                .await?;
-        } else {
-            let f = file.clone();
-            tokio::task::spawn_blocking(move || -> Result<(), DownloadError> {
-                for (off, chunk) in &entries {
-                    write_all_at(&f, chunk, *off)?;
-                }
-                f.sync_data()
-                    .map_err(|e| DownloadError::Internal(format!("fsync failed: {e}")))?;
-                Ok(())
-            })
-            .await
-            .map_err(|e| DownloadError::Internal(format!("flush task failed: {e}")))??;
-        }
-        notify_flushed(observer, &ranges);
-        Ok(())
-    }
-
     /// Flush all buffered data to disk.
     ///
-    /// In HDD double-buffer mode: waits for any active background flush, then
-    /// flushes both halves synchronously (via spawn_blocking / IoWorker).
-    /// In SSD ping-pong mode: flushes both halves synchronously.
+    /// Waits for any active background flush, then flushes the foreground
+    /// accumulation buffer synchronously (via `IoWorker` or `spawn_blocking`).
     ///
     /// Returns an error if any flush failed.
     pub async fn flush_all(&self) -> Result<(), DownloadError> {
         match &self.mode {
             BufferMode::Double {
-                half_a,
-                half_b,
-                active_is_a,
-                usage_a,
-                usage_b,
+                state,
                 flush_handle,
-                notify: _,
                 error_flag,
                 pool,
                 file,
                 ..
             } => {
-                // 1. Wait for any in-progress background flush.
-                let handle = flush_handle.lock().take();
-                if let Some(h) = handle {
-                    let _ = h.await;
-                    if error_flag.load(Ordering::Acquire) {
-                        return Err(DownloadError::Internal(
-                            "background buffer flush failed".into(),
-                        ));
-                    }
-                }
-
-                // 2. Determine which half is active and which is inactive.
-                let is_a = active_is_a.load(Ordering::Acquire);
-                let (active, active_usage, inactive, inactive_usage) = if is_a {
-                    (half_a, usage_a, half_b, usage_b)
-                } else {
-                    (half_b, usage_b, half_a, usage_a)
-                };
-
-                // 3. Flush active half.
-                Self::flush_one_half(
-                    active,
-                    active_usage,
+                self.flush_all_impl(
+                    state,
+                    flush_handle,
+                    error_flag,
                     file,
-                    self.flush_sink.as_ref(),
-                    pool,
-                    self.flush_observer.as_ref(),
+                    Some(pool),
+                    SyncMode::Force,
+                    false,
                 )
-                .await?;
-
-                // 4. Flush inactive half (should be empty, but be safe).
-                Self::flush_one_half(
-                    inactive,
-                    inactive_usage,
-                    file,
-                    self.flush_sink.as_ref(),
-                    pool,
-                    self.flush_observer.as_ref(),
-                )
-                .await?;
-
-                // 5. Check error flag one more time.
-                if error_flag.load(Ordering::Acquire) {
-                    return Err(DownloadError::Internal(
-                        "background buffer flush failed".into(),
-                    ));
-                }
-
-                Ok(())
+                .await
             }
             BufferMode::LocalPingPong {
-                half_a,
-                half_b,
-                active_is_a,
-                usage_a,
-                usage_b,
+                state,
                 flush_handle,
                 error_flag,
                 file,
                 ..
             } => {
-                // 1. Wait for any in-progress background flush.
-                let handle = flush_handle.lock().take();
-                if let Some(h) = handle {
-                    let _ = h.await;
-                    if error_flag.load(Ordering::Acquire) {
-                        return Err(DownloadError::Internal(
-                            "background buffer flush failed".into(),
-                        ));
-                    }
-                }
-
-                // 2. Determine which half is active and which is inactive.
-                let is_a = active_is_a.load(Ordering::Acquire);
-                let (active, active_usage, inactive, inactive_usage) = if is_a {
-                    (half_a, usage_a, half_b, usage_b)
-                } else {
-                    (half_b, usage_b, half_a, usage_a)
-                };
-
-                // 3. Flush active half.
-                Self::flush_one_half_local(
-                    active,
-                    active_usage,
+                self.flush_all_impl(
+                    state,
+                    flush_handle,
+                    error_flag,
                     file,
-                    self.flush_sink.as_ref(),
-                    self.flush_observer.as_ref(),
+                    None,
+                    SyncMode::None,
+                    true,
                 )
-                .await?;
-
-                // 4. Flush inactive half (should be empty, but be safe).
-                Self::flush_one_half_local(
-                    inactive,
-                    inactive_usage,
-                    file,
-                    self.flush_sink.as_ref(),
-                    self.flush_observer.as_ref(),
-                )
-                .await?;
-
-                // 5. Check error flag one more time.
-                if error_flag.load(Ordering::Acquire) {
-                    return Err(DownloadError::Internal(
-                        "background buffer flush failed".into(),
-                    ));
-                }
-
-                Ok(())
+                .await
             }
         }
     }
 
-    /// Helper: drain a single half's buffer and write everything to disk
-    /// via IoWorker or spawn_blocking.
-    async fn flush_one_half(
-        half: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-        usage: &AtomicU64,
+    /// Shared implementation of [`Self::flush_all`] for both buffer modes.
+    #[allow(clippy::too_many_arguments)]
+    async fn flush_all_impl(
+        &self,
+        state: &Mutex<PingPongState>,
+        flush_handle: &Mutex<Option<JoinHandle<()>>>,
+        error_flag: &Arc<AtomicBool>,
         file: &Arc<File>,
-        sink: Option<&FlushSink>,
-        pool: &Arc<BufferPool>,
-        observer: Option<&FlushObserver>,
+        pool: Option<&Arc<BufferPool>>,
+        sync_mode: SyncMode,
+        fallback_fsync: bool,
     ) -> Result<(), DownloadError> {
-        let entries: Vec<(u64, Bytes)> = {
-            let mut map = half.lock();
-            if map.is_empty() {
-                return Ok(());
+        // 1. Wait for any in-progress background flush.
+        let handle = flush_handle.lock().take();
+        if let Some(h) = handle {
+            let _ = h.await;
+            if error_flag.load(Ordering::Acquire) {
+                return Err(DownloadError::Internal(
+                    "background buffer flush failed".into(),
+                ));
             }
-            std::mem::take(&mut *map).into_iter().collect()
-        };
-        let ranges = entry_ranges(&entries);
-        let bytes: u64 = entries.iter().map(|(_, d)| d.len() as u64).sum();
-        usage.store(0, Ordering::Release);
-        pool.sub_usage(bytes);
-
-        if let Some(sink) = sink {
-            sink.worker
-                .write_batch(&sink.path, file.clone(), entries, SyncMode::Force)
-                .await?;
-        } else {
-            let f = file.clone();
-            tokio::task::spawn_blocking(move || -> std::result::Result<(), DownloadError> {
-                for (off, chunk) in &entries {
-                    write_all_at(&f, chunk, *off)?;
-                }
-                Ok(())
-            })
-            .await
-            .map_err(|e| DownloadError::Internal(format!("flush task failed: {e}")))??;
         }
 
-        notify_flushed(observer, &ranges);
+        // 2. Drain and flush the active buffer.
+        let entries = state.lock().drain(pool);
+        if !entries.is_empty() {
+            let ranges = entry_ranges(&entries);
+            if let Some(sink) = self.flush_sink.as_ref() {
+                sink.worker
+                    .write_batch(&sink.path, file.clone(), entries, sync_mode)
+                    .await?;
+            } else {
+                let f = file.clone();
+                tokio::task::spawn_blocking(move || -> Result<(), DownloadError> {
+                    for (off, chunk) in &entries {
+                        write_all_at(&f, chunk, *off)?;
+                    }
+                    if fallback_fsync {
+                        f.sync_data()
+                            .map_err(|e| DownloadError::Internal(format!("fsync failed: {e}")))?;
+                    }
+                    Ok(())
+                })
+                .await
+                .map_err(|e| DownloadError::Internal(format!("flush task failed: {e}")))??;
+            }
+            notify_flushed(self.flush_observer.as_ref(), &ranges);
+        }
+
+        // 3. Check error flag one more time.
+        if error_flag.load(Ordering::Acquire) {
+            return Err(DownloadError::Internal(
+                "background buffer flush failed".into(),
+            ));
+        }
+
         Ok(())
     }
 
     /// Wait for any in-progress background flush to complete, discarding its result.
     pub async fn drain_background(&self) {
         match &self.mode {
-            BufferMode::Double { flush_handle, .. } => {
-                let handle = flush_handle.lock().take();
-                if let Some(h) = handle {
-                    let _ = h.await;
-                }
-            }
-            BufferMode::LocalPingPong { flush_handle, .. } => {
+            BufferMode::Double { flush_handle, .. }
+            | BufferMode::LocalPingPong { flush_handle, .. } => {
                 let handle = flush_handle.lock().take();
                 if let Some(h) = handle {
                     let _ = h.await;
@@ -677,44 +618,18 @@ impl DownloadBuffer {
     pub fn clear(&self) {
         match &self.mode {
             BufferMode::Double {
-                half_a,
-                half_b,
-                usage_a,
-                usage_b,
+                state,
                 error_flag,
                 pool,
                 ..
             } => {
-                let (a_bytes, b_bytes) = {
-                    let mut a = half_a.lock();
-                    let mut b = half_b.lock();
-                    let a_sum = a.values().map(|d| d.len() as u64).sum::<u64>();
-                    let b_sum = b.values().map(|d| d.len() as u64).sum::<u64>();
-                    a.clear();
-                    b.clear();
-                    (a_sum, b_sum)
-                };
-                usage_a.store(0, Ordering::Release);
-                usage_b.store(0, Ordering::Release);
-                if a_bytes + b_bytes > 0 {
-                    pool.sub_usage(a_bytes + b_bytes);
-                }
+                state.lock().clear(Some(pool));
                 error_flag.store(false, Ordering::Release);
             }
             BufferMode::LocalPingPong {
-                half_a,
-                half_b,
-                usage_a,
-                usage_b,
-                error_flag,
-                ..
+                state, error_flag, ..
             } => {
-                let mut a = half_a.lock();
-                let mut b = half_b.lock();
-                a.clear();
-                b.clear();
-                usage_a.store(0, Ordering::Release);
-                usage_b.store(0, Ordering::Release);
+                state.lock().clear(None);
                 error_flag.store(false, Ordering::Release);
             }
         }
@@ -724,12 +639,9 @@ impl DownloadBuffer {
     #[cfg(any(test, feature = "test-utils"))]
     pub fn len(&self) -> u64 {
         match &self.mode {
-            BufferMode::Double {
-                usage_a, usage_b, ..
-            } => usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed),
-            BufferMode::LocalPingPong {
-                usage_a, usage_b, ..
-            } => usage_a.load(Ordering::Relaxed) + usage_b.load(Ordering::Relaxed),
+            BufferMode::Double { state, .. } | BufferMode::LocalPingPong { state, .. } => {
+                state.lock().usage
+            }
         }
     }
 
@@ -743,8 +655,8 @@ impl DownloadBuffer {
     #[cfg(any(test, feature = "test-utils"))]
     pub fn has_degraded(&self) -> bool {
         match &self.mode {
-            BufferMode::Double { error_flag, .. } => error_flag.load(Ordering::Relaxed),
-            BufferMode::LocalPingPong { error_flag, .. } => error_flag.load(Ordering::Relaxed),
+            BufferMode::Double { error_flag, .. }
+            | BufferMode::LocalPingPong { error_flag, .. } => error_flag.load(Ordering::Relaxed),
         }
     }
 }
@@ -753,46 +665,13 @@ impl DownloadBuffer {
 
 /// Borrowed state of one ping-pong buffer, shared by both buffer modes.
 struct PingPongRefs<'a> {
-    half_a: &'a Arc<Mutex<BTreeMap<u64, Bytes>>>,
-    half_b: &'a Arc<Mutex<BTreeMap<u64, Bytes>>>,
-    active_is_a: &'a AtomicBool,
-    usage_a: &'a AtomicU64,
-    usage_b: &'a AtomicU64,
+    state: &'a Mutex<PingPongState>,
     half_size: u64,
     flush_handle: &'a Mutex<Option<JoinHandle<()>>>,
     notify: &'a Arc<Notify>,
     error_flag: &'a Arc<AtomicBool>,
     flip_token: &'a AtomicBool,
     file: &'a Arc<File>,
-}
-
-/// Maps/atomics of the selected active and inactive halves.
-struct Halves<'a> {
-    active_map: &'a Arc<Mutex<BTreeMap<u64, Bytes>>>,
-    active_usage: &'a AtomicU64,
-    inactive_map: &'a Arc<Mutex<BTreeMap<u64, Bytes>>>,
-    inactive_usage: &'a AtomicU64,
-}
-
-impl<'a> PingPongRefs<'a> {
-    /// Active/inactive pair for the current `is_a` value.
-    fn select(&self, is_a: bool) -> Halves<'a> {
-        if is_a {
-            Halves {
-                active_map: self.half_a,
-                active_usage: self.usage_a,
-                inactive_map: self.half_b,
-                inactive_usage: self.usage_b,
-            }
-        } else {
-            Halves {
-                active_map: self.half_b,
-                active_usage: self.usage_b,
-                inactive_map: self.half_a,
-                inactive_usage: self.usage_a,
-            }
-        }
-    }
 }
 
 /// A single chunk larger than a half bypasses the buffer entirely.
@@ -824,45 +703,6 @@ fn notify_flushed(observer: Option<&FlushObserver>, ranges: &[(u64, u64)]) {
     if let Some(observer) = observer {
         observer(ranges);
     }
-}
-
-/// Fold (and account) leftovers of the previous inactive half, if any.
-fn fold_leftovers(
-    inactive_map: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-    inactive_usage: &AtomicU64,
-    cfg: &PingPongCfg<'_>,
-) -> Vec<(u64, Bytes)> {
-    let folded = take_entries(inactive_map);
-    let folded_bytes: u64 = folded.iter().map(|(_, d)| d.len() as u64).sum();
-    if folded_bytes > 0 {
-        inactive_usage.store(0, Ordering::Release);
-        if let Some(p) = cfg.pool {
-            p.sub_usage(folded_bytes);
-        }
-        tracing::warn!(
-            "buffer_chunk: inactive half had {} bytes without flush handle — folded into flush ({} mode)",
-            folded_bytes,
-            cfg.label,
-        );
-    }
-    folded
-}
-
-/// Drain an offset map into offset-sorted entries.
-fn take_entries(map: &Arc<Mutex<BTreeMap<u64, Bytes>>>) -> Vec<(u64, Bytes)> {
-    let mut guard = map.lock();
-    std::mem::take(&mut *guard).into_iter().collect()
-}
-
-/// Drain an offset map and append `extra` entries (folded leftovers).
-fn take_entries_with(
-    map: &Arc<Mutex<BTreeMap<u64, Bytes>>>,
-    extra: Vec<(u64, Bytes)>,
-) -> Vec<(u64, Bytes)> {
-    let mut guard = map.lock();
-    let mut merged = std::mem::take(&mut *guard);
-    merged.extend(extra);
-    merged.into_iter().collect()
 }
 
 /// Spawn the background flush for a half that was just rotated out.
@@ -958,84 +798,33 @@ fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> &str {
         .unwrap_or("<non-string panic payload>")
 }
 
-/// After a flip, insert the pending chunk into the new active half.
-fn insert_new_active(
-    halves: &PingPongRefs<'_>,
-    cfg: &PingPongCfg<'_>,
-    offset: u64,
-    data: Bytes,
-    len: u64,
-) {
-    let (new_map, new_usage) = if halves.active_is_a.load(Ordering::Acquire) {
-        (halves.half_a, halves.usage_a)
-    } else {
-        (halves.half_b, halves.usage_b)
-    };
-    new_map.lock().insert(offset, data);
-    new_usage.fetch_add(len, Ordering::Release);
-    if let Some(p) = cfg.pool {
-        p.add_usage(len);
-    }
-}
-
 impl Drop for DownloadBuffer {
     fn drop(&mut self) {
         match &self.mode {
             BufferMode::Double {
-                half_a,
-                half_b,
-                usage_a,
-                usage_b,
+                state,
                 error_flag,
                 pool,
                 ..
             } => {
-                let (a_bytes, b_bytes) = {
-                    let mut a = half_a.lock();
-                    let mut b = half_b.lock();
-                    let a_sum = a.values().map(|d| d.len() as u64).sum::<u64>();
-                    let b_sum = b.values().map(|d| d.len() as u64).sum::<u64>();
-                    a.clear();
-                    b.clear();
-                    (a_sum, b_sum)
-                };
-                let total = a_bytes + b_bytes;
+                let total = state.lock().clear(Some(pool));
                 if total > 0 {
                     tracing::warn!(
                         "HDD DownloadBuffer dropped with {total} buffered bytes — data lost (possible panic unwind or unexpected cancel)"
                     );
-                    pool.sub_usage(total);
                 }
-                usage_a.store(0, Ordering::Release);
-                usage_b.store(0, Ordering::Release);
                 error_flag.store(false, Ordering::Release);
                 pool.release_slot();
             }
             BufferMode::LocalPingPong {
-                half_a,
-                half_b,
-                usage_a,
-                usage_b,
-                error_flag,
-                ..
+                state, error_flag, ..
             } => {
-                let (a_bytes, b_bytes) = {
-                    let mut a = half_a.lock();
-                    let mut b = half_b.lock();
-                    let a_sum = a.values().map(|d| d.len() as u64).sum::<u64>();
-                    let b_sum = b.values().map(|d| d.len() as u64).sum::<u64>();
-                    a.clear();
-                    b.clear();
-                    (a_sum, b_sum)
-                };
-                let total = a_bytes + b_bytes;
+                let total = state.lock().clear(None);
                 if total > 0 {
                     tracing::warn!(
                         "SSD PingPong DownloadBuffer dropped with {total} buffered bytes — data lost (possible panic unwind or unexpected cancel)"
                     );
                 }
-                usage_a.store(0, Ordering::Release);
-                usage_b.store(0, Ordering::Release);
                 error_flag.store(false, Ordering::Release);
             }
         }
