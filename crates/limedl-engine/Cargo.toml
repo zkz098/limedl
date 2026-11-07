@@ -30,6 +30,7 @@ time = { workspace = true }
 uuid = { workspace = true }
 sanitize-filename = { workspace = true }
 async-trait = { workspace = true }
+open = { workspace = true }
 # Metalink parsing (the `<file>`/`<url>` flavour that lists a download's mirrors)
 # and the base64-wrapped HTTP link form some of them use.
 quick-xml = { workspace = true }

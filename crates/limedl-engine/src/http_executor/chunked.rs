@@ -16,7 +16,7 @@ use crate::download::{
 };
 use crate::error::{DownloadError, Result};
 use crate::file_ops::open_download_file;
-use crate::manager_state::ManagerState;
+use crate::manager::DownloadManager;
 use crate::metalink::{MirrorPool, MirrorScoringConfig};
 use crate::now_ms;
 use crate::persistence::persist_manifest_snapshot;
@@ -40,7 +40,7 @@ struct ChunkedTarget {
 impl HttpExecutor {
     pub(super) async fn download_chunked(
         &self,
-        dm: Arc<dyn ManagerState>,
+        dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         client: Client,
         token: CancellationToken,
@@ -81,7 +81,7 @@ impl HttpExecutor {
 
     async fn run_chunked(
         &self,
-        dm: Arc<dyn ManagerState>,
+        dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         client: Client,
         token: CancellationToken,
@@ -273,7 +273,7 @@ impl HttpExecutor {
 ///
 /// Also publishes the detected disk type on the snapshot for the UI badge.
 async fn open_chunked_target(
-    dm: &Arc<dyn ManagerState>,
+    dm: &Arc<DownloadManager>,
     managed: &Arc<ManagedDownload>,
     _client: &Client,
 ) -> Result<(Arc<std::fs::File>, DiskType, Arc<DownloadBuffer>, bool)> {
@@ -321,7 +321,7 @@ async fn open_chunked_target(
 
 /// Everything a spawned chunk worker needs, minus the claimed chunk itself.
 struct WorkerPool<'a> {
-    dm: &'a Arc<dyn ManagerState>,
+    dm: &'a Arc<DownloadManager>,
     managed: &'a Arc<ManagedDownload>,
     client: &'a Client,
     token: &'a CancellationToken,
@@ -589,7 +589,7 @@ enum SupervisorStep {
 
 /// Fold one worker outcome into the supervisor decision.
 async fn handle_worker_outcome(
-    dm: &Arc<dyn ManagerState>,
+    dm: &Arc<DownloadManager>,
     managed: &Arc<ManagedDownload>,
     token: &CancellationToken,
     workers: &mut JoinSet<(usize, Result<ChunkWorkerOutcome>)>,

@@ -3,10 +3,9 @@
 //!
 //! Contains the background scheduler loop and adaptive AIMD thread rebalancing.
 //!
-//! `Scheduler` is an independent actor type.  All its methods receive a
-//! `&dyn ManagerState` or `Arc<dyn ManagerState>` parameter to access shared
-//! state, so this module does not depend on `manager` — which owns
-//! `Arc<Scheduler>` and implements that trait.
+//! `Scheduler` is an independent actor type. All its methods receive a
+//! `&DownloadManager` or `Arc<DownloadManager>` parameter to access shared
+//! state.
 
 use std::{
     path::Path,
@@ -28,7 +27,7 @@ use crate::{
         DEFAULT_FIXED_THREADS, MAX_TRADITIONAL_THREADS, ManagedDownload, log_background_error,
     },
     error::Result,
-    manager_state::ManagerState,
+    manager::DownloadManager,
     manifest::Manifest,
     now_ms,
     persistence::persist_manifest_snapshots_batch,
@@ -73,8 +72,8 @@ struct AutomaticRebalanceState {
 
 /// Actor type for scheduler and rebalance logic.
 ///
-/// Methods that need shared state receive `&dyn ManagerState`; `DownloadManager`
-/// implements that trait and holds `Arc<Scheduler>` for delegation.
+/// Methods that need shared state receive `&DownloadManager`; `DownloadManager`
+/// holds `Arc<Scheduler>` for delegation.
 pub struct Scheduler {
     /// Persisted across passes so allocations stay sticky and starvation is
     /// detectable; see [`AutomaticRebalanceState`].
@@ -100,8 +99,8 @@ impl Scheduler {
 
     /// Start the background scheduler loop (750ms tick or rebalance_notify).
     /// Consumes `self: Arc<Self>` to keep the scheduler alive, and
-    /// `dm: Arc<dyn ManagerState>` for the spawned task.
-    pub fn start_scheduler_loop(self: Arc<Self>, dm: Arc<dyn ManagerState>) {
+    /// `dm: Arc<DownloadManager>` for the spawned task.
+    pub fn start_scheduler_loop(self: Arc<Self>, dm: Arc<DownloadManager>) {
         tokio::spawn(async move {
             let mut consecutive_rebalance_failures: u32 = 0;
             loop {
@@ -160,7 +159,7 @@ impl Scheduler {
     /// Every target change is mirrored into the task snapshot, so the value the
     /// API exposes (the WebUI "target thread count") never lags behind the
     /// manifest.
-    pub async fn update_adaptive_targets(&self, dm: &dyn ManagerState) -> Result<()> {
+    pub async fn update_adaptive_targets(&self, dm: &DownloadManager) -> Result<()> {
         let settings = dm.settings_service().get().await;
         if settings.scheduler.mode != SchedulerMode::Automatic {
             return Ok(());
@@ -185,7 +184,7 @@ impl Scheduler {
     }
 
     /// Rebalance thread allocations across all active downloads.
-    pub async fn rebalance_allocations(&self, dm: &dyn ManagerState) -> Result<()> {
+    pub async fn rebalance_allocations(&self, dm: &DownloadManager) -> Result<()> {
         let settings = dm.settings_service().get().await;
         let max_parallel_hdd = dm.buffer_pool().effective_max_parallel() as usize;
 
@@ -257,7 +256,7 @@ impl Scheduler {
     }
 
     /// Check the speed limit schedule and apply the matching limit (or revert to global default).
-    async fn apply_speed_limit_schedule(&self, dm: &dyn ManagerState) {
+    async fn apply_speed_limit_schedule(&self, dm: &DownloadManager) {
         let settings = dm.settings_service().get().await;
         let schedule = &settings.speed_limit_schedule;
         if schedule.is_empty() {

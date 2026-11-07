@@ -17,22 +17,26 @@
 //! `types`) and quietly burdened `limedl-engine` with the duty of re-exporting
 //! whatever a downstream crate wanted.
 
-use limedl_disk::{buffer_pool, file_ops, services};
+use limedl_disk::{buffer_pool, file_ops, io_scheduler, services};
 use limedl_http::{http, http_client_factory, rate_limiter};
 use limedl_store::{alt_svc, database};
 use limedl_types::{
     calculate_checksum_with_progress, checksum, error, event_bus, internal_id_to_gid, lock,
-    manifest, now_ms, types,
+    manifest, now_ms, platform, protocol, settings, slot_guard, types, url_rewrite,
 };
 
 pub mod aimd;
 pub mod cdn;
+pub mod context;
 pub mod download;
 pub mod http_executor;
-pub mod manager_state;
+pub mod manager;
 pub mod metalink;
 pub mod persistence;
 pub mod retry;
 pub mod scheduler;
 pub mod speed_tracker;
 pub mod task_lifecycle;
+
+pub use context::SystemContext;
+pub use manager::DownloadManager;

@@ -248,7 +248,7 @@ async fn http_contract_start_and_status() -> TestResult {
     )
     .await;
 
-    dm.task_lifecycle.shutdown(&*dm).await;
+    dm.task_lifecycle.shutdown(&dm).await;
     Ok(())
 }
 
@@ -269,7 +269,7 @@ async fn http_contract_pause_resume() -> TestResult {
     )
     .await;
 
-    dm.task_lifecycle.shutdown(&*dm).await;
+    dm.task_lifecycle.shutdown(&dm).await;
     Ok(())
 }
 
@@ -289,7 +289,7 @@ async fn http_contract_cancel() -> TestResult {
     )
     .await;
 
-    dm.task_lifecycle.shutdown(&*dm).await;
+    dm.task_lifecycle.shutdown(&dm).await;
     Ok(())
 }
 
@@ -310,7 +310,7 @@ async fn http_contract_list() -> TestResult {
     )
     .await;
 
-    dm.task_lifecycle.shutdown(&*dm).await;
+    dm.task_lifecycle.shutdown(&dm).await;
     Ok(())
 }
 
@@ -330,7 +330,7 @@ async fn http_contract_remove() -> TestResult {
     )
     .await;
 
-    dm.task_lifecycle.shutdown(&*dm).await;
+    dm.task_lifecycle.shutdown(&dm).await;
     Ok(())
 }
 
@@ -350,7 +350,7 @@ async fn http_contract_purge() -> TestResult {
     )
     .await;
 
-    dm.task_lifecycle.shutdown(&*dm).await;
+    dm.task_lifecycle.shutdown(&dm).await;
     Ok(())
 }
 

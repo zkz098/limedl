@@ -310,6 +310,16 @@ impl Dispatcher {
         // Broadcast settings to all backends
         self.registry.update_all_settings(&saved).await?;
 
+        if let Some(dm) = self.registry.get_typed::<crate::manager::DownloadManager>() {
+            crate::logging::apply_logging_settings(&saved.logging, dm.dirs.state_dir()).map_err(
+                |error| {
+                    DownloadError::InvalidResponse(format!(
+                        "failed to apply logging settings: {error}"
+                    ))
+                },
+            )?;
+        }
+
         // Sync CDN acceleration service
         if let Some(cdn) = &self.cdn_service
             && !saved.cdn_acceleration.enabled

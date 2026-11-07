@@ -20,7 +20,7 @@ use crate::http::{
     build_segment_request, if_range_header, is_too_many_requests_error, validate_segment_response,
     validate_segment_total,
 };
-use crate::manager_state::ManagerState;
+use crate::manager::DownloadManager;
 use crate::manifest::ChunkManifest;
 use crate::metalink::{MirrorLease, MirrorPool};
 use crate::now_ms;
@@ -228,7 +228,7 @@ pub(super) struct ChunkWorkerCtx {
     pub(super) max_retries: u32,
     pub(super) db: Arc<Database>,
     pub(super) rate_limiter: Arc<RateLimiter>,
-    pub(super) manager: Arc<dyn ManagerState>,
+    pub(super) manager: Arc<DownloadManager>,
     pub(super) write_buffer: Option<Arc<DownloadBuffer>>,
     pub(super) disk_type: DiskType,
     pub(super) worker_id: usize,

@@ -2003,7 +2003,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-bt"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "async-trait",
  "librqbit",
@@ -2019,34 +2019,26 @@ dependencies = [
 
 [[package]]
 name = "limedl-core"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "anyhow",
- "async-trait",
- "bytes",
- "foldhash",
  "limedl-bt",
  "limedl-disk",
  "limedl-engine",
  "limedl-http",
  "limedl-store",
  "limedl-types",
- "open",
  "parking_lot 0.13.0",
  "reqwest",
- "sanitize-filename",
- "serde_json",
  "time",
  "tokio",
- "tokio-util",
  "tracing",
  "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]
 name = "limedl-disk"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2056,14 +2048,13 @@ dependencies = [
  "parking_lot 0.13.0",
  "rustix",
  "serde",
- "serde_json",
  "tokio",
  "tracing",
 ]
 
 [[package]]
 name = "limedl-engine"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2075,6 +2066,7 @@ dependencies = [
  "limedl-http",
  "limedl-store",
  "limedl-types",
+ "open",
  "parking_lot 0.13.0",
  "quick-xml 0.42.0",
  "rand 0.10.3",
@@ -2103,7 +2095,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-http"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "limedl-types",
  "parking_lot 0.13.0",
@@ -2115,7 +2107,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-rpc"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "anyhow",
  "argon2",
@@ -2137,7 +2129,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-store"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "anyhow",
  "foldhash",
@@ -2154,7 +2146,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-types"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "anyhow",
  "async-trait",

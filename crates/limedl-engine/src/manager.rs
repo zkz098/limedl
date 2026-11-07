@@ -22,7 +22,6 @@ use super::{
     error::{DownloadError, Result, io_error_with_path},
     event_bus::EventBus,
     http_executor::HttpExecutor,
-    logging::apply_logging_settings,
     manifest::{CHUNK_SIZE, Manifest},
     protocol::DownloadBackend,
     rate_limiter::RateLimiter,
@@ -34,8 +33,6 @@ use super::{
         Priority, StartDownloadRequest, TaskId, ThreadMode,
     },
 };
-
-use crate::manager_state::ManagerState;
 
 use super::http_client_factory::build_http_client;
 use super::now_ms;
@@ -52,10 +49,13 @@ const MAX_CDN_CLIENT_CACHE_SIZE: usize = 50;
 
 // ── Sub-structures for field grouping ──────────────────────────────────
 
-// `RuntimeControls` is declared in `manager_state` so the `ManagerState` trait
-// can name it without depending on the `manager` module (see the module docs
-// on `manager_state`).
-pub use crate::manager_state::RuntimeControls;
+/// Runtime control signals for shutdown and scheduler rebalance coordination.
+pub struct RuntimeControls {
+    /// Cancellation token for graceful shutdown of scheduler loop and workers.
+    pub shutdown_token: CancellationToken,
+    /// Notify mechanism for triggering scheduler rebalance events.
+    pub rebalance_notify: Arc<Notify>,
+}
 
 /// HTTP client infrastructure including CDN accelerator reference and client cache.
 pub struct HttpClientInfra {
@@ -82,6 +82,11 @@ impl StateDirs {
     pub fn state_dir(&self) -> &PathBuf {
         &self.state_dir
     }
+
+    /// Returns the settings.json path.
+    pub fn settings_path(&self) -> &PathBuf {
+        &self.settings_path
+    }
 }
 
 pub struct DownloadManager {
@@ -95,7 +100,7 @@ pub struct DownloadManager {
     pub downloads: Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>>,
     pub db: Arc<Database>,
     pub event_bus: Arc<EventBus>,
-    pub(crate) rate_limiter: Arc<RateLimiter>,
+    pub rate_limiter: Arc<RateLimiter>,
     pub buffer_pool: Arc<BufferPool>,
     /// Dedicated I/O worker thread for file flush operations.
     pub io_worker: IoWorker,
@@ -383,16 +388,13 @@ impl DownloadManager {
         // Clear CDN client cache since settings may have changed the active IP
         self.http.cdn_client_cache.write().clear();
 
-        apply_logging_settings(&normalized.logging, &self.dirs.state_dir).map_err(|error| {
-            DownloadError::InvalidResponse(format!("failed to apply logging settings: {error}"))
-        })?;
         self.scheduler.rebalance_allocations(self).await?;
         self.controls.rebalance_notify.notify_waiters();
 
         Ok(normalized)
     }
 
-    pub async fn start(self: &Arc<Self>, request: StartDownloadRequest) -> Result<Uuid> {
+    pub async fn start(&self, request: StartDownloadRequest) -> Result<Uuid> {
         let url = Url::parse(&request.url)
             .map_err(|error| DownloadError::InvalidResponse(error.to_string()))?;
         if !matches!(url.scheme(), "http" | "https") {
@@ -554,11 +556,11 @@ impl DownloadManager {
             .await
             .insert(download_id.to_string(), managed.clone());
 
-        let dm = self.clone();
+        let dm = Arc::new(self.clone());
         self.task_lifecycle
             .spawn_download(dm, managed, request.max_retries.unwrap_or(DEFAULT_RETRIES))
             .await?;
-        self.scheduler.rebalance_allocations(&**self).await?;
+        self.scheduler.rebalance_allocations(self).await?;
         self.controls.rebalance_notify.notify_waiters();
 
         Ok(download_id)
@@ -707,8 +709,8 @@ impl DownloadManager {
         Ok(())
     }
 
-    pub async fn resume(self: &Arc<Self>, download_id: &str) -> Result<DownloadSnapshot> {
-        let managed = self.task_lifecycle.get(&**self, download_id).await?;
+    pub async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
+        let managed = self.task_lifecycle.get(self, download_id).await?;
         // Phase 1: check state (read-only, drop lock before fallible ops)
         {
             let core = managed.lock_core();
@@ -770,11 +772,11 @@ impl DownloadManager {
             }
         }
 
-        let dm = self.clone();
+        let dm = Arc::new(self.clone());
         self.task_lifecycle
             .spawn_download(dm, managed.clone(), DEFAULT_RETRIES)
             .await?;
-        self.scheduler.rebalance_allocations(&**self).await?;
+        self.scheduler.rebalance_allocations(self).await?;
         self.controls.rebalance_notify.notify_waiters();
         Ok(self.task_lifecycle.build_snapshot(managed))
     }
@@ -959,8 +961,7 @@ impl DownloadManager {
 #[async_trait]
 impl DownloadBackend for DownloadManager {
     async fn start(&self, request: StartDownloadRequest) -> Result<TaskId> {
-        let arc_self = Arc::new(self.clone());
-        let uuid = DownloadManager::start(&arc_self, request).await?;
+        let uuid = DownloadManager::start(self, request).await?;
         Ok(TaskId::Http(uuid))
     }
 
@@ -975,8 +976,7 @@ impl DownloadBackend for DownloadManager {
         let Some(uuid) = task_id.as_http() else {
             return Err(DownloadError::NotFound);
         };
-        let arc_self = Arc::new(self.clone());
-        DownloadManager::resume(&arc_self, &uuid.to_string()).await
+        DownloadManager::resume(self, &uuid.to_string()).await
     }
 
     async fn cancel(&self, task_id: &TaskId) -> Result<DownloadSnapshot> {
@@ -1078,14 +1078,7 @@ impl DownloadBackend for DownloadManager {
     }
 }
 
-// ── Persistence (moved here from `persistence.rs`) ─────────────────────────
-//
-// These two methods are inherent on `DownloadManager`, so they belong with the
-// type.  Leaving them in `persistence.rs` forced that module to import
-// `manager::DownloadManager`, which — together with the actors' back-edges —
-// closed the `manager`/`http_executor`/`scheduler`/`task_lifecycle`/
-// `persistence` dependency cycle the module-boundary guard forbids.  That module
-// now holds only the free persistence helpers shared by the actors.
+// ── Persistence ────────────────────────────────────────────────────────────
 
 impl DownloadManager {
     /// Load all downloads from the SQLite database on startup.
@@ -1192,7 +1185,7 @@ impl DownloadManager {
 
     /// Spawn workers for any downloads recovered in an active state from a
     /// previous crashed session (which have `runtime == None` after `load_downloads_from_db`).
-    pub async fn resume_recovered_downloads(self: &Arc<Self>) {
+    pub async fn resume_recovered_downloads(&self) {
         let recovered: Vec<Arc<ManagedDownload>> = {
             let downloads = self.downloads.read().await;
             downloads
@@ -1212,111 +1205,88 @@ impl DownloadManager {
         if recovered.is_empty() {
             return;
         }
+        let dm = Arc::new(self.clone());
         for managed in recovered {
-            let dm = self.clone();
             if let Err(error) = self
                 .task_lifecycle
-                .spawn_download(dm, managed, DEFAULT_RETRIES)
+                .spawn_download(dm.clone(), managed, DEFAULT_RETRIES)
                 .await
             {
                 tracing::warn!("spawn recovered download failed: {error}");
             }
         }
-        if let Err(error) = self.scheduler.rebalance_allocations(&**self).await {
+        if let Err(error) = self.scheduler.rebalance_allocations(self).await {
             tracing::warn!("rebalance recovered downloads failed: {error}");
         }
         self.controls.rebalance_notify.notify_waiters();
     }
 }
 
-// ── `ManagerState` seam ────────────────────────────────────────────────────
-//
-// The actor modules (`http_executor`, `scheduler`, `task_lifecycle`) take
-// `&dyn ManagerState` instead of `&DownloadManager` so they do not depend on
-// this module.  The actor operations the HTTP executor needs are delegated here
-// rather than exposed as actor-typed accessors: naming `TaskLifecycle` or
-// `Scheduler` in `manager_state` would close the cycle again through the trait.
+// ── Shared infrastructure & actor delegation accessors ─────────────────────
 
-#[async_trait]
-impl ManagerState for DownloadManager {
-    fn db(&self) -> &Arc<Database> {
+impl DownloadManager {
+    pub fn db(&self) -> &Arc<Database> {
         &self.db
     }
 
-    fn event_bus(&self) -> &Arc<EventBus> {
+    pub fn event_bus(&self) -> &Arc<EventBus> {
         &self.event_bus
     }
 
-    fn rate_limiter(&self) -> &Arc<RateLimiter> {
+    pub fn rate_limiter(&self) -> &Arc<RateLimiter> {
         &self.rate_limiter
     }
 
-    fn buffer_pool(&self) -> &Arc<BufferPool> {
+    pub fn buffer_pool(&self) -> &Arc<BufferPool> {
         &self.buffer_pool
     }
 
-    fn io_worker(&self) -> &IoWorker {
+    pub fn io_worker(&self) -> &IoWorker {
         &self.io_worker
     }
 
-    fn settings_service(&self) -> &Arc<crate::services::SettingsService> {
+    pub fn settings_service(&self) -> &Arc<crate::services::SettingsService> {
         &self.settings_service
     }
 
-    fn concurrency(&self) -> &Arc<crate::services::ConcurrencyManager> {
+    pub fn concurrency(&self) -> &Arc<crate::services::ConcurrencyManager> {
         &self.concurrency
     }
 
-    fn downloads(&self) -> &Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>> {
+    pub fn downloads(&self) -> &Arc<RwLock<HashMap<String, Arc<ManagedDownload>>>> {
         &self.downloads
     }
 
-    fn controls(&self) -> &RuntimeControls {
+    pub fn controls(&self) -> &RuntimeControls {
         &self.controls
     }
 
-    fn alt_svc(&self) -> &Arc<crate::alt_svc::AltSvcManager> {
+    pub fn alt_svc(&self) -> &Arc<crate::alt_svc::AltSvcManager> {
         &self.http.alt_svc
     }
 
-    async fn settings(&self) -> Result<AppSettings> {
-        DownloadManager::settings(self).await
-    }
-
-    async fn persist(&self, managed: Arc<ManagedDownload>) -> Result<()> {
-        DownloadManager::persist(self, managed).await
-    }
-
-    async fn resolve_client(&self, url: &str) -> (Client, bool, Option<String>) {
-        DownloadManager::resolve_client(self, url).await
-    }
-
-    async fn resolve_disk_type(&self, dir: &Path) -> DiskType {
-        DownloadManager::resolve_disk_type(self, dir).await
-    }
-
-    fn prepare_fresh_temp_file(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
+    pub fn prepare_fresh_temp_file(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
         self.task_lifecycle.prepare_fresh_temp_file(managed)
     }
 
-    fn reset_progress(&self, managed: &Arc<ManagedDownload>, force_single_stream: bool) {
+    pub fn reset_progress(&self, managed: &Arc<ManagedDownload>, force_single_stream: bool) {
         self.task_lifecycle
             .reset_progress(managed, force_single_stream)
     }
 
-    fn emit_progress(&self, managed: &Arc<ManagedDownload>) {
+    pub fn emit_progress(&self, managed: &Arc<ManagedDownload>) {
         self.task_lifecycle.emit_progress(self, managed)
     }
 
-    fn emit_single_summary(&self, managed: &Arc<ManagedDownload>) {
+    pub fn emit_single_summary(&self, managed: &Arc<ManagedDownload>) {
         self.task_lifecycle.emit_single_summary(self, managed)
     }
 
-    fn cleanup_files(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
+    pub fn cleanup_files(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
         self.task_lifecycle.cleanup_files(managed)
     }
 
-    fn record_progress(
+    pub fn record_progress(
         &self,
         managed: &Arc<ManagedDownload>,
         chunk_index: Option<usize>,
@@ -1326,7 +1296,7 @@ impl ManagerState for DownloadManager {
             .record_progress(managed, chunk_index, bytes)
     }
 
-    async fn wait_until_active(
+    pub async fn wait_until_active(
         &self,
         managed: &Arc<ManagedDownload>,
         token: &CancellationToken,
@@ -1336,11 +1306,11 @@ impl ManagerState for DownloadManager {
             .await
     }
 
-    async fn evict_completed(&self) -> usize {
+    pub async fn evict_completed(&self) -> usize {
         self.task_lifecycle.evict_completed(self).await
     }
 
-    async fn rebalance_allocations(&self) -> Result<()> {
+    pub async fn rebalance_allocations(&self) -> Result<()> {
         self.scheduler.rebalance_allocations(self).await
     }
 }

@@ -4,11 +4,9 @@
 //! internal helpers, file cleanup, wait coordination, progress recording, and
 //! event emission.
 //!
-//! `TaskLifecycle` is an independent actor type.  The methods that need shared
-//! state receive a `&dyn ManagerState` (or `Arc<dyn ManagerState>`) parameter,
-//! so this module does not depend on `manager` — which owns `Arc<TaskLifecycle>`
-//! and would otherwise form a dependency cycle.  Methods whose `dm` parameter
-//! was unused take no state at all.
+//! `TaskLifecycle` is an independent actor type. The methods that need shared
+//! state receive a `&DownloadManager` (or `Arc<DownloadManager>`) parameter.
+//! Methods whose `dm` parameter was unused take no state at all.
 
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
@@ -21,7 +19,7 @@ use crate::{
     error::{DownloadError, Result, io_error_with_path},
     event_bus::DownloadEvent,
     file_ops::open_download_file,
-    manager_state::ManagerState,
+    manager::DownloadManager,
     now_ms,
     types::{DownloadProgress, DownloadSnapshot, DownloadState, DownloadSummary},
 };
@@ -32,8 +30,8 @@ use crate::{speed_tracker::SpeedTracker, types::Priority};
 
 /// Zero-sized actor type for download lifecycle operations.
 ///
-/// Methods that need shared state receive `&dyn ManagerState`; `DownloadManager`
-/// holds `Arc<TaskLifecycle>` for delegation and implements that trait.
+/// Methods that need shared state receive `&DownloadManager`; `DownloadManager`
+/// holds `Arc<TaskLifecycle>` for delegation.
 pub struct TaskLifecycle;
 
 impl TaskLifecycle {
@@ -42,7 +40,7 @@ impl TaskLifecycle {
     /// Look up a managed download by ID.
     pub async fn get(
         &self,
-        dm: &dyn ManagerState,
+        dm: &DownloadManager,
         download_id: &str,
     ) -> Result<Arc<ManagedDownload>> {
         dm.downloads()
@@ -56,7 +54,7 @@ impl TaskLifecycle {
     // ── Shutdown ──────────────────────────────────────────────────────
 
     /// Signal the scheduler loop and all active chunk workers to stop gracefully.
-    pub async fn shutdown(&self, dm: &dyn ManagerState) {
+    pub async fn shutdown(&self, dm: &DownloadManager) {
         dm.controls().shutdown_token.cancel();
 
         let downloads = dm.downloads().read().await;
@@ -76,7 +74,7 @@ impl TaskLifecycle {
     /// This is the core orchestration point called by `start()` and `resume()`.
     pub async fn spawn_download(
         &self,
-        dm: Arc<dyn ManagerState>,
+        dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         max_retries: u32,
     ) -> Result<()> {
@@ -213,7 +211,7 @@ impl TaskLifecycle {
 
     pub async fn remove_internal(
         &self,
-        dm: &dyn ManagerState,
+        dm: &DownloadManager,
         download_id: &str,
         purge_file: bool,
     ) -> Result<DownloadSnapshot> {
@@ -270,7 +268,7 @@ impl TaskLifecycle {
     /// Returns the current wait state (Running, Paused, Canceled).
     pub async fn wait_until_active(
         &self,
-        dm: &dyn ManagerState,
+        dm: &DownloadManager,
         managed: &Arc<ManagedDownload>,
         token: &CancellationToken,
     ) -> WaitState {
@@ -380,7 +378,7 @@ impl TaskLifecycle {
     /// Evict terminal-state downloads (Completed/Failed/Canceled) when the
     /// in-memory map exceeds `max_in_memory_downloads`.  Removes the oldest
     /// terminal entries first.  Returns the number of entries removed.
-    pub async fn evict_completed(&self, dm: &dyn ManagerState) -> usize {
+    pub async fn evict_completed(&self, dm: &DownloadManager) -> usize {
         let limit = dm.settings_service().get().await.max_in_memory_downloads;
         if limit == 0 {
             return 0;
@@ -462,7 +460,7 @@ impl TaskLifecycle {
 
     /// Build a [`DownloadSummary`] from a managed download and emit a
     /// `download-updated` event to the frontend.
-    pub fn emit_single_summary(&self, dm: &dyn ManagerState, managed: &Arc<ManagedDownload>) {
+    pub fn emit_single_summary(&self, dm: &DownloadManager, managed: &Arc<ManagedDownload>) {
         let snapshot = self.build_snapshot(managed.clone());
         let summary = DownloadSummary::from(&snapshot);
         dm.event_bus().publish(DownloadEvent::Updated {
@@ -471,7 +469,7 @@ impl TaskLifecycle {
     }
 
     /// Emit a lightweight `download-progress` event for incremental UI updates.
-    pub fn emit_progress(&self, dm: &dyn ManagerState, managed: &Arc<ManagedDownload>) {
+    pub fn emit_progress(&self, dm: &DownloadManager, managed: &Arc<ManagedDownload>) {
         let snapshot = self.build_snapshot(managed.clone());
         let progress = DownloadProgress::from(&snapshot);
         dm.event_bus().publish(DownloadEvent::Progress { progress });

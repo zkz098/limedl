@@ -13,7 +13,7 @@ use crate::download::{ManagedDownload, RunOutcome, cancellation_outcome, record_
 use crate::error::{DownloadError, Result, io_error_with_path};
 use crate::file_ops::{open_download_file, reset_download_file, write_all_at};
 use crate::http::{apply_extra_headers, identity_encoding, if_range_header};
-use crate::manager_state::ManagerState;
+use crate::manager::DownloadManager;
 use crate::manifest::contiguous_prefix_end;
 use crate::now_ms;
 use crate::retry::{jittered_backoff_delay, register_retry_penalty, request_with_retry};
@@ -37,7 +37,7 @@ const MAX_SINGLE_STREAM_REQUESTS: u32 = 64;
 impl HttpExecutor {
     pub(super) async fn download_single(
         &self,
-        dm: Arc<dyn ManagerState>,
+        dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         client: Client,
         token: CancellationToken,
@@ -120,7 +120,7 @@ enum DrainEnd {
 /// mutable values; holding them here lets each step be its own function instead
 /// of one deeply nested loop.
 struct SingleRun<'a> {
-    dm: &'a Arc<dyn ManagerState>,
+    dm: &'a Arc<DownloadManager>,
     managed: &'a Arc<ManagedDownload>,
     file: &'a Arc<fs::File>,
     write_buffer: &'a Option<Arc<DownloadBuffer>>,
@@ -520,7 +520,7 @@ impl RequestHead {
 ///
 /// Also publishes the detected disk type on the snapshot for the UI badge.
 async fn open_single_target(
-    dm: &Arc<dyn ManagerState>,
+    dm: &Arc<DownloadManager>,
     managed: &Arc<ManagedDownload>,
 ) -> Result<(Arc<fs::File>, Option<u64>, DiskType, Arc<DownloadBuffer>)> {
     let (temp_path, total_bytes, destination_dir) = {
@@ -601,7 +601,7 @@ async fn single_request(
 /// Decide the starting offset for this attempt; a non-range response to a
 /// resume request resets the file and progress.
 async fn single_start_offset(
-    dm: &Arc<dyn ManagerState>,
+    dm: &Arc<DownloadManager>,
     managed: &Arc<ManagedDownload>,
     file: &Arc<fs::File>,
     write_buffer: &Option<Arc<DownloadBuffer>>,

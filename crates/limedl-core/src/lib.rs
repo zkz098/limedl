@@ -14,11 +14,9 @@ pub mod bootstrap;
 // resolving for the dispatcher, the Aria2 layer and the test tree.
 #[cfg(feature = "bt")]
 pub use limedl_bt as bt_backend;
-pub mod context;
 pub mod crash;
 pub mod dispatcher;
 pub mod logging;
-pub mod manager;
 
 // Foundation modules, re-exported as modules (not as a glob of items): the
 // re-export has to preserve the *module* path, because the engine and the test
@@ -48,7 +46,7 @@ pub use limedl_http::{http, http_client_factory, rate_limiter};
 // machine. Module re-exports again, so `crate::http_executor::…` and
 // `crate::scheduler::…` keep resolving for the facade and the test tree.
 pub use limedl_engine::{
-    aimd, cdn, download, http_executor, manager_state, metalink, persistence, retry, scheduler,
+    aimd, cdn, context, download, http_executor, manager, metalink, persistence, retry, scheduler,
     speed_tracker, task_lifecycle,
 };
 

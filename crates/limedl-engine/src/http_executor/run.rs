@@ -10,7 +10,7 @@ use crate::http::{
     has_header, header_string, identity_encoding, infer_candidate_referers, infer_file_name,
     looks_like_anti_abuse_page, read_body_prefix, supports_ranges, validate_probe_response,
 };
-use crate::manager_state::ManagerState;
+use crate::manager::DownloadManager;
 use crate::manifest::{
     RemoteMetadata, has_partial_chunk_progress, plan_chunks, resolve_chunk_size, validators_changed,
 };
@@ -28,7 +28,7 @@ impl HttpExecutor {
     /// content length, ETag, Last-Modified, range support).
     pub async fn probe(
         &self,
-        dm: &dyn ManagerState,
+        dm: &DownloadManager,
         url: &str,
         user_agent: &str,
         extra_headers: &[String],
@@ -149,7 +149,7 @@ impl HttpExecutor {
     /// (parallel) download based on server capabilities.
     pub async fn run_download(
         &self,
-        dm: Arc<dyn ManagerState>,
+        dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         client: Client,
         token: CancellationToken,
@@ -274,7 +274,7 @@ impl HttpExecutor {
     /// Finalize a finished run, or settle the paused/canceled bookkeeping.
     async fn post_process_run(
         &self,
-        dm: &Arc<dyn ManagerState>,
+        dm: &Arc<DownloadManager>,
         managed: &Arc<ManagedDownload>,
         token: &CancellationToken,
         outcome: RunOutcome,

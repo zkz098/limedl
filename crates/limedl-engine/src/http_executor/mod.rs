@@ -3,10 +3,9 @@
 //! Contains the HTTP-specific download flow: probing, single-stream and chunked
 //! parallel downloads, chunk worker, and finalization with checksum verification.
 //!
-//! `HttpExecutor` is an independent actor type.  All its methods receive a
-//! `&dyn ManagerState` or `Arc<dyn ManagerState>` parameter to access shared
-//! state, so this module does not depend on `manager` — which owns
-//! `Arc<HttpExecutor>` and implements that trait.
+//! `HttpExecutor` is an independent actor type. All its methods receive a
+//! `&DownloadManager` or `Arc<DownloadManager>` parameter to access shared
+//! state.
 
 use std::{
     fs,
@@ -24,7 +23,7 @@ use crate::{
     error::{DownloadError, Result},
     event_bus::DownloadEvent,
     file_ops::check_disk_space,
-    manager_state::ManagerState,
+    manager::DownloadManager,
     manifest::Manifest,
     now_ms,
     persistence::persist_manifest_snapshot,
@@ -34,9 +33,9 @@ use crate::{
 
 /// Zero-sized actor type for HTTP download execution.
 ///
-/// Methods that need shared state receive `&dyn ManagerState` or
-/// `Arc<dyn ManagerState>`; `DownloadManager` implements that trait and holds
-/// `Arc<HttpExecutor>` for delegation.
+/// Methods that need shared state receive `&DownloadManager` or
+/// `Arc<DownloadManager>`; `DownloadManager` holds `Arc<HttpExecutor>` for
+/// delegation.
 pub struct HttpExecutor;
 
 /// Tail Sprint: stall window for detecting a slow last-chunk connection.
@@ -74,7 +73,7 @@ fn device_path_for(manifest: &Manifest) -> PathBuf {
 /// Build the write buffer for a download: the shared HDD double-buffer pool,
 /// or the local SSD/Network ping-pong write-combining buffer.
 async fn build_write_buffer(
-    dm: &dyn ManagerState,
+    dm: &DownloadManager,
     managed: &Arc<ManagedDownload>,
     file: &Arc<fs::File>,
     disk_type: DiskType,
@@ -139,7 +138,7 @@ async fn flush_write_buffer(write_buffer: &Option<Arc<DownloadBuffer>>, reason: 
 
 /// Wait until the task is runnable; `Some(outcome)` means the caller must stop.
 async fn wait_or_stop(
-    dm: &dyn ManagerState,
+    dm: &DownloadManager,
     managed: &Arc<ManagedDownload>,
     token: &CancellationToken,
     write_buffer: &Option<Arc<DownloadBuffer>>,
@@ -160,7 +159,7 @@ async fn wait_or_stop(
 /// Flush the write buffer after the download finished, keeping the UI
 /// "flushing" flag set around the flush.
 async fn finish_buffer_flush(
-    dm: &dyn ManagerState,
+    dm: &DownloadManager,
     managed: &Arc<ManagedDownload>,
     write_buffer: &Option<Arc<DownloadBuffer>>,
 ) -> Result<()> {
@@ -188,7 +187,7 @@ async fn finish_buffer_flush(
 /// Re-check free space every 30 s while downloading; fail the task when the
 /// remaining bytes no longer fit.
 async fn check_disk_space_periodically(
-    dm: &dyn ManagerState,
+    dm: &DownloadManager,
     managed: &Arc<ManagedDownload>,
     last_check: &mut Instant,
 ) -> Result<()> {
@@ -321,7 +320,7 @@ impl ProgressThrottle {
     async fn tick(
         &mut self,
         db: &Arc<Database>,
-        dm: &dyn ManagerState,
+        dm: &DownloadManager,
         managed: &Arc<ManagedDownload>,
     ) -> Result<()> {
         if self.last_persist.elapsed() < PERSIST_INTERVAL {

@@ -6,7 +6,7 @@ use crate::download::{ManagedDownload, RunOutcome};
 use crate::error::{Result, io_error_with_path};
 use crate::event_bus::DownloadEvent;
 use crate::file_ops::finalize_temp_file;
-use crate::manager_state::ManagerState;
+use crate::manager::DownloadManager;
 use crate::types::{ChecksumMode, DownloadProgress, DownloadState};
 use crate::{calculate_checksum_with_progress, now_ms};
 use std::path::PathBuf;
@@ -17,7 +17,7 @@ use tokio_util::sync::CancellationToken;
 impl HttpExecutor {
     pub(super) async fn finalize_download(
         &self,
-        dm: Arc<dyn ManagerState>,
+        dm: Arc<DownloadManager>,
         managed: Arc<ManagedDownload>,
         token: CancellationToken,
     ) -> Result<RunOutcome> {
