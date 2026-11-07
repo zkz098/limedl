@@ -1,4 +1,4 @@
-//! Per-task download state: `DownloadCore` (snapshot + manifest) and
+//! Per-task download state: `DownloadCore` (manifest + runtime counters) and
 //! `ManagedDownload` (the shared, lockable handle), plus the run-outcome enums
 //! and progress/cancellation helpers used by the HTTP executor and lifecycle.
 
@@ -13,12 +13,15 @@ use crate::lock;
 use crate::manifest::Manifest;
 use crate::now_ms;
 use crate::speed_tracker::SpeedTracker;
-use crate::types::{ChunkInfo, DownloadSnapshot, DownloadState};
+use crate::types::{DiskType, DownloadSnapshot, DownloadState};
 
-/// Merged core of snapshot + manifest, protected by a single Mutex.
-/// This eliminates double-lock ordering in hot paths like record_progress().
+/// Per-task mutable state protected by a single Mutex.
+///
+/// [`Manifest`] is the single source of truth for task metadata and chunk
+/// progress; [`DownloadSnapshot`] is derived on demand via [`Self::snapshot`]
+/// (or [`crate::task_lifecycle::TaskLifecycle::build_snapshot`] when live
+/// throughput / ETA from [`ManagedDownload::aimd`] is needed).
 pub struct DownloadCore {
-    pub snapshot: DownloadSnapshot,
     pub manifest: Manifest,
     pub speed_tracker: SpeedTracker,
     /// Task-level bytes that provably reached the file.
@@ -29,75 +32,34 @@ pub struct DownloadCore {
     /// SQLite is by definition durable state. Advanced only through
     /// [`record_durable_bytes`].
     pub durable_bytes: u64,
+    /// Runtime-only flag: `true` when HDD buffered write fell back to direct write.
+    pub degraded: bool,
+    /// Runtime-only detected disk media type for the active download directory.
+    pub disk_type: Option<DiskType>,
+    /// Runtime-only flag: `true` while the write buffer is flushing at run completion.
+    pub flushing: bool,
 }
 impl DownloadCore {
-    pub fn new(snapshot: DownloadSnapshot, manifest: Manifest) -> Self {
+    pub fn new(manifest: Manifest) -> Self {
         let durable_bytes = manifest.downloaded_bytes;
         Self {
-            snapshot,
             manifest,
             speed_tracker: SpeedTracker::default(),
             durable_bytes,
+            degraded: false,
+            disk_type: None,
+            flushing: false,
         }
     }
 
-    /// Sync snapshot fields from manifest.
-    /// NOTE: mirror_url is intentionally NOT synced — managed by mirror retry loop.
-    pub fn sync_snapshot_from_manifest(&mut self) {
-        let m = &self.manifest;
-        self.snapshot.state = m.state;
-        self.snapshot.final_url = m.final_url.clone();
-        self.snapshot.file_name = m.file_name.clone();
-        self.snapshot.destination_path = m.destination_path.clone();
-        self.snapshot.total_bytes = m.total_bytes;
-        self.snapshot.downloaded_bytes = m.downloaded_bytes;
-        self.snapshot.supports_ranges = m.supports_ranges;
-        self.snapshot.connection_count = m.connection_count;
-        self.snapshot.thread_mode = m.thread_mode;
-        self.snapshot.requested_thread_count = m.requested_thread_count;
-        self.snapshot.desired_thread_count = m.desired_thread_count;
-        self.snapshot.allocated_thread_count = m.allocated_thread_count;
-        self.snapshot.adaptive_profile = m.adaptive_profile_snapshot;
-        self.snapshot.thread_note = m.thread_note.clone();
-        self.snapshot.etag = m.etag.clone();
-        self.snapshot.last_modified = m.last_modified.clone();
-        self.snapshot.error = m.error.clone();
-        self.snapshot.updated_at_ms = m.updated_at_ms;
-        // COW optimization: only rebuild Vec<ChunkInfo> when chunk structure
-        // (count + offset boundaries) changes; otherwise update state fields
-        // in-place to avoid per-tick allocation churn.
-        // Guard: skip the fast path when snapshot has no chunks yet (initial state);
-        // both empty or structure-mismatch → full rebuild.
-        if !self.snapshot.chunks.is_empty()
-            && self.snapshot.chunks.len() == m.chunks.len()
-            && self
-                .snapshot
-                .chunks
-                .iter()
-                .zip(m.chunks.iter())
-                .all(|(sc, mc)| sc.index == mc.index && sc.start == mc.start && sc.end == mc.end)
-        {
-            // Structure unchanged — update only state fields in-place
-            for (sc, mc) in self.snapshot.chunks.iter_mut().zip(m.chunks.iter()) {
-                sc.downloaded = mc.downloaded;
-                sc.completed = mc.completed;
-                sc.claimed_by = mc.claimed_by;
-            }
-        } else {
-            // Structure changed or empty — full rebuild
-            self.snapshot.chunks = m
-                .chunks
-                .iter()
-                .map(|c| ChunkInfo {
-                    index: c.index,
-                    start: c.start,
-                    end: c.end,
-                    downloaded: c.downloaded,
-                    completed: c.completed,
-                    claimed_by: c.claimed_by,
-                })
-                .collect();
-        }
+    /// Derive a point-in-time [`DownloadSnapshot`] from [`Self::manifest`] and
+    /// runtime-only flags (`degraded`, `disk_type`, `flushing`).
+    pub fn snapshot(&self) -> DownloadSnapshot {
+        let mut snapshot = crate::manifest::snapshot_from_manifest(&self.manifest);
+        snapshot.degraded = self.degraded;
+        snapshot.disk_type = self.disk_type;
+        snapshot.flushing = self.flushing;
+        snapshot
     }
 }
 pub struct ManagedDownload {
@@ -141,9 +103,6 @@ pub enum WaitState {
     Paused,
     Canceled,
 }
-pub fn sync_snapshot_with_manifest(core: &mut DownloadCore) {
-    core.sync_snapshot_from_manifest();
-}
 /// Records download progress directly on a [`ManagedDownload`].
 ///
 /// This is the single implementation of *received* progress accounting. It is a
@@ -161,9 +120,6 @@ pub fn record_progress_on_managed(
     let mut core = managed.lock_core();
     core.speed_tracker
         .record_bytes(bytes, std::time::Instant::now());
-    core.snapshot.downloaded_bytes = core.snapshot.downloaded_bytes.saturating_add(bytes);
-    core.snapshot.error = None;
-    core.snapshot.updated_at_ms = now;
     core.manifest.downloaded_bytes = core.manifest.downloaded_bytes.saturating_add(bytes);
     core.manifest.error = None;
     core.manifest.updated_at_ms = now;
@@ -250,18 +206,17 @@ pub fn reset_received_to_durable(managed: &Arc<ManagedDownload>) {
         received = received.saturating_add(chunk.downloaded);
     }
     core.manifest.downloaded_bytes = received;
-    core.snapshot.downloaded_bytes = received;
     core.manifest.updated_at_ms = now_ms();
 }
 
 pub fn cancellation_outcome(managed: &Arc<ManagedDownload>) -> RunOutcome {
-    match managed.lock_core().snapshot.state {
+    match managed.lock_core().manifest.state {
         DownloadState::Canceled => RunOutcome::Canceled,
         _ => RunOutcome::Paused,
     }
 }
 pub fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> ChunkWorkerOutcome {
-    match managed.lock_core().snapshot.state {
+    match managed.lock_core().manifest.state {
         DownloadState::Canceled => ChunkWorkerOutcome::Canceled,
         _ => ChunkWorkerOutcome::Paused,
     }
@@ -269,12 +224,11 @@ pub fn cancellation_chunk_outcome(managed: &Arc<ManagedDownload>) -> ChunkWorker
 
 #[cfg(any(test, feature = "test-utils"))]
 impl ManagedDownload {
-    /// Test helper: wrap a manifest in a managed download with a matching
-    /// snapshot, as `DownloadManager` does when it creates or loads a task.
+    /// Test helper: wrap a manifest in a managed download, as `DownloadManager`
+    /// does when it creates or loads a task.
     pub fn from_manifest(manifest: Manifest) -> Arc<Self> {
-        let snapshot = crate::manifest::snapshot_from_manifest(&manifest);
         Arc::new(Self {
-            core: Mutex::new(DownloadCore::new(snapshot, manifest)),
+            core: Mutex::new(DownloadCore::new(manifest)),
             runtime: Mutex::new(None),
             aimd: Mutex::new(AimdState::initial(None, None)),
             stop_notify: Notify::new(),
@@ -485,7 +439,7 @@ mod tests {
             core.manifest.downloaded_bytes, 30,
             "the task-level received counter follows the chunks"
         );
-        assert_eq!(core.snapshot.downloaded_bytes, 30);
+        assert_eq!(core.snapshot().downloaded_bytes, 30);
     }
 
     #[test]
@@ -561,7 +515,7 @@ mod tests {
                     expected[index] >= lengths[index]
                 );
                 prop_assert_eq!(core.manifest.downloaded_bytes, expected_total);
-                prop_assert_eq!(core.snapshot.downloaded_bytes, expected_total);
+                prop_assert_eq!(core.snapshot().downloaded_bytes, expected_total);
             }
         }
 
@@ -578,7 +532,7 @@ mod tests {
             record_progress_on_managed(&managed, None, bytes);
             let core = managed.lock_core();
             prop_assert_eq!(core.manifest.downloaded_bytes, bytes);
-            prop_assert_eq!(core.snapshot.downloaded_bytes, bytes);
+            prop_assert_eq!(core.snapshot().downloaded_bytes, bytes);
             prop_assert!(core.manifest.chunks.is_empty());
         }
 
@@ -653,7 +607,7 @@ mod tests {
                 received = received.saturating_add(expected);
             }
             prop_assert_eq!(core.manifest.downloaded_bytes, received);
-            prop_assert_eq!(core.snapshot.downloaded_bytes, received);
+            prop_assert_eq!(core.snapshot().downloaded_bytes, received);
         }
     }
 }

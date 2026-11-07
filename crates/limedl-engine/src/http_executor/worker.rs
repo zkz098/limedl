@@ -217,7 +217,7 @@ pub(super) fn finalize_was_canceled(
         return true;
     }
     let core = managed.lock_core();
-    core.snapshot.state == DownloadState::Canceled || core.manifest.state == DownloadState::Canceled
+    core.manifest.state == DownloadState::Canceled
 }
 
 pub(super) struct ChunkWorkerCtx {
@@ -568,10 +568,8 @@ impl ChunkWorkerCtx {
     /// Clear the "Retrying" marker a previous failure left on the task.
     fn mark_retrying_as_downloading(&self) {
         let mut core = self.managed.lock_core();
-        if core.snapshot.state == DownloadState::Retrying {
-            core.snapshot.state = DownloadState::Downloading;
+        if core.manifest.state == DownloadState::Retrying {
             core.manifest.state = DownloadState::Downloading;
-            core.snapshot.updated_at_ms = now_ms();
             core.manifest.updated_at_ms = now_ms();
         }
     }
@@ -622,8 +620,6 @@ impl ChunkWorkerCtx {
             c.dirty = true;
             core.manifest.downloaded_bytes =
                 core.manifest.downloaded_bytes.saturating_sub(prev_received);
-            core.snapshot.downloaded_bytes =
-                core.snapshot.downloaded_bytes.saturating_sub(prev_received);
             core.durable_bytes = core.durable_bytes.saturating_sub(prev_durable);
         }
     }
@@ -940,7 +936,7 @@ impl ChunkWorkerCtx {
                 record_durable_bytes(&self.managed, &[(offset, bytes.len() as u64)]);
                 if self.disk_type == DiskType::Hdd {
                     let mut core = self.managed.lock_core();
-                    core.snapshot.degraded = true;
+                    core.degraded = true;
                 }
             }
         } else {
@@ -989,7 +985,7 @@ impl ChunkWorkerCtx {
         if let Some(idx) = chunk_idx {
             self.release(idx);
         }
-        if self.managed.lock_core().snapshot.state == DownloadState::Canceled {
+        if self.managed.lock_core().manifest.state == DownloadState::Canceled {
             ChunkWorkerOutcome::Canceled
         } else {
             ChunkWorkerOutcome::Paused

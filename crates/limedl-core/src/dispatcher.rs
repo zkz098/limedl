@@ -739,12 +739,11 @@ impl Dispatcher {
                 {
                     let mut core = managed.lock_core();
                     core.manifest.checksum = Some(computed.clone());
-                    core.snapshot.checksum = Some(computed.clone());
                 }
                 let _ = dm.persist(managed.clone()).await;
                 let summary = {
                     let core = managed.lock_core();
-                    DownloadSummary::from(&core.snapshot)
+                    DownloadSummary::from(&core.snapshot())
                 };
                 eb.publish(DownloadEvent::Updated {
                     summary: Box::new(summary),

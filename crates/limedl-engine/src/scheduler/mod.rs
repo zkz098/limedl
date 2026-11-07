@@ -26,7 +26,6 @@ use crate::{
     database::Database,
     download::{
         DEFAULT_FIXED_THREADS, MAX_TRADITIONAL_THREADS, ManagedDownload, log_background_error,
-        sync_snapshot_with_manifest,
     },
     error::Result,
     manager_state::ManagerState,
@@ -476,7 +475,6 @@ fn pin_overclock_targets<'a>(
         {
             manifest.desired_thread_count = Some(cap);
             manifest.updated_at_ms = now_ms();
-            sync_snapshot_with_manifest(&mut core);
         }
     }
 }
@@ -557,7 +555,6 @@ fn update_one_adaptive(
             aimd.record_sample(throughput);
             track_direction(&mut aimd, Direction::Up);
             check_oscillation(&mut aimd, manifest, current, min_threads, now, &thresholds);
-            sync_snapshot_with_manifest(&mut core);
             return;
         }
 
@@ -574,7 +571,6 @@ fn update_one_adaptive(
         aimd.record_sample(throughput);
         track_direction(&mut aimd, Direction::Down);
         check_oscillation(&mut aimd, manifest, current, min_threads, now, &thresholds);
-        sync_snapshot_with_manifest(&mut core);
         return;
     }
 
@@ -617,9 +613,6 @@ fn update_one_adaptive(
             throughput,
             &thresholds,
         );
-        // `check_oscillation` may override the target with the hysteresis
-        // lock value, so publish it after it ran.
-        sync_snapshot_with_manifest(&mut core);
         return;
     }
 
@@ -642,7 +635,6 @@ fn update_one_adaptive(
     if changed_up {
         track_direction(&mut aimd, Direction::Up);
         check_oscillation(&mut aimd, manifest, current, min_threads, now, &thresholds);
-        sync_snapshot_with_manifest(&mut core);
     }
 }
 
@@ -910,7 +902,6 @@ fn rebalance_traditional(
         if is_terminal_state(manifest.state) {
             manifest.allocated_thread_count = Some(0);
             manifest.connection_count = 0;
-            sync_snapshot_with_manifest(&mut core);
             continue;
         }
 
@@ -938,7 +929,6 @@ fn rebalance_traditional(
             set_queued(manifest);
         }
         manifest.updated_at_ms = now_ms();
-        sync_snapshot_with_manifest(&mut core);
     }
 }
 
@@ -996,7 +986,6 @@ fn rebalance_automatic(
             }
         }
         manifest.updated_at_ms = now_ms();
-        sync_snapshot_with_manifest(&mut core);
     }
 }
 

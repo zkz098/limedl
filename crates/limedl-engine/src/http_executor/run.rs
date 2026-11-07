@@ -226,10 +226,8 @@ impl HttpExecutor {
                 );
                 let mut core = managed.lock_core();
                 if core.manifest.expected_checksum.is_none() {
-                    core.manifest.expected_checksum = Some(hash.clone());
+                    core.manifest.expected_checksum = Some(hash);
                     core.manifest.checksum_mode = mode;
-                    core.snapshot.expected_checksum = Some(hash);
-                    core.snapshot.checksum_mode = mode;
                 }
             } else {
                 // Priority 2: Probe external candidates (.sha256, SHA256SUMS)
@@ -292,10 +290,6 @@ impl HttpExecutor {
             RunOutcome::Paused => {
                 {
                     let mut core = managed.lock_core();
-                    core.snapshot.state = DownloadState::Paused;
-                    core.snapshot.connection_count = 0;
-                    core.snapshot.allocated_thread_count = Some(0);
-                    core.snapshot.updated_at_ms = now_ms();
                     core.manifest.state = DownloadState::Paused;
                     core.manifest.connection_count = 0;
                     core.manifest.allocated_thread_count = Some(0);
@@ -405,7 +399,6 @@ fn apply_probe_to_manifest(
         ));
         manifest.desired_thread_count = Some(1);
     }
-    core.sync_snapshot_from_manifest();
     if plan.reset_progress {
         // The caller recreates the temp file, so nothing written before this point
         // still counts as durable progress. The fresh chunks above already carry a
@@ -433,10 +426,8 @@ async fn detect_and_store_sha256(client: &Client, managed: &Arc<ManagedDownload>
         tracing::info!("Auto-detected SHA-256 for {}: {}", file_name, detected_hash);
         let mut core = managed.lock_core();
         if core.manifest.expected_checksum.is_none() {
-            core.manifest.expected_checksum = Some(detected_hash.clone());
+            core.manifest.expected_checksum = Some(detected_hash);
             core.manifest.checksum_mode = ChecksumMode::Sha256;
-            core.snapshot.expected_checksum = Some(detected_hash);
-            core.snapshot.checksum_mode = ChecksumMode::Sha256;
         }
     }
 }

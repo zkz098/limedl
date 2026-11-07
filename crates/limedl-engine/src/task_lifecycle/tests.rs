@@ -16,96 +16,45 @@ use crate::{
 
 fn make_managed(id: &str, state: DownloadState, created_at_ms: u64) -> ManagedDownload {
     ManagedDownload {
-        core: ParkingMutex::new(DownloadCore {
-            snapshot: DownloadSnapshot {
-                id: id.to_string(),
-                kind: TaskKind::Http,
-                state,
-                url: format!("https://example.com/{id}"),
-                final_url: format!("https://cdn.example.com/{id}"),
-                file_name: format!("{id}.bin"),
-                destination_path: format!("/tmp/dst/{id}.bin"),
-                temp_path: format!("/tmp/temp/{id}.part"),
-                total_bytes: None,
-                downloaded_bytes: 0,
-                supports_ranges: false,
-                connection_count: 0,
-                thread_mode: ThreadMode::Adaptive,
-                requested_thread_count: None,
-                desired_thread_count: None,
-                allocated_thread_count: None,
-                adaptive_profile: None,
-                thread_note: None,
-                checksum: None,
-                expected_checksum: None,
-                checksum_mode: ChecksumMode::None,
-                etag: None,
-                last_modified: None,
-                error: None,
-                speed_bytes_per_second: None,
-                eta_seconds: None,
-                uploaded_bytes: None,
-                upload_speed_bytes_per_second: None,
-                peer_count: None,
-                upload_status: None,
-                info_hash: None,
-                created_at_ms,
-                updated_at_ms: 0,
-                cdn_accelerated: false,
-                cdn_node_ip: None,
-                chunks: vec![],
-                seed_count: None,
-                leech_count: None,
-                download_limit_bps: None,
-                upload_limit_bps: None,
-                mirror_url: None,
-                priority: Priority::Normal,
-                degraded: false,
-                disk_type: None,
-                flushing: false,
-            },
-            manifest: Manifest {
-                id: id.to_string(),
-                url: format!("https://example.com/{id}"),
-                final_url: format!("https://cdn.example.com/{id}"),
-                user_agent: String::new(),
-                extra_headers: vec![],
-                destination_dir: String::new(),
-                file_name: format!("{id}.bin"),
-                file_name_locked: false,
-                destination_path: format!("/tmp/dst/{id}.bin"),
-                temp_path: format!("/tmp/temp/{id}.part"),
-                total_bytes: None,
-                downloaded_bytes: 0,
-                supports_ranges: false,
-                chunk_size: 4 * 1024 * 1024,
-                connection_count: 0,
-                thread_mode: ThreadMode::Adaptive,
-                requested_thread_count: None,
-                desired_thread_count: None,
-                allocated_thread_count: None,
-                adaptive_profile_snapshot: None,
-                thread_note: None,
-                etag: None,
-                last_modified: None,
-                state,
-                cdn_accelerated: false,
-                cdn_node_ip: None,
-                priority: Priority::Normal,
-                checksum_mode: ChecksumMode::None,
-                checksum: None,
-                expected_checksum: None,
-                error: None,
-                created_at_ms,
-                updated_at_ms: 0,
-                mirror_url: None,
-                mirror_urls: vec![],
-                current_mirror_index: 0,
-                chunks: vec![],
-            },
-            durable_bytes: 0,
-            speed_tracker: SpeedTracker::default(),
-        }),
+        core: ParkingMutex::new(DownloadCore::new(Manifest {
+            id: id.to_string(),
+            url: format!("https://example.com/{id}"),
+            final_url: format!("https://cdn.example.com/{id}"),
+            user_agent: String::new(),
+            extra_headers: vec![],
+            destination_dir: String::new(),
+            file_name: format!("{id}.bin"),
+            file_name_locked: false,
+            destination_path: format!("/tmp/dst/{id}.bin"),
+            temp_path: format!("/tmp/temp/{id}.part"),
+            total_bytes: None,
+            downloaded_bytes: 0,
+            supports_ranges: false,
+            chunk_size: 4 * 1024 * 1024,
+            connection_count: 0,
+            thread_mode: ThreadMode::Adaptive,
+            requested_thread_count: None,
+            desired_thread_count: None,
+            allocated_thread_count: None,
+            adaptive_profile_snapshot: None,
+            thread_note: None,
+            etag: None,
+            last_modified: None,
+            state,
+            cdn_accelerated: false,
+            cdn_node_ip: None,
+            priority: Priority::Normal,
+            checksum_mode: ChecksumMode::None,
+            checksum: None,
+            expected_checksum: None,
+            error: None,
+            created_at_ms,
+            updated_at_ms: 0,
+            mirror_url: None,
+            mirror_urls: vec![],
+            current_mirror_index: 0,
+            chunks: vec![],
+        })),
         runtime: ParkingMutex::new(None),
         aimd: ParkingMutex::new(AimdState::default()),
         stop_notify: Notify::new(),
@@ -117,12 +66,12 @@ fn make_managed_with_snapshot(
     id: &str,
     state: DownloadState,
     created_at_ms: u64,
-    snapshot_mod: impl FnOnce(&mut DownloadSnapshot),
+    manifest_mod: impl FnOnce(&mut Manifest),
 ) -> ManagedDownload {
     let dl = make_managed(id, state, created_at_ms);
     {
         let mut core = dl.lock_core();
-        snapshot_mod(&mut core.snapshot);
+        manifest_mod(&mut core.manifest);
     }
     dl
 }
@@ -140,8 +89,8 @@ fn evict_completed_test(map: &mut HashMap<String, ManagedDownload>, limit: usize
     let mut terminal: Vec<(String, u64)> = Vec::new();
     for (id, managed) in map.iter() {
         let core = managed.lock_core();
-        if is_terminal(core.snapshot.state) {
-            terminal.push((id.clone(), core.snapshot.created_at_ms));
+        if is_terminal(core.manifest.state) {
+            terminal.push((id.clone(), core.manifest.created_at_ms));
         }
     }
 
@@ -161,21 +110,7 @@ fn evict_completed_test(map: &mut HashMap<String, ManagedDownload>, limit: usize
 /// Same algorithm as `TaskLifecycle::build_snapshot`.
 fn build_snapshot_test(managed: &ManagedDownload) -> DownloadSnapshot {
     let core = managed.lock_core();
-    let mut snapshot = core.snapshot.clone();
-    let chunks: Vec<ChunkInfo> = core
-        .manifest
-        .chunks
-        .iter()
-        .map(|c| ChunkInfo {
-            index: c.index,
-            start: c.start,
-            end: c.end,
-            downloaded: c.downloaded,
-            completed: c.completed,
-            claimed_by: c.claimed_by,
-        })
-        .collect();
-    snapshot.chunks = chunks;
+    let mut snapshot = core.snapshot();
 
     let speed = if is_terminal(snapshot.state) {
         None

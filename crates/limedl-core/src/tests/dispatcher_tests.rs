@@ -313,7 +313,6 @@ async fn dispatcher_resume_emits_updated() -> TestResult {
         let mut core = dl.lock_core();
         core.manifest.url = "http://127.0.0.1:1/x".into();
         core.manifest.final_url = "http://127.0.0.1:1/x".into();
-        core.snapshot.url = "http://127.0.0.1:1/x".into();
     }
 
     let mut rx = subscribe(&eb);
@@ -398,7 +397,6 @@ async fn dispatcher_status_list_and_active_aggregation() -> TestResult {
             .cloned()
             .expect("injected download");
         let mut core = dl.lock_core();
-        core.snapshot.state = DownloadState::Completed;
         core.manifest.state = DownloadState::Completed;
     }
     assert!(!dispatcher.has_active_downloads().await);

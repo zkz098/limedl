@@ -168,7 +168,7 @@ async fn finish_buffer_flush(
         // Signal frontend that we're flushing to disk
         {
             let mut core = managed.lock_core();
-            core.snapshot.flushing = true;
+            core.flushing = true;
         }
         dm.emit_progress(managed);
 
@@ -177,7 +177,7 @@ async fn finish_buffer_flush(
         // Always clear the flag, even on error
         {
             let mut core = managed.lock_core();
-            core.snapshot.flushing = false;
+            core.flushing = false;
         }
         dm.emit_progress(managed);
         flush_result?;
@@ -210,10 +210,6 @@ async fn check_disk_space_periodically(
             let msg = format!("Insufficient disk space: {remaining} bytes remaining");
             {
                 let mut core = managed.lock_core();
-                core.snapshot.state = DownloadState::Failed;
-                core.snapshot.error = Some(msg.clone());
-                core.snapshot.connection_count = 0;
-                core.snapshot.updated_at_ms = now_ms();
                 core.manifest.state = DownloadState::Failed;
                 core.manifest.error = Some(msg);
                 core.manifest.connection_count = 0;

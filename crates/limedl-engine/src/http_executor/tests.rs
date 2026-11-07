@@ -242,8 +242,7 @@ fn request_budget_never_overflows_on_a_long_lived_loop() {
 
 fn core_with_chunks(chunks: Vec<ChunkManifest>) -> crate::download::DownloadCore {
     let manifest = make_test_manifest(chunks);
-    let snapshot = crate::manifest::snapshot_from_manifest(&manifest);
-    crate::download::DownloadCore::new(snapshot, manifest)
+    crate::download::DownloadCore::new(manifest)
 }
 
 #[test]

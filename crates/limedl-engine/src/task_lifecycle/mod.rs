@@ -23,7 +23,7 @@ use crate::{
     file_ops::open_download_file,
     manager_state::ManagerState,
     now_ms,
-    types::{ChunkInfo, DownloadProgress, DownloadSnapshot, DownloadState, DownloadSummary},
+    types::{DownloadProgress, DownloadSnapshot, DownloadState, DownloadSummary},
 };
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -123,17 +123,13 @@ impl TaskLifecycle {
                         core.manifest.mirror_url = Some(url_to_try.clone());
                         core.manifest.final_url = url_to_try.clone();
                     }
-                    core.snapshot.mirror_url = core.manifest.mirror_url.clone();
-                    core.snapshot.final_url = core.manifest.final_url.clone();
                 }
 
                 let (client, cdn_accelerated, cdn_node_ip) =
                     manager.resolve_client(url_to_try).await;
                 {
                     let mut core = managed.lock_core();
-                    core.snapshot.cdn_accelerated = cdn_accelerated;
                     core.manifest.cdn_accelerated = cdn_accelerated;
-                    core.snapshot.cdn_node_ip = cdn_node_ip.clone();
                     core.manifest.cdn_node_ip = cdn_node_ip;
                 }
 
@@ -172,11 +168,6 @@ impl TaskLifecycle {
 
                         {
                             let mut core = managed.lock_core();
-                            core.snapshot.state = DownloadState::Failed;
-                            core.snapshot.error = Some(error.to_string());
-                            core.snapshot.connection_count = 0;
-                            core.snapshot.allocated_thread_count = Some(0);
-                            core.snapshot.updated_at_ms = now_ms();
                             core.manifest.state = DownloadState::Failed;
                             core.manifest.error = Some(error.to_string());
                             core.manifest.connection_count = 0;
@@ -185,7 +176,7 @@ impl TaskLifecycle {
                         }
                         manager.emit_single_summary(&managed);
 
-                        let download_id = managed.lock_core().snapshot.id.clone();
+                        let download_id = managed.lock_core().manifest.id.clone();
                         let gid = crate::internal_id_to_gid(&download_id);
                         manager
                             .event_bus()
@@ -201,7 +192,7 @@ impl TaskLifecycle {
 
             let should_persist = {
                 let core = managed.lock_core();
-                core.snapshot.state != DownloadState::Canceled
+                core.manifest.state != DownloadState::Canceled
             };
             if should_persist && let Err(error) = manager.persist(managed.clone()).await {
                 log_background_error("persist background download state", &error);
@@ -239,10 +230,6 @@ impl TaskLifecycle {
 
         if needs_cancel_state {
             let mut core = managed.lock_core();
-            core.snapshot.state = DownloadState::Canceled;
-            core.snapshot.connection_count = 0;
-            core.snapshot.allocated_thread_count = Some(0);
-            core.snapshot.updated_at_ms = now_ms();
             core.manifest.state = DownloadState::Canceled;
             core.manifest.connection_count = 0;
             core.manifest.allocated_thread_count = Some(0);
@@ -302,7 +289,7 @@ impl TaskLifecycle {
             }
 
             tokio::select! {
-                _ = token.cancelled() => return match managed.lock_core().snapshot.state {
+                _ = token.cancelled() => return match managed.lock_core().manifest.state {
                     DownloadState::Canceled => WaitState::Canceled,
                     _ => WaitState::Paused,
                 },
@@ -364,8 +351,6 @@ impl TaskLifecycle {
         let now = now_ms();
         let mut core = managed.lock_core();
         core.speed_tracker.reset();
-        core.snapshot.downloaded_bytes = 0;
-        core.snapshot.updated_at_ms = now;
         core.manifest.downloaded_bytes = 0;
         core.manifest.updated_at_ms = now;
         // The file is about to be recreated from scratch, so nothing written before
@@ -379,13 +364,6 @@ impl TaskLifecycle {
             chunk.dirty = true;
         }
         if force_single_stream {
-            core.snapshot.connection_count = 1;
-            core.snapshot.supports_ranges = false;
-            core.snapshot.desired_thread_count = Some(1);
-            core.snapshot.allocated_thread_count = Some(1);
-            core.snapshot.thread_note = Some(String::from(
-                crate::download::thread_notes::NO_PARALLEL_SUPPORT,
-            ));
             core.manifest.connection_count = 1;
             core.manifest.supports_ranges = false;
             core.manifest.chunks.clear();
@@ -417,8 +395,8 @@ impl TaskLifecycle {
         let mut terminal: Vec<(String, u64)> = Vec::new();
         for (id, managed) in map.iter() {
             let core = managed.lock_core();
-            if is_terminal(core.snapshot.state) {
-                terminal.push((id.clone(), core.snapshot.created_at_ms));
+            if is_terminal(core.manifest.state) {
+                terminal.push((id.clone(), core.manifest.created_at_ms));
             }
         }
 
@@ -440,21 +418,7 @@ impl TaskLifecycle {
     /// and ETA from AIMD state.
     pub fn build_snapshot(&self, managed: Arc<ManagedDownload>) -> DownloadSnapshot {
         let core = managed.lock_core();
-        let mut snapshot = core.snapshot.clone();
-        let chunks: Vec<ChunkInfo> = core
-            .manifest
-            .chunks
-            .iter()
-            .map(|c| ChunkInfo {
-                index: c.index,
-                start: c.start,
-                end: c.end,
-                downloaded: c.downloaded,
-                completed: c.completed,
-                claimed_by: c.claimed_by,
-            })
-            .collect();
-        snapshot.chunks = chunks;
+        let mut snapshot = core.snapshot();
 
         let speed = if is_terminal(snapshot.state) {
             None

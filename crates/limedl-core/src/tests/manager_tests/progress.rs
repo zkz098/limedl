@@ -9,7 +9,7 @@ async fn record_progress_normal_update() {
     record_progress_on_managed(&managed, Some(0), 1000);
 
     let core = managed.core.lock();
-    assert_eq!(core.snapshot.downloaded_bytes, 1000);
+    assert_eq!(core.snapshot().downloaded_bytes, 1000);
     assert_eq!(core.manifest.downloaded_bytes, 1000);
     assert_eq!(core.manifest.chunks[0].downloaded, 1000);
     assert!(!core.manifest.chunks[0].completed);
@@ -17,7 +17,7 @@ async fn record_progress_normal_update() {
     // next start resumes from may only record what reached the file, and only the
     // write buffer knows that (see `record_durable_bytes`).
     assert!(!core.manifest.chunks[0].dirty);
-    assert!(core.snapshot.updated_at_ms > 0);
+    assert!(core.manifest.updated_at_ms > 0);
 }
 
 #[tokio::test]
@@ -29,7 +29,7 @@ async fn record_progress_chunk_index_beyond_range() {
 
     let core = managed.core.lock();
     // Snapshot and manifest still update
-    assert_eq!(core.snapshot.downloaded_bytes, 2500);
+    assert_eq!(core.snapshot().downloaded_bytes, 2500);
     assert_eq!(core.manifest.downloaded_bytes, 2500);
     // Chunk remains unchanged
     assert_eq!(core.manifest.chunks[0].downloaded, 100);
@@ -64,7 +64,7 @@ async fn record_progress_overflow_protection() {
 
     let core = managed.core.lock();
     // saturating_add should keep value at u64::MAX
-    assert_eq!(core.snapshot.downloaded_bytes, u64::MAX);
+    assert_eq!(core.snapshot().downloaded_bytes, u64::MAX);
     assert_eq!(core.manifest.downloaded_bytes, u64::MAX);
 }
 
@@ -75,7 +75,7 @@ async fn record_progress_none_chunk_index_still_updates_snapshot() {
     record_progress_on_managed(&managed, None, 777);
 
     let core = managed.core.lock();
-    assert_eq!(core.snapshot.downloaded_bytes, 877);
+    assert_eq!(core.snapshot().downloaded_bytes, 877);
     assert_eq!(core.manifest.downloaded_bytes, 877);
     // Chunk should be untouched
     assert_eq!(core.manifest.chunks[0].downloaded, 50);

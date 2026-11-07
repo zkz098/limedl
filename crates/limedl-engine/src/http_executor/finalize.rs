@@ -26,13 +26,9 @@ impl HttpExecutor {
         }
         {
             let mut core = managed.lock_core();
-            if core.snapshot.state == DownloadState::Canceled || token.is_cancelled() {
+            if core.manifest.state == DownloadState::Canceled || token.is_cancelled() {
                 return Ok(RunOutcome::Canceled);
             }
-            core.snapshot.state = DownloadState::Verifying;
-            core.snapshot.connection_count = 0;
-            core.snapshot.allocated_thread_count = Some(0);
-            core.snapshot.updated_at_ms = now_ms();
             core.manifest.state = DownloadState::Verifying;
             core.manifest.connection_count = 0;
             core.manifest.allocated_thread_count = Some(0);
@@ -59,7 +55,7 @@ impl HttpExecutor {
             ChecksumMode::None => None,
             _ if precomputed.is_some() => precomputed,
             mode => {
-                let dl_id = managed.lock_core().snapshot.id.clone();
+                let dl_id = managed.lock_core().manifest.id.clone();
                 let eb = dm.event_bus().clone();
                 let (prog_tx, mut prog_rx) = tokio::sync::mpsc::unbounded_channel::<(u64, u64)>();
 
@@ -139,11 +135,6 @@ impl HttpExecutor {
             }
             {
                 let mut core = managed.lock_core();
-                core.snapshot.state = DownloadState::Failed;
-                core.snapshot.error = Some(error_msg.clone());
-                core.snapshot.connection_count = 0;
-                core.snapshot.allocated_thread_count = Some(0);
-                core.snapshot.updated_at_ms = now_ms();
                 core.manifest.state = DownloadState::Failed;
                 core.manifest.error = Some(error_msg);
                 core.manifest.connection_count = 0;
@@ -178,22 +169,9 @@ impl HttpExecutor {
             if core.manifest.state == DownloadState::Canceled || token.is_cancelled() {
                 return Ok(RunOutcome::Canceled);
             }
-            if core.snapshot.state == DownloadState::Canceled || token.is_cancelled() {
-                return Ok(RunOutcome::Canceled);
-            }
 
             ensure_core_fully_durable(&core)?;
             finalize_temp_file(&temp_path, &destination_path)?;
-
-            core.snapshot.state = DownloadState::Completed;
-            core.snapshot.downloaded_bytes = core
-                .snapshot
-                .total_bytes
-                .unwrap_or(core.snapshot.downloaded_bytes);
-            core.snapshot.checksum = checksum.clone();
-            core.snapshot.destination_path = destination_path.to_string_lossy().to_string();
-            core.snapshot.error = None;
-            core.snapshot.updated_at_ms = now_ms();
 
             core.manifest.state = DownloadState::Completed;
             core.manifest.downloaded_bytes = core
@@ -214,7 +192,7 @@ impl HttpExecutor {
         dm.persist(managed.clone()).await?;
 
         // Broadcast aria2.onDownloadComplete via EventBus
-        let download_id = managed.lock_core().snapshot.id.clone();
+        let download_id = managed.lock_core().manifest.id.clone();
         let gid = crate::internal_id_to_gid(&download_id);
         dm.event_bus().publish(DownloadEvent::Aria2Notification {
             event_name: "aria2.onDownloadComplete".into(),

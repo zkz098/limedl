@@ -244,9 +244,6 @@ impl SingleRun<'_> {
     /// failure left on the task.
     fn mark_downloading(&self) {
         let mut core = self.managed.lock_core();
-        core.snapshot.state = DownloadState::Downloading;
-        core.snapshot.connection_count = 1;
-        core.snapshot.updated_at_ms = now_ms();
         core.manifest.state = DownloadState::Downloading;
         core.manifest.connection_count = 1;
         core.manifest.updated_at_ms = now_ms();
@@ -390,7 +387,6 @@ impl SingleRun<'_> {
             if core.manifest.chunks.is_empty() {
                 let durable = core.durable_bytes.min(core.manifest.downloaded_bytes);
                 core.manifest.downloaded_bytes = durable;
-                core.snapshot.downloaded_bytes = durable;
             }
         }
         if *self.consecutive_stream_errors > self.max_retries {
@@ -450,8 +446,7 @@ impl SingleRun<'_> {
         let computed = hasher.finalize();
         tracing::info!("Single-stream on-the-fly checksum computed: {computed}");
         let mut core = self.managed.lock_core();
-        core.manifest.checksum = Some(computed.clone());
-        core.snapshot.checksum = Some(computed);
+        core.manifest.checksum = Some(computed);
     }
 }
 
@@ -564,10 +559,10 @@ async fn open_single_target(
     )
     .await;
 
-    // Set disk_type on snapshot for frontend badge display
+    // Set disk_type on core for frontend badge display
     {
         let mut core = managed.lock_core();
-        core.snapshot.disk_type = Some(disk_type);
+        core.disk_type = Some(disk_type);
     }
 
     Ok((file, total_bytes, disk_type, write_buffer))
@@ -658,7 +653,7 @@ async fn write_chunk_bytes(
             record_durable_bytes(managed, &[(offset, chunk.len() as u64)]);
             if disk_type == DiskType::Hdd {
                 let mut core = managed.lock_core();
-                core.snapshot.degraded = true;
+                core.degraded = true;
             }
         }
     } else {

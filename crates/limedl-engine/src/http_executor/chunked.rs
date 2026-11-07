@@ -310,10 +310,10 @@ async fn open_chunked_target(
     )
     .await;
 
-    // Set disk_type on snapshot for frontend badge display
+    // Set disk_type on core for frontend badge display
     {
         let mut core = managed.lock_core();
-        core.snapshot.disk_type = Some(disk_type);
+        core.disk_type = Some(disk_type);
     }
 
     Ok((file, disk_type, write_buffer, tail_sprint_enabled))
@@ -366,9 +366,6 @@ fn grow_worker_pool(
 
         {
             let mut core = pool.managed.lock_core();
-            core.snapshot.state = DownloadState::Downloading;
-            core.snapshot.connection_count = target_workers;
-            core.snapshot.updated_at_ms = now_ms();
             core.manifest.state = DownloadState::Downloading;
             core.manifest.connection_count = target_workers;
             core.manifest.updated_at_ms = now_ms();
@@ -620,7 +617,6 @@ async fn handle_worker_outcome(
                 ));
                 core.manifest.error = None;
                 core.manifest.updated_at_ms = now_ms();
-                core.sync_snapshot_from_manifest();
             }
             dm.emit_progress(managed);
             persist_manifest_snapshot(dm.db(), managed).await?;

@@ -23,7 +23,7 @@ use super::{
     event_bus::EventBus,
     http_executor::HttpExecutor,
     logging::apply_logging_settings,
-    manifest::{CHUNK_SIZE, Manifest, snapshot_from_manifest},
+    manifest::{CHUNK_SIZE, Manifest},
     protocol::DownloadBackend,
     rate_limiter::RateLimiter,
     scheduler::Scheduler,
@@ -540,9 +540,8 @@ impl DownloadManager {
             manifest.current_mirror_index = 0;
         }
 
-        let snapshot = snapshot_from_manifest(&manifest);
         let managed = Arc::new(ManagedDownload {
-            core: Mutex::new(DownloadCore::new(snapshot, manifest)),
+            core: Mutex::new(DownloadCore::new(manifest)),
             runtime: Mutex::new(None),
             aimd: Mutex::new(AimdState::initial(adaptive_profile, desired_thread_count)),
             stop_notify: Notify::new(),
@@ -581,15 +580,11 @@ impl DownloadManager {
         {
             let mut core = managed.lock_core();
             if !matches!(
-                core.snapshot.state,
+                core.manifest.state,
                 DownloadState::Downloading | DownloadState::Retrying | DownloadState::Queued
             ) {
-                return Ok(core.snapshot.clone());
+                return Ok(core.snapshot());
             }
-            core.snapshot.state = DownloadState::Paused;
-            core.snapshot.connection_count = 0;
-            core.snapshot.allocated_thread_count = Some(0);
-            core.snapshot.updated_at_ms = now_ms();
             core.manifest.state = DownloadState::Paused;
             core.manifest.connection_count = 0;
             core.manifest.allocated_thread_count = Some(0);
@@ -614,16 +609,12 @@ impl DownloadManager {
 
         let is_completed = {
             let core = managed.lock_core();
-            core.snapshot.state == DownloadState::Completed
+            core.manifest.state == DownloadState::Completed
         };
 
         if !is_completed {
             {
                 let mut core = managed.lock_core();
-                core.snapshot.state = DownloadState::Canceled;
-                core.snapshot.connection_count = 0;
-                core.snapshot.allocated_thread_count = Some(0);
-                core.snapshot.updated_at_ms = now_ms();
                 core.manifest.state = DownloadState::Canceled;
                 core.manifest.connection_count = 0;
                 core.manifest.allocated_thread_count = Some(0);
@@ -722,7 +713,7 @@ impl DownloadManager {
         {
             let core = managed.lock_core();
             if matches!(
-                core.snapshot.state,
+                core.manifest.state,
                 DownloadState::Downloading
                     | DownloadState::Retrying
                     | DownloadState::Queued
@@ -730,16 +721,16 @@ impl DownloadManager {
             ) {
                 return Err(DownloadError::AlreadyRunning);
             }
-            if matches!(core.snapshot.state, DownloadState::Canceled) {
+            if matches!(core.manifest.state, DownloadState::Canceled) {
                 return Err(DownloadError::Canceled);
             }
-            if matches!(core.snapshot.state, DownloadState::Completed) {
+            if matches!(core.manifest.state, DownloadState::Completed) {
                 return Err(DownloadError::NotResumable);
             }
         }
 
         // Phase 2: refresh mirror URL list from current settings and
-        // set Queued state on both snapshot and manifest.
+        // set Queued state on manifest.
         // NOTE: extract the original URL first, then drop the lock before
         // calling mirror_urls_for() — MutexGuard is not Send and cannot be
         // held across an await point.
@@ -763,9 +754,6 @@ impl DownloadManager {
                     core.manifest.final_url = url;
                 }
             }
-            core.snapshot.state = DownloadState::Queued;
-            core.snapshot.error = None;
-            core.snapshot.updated_at_ms = now_ms();
             core.manifest.state = DownloadState::Queued;
             core.manifest.error = None;
             core.manifest.updated_at_ms = now_ms();
@@ -919,11 +907,8 @@ impl DownloadManager {
             core.manifest.mirror_urls = candidates;
             core.manifest.current_mirror_index = index;
             core.manifest.mirror_url = Some(current.clone());
-            core.manifest.final_url = current.clone();
+            core.manifest.final_url = current;
             core.manifest.updated_at_ms = now;
-            core.snapshot.url = core.manifest.url.clone();
-            core.snapshot.final_url = current;
-            core.snapshot.updated_at_ms = now;
         }
 
         self.persist(managed).await?;
@@ -1061,11 +1046,6 @@ impl DownloadBackend for DownloadManager {
         {
             let mut core = managed.lock_core();
             core.manifest.priority = priority;
-            // Keep the snapshot in step: the `Updated` event the dispatcher
-            // emits right after this call carries the snapshot, so leaving it
-            // stale keeps the UI priority badge on the previous value until a
-            // restart rebuilds the snapshot.
-            core.snapshot.priority = priority;
         }
         // Persist to DB
         self.db.set_priority(&download_id, priority as u8)?;
@@ -1168,9 +1148,8 @@ impl DownloadManager {
                 }
             }
 
-            let snapshot = snapshot_from_manifest(&manifest);
             let managed = Arc::new(ManagedDownload {
-                core: Mutex::new(DownloadCore::new(snapshot, manifest.clone())),
+                core: Mutex::new(DownloadCore::new(manifest.clone())),
                 runtime: Mutex::new(None),
                 aimd: Mutex::new(AimdState::initial(
                     manifest.adaptive_profile_snapshot,

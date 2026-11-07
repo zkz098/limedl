@@ -254,9 +254,8 @@ fn rebalance_task(
     m.total_bytes = Some(total);
     m.downloaded_bytes = downloaded;
     m.created_at_ms = created_at;
-    let s = crate::manifest::snapshot_from_manifest(&m);
     std::sync::Arc::new(crate::download::ManagedDownload {
-        core: parking_lot::Mutex::new(crate::download::DownloadCore::new(s, m)),
+        core: parking_lot::Mutex::new(crate::download::DownloadCore::new(m)),
         runtime: parking_lot::Mutex::new(None),
         aimd: parking_lot::Mutex::new(crate::aimd::AimdState::default()),
         stop_notify: tokio::sync::Notify::new(),
@@ -510,9 +509,8 @@ fn make_managed_task(
     m.desired_thread_count = Some(desired);
     m.allocated_thread_count = Some(allocated);
     m.adaptive_profile_snapshot = Some(profile);
-    let s = crate::manifest::snapshot_from_manifest(&m);
     std::sync::Arc::new(crate::download::ManagedDownload {
-        core: parking_lot::Mutex::new(crate::download::DownloadCore::new(s, m)),
+        core: parking_lot::Mutex::new(crate::download::DownloadCore::new(m)),
         runtime: parking_lot::Mutex::new(None),
         aimd: parking_lot::Mutex::new(crate::aimd::AimdState::default()),
         stop_notify: tokio::sync::Notify::new(),
@@ -718,9 +716,8 @@ fn test_expert_queue_sort_strategies() {
         m.total_bytes = Some(total);
         m.downloaded_bytes = downloaded;
         m.created_at_ms = created_at;
-        let s = crate::manifest::snapshot_from_manifest(&m);
         std::sync::Arc::new(crate::download::ManagedDownload {
-            core: parking_lot::Mutex::new(crate::download::DownloadCore::new(s, m)),
+            core: parking_lot::Mutex::new(crate::download::DownloadCore::new(m)),
             runtime: parking_lot::Mutex::new(None),
             aimd: parking_lot::Mutex::new(crate::aimd::AimdState::default()),
             stop_notify: tokio::sync::Notify::new(),
