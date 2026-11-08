@@ -683,11 +683,8 @@ impl LazyBtBackend {
 
     /// Persist the summaries off the async executor (SQLite is blocking).
     async fn store_index(&self, summaries: Vec<DownloadSummary>) {
-        let db = self.db.clone();
-        match tokio::task::spawn_blocking(move || db.replace_bt_tasks(&summaries)).await {
-            Ok(Ok(())) => {}
-            Ok(Err(e)) => tracing::warn!("failed to persist the BT task index: {e}"),
-            Err(e) => tracing::warn!("BT task index writer panicked: {e}"),
+        if let Err(e) = self.db.replace_bt_tasks_async(summaries).await {
+            tracing::warn!("failed to persist the BT task index: {e}");
         }
     }
 
@@ -717,8 +714,8 @@ impl LazyBtBackend {
     ///
     /// Volatile transfer metrics are zeroed so a stopped session cannot show a
     /// stale speed, peer count or ETA.
-    fn index_summaries(&self) -> Result<Vec<DownloadSummary>> {
-        let mut summaries = self.db.list_bt_tasks().map_err(|e| {
+    async fn index_summaries(&self) -> Result<Vec<DownloadSummary>> {
+        let mut summaries = self.db.list_bt_tasks_async().await.map_err(|e| {
             DownloadError::Torrent(format!("failed to read the BT task index: {e}"))
         })?;
         for summary in &mut summaries {
@@ -792,7 +789,8 @@ impl DownloadBackend for LazyBtBackend {
             .cancel(info_hash_to_engine(&info_hash))
             .await?;
         self.db
-            .delete_bt_task(&info_hash.to_hex())
+            .delete_bt_task_async(info_hash.to_hex())
+            .await
             .unwrap_or_else(|e| tracing::warn!("failed to drop the BT index row: {e}"));
         Ok(snapshot)
     }
@@ -807,7 +805,8 @@ impl DownloadBackend for LazyBtBackend {
             .remove(info_hash_to_engine(&info_hash))
             .await?;
         self.db
-            .delete_bt_task(&info_hash.to_hex())
+            .delete_bt_task_async(info_hash.to_hex())
+            .await
             .unwrap_or_else(|e| tracing::warn!("failed to drop the BT index row: {e}"));
         Ok(snapshot)
     }
@@ -822,7 +821,8 @@ impl DownloadBackend for LazyBtBackend {
             .purge(info_hash_to_engine(&info_hash))
             .await?;
         self.db
-            .delete_bt_task(&info_hash.to_hex())
+            .delete_bt_task_async(info_hash.to_hex())
+            .await
             .unwrap_or_else(|e| tracing::warn!("failed to drop the BT index row: {e}"));
         Ok(snapshot)
     }
@@ -872,7 +872,7 @@ impl DownloadBackend for LazyBtBackend {
     async fn list(&self) -> Result<Vec<DownloadSummary>> {
         match self.engine_if_ready() {
             Some(engine) => engine.list().await,
-            None => self.index_summaries(),
+            None => self.index_summaries().await,
         }
     }
 

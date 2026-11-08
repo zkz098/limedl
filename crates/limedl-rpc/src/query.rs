@@ -211,10 +211,7 @@ async fn summary_for_raw_id(ctx: &RpcContext, raw_id: &str) -> Option<DownloadSu
         if let Some(summary) = dm.get_summary(raw_id).await {
             return Some(summary);
         }
-        let db = dm.db.clone();
-        let id = raw_id.to_string();
-        if let Ok(Ok(Some(manifest))) =
-            tokio::task::spawn_blocking(move || db.get_download_header(&id)).await
+        if let Ok(Some(manifest)) = dm.db.get_download_header_async(raw_id.to_string()).await
             && is_terminal(manifest.state)
         {
             return Some(DownloadSummary::from(
@@ -341,17 +338,14 @@ pub async fn handle_tell_stopped(
 
     // Terminal downloads evicted from memory still exist in the database and
     // must stay visible until they are purged or individually removed.
-    if let Some(dm) = ctx.http() {
-        let db = dm.db.clone();
-        if let Ok(Ok(manifests)) =
-            tokio::task::spawn_blocking(move || db.list_download_headers()).await
-        {
-            for manifest in manifests {
-                if is_terminal(manifest.state) && seen.insert(manifest.id.clone()) {
-                    stopped.push(DownloadSummary::from(
-                        &crate::manifest::snapshot_from_manifest(&manifest),
-                    ));
-                }
+    if let Some(dm) = ctx.http()
+        && let Ok(manifests) = dm.db.list_download_headers_async().await
+    {
+        for manifest in manifests {
+            if is_terminal(manifest.state) && seen.insert(manifest.id.clone()) {
+                stopped.push(DownloadSummary::from(
+                    &crate::manifest::snapshot_from_manifest(&manifest),
+                ));
             }
         }
     }
@@ -397,13 +391,10 @@ pub async fn handle_global_stat(ctx: &RpcContext) -> Result<Value, JsonRpcError>
     // (`numStoppedTotal` mirrors the current count — we do not keep a lifetime
     // cumulative counter, unlike aria2.)
     let mut num_stopped = all.iter().filter(|s| is_terminal(s.state)).count();
-    if let Some(dm) = ctx.http() {
-        let db = dm.db.clone();
-        if let Ok(Ok(count)) =
-            tokio::task::spawn_blocking(move || db.count_terminal_downloads()).await
-        {
-            num_stopped = count;
-        }
+    if let Some(dm) = ctx.http()
+        && let Ok(count) = dm.db.count_terminal_downloads_async().await
+    {
+        num_stopped = count;
     }
 
     let total_speed: u64 = all

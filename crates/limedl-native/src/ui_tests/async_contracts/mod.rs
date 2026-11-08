@@ -46,6 +46,7 @@ fn event_loop_contracts() {
         bus::a_terminal_state_event_toasts_and_repaints_the_row().await;
         bus::an_event_for_a_task_the_backend_forgot_drops_the_row_and_closes_the_inspector().await;
         bus::a_lagged_subscriber_gets_the_whole_list_back().await;
+        bus::a_progress_flood_never_drops_lifecycle_events_or_triggers_full_resync().await;
         bus::a_warning_becomes_a_toast_and_duplicates_are_collapsed().await;
         bus::the_cdn_speedtest_reports_its_progress_and_outcome().await;
         bus::a_background_refresh_resyncs_the_whole_list().await;

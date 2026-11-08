@@ -219,21 +219,14 @@ fn publish_accepts_all_event_variants() {
     bus.publish(ev_cdn_complete());
     bus.publish(ev_warning());
 
+    // Lifecycle events are prioritized ahead of progress ticks.
     assert!(matches!(
         rx.try_recv().unwrap(),
         DownloadEvent::Updated { .. }
     ));
     assert!(matches!(
         rx.try_recv().unwrap(),
-        DownloadEvent::Progress { .. }
-    ));
-    assert!(matches!(
-        rx.try_recv().unwrap(),
         DownloadEvent::Aria2Notification { .. }
-    ));
-    assert!(matches!(
-        rx.try_recv().unwrap(),
-        DownloadEvent::CdnProgress { .. }
     ));
     assert!(matches!(
         rx.try_recv().unwrap(),
@@ -243,16 +236,25 @@ fn publish_accepts_all_event_variants() {
         rx.try_recv().unwrap(),
         DownloadEvent::Warning { .. }
     ));
+    assert!(matches!(
+        rx.try_recv().unwrap(),
+        DownloadEvent::Progress { .. }
+    ));
+    assert!(matches!(
+        rx.try_recv().unwrap(),
+        DownloadEvent::CdnProgress { .. }
+    ));
 }
 
 #[test]
-fn subscribe_then_publish_preserves_order() {
+fn subscribe_prioritizes_lifecycle_over_progress_and_preserves_per_channel_order() {
     let bus = EventBus::new(8);
     let mut rx = bus.subscribe();
 
     bus.publish(ev_updated());
     bus.publish(ev_progress());
     bus.publish(ev_warning());
+    bus.publish(ev_cdn_progress());
 
     assert!(matches!(
         rx.try_recv().unwrap(),
@@ -260,10 +262,50 @@ fn subscribe_then_publish_preserves_order() {
     ));
     assert!(matches!(
         rx.try_recv().unwrap(),
+        DownloadEvent::Warning { .. }
+    ));
+    assert!(matches!(
+        rx.try_recv().unwrap(),
         DownloadEvent::Progress { .. }
     ));
     assert!(matches!(
         rx.try_recv().unwrap(),
-        DownloadEvent::Warning { .. }
+        DownloadEvent::CdnProgress { .. }
+    ));
+}
+
+#[tokio::test]
+async fn progress_flood_never_lags_or_drops_lifecycle_events() {
+    let bus = EventBus::new(4);
+    let mut lifecycle_rx = bus.subscribe_lifecycle();
+    let mut progress_rx = bus.subscribe_progress();
+
+    bus.publish(ev_updated());
+    // Flood the progress channel far past its capacity of 4.
+    for _ in 0..32 {
+        bus.publish(ev_progress());
+        bus.publish(ev_cdn_progress());
+    }
+    bus.publish(ev_aria2());
+    bus.publish(ev_warning());
+
+    // The progress subscriber lags, as expected for ephemeral ticks.
+    assert!(matches!(
+        progress_rx.recv().await,
+        Err(RecvError::Lagged(_))
+    ));
+
+    // The lifecycle subscriber receives every lifecycle event in order with zero lag.
+    assert!(matches!(
+        lifecycle_rx.recv().await,
+        Ok(DownloadEvent::Updated { .. })
+    ));
+    assert!(matches!(
+        lifecycle_rx.recv().await,
+        Ok(DownloadEvent::Aria2Notification { .. })
+    ));
+    assert!(matches!(
+        lifecycle_rx.recv().await,
+        Ok(DownloadEvent::Warning { .. })
     ));
 }

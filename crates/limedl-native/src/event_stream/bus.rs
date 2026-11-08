@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 use slint::SharedString;
 
 use limedl_core::dispatcher::Dispatcher;
-use limedl_core::event_bus::DownloadEvent;
+use limedl_core::event_bus::{DownloadEvent, EventReceiver};
 use limedl_core::types::{DownloadProgress, DownloadState, DownloadSummary, TaskId};
 
 use crate::bridge::{TaskStore, summary_to_inspector_info};
@@ -291,10 +291,7 @@ fn on_warning(ctx: &BusCtx, dedup: &mut WarningDedup, id: String, message: Strin
     );
 }
 
-pub fn start_event_bus_listener(
-    ctx: &AppContext,
-    mut rx: tokio::sync::broadcast::Receiver<DownloadEvent>,
-) {
+pub fn start_event_bus_listener(ctx: &AppContext, rx: EventReceiver) {
     let bus = BusCtx {
         ui_weak: ctx.ui_weak.clone(),
         store: ctx.store.clone(),
@@ -304,43 +301,61 @@ pub fn start_event_bus_listener(
     };
 
     tokio::spawn(async move {
+        let (mut lifecycle_rx, mut progress_rx) = rx.into_parts();
         let mut warning_dedup = WarningDedup::new();
         loop {
-            match rx.recv().await {
-                Ok(DownloadEvent::Updated { summary }) => on_updated(&bus, *summary).await,
-                Ok(DownloadEvent::Progress { progress }) => on_progress(&bus, progress),
-                Ok(DownloadEvent::CdnProgress {
-                    phase,
-                    current,
-                    total,
-                }) => on_cdn_progress(&bus, phase, current, total),
-                Ok(DownloadEvent::CdnComplete {
-                    state,
-                    active_ip,
-                    active_speed_mbps,
-                }) => on_cdn_complete(&bus, state, active_ip, active_speed_mbps),
-                Ok(DownloadEvent::Warning { id, message }) => {
-                    on_warning(&bus, &mut warning_dedup, id, message);
-                }
-                // Aria2 compatibility notifications are pushed by the Aria2 RPC
-                // server straight to connected aria2 clients (AriaNg / Motrix);
-                // the native UI has no surface for them.
-                Ok(DownloadEvent::Aria2Notification { .. }) => {}
-                // The broadcast channel dropped events faster than this task could
-                // drain them. There is no partial replay, so resynchronize the whole
-                // list from the engine instead of leaving the UI stuck on old state.
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                    tracing::warn!(
-                        "UI event listener lagged by {n} events; resyncing from the engine"
-                    );
-                    match bus.dispatcher.list().await {
-                        Ok(downloads) => on_full_state(&bus, downloads),
-                        Err(error) => {
-                            tracing::warn!("UI resync after lag failed: {error:#}");
+            tokio::select! {
+                biased;
+                event = lifecycle_rx.recv() => match event {
+                    Ok(DownloadEvent::Updated { summary }) => on_updated(&bus, *summary).await,
+                    Ok(DownloadEvent::CdnComplete {
+                        state,
+                        active_ip,
+                        active_speed_mbps,
+                    }) => on_cdn_complete(&bus, state, active_ip, active_speed_mbps),
+                    Ok(DownloadEvent::Warning { id, message }) => {
+                        on_warning(&bus, &mut warning_dedup, id, message);
+                    }
+                    // Aria2 compatibility notifications are pushed by the Aria2 RPC
+                    // server straight to connected aria2 clients (AriaNg / Motrix);
+                    // the native UI has no surface for them.
+                    Ok(DownloadEvent::Aria2Notification { .. })
+                    | Ok(DownloadEvent::Progress { .. })
+                    | Ok(DownloadEvent::CdnProgress { .. }) => {}
+                    // The lifecycle broadcast channel dropped state transitions faster
+                    // than this task could drain them. Resynchronize the whole list
+                    // from the engine instead of leaving the UI stuck on old state.
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::warn!(
+                            "UI event listener lagged by {n} lifecycle events; resyncing from the engine"
+                        );
+                        match bus.dispatcher.list().await {
+                            Ok(downloads) => on_full_state(&bus, downloads),
+                            Err(error) => {
+                                tracing::warn!("UI resync after lag failed: {error:#}");
+                            }
                         }
                     }
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                },
+                event = progress_rx.recv() => match event {
+                    Ok(DownloadEvent::Progress { progress }) => on_progress(&bus, progress),
+                    Ok(DownloadEvent::CdnProgress {
+                        phase,
+                        current,
+                        total,
+                    }) => on_cdn_progress(&bus, phase, current, total),
+                    Ok(_) => {}
+                    // High-frequency progress ticks are ephemeral: skipping stale
+                    // intermediate ticks on lag is benign and does not require a
+                    // full engine resync.
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::debug!(
+                            "UI progress listener skipped {n} stale progress ticks"
+                        );
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                },
             }
         }
     });

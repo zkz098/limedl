@@ -572,6 +572,49 @@ impl Database {
         .with_context(|| format!("failed to set priority for download {download_id}"))?;
         Ok(())
     }
+
+    /// Async wrapper for [`Self::insert_download`] that runs on Tokio's blocking pool.
+    pub async fn insert_download_async(
+        self: &std::sync::Arc<Self>,
+        manifest: Manifest,
+    ) -> Result<()> {
+        self.run_blocking(move |db| db.insert_download(&manifest))
+            .await
+    }
+
+    /// Async wrapper for [`Self::delete_download`] that runs on Tokio's blocking pool.
+    pub async fn delete_download_async(self: &std::sync::Arc<Self>, id: String) -> Result<()> {
+        self.run_blocking(move |db| db.delete_download(&id)).await
+    }
+
+    /// Async wrapper for [`Self::get_download_header`] that runs on Tokio's blocking pool.
+    pub async fn get_download_header_async(
+        self: &std::sync::Arc<Self>,
+        id: String,
+    ) -> Result<Option<Manifest>> {
+        self.run_blocking(move |db| db.get_download_header(&id))
+            .await
+    }
+
+    /// Async wrapper for [`Self::count_terminal_downloads`] that runs on Tokio's blocking pool.
+    pub async fn count_terminal_downloads_async(self: &std::sync::Arc<Self>) -> Result<usize> {
+        self.run_blocking(Database::count_terminal_downloads).await
+    }
+
+    /// Async wrapper for [`Self::list_download_headers`] that runs on Tokio's blocking pool.
+    pub async fn list_download_headers_async(self: &std::sync::Arc<Self>) -> Result<Vec<Manifest>> {
+        self.run_blocking(Database::list_download_headers).await
+    }
+
+    /// Async wrapper for [`Self::set_priority`] that runs on Tokio's blocking pool.
+    pub async fn set_priority_async(
+        self: &std::sync::Arc<Self>,
+        download_id: String,
+        priority: u8,
+    ) -> Result<()> {
+        self.run_blocking(move |db| db.set_priority(&download_id, priority))
+            .await
+    }
 }
 
 #[cfg(test)]

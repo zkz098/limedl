@@ -214,6 +214,18 @@ impl Database {
         }
     }
 
+    /// Execute a blocking SQLite operation on Tokio's blocking thread pool.
+    pub async fn run_blocking<F, T>(self: &Arc<Self>, f: F) -> Result<T>
+    where
+        F: FnOnce(&Database) -> Result<T> + Send + 'static,
+        T: Send + 'static,
+    {
+        let db = Arc::clone(self);
+        tokio::task::spawn_blocking(move || f(&db))
+            .await
+            .context("database blocking task panicked")?
+    }
+
     /// Perform a WAL checkpoint to truncate the WAL file on clean shutdown.
     /// Should be called after all downloads have stopped and before the process exits.
     pub fn shutdown(&self) -> Result<()> {
@@ -221,6 +233,11 @@ impl Database {
         conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
             .context("failed to checkpoint WAL on shutdown")?;
         Ok(())
+    }
+
+    /// Async wrapper for [`Self::shutdown`] that runs on Tokio's blocking pool.
+    pub async fn shutdown_async(self: &Arc<Self>) -> Result<()> {
+        self.run_blocking(Database::shutdown).await
     }
 
     /// Run incremental vacuum if the freelist page count exceeds `threshold`.

@@ -646,7 +646,7 @@ impl Dispatcher {
                 (m, true)
             } else {
                 drop(downloads);
-                if let Some(m) = dm.db.get_download_header(&id_str)? {
+                if let Some(m) = dm.db.get_download_header_async(id_str.clone()).await? {
                     (m, false)
                 } else {
                     return Err(DownloadError::NotFound);
@@ -762,7 +762,7 @@ impl Dispatcher {
         } else {
             let mut updated_manifest = manifest;
             updated_manifest.checksum = Some(computed.clone());
-            let _ = dm.db.insert_download(&updated_manifest);
+            let _ = dm.db.insert_download_async(updated_manifest).await;
         }
 
         Ok(IntegrityVerificationResult {
@@ -784,7 +784,7 @@ impl Dispatcher {
         let id_str = task_id.to_string();
         let temp_path = if let Some(managed) = dm.downloads.read().await.get(&id_str) {
             std::path::PathBuf::from(managed.lock_core().manifest.temp_path.clone())
-        } else if let Some(manifest) = dm.db.get_download_header(&id_str)? {
+        } else if let Some(manifest) = dm.db.get_download_header_async(id_str.clone()).await? {
             std::path::PathBuf::from(manifest.temp_path)
         } else {
             return Err(DownloadError::NotFound);

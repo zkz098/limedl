@@ -256,6 +256,64 @@ pub(super) async fn a_lagged_subscriber_gets_the_whole_list_back() {
     assert_eq!(ui.window.get_count_completed().as_str(), "1");
 }
 
+/// High-frequency progress ticks use their own channel, so flooding past the
+/// channel capacity (64) skips stale intermediate ticks without dropping a
+/// lifecycle `Updated` event or triggering a full `list()` resync.
+pub(super) async fn a_progress_flood_never_drops_lifecycle_events_or_triggers_full_resync() {
+    let ui = new_window();
+    ui.seed(vec![http_task(
+        1,
+        "alpha.bin",
+        DownloadState::Downloading,
+        10,
+        100,
+    )]);
+    start_listener(&ui);
+
+    // Flood the progress channel past its capacity of 64, followed by a
+    // lifecycle completion event on the same tick before yielding.
+    for i in 1..=100 {
+        ui.ctx.event_bus.publish(DownloadEvent::Progress {
+            progress: DownloadProgress {
+                id: http_wire(1),
+                state: DownloadState::Downloading,
+                downloaded_bytes: i,
+                total_bytes: Some(100),
+                speed_bytes_per_second: Some(1_048_576.0),
+                eta_seconds: Some(1),
+                connection_count: 1,
+                allocated_thread_count: None,
+                error: None,
+                uploaded_bytes: None,
+                upload_speed_bytes_per_second: None,
+                peer_count: None,
+                upload_status: None,
+                degraded: false,
+                disk_type: None,
+                flushing: false,
+            },
+        });
+    }
+    let finished = http_task(1, "alpha.bin", DownloadState::Completed, 100, 100);
+    ui.ctx.event_bus.publish(DownloadEvent::Updated {
+        summary: Box::new(finished),
+    });
+
+    ui.pump_until("the completion event to reach the row", || {
+        ui.window
+            .get_tasks()
+            .row_data(0)
+            .is_some_and(|r| r.state_code.as_str() == "completed")
+    })
+    .await;
+
+    ui.assert_toast(
+        "success",
+        crate::i18n::format_toast_state("alpha.bin", &DownloadState::Completed, Language::ZhCn)
+            .as_str(),
+    );
+}
+
 /// A core warning is a toast; anti-leech bans arrive one per peer, so the
 /// duplicate window has to collapse them.
 pub(super) async fn a_warning_becomes_a_toast_and_duplicates_are_collapsed() {

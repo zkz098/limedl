@@ -19,7 +19,7 @@ use tokio::sync::Notify;
 use crate::aimd::AimdState;
 use crate::dispatcher::Dispatcher;
 use crate::download::{DownloadCore, ManagedDownload};
-use crate::event_bus::{DownloadEvent, EventBus};
+use crate::event_bus::{EventBus, EventReceiver};
 use crate::manager::DownloadManager;
 use crate::manifest::{CHUNK_SIZE, Manifest};
 use crate::rate_limiter::RateLimiter;
@@ -106,7 +106,7 @@ pub fn make_dispatcher(dm: Arc<DownloadManager>) -> (Arc<EventBus>, Dispatcher) 
 }
 
 /// Subscribe to the event bus and return a receiver.
-pub fn subscribe(eb: &EventBus) -> tokio::sync::broadcast::Receiver<DownloadEvent> {
+pub fn subscribe(eb: &EventBus) -> EventReceiver {
     eb.subscribe()
 }
 

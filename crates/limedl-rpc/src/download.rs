@@ -135,12 +135,9 @@ pub async fn handle_add_uri(ctx: &RpcContext, params: Vec<Value>) -> Result<Valu
     // Cache the GID so resolve_gid can find it without scanning.
     ctx.gid_cache.lock().await.insert(gid.clone(), task_id);
     // BT start/pause/resume notifications come from the BT alert bridge;
-    // broadcasting here too would duplicate them.
+    // broadcasting here too would duplicate them. `Dispatcher::start` (and any
+    // follow-up `set_priority` / `pause` call above) already emits `Updated`.
     if kind == TaskKind::Http {
-        // Emit initial Updated event so the frontend displays the task immediately.
-        if let Ok(snapshot) = ctx.dispatcher.status(&task_id).await {
-            ctx.dispatcher.emit_updated(&snapshot);
-        }
         broadcast_event(ctx, "aria2.onDownloadStart", &gid);
     }
     Ok(Value::String(gid))
@@ -333,9 +330,6 @@ pub async fn handle_add_metalink(
         let gid = internal_id_to_gid(&task_id.raw_id());
         ctx.gid_cache.lock().await.insert(gid.clone(), task_id);
 
-        if let Ok(snapshot) = ctx.dispatcher.status(&task_id).await {
-            ctx.dispatcher.emit_updated(&snapshot);
-        }
         broadcast_event(ctx, "aria2.onDownloadStart", &gid);
         gids.push(Value::String(gid));
     }
@@ -498,11 +492,9 @@ pub async fn handle_remove_download_result(
             format!("GID {gid} is not a stopped download result"),
         ));
     }
-    let db = dm.db.clone();
-    let id = manifest.id;
-    tokio::task::spawn_blocking(move || db.delete_download(&id))
+    dm.db
+        .delete_download_async(manifest.id)
         .await
-        .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?
         .map_err(|e| make_error(ERR_INTERNAL, e.to_string()))?;
     ctx.gid_cache.lock().await.remove(&gid);
     Ok(Value::String("OK".to_string()))

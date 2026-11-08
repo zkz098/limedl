@@ -1,11 +1,14 @@
 //! EventBus — unified publish/subscribe event bus for all download subsystems.
 //!
-//! Pure broadcast channel carrying the engine's own typed payloads. UI emission
-//! is handled by an independent subscriber task in the application layer (the
-//! Slint desktop client); the Aria2 RPC adapter subscribes for its own event
-//! notifications.
+//! Splits events into two isolated broadcast channels:
+//! - **Lifecycle channel** (`Updated`, `Aria2Notification`, `CdnComplete`,
+//!   `Warning`): low-frequency state transitions and notifications that must
+//!   not be dropped by high-rate progress floods.
+//! - **Progress channel** (`Progress`, `CdnProgress`): high-frequency telemetry
+//!   ticks where skipping stale intermediate ticks on lag is benign.
 
 use tokio::sync::broadcast;
+use tokio::sync::broadcast::error::{RecvError, TryRecvError};
 
 use crate::types::{DownloadProgress, DownloadSummary};
 
@@ -45,39 +48,124 @@ pub enum DownloadEvent {
     Warning { id: String, message: String },
 }
 
+impl DownloadEvent {
+    /// Returns `true` for high-frequency telemetry events (`Progress`,
+    /// `CdnProgress`) that are routed over the dedicated progress channel.
+    pub fn is_high_frequency(&self) -> bool {
+        matches!(
+            self,
+            DownloadEvent::Progress { .. } | DownloadEvent::CdnProgress { .. }
+        )
+    }
+}
+
+// ── EventReceiver ─────────────────────────────────────────────────────────
+
+/// Combined subscriber over both the lifecycle and high-frequency progress channels.
+///
+/// Prioritizes lifecycle events (`Updated`, `Aria2Notification`, `CdnComplete`,
+/// `Warning`) over ephemeral progress ticks (`Progress`, `CdnProgress`), and
+/// isolates their ring buffers so a burst of progress ticks cannot cause
+/// [`RecvError::Lagged`] on lifecycle transitions.
+pub struct EventReceiver {
+    lifecycle_rx: broadcast::Receiver<DownloadEvent>,
+    progress_rx: broadcast::Receiver<DownloadEvent>,
+}
+
+impl EventReceiver {
+    /// Split into the raw `(lifecycle_rx, progress_rx)` broadcast receivers.
+    pub fn into_parts(
+        self,
+    ) -> (
+        broadcast::Receiver<DownloadEvent>,
+        broadcast::Receiver<DownloadEvent>,
+    ) {
+        (self.lifecycle_rx, self.progress_rx)
+    }
+
+    /// Receive the next event, polling lifecycle events with higher priority
+    /// than progress ticks.
+    pub async fn recv(&mut self) -> Result<DownloadEvent, RecvError> {
+        tokio::select! {
+            biased;
+            res = self.lifecycle_rx.recv() => res,
+            res = self.progress_rx.recv() => res,
+        }
+    }
+
+    /// Attempt to receive an available event without waiting, checking the
+    /// lifecycle channel before the progress channel.
+    pub fn try_recv(&mut self) -> Result<DownloadEvent, TryRecvError> {
+        match self.lifecycle_rx.try_recv() {
+            Err(TryRecvError::Empty) => self.progress_rx.try_recv(),
+            other => other,
+        }
+    }
+}
+
 // ── EventBus ──────────────────────────────────────────────────────────────
 
-/// Central event bus. Clone is cheap (broadcast::Sender is internally ref-counted).
+/// Central event bus. Clone is cheap (`broadcast::Sender` is internally ref-counted).
 pub struct EventBus {
-    tx: broadcast::Sender<DownloadEvent>,
+    lifecycle_tx: broadcast::Sender<DownloadEvent>,
+    progress_tx: broadcast::Sender<DownloadEvent>,
 }
 
 impl Clone for EventBus {
     fn clone(&self) -> Self {
         Self {
-            tx: self.tx.clone(),
+            lifecycle_tx: self.lifecycle_tx.clone(),
+            progress_tx: self.progress_tx.clone(),
         }
     }
 }
 
 impl EventBus {
-    /// Create a new EventBus with the given channel capacity.
+    /// Create a new `EventBus` with the given per-channel capacity.
     pub fn new(capacity: usize) -> Self {
-        let (tx, _) = broadcast::channel(capacity);
-        Self { tx }
+        let cap = capacity.max(1);
+        let (lifecycle_tx, _) = broadcast::channel(cap);
+        let (progress_tx, _) = broadcast::channel(cap);
+        Self {
+            lifecycle_tx,
+            progress_tx,
+        }
     }
 
-    /// Publish an event to all subscribers.
+    /// Publish an event to all subscribers on the appropriate channel.
     /// This is the primary API — callers don't need to know about subscribers.
     pub fn publish(&self, event: DownloadEvent) {
-        if let Err(tokio::sync::broadcast::error::SendError(_)) = self.tx.send(event) {
+        let tx = if event.is_high_frequency() {
+            &self.progress_tx
+        } else {
+            &self.lifecycle_tx
+        };
+        if let Err(tokio::sync::broadcast::error::SendError(_)) = tx.send(event) {
             tracing::warn!("EventBus publish dropped: no active subscribers");
         }
     }
 
-    /// Subscribe to all events. Returns a receiver for async iteration.
-    pub fn subscribe(&self) -> broadcast::Receiver<DownloadEvent> {
-        self.tx.subscribe()
+    /// Subscribe to all events (both lifecycle and progress channels).
+    pub fn subscribe(&self) -> EventReceiver {
+        EventReceiver {
+            lifecycle_rx: self.lifecycle_tx.subscribe(),
+            progress_rx: self.progress_tx.subscribe(),
+        }
+    }
+
+    /// Subscribe only to reliable lifecycle events (`Updated`,
+    /// `Aria2Notification`, `CdnComplete`, `Warning`).
+    ///
+    /// High-frequency `Progress` and `CdnProgress` events never enter this
+    /// receiver's buffer.
+    pub fn subscribe_lifecycle(&self) -> broadcast::Receiver<DownloadEvent> {
+        self.lifecycle_tx.subscribe()
+    }
+
+    /// Subscribe only to high-frequency progress events (`Progress`,
+    /// `CdnProgress`).
+    pub fn subscribe_progress(&self) -> broadcast::Receiver<DownloadEvent> {
+        self.progress_tx.subscribe()
     }
 }
 

@@ -1216,7 +1216,7 @@ async fn http_lifecycle_notifications_are_emitted_exactly_once() {
 }
 
 /// Drain the bus and keep only the aria2 notification names.
-fn take_aria2_events(rx: &mut tokio::sync::broadcast::Receiver<DownloadEvent>) -> Vec<String> {
+fn take_aria2_events(rx: &mut crate::event_bus::EventReceiver) -> Vec<String> {
     let mut names = Vec::new();
     while let Ok(event) = rx.try_recv() {
         if let DownloadEvent::Aria2Notification { event_name, .. } = event {

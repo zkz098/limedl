@@ -25,7 +25,7 @@ pub mod url_utils;
 
 pub use checksum::{calculate_checksum, calculate_checksum_with_progress};
 pub use error::DownloadError;
-pub use event_bus::{DownloadEvent, EventBus};
+pub use event_bus::{DownloadEvent, EventBus, EventReceiver};
 pub use protocol::DownloadBackend;
 pub use settings::{normalize_tracker_list_lossy, normalize_tracker_list_url};
 pub use types::CloseBehavior;

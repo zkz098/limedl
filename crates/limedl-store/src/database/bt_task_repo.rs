@@ -96,6 +96,25 @@ impl Database {
         Ok(())
     }
 
+    /// Async wrapper for [`Self::replace_bt_tasks`] that runs on Tokio's blocking pool.
+    pub async fn replace_bt_tasks_async(
+        self: &std::sync::Arc<Self>,
+        summaries: Vec<DownloadSummary>,
+    ) -> Result<()> {
+        self.run_blocking(move |db| db.replace_bt_tasks(&summaries))
+            .await
+    }
+
+    /// Async wrapper for [`Self::list_bt_tasks`] that runs on Tokio's blocking pool.
+    pub async fn list_bt_tasks_async(self: &std::sync::Arc<Self>) -> Result<Vec<DownloadSummary>> {
+        self.run_blocking(Database::list_bt_tasks).await
+    }
+
+    /// Async wrapper for [`Self::delete_bt_task`] that runs on Tokio's blocking pool.
+    pub async fn delete_bt_task_async(self: &std::sync::Arc<Self>, id: String) -> Result<()> {
+        self.run_blocking(move |db| db.delete_bt_task(&id)).await
+    }
+
     /// Drop the whole index (used when the engine's list is authoritative and
     /// empty, and by tests).
     #[cfg(any(test, feature = "test-utils"))]

@@ -64,7 +64,7 @@ pub struct HttpClientInfra {
     /// CDN client cache keyed by (hostname, IP) for accelerated domain connections.
     pub cdn_client_cache: Arc<ParkingRwLock<HashMap<(String, IpAddr), Client>>>,
     /// Optional CDN accelerator for Cloudflare IP probing and DNS rewriting.
-    cdn_accelerator: Arc<RwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
+    cdn_accelerator: Arc<ParkingRwLock<Option<Arc<super::cdn::CdnAccelerator>>>>,
     /// Cross-task persistent Alt-Svc cache for HTTP/3 upgrades.
     pub alt_svc: Arc<super::alt_svc::AltSvcManager>,
 }
@@ -176,7 +176,7 @@ impl DownloadManager {
             http: HttpClientInfra {
                 client: Arc::new(RwLock::new(client)),
                 cdn_client_cache: Arc::new(ParkingRwLock::new(HashMap::default())),
-                cdn_accelerator: Arc::new(RwLock::new(None)),
+                cdn_accelerator: Arc::new(ParkingRwLock::new(None)),
                 alt_svc,
             },
             dirs: StateDirs {
@@ -243,9 +243,7 @@ impl DownloadManager {
 
     /// Inject the CDN accelerator reference after both manager and accelerator are created.
     pub fn set_cdn_accelerator(&self, acc: Arc<super::cdn::CdnAccelerator>) {
-        tokio::task::block_in_place(|| {
-            *self.http.cdn_accelerator.blocking_write() = Some(acc);
-        });
+        *self.http.cdn_accelerator.write() = Some(acc);
         // Clear CDN client cache since the accelerator IP has changed.
         self.http.cdn_client_cache.write().clear();
     }
@@ -273,12 +271,10 @@ impl DownloadManager {
 
         // Get IP range cache from the accelerator (or None if no test has run yet).
         // `is_cloudflare_domain` will fall back to static ranges when cache is None.
-        let ip_range_cache = {
-            let guard = self.http.cdn_accelerator.read().await;
-            match guard.as_ref() {
-                Some(acc) => acc.ip_cache().await,
-                None => None,
-            }
+        let accelerator = self.http.cdn_accelerator.read().clone();
+        let ip_range_cache = match accelerator.as_ref() {
+            Some(acc) => acc.ip_cache().await,
+            None => None,
         };
 
         if !super::cdn::is_cloudflare_domain(url, ip_range_cache.as_ref()).await {
@@ -296,7 +292,7 @@ impl DownloadManager {
         };
 
         // IP resolution: in-memory accelerator → persisted settings fallback
-        let ip = match self.http.cdn_accelerator.read().await.as_ref() {
+        let ip = match accelerator.as_ref() {
             Some(acc) => match acc.active_ip().await {
                 Some(ip) => {
                     tracing::debug!("resolve_client: using in-memory active IP: {ip}");
@@ -638,7 +634,8 @@ impl DownloadManager {
         // be unblocked if the background scheduler loop hasn't ticked yet.
         self.downloads.write().await.remove(download_id);
         self.db
-            .delete_download(download_id)
+            .delete_download_async(download_id.to_string())
+            .await
             .context("failed to delete canceled download from database")?;
         self.scheduler.rebalance_allocations(self).await?;
         self.controls.rebalance_notify.notify_waiters();
@@ -1048,7 +1045,9 @@ impl DownloadBackend for DownloadManager {
             core.manifest.priority = priority;
         }
         // Persist to DB
-        self.db.set_priority(&download_id, priority as u8)?;
+        self.db
+            .set_priority_async(download_id, priority as u8)
+            .await?;
         Ok(())
     }
 
@@ -1072,7 +1071,7 @@ impl DownloadBackend for DownloadManager {
         }
 
         // ── WAL checkpoint: truncate WAL file on clean shutdown ──────
-        if let Err(e) = self.db.shutdown() {
+        if let Err(e) = self.db.shutdown_async().await {
             tracing::warn!("Failed to checkpoint database WAL on shutdown: {:#}", e);
         }
     }
@@ -1175,10 +1174,9 @@ impl DownloadManager {
             manifest.downloaded_bytes = core.durable_bytes.min(manifest.downloaded_bytes);
             manifest
         };
-        let db = self.db.clone();
-        tokio::task::spawn_blocking(move || db.insert_download(&manifest))
+        self.db
+            .insert_download_async(manifest)
             .await
-            .context("persist task panicked")?
             .context("failed to persist download to database")?;
         Ok(())
     }

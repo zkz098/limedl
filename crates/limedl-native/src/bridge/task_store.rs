@@ -173,6 +173,20 @@ impl TaskStore {
 
     pub fn update_progress(&mut self, progress: &DownloadProgress) {
         if let Some(summary) = self.tasks.get_mut(&progress.id) {
+            // A stale `Downloading` progress tick buffered before a terminal or
+            // paused lifecycle transition must not regress the row back to
+            // `Downloading`. (`Verifying` ticks are allowed because on-demand
+            // integrity verification runs on already-completed tasks.)
+            if matches!(
+                summary.state,
+                DownloadState::Completed
+                    | DownloadState::Failed
+                    | DownloadState::Canceled
+                    | DownloadState::Paused
+            ) && progress.state != DownloadState::Verifying
+            {
+                return;
+            }
             summary.state = progress.state;
             summary.downloaded_bytes = progress.downloaded_bytes;
             if progress.total_bytes.is_some() {

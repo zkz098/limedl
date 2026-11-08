@@ -63,7 +63,7 @@ pub async fn websocket_loop(socket: WebSocket, ctx: Arc<RpcContext>) {
 
     let (mut sender, mut receiver) = socket.split();
     let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<Message>(WS_OUTBOX_CAPACITY);
-    let mut event_rx = ctx.event_bus.subscribe();
+    let mut event_rx = ctx.event_bus.subscribe_lifecycle();
 
     let mut writer_task = tokio::spawn(async move {
         while let Some(msg) = out_rx.recv().await {

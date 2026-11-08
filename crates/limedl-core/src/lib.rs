@@ -70,7 +70,7 @@ pub use checksum::{calculate_checksum, calculate_checksum_with_progress};
 pub use context::SystemContext;
 pub use dispatcher::Dispatcher;
 pub use error::DownloadError;
-pub use event_bus::{DownloadEvent, EventBus};
+pub use event_bus::{DownloadEvent, EventBus, EventReceiver};
 pub use io_scheduler::DiskDeviceManager;
 pub use logging::init_logging;
 pub use manager::DownloadManager;

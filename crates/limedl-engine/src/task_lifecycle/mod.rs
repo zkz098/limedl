@@ -246,7 +246,8 @@ impl TaskLifecycle {
         }
         dm.downloads().write().await.remove(download_id);
         dm.db()
-            .delete_download(download_id)
+            .delete_download_async(download_id.to_string())
+            .await
             .context("failed to delete download from database")?;
         dm.rebalance_allocations().await?;
         dm.controls().rebalance_notify.notify_waiters();
