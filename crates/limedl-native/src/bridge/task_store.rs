@@ -68,6 +68,10 @@ impl TaskStore {
         self.sort_field as i32
     }
 
+    pub fn sort_field_enum(&self) -> SortField {
+        self.sort_field
+    }
+
     pub fn toggle_sort_order(&mut self) -> bool {
         self.sort_asc = !self.sort_asc;
         self.sort_asc
@@ -144,6 +148,10 @@ impl TaskStore {
 
     pub fn selected_ids(&self) -> Vec<String> {
         self.selected_ids.iter().cloned().collect()
+    }
+
+    pub fn is_selected(&self, id: &str) -> bool {
+        self.selected_ids.contains(id)
     }
 
     pub fn completed_ids(&self) -> Vec<String> {
@@ -261,7 +269,7 @@ impl TaskStore {
     }
 
     /// Category + search-query filter for a single task.
-    fn task_matches(&self, task: &DownloadSummary) -> bool {
+    pub fn task_matches(&self, task: &DownloadSummary) -> bool {
         task_matches_category(task, self.current_category)
             && (self.search_query.is_empty() || task_matches_query(task, &self.search_query))
     }

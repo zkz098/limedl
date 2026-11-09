@@ -8,12 +8,13 @@ use limedl_core::dispatcher::Dispatcher;
 use limedl_core::types::{AppSettings, ColorMode, SortDirection, ThemeColor, UrlRewriteRule};
 
 use crate::bridge::{
-    Aria2ClientText, DiskTypeOverrideText, SpeedLimitSlotText, TaskStore, app_settings_to_form,
-    app_settings_to_labs_form, aria2_clients_from_settings, aria2_clients_to_slint,
-    cdn_candidates_to_slint, column_is_visible, disk_override_rows_from_settings,
-    disk_override_rows_to_slint, evaluate_url_rewrite, field_to_sort_key, format_disk_types_map,
-    format_io_status, format_speed, index_is_hdd, speed_limit_slots_from_settings,
-    speed_limit_slots_to_slint, url_rewrite_rules_to_slint,
+    Aria2ClientText, DiskTypeOverrideText, SortField, SpeedLimitSlotText, TaskStore,
+    app_settings_to_form, app_settings_to_labs_form, aria2_clients_from_settings,
+    aria2_clients_to_slint, cdn_candidates_to_slint, column_is_visible,
+    disk_override_rows_from_settings, disk_override_rows_to_slint, evaluate_url_rewrite,
+    field_to_sort_key, format_disk_types_map, format_io_status, format_speed, index_is_hdd,
+    speed_limit_slots_from_settings, speed_limit_slots_to_slint, summary_to_task_item,
+    url_rewrite_rules_to_slint,
 };
 use crate::i18n::{self, Language};
 use crate::{
@@ -131,6 +132,64 @@ pub fn should_start_hidden(
 /// Time window after logon in which an MSIX launch is attributed to the
 /// startup task instead of the user opening the app.
 pub const MSIX_LOGIN_LAUNCH_WINDOW: Duration = Duration::from_secs(150);
+
+/// Targeted update for a single task's high-frequency progress event.
+///
+/// Avoids the expensive O(N log N) sorting, filtering, and bulk allocation of hundreds
+/// of TaskItem structs on every 200ms progress tick. Updates the single changed row
+/// in place and updates global speed text. Falls back to `refresh_ui` if the row
+/// structure or dynamic sort order needs full reconciliation.
+pub fn refresh_task_progress(ui: &MainWindow, store: &TaskStore, task_id: &str) {
+    let total_speed = store.total_speed();
+    let speed_text = if total_speed > 0.0 {
+        format_speed(Some(total_speed))
+    } else {
+        "0 B/s".to_string()
+    };
+    ui.set_global_speed_text(SharedString::from(speed_text));
+
+    let Some(summary) = store.get_summary(task_id) else {
+        return;
+    };
+
+    let matches = store.task_matches(&summary);
+
+    let model = ui.get_tasks();
+    let Some(model) = model.as_any().downcast_ref::<VecModel<TaskItem>>() else {
+        refresh_ui(ui, store);
+        return;
+    };
+
+    let existing_idx = (0..model.row_count())
+        .find(|&i| model.row_data(i).is_some_and(|r| r.id.as_str() == task_id));
+
+    match (matches, existing_idx) {
+        (true, Some(idx)) => {
+            let is_dynamic_sort = matches!(
+                store.sort_field_enum(),
+                SortField::Speed | SortField::Progress
+            );
+            if is_dynamic_sort {
+                refresh_ui(ui, store);
+            } else {
+                let is_selected = store.is_selected(task_id);
+                let new_item = summary_to_task_item(&summary, is_selected, store.language());
+                if let Some(existing) = model.row_data(idx)
+                    && existing != new_item
+                {
+                    model.set_row_data(idx, new_item);
+                }
+            }
+        }
+        (true, None) => {
+            refresh_ui(ui, store);
+        }
+        (false, Some(_)) => {
+            refresh_ui(ui, store);
+        }
+        (false, None) => {}
+    }
+}
 
 pub fn refresh_ui(ui: &MainWindow, store: &TaskStore) {
     let (all, downloading, paused, completed, failed) = store.counts();

@@ -451,3 +451,57 @@ fn tasks_model_reconciles_in_place_preserving_instance_and_updating_data() {
         assert!(std::ptr::eq(initial_vec, after_remove_vec));
     });
 }
+
+#[test]
+fn refresh_task_progress_updates_single_row_in_place() {
+    with_ui(|ui| {
+        ui.seed(vec![
+            http_task(1, "alpha.bin", DownloadState::Downloading, 10, 100),
+            http_task(2, "bravo.bin", DownloadState::Downloading, 20, 100),
+        ]);
+
+        let initial_model = ui.window.get_tasks();
+
+        // Mutate progress of task 2 via update_progress and call refresh_task_progress
+        {
+            let mut store = ui.ctx.store.lock();
+            let progress = limedl_core::types::DownloadProgress {
+                id: http_wire(2),
+                state: DownloadState::Downloading,
+                downloaded_bytes: 80,
+                total_bytes: Some(100),
+                speed_bytes_per_second: Some(2.0 * 1024.0 * 1024.0),
+                eta_seconds: Some(10),
+                connection_count: 1,
+                allocated_thread_count: Some(1),
+                error: None,
+                uploaded_bytes: None,
+                upload_speed_bytes_per_second: None,
+                peer_count: None,
+                upload_status: None,
+                degraded: false,
+                disk_type: None,
+                flushing: false,
+            };
+            store.update_progress(&progress);
+            crate::ui_sync::refresh_task_progress(&ui.window, &store, &http_wire(2));
+        }
+
+        let after_model = ui.window.get_tasks();
+        let initial_vec = initial_model
+            .as_any()
+            .downcast_ref::<slint::VecModel<crate::TaskItem>>()
+            .unwrap();
+        let after_vec = after_model
+            .as_any()
+            .downcast_ref::<slint::VecModel<crate::TaskItem>>()
+            .unwrap();
+        assert!(std::ptr::eq(initial_vec, after_vec));
+        assert_eq!(after_model.row_count(), 2);
+        let row1 = after_model.row_data(1).unwrap();
+        assert_eq!(row1.id, http_wire(2));
+        assert_eq!(row1.downloaded_text, "80 B");
+        assert_eq!(row1.speed_text, "2.00 MB/s");
+        assert_eq!(ui.window.get_global_speed_text(), "2.00 MB/s");
+    });
+}

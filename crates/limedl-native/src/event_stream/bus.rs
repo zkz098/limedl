@@ -18,7 +18,7 @@ use crate::handlers::common::with_ui;
 use crate::i18n::{self, Language};
 use crate::platform_win;
 use crate::toast::{ToastQueue, WarningDedup, push_toast};
-use crate::ui_sync::refresh_ui;
+use crate::ui_sync::{refresh_task_progress, refresh_ui};
 use crate::{MainWindow, POWER_GUARD};
 
 /// Handles shared by every event arm.
@@ -158,12 +158,30 @@ async fn on_updated(ctx: &BusCtx, summary: DownloadSummary) {
 
 /// High-frequency progress tick.
 fn on_progress(ctx: &BusCtx, progress: DownloadProgress) {
-    let inspector_id = progress.id.clone();
-    push_store_update(
-        ctx,
-        move |store| store.update_progress(&progress),
-        Some(inspector_id),
-    );
+    let ui_weak = ctx.ui_weak.clone();
+    let store = ctx.store.clone();
+    let active_inspector_id = ctx.active_inspector_id.clone();
+    let id = progress.id.clone();
+    let _ = slint::invoke_from_event_loop(move || {
+        with_ui(&ui_weak, |ui| {
+            let mut store = store.lock();
+            store.update_progress(&progress);
+            let (_, downloading, _, _, _) = store.counts();
+            POWER_GUARD.update(downloading);
+            if !platform_win::is_window_visible() {
+                return;
+            }
+            let lang = store.language();
+            refresh_task_progress(&ui, &store, &id);
+
+            if let Some(ref current_id) = *active_inspector_id.lock()
+                && current_id == &id
+                && let Some(summary) = store.get_summary(current_id)
+            {
+                ui.set_inspector_info(summary_to_inspector_info(&summary, lang));
+            }
+        });
+    });
 }
 
 /// Replace the whole list from the engine after the subscriber lagged: the
