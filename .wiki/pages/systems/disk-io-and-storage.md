@@ -1,9 +1,9 @@
 ---
 id: systems/disk-io-and-storage
 title: Disk I/O, Buffer Pool and Storage Detection
-status: draft
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+status: verified
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-disk/src/buffer_pool/mod.rs
   lines:
@@ -191,9 +191,9 @@ evidence:
   lines:
   - 117
   - 123
-  blob: 43aba5b75d53a98e9806b83bcacdb6c44e2f515a
+  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
   snippet_sha1: b04f01ed6c05a24e104a06ee7aeb841bda92ffa3
-  note: drift-projected L113-L119@76657a09 -> L117-L123 (similarity 1.00)
+  note: drift-projected L117-L123@43aba5b7 -> L117-L123 (similarity 1.00)
 - path: crates/limedl-native/src/crash.rs
   lines:
   - 10
@@ -411,9 +411,9 @@ evidence:
   lines:
   - 369
   - 373
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 84e99ce806e3c98621ac4cad57421f42bfffe658
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L368-L372 -> L369-L373 (similarity 1.00)
+  note: drift-projected L369-L373@2361c059 -> L369-L373 (similarity 1.00)
 - path: crates/limedl-core/src/bootstrap.rs
   lines:
   - 66
@@ -425,9 +425,9 @@ evidence:
   lines:
   - 449
   - 451
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 603aec5fc8f8d03de9919f45a5bfadf56101720d
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L451-L453 -> L449-L451 (similarity 1.00)
+  note: drift-projected L449-L451@2361c059 -> L449-L451 (similarity 1.00)
 - path: crates/limedl-engine/src/http_executor/finalize.rs
   lines:
   - 116
@@ -778,8 +778,8 @@ startup for the same reason, and `DownloadManager` re-pushes them on every
 settings save.
 [[cite:crates/limedl-disk/src/io_scheduler/topology.rs:L73-L89]]
 [[cite:crates/limedl-disk/src/io_scheduler/mod.rs:L53-L80]]
-[[cite:crates/limedl-core/src/context.rs:L68-L76]]
-[[cite:crates/limedl-core/src/manager.rs:L368-L372]]
+[[cite:crates/limedl-engine/src/context.rs:L68-L76]]
+[[cite:crates/limedl-engine/src/manager.rs:L368-L372]]
 
 ## Async paths never call `std::fs`
 
@@ -789,7 +789,7 @@ as `rust:S7493`. The engine's async paths follow that shape — bootstrap create
 the BT state/output directories through `tokio::fs`, the manager creates the
 destination, and finalization renames a corrupt temp file through `tokio::fs`.
 [[cite:crates/limedl-core/src/bootstrap.rs:L63-L66]]
-[[cite:crates/limedl-core/src/manager.rs:L451-L453]]
+[[cite:crates/limedl-engine/src/manager.rs:L451-L453]]
 [[cite:crates/limedl-engine/src/http_executor/finalize.rs:L120-L175]]
 
 The exception is genuinely synchronous flows: the self-update executable

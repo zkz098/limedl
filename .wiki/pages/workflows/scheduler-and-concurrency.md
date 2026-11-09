@@ -1,9 +1,9 @@
 ---
 id: workflows/scheduler-and-concurrency
 title: Scheduler, AIMD and Concurrency Control
-status: draft
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+status: verified
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
@@ -213,18 +213,18 @@ evidence:
   snippet_sha1: 3c001a0fc2aa7ba4f9bd2ff55251ba80ebc5e6fb
 - path: crates/limedl-engine/src/task_lifecycle/mod.rs
   lines:
-  - 416
-  - 456
-  blob: f79123457a4d696179ee96b3725fabc9a64fe7a0
+  - 458
+  - 498
+  blob: 06fa226e016db7406aab96ecc589b08052421836
   snippet_sha1: a54f824018c0f3625f624f90a84d761320787248
-  note: drift-projected L445-L499@e2b0f898 -> L416-L456 (similarity 0.73)
+  note: drift-projected L416-L456@f7912345 -> L458-L498 (similarity 1.00)
 - path: crates/limedl-engine/src/task_lifecycle/mod.rs
   lines:
-  - 348
-  - 357
-  blob: f79123457a4d696179ee96b3725fabc9a64fe7a0
+  - 379
+  - 388
+  blob: 06fa226e016db7406aab96ecc589b08052421836
   snippet_sha1: 7d677ccba27fa5ec326650224a54e7bb53c3e5f6
-  note: drift-projected L368-L379@e2b0f898 -> L348-L357 (similarity 0.83)
+  note: drift-projected L348-L357@f7912345 -> L379-L388 (similarity 1.00)
 type: workflow
 ---
 # Scheduler, AIMD and Concurrency Control

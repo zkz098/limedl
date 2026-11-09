@@ -1,9 +1,9 @@
 ---
 id: workflows/cdn-acceleration
 title: CDN Acceleration
-status: draft
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+status: verified
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-engine/src/cdn/mod.rs
   lines:
@@ -134,9 +134,9 @@ evidence:
   lines:
   - 256
   - 349
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 4844eff24729f6d9d5b016af7e42894b614303cb
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L253-L348 -> L256-L349 (similarity 0.93)
+  note: drift-projected L256-L349@2361c059 -> L256-L349 (similarity 1.00)
 - path: crates/limedl-native/src/handlers/labs/cdn.rs
   lines:
   - 111
@@ -151,11 +151,11 @@ evidence:
   snippet_sha1: 6257f1a33325b879808c89c463d45817699a0802
 - path: crates/limedl-native/src/event_stream/bus.rs
   lines:
-  - 306
-  - 321
-  blob: 9cf1bc3fea699e7a9c75ff7d4cd636c1f4f68278
+  - 324
+  - 339
+  blob: bc92ac69dedf4fc1bb684a580c62b02bf636b48c
   snippet_sha1: 29e14004ad36e00693c78d4d16788d20c25d18bc
-  note: content lost at HEAD; re-pinned at recorded range (draft)
+  note: drift-projected L306-L321@9cf1bc3f -> L324-L339 (similarity 1.00)
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 323
@@ -276,7 +276,7 @@ on `Ready`/`Error` it publishes `CdnComplete` and returns a `CdnTestOutcome`
 `bootstrap` creates the `CdnService`, injects its accelerator into the manager
 via `set_cdn_accelerator`, and calls `init_from_settings`
 [[cite:crates/limedl-core/src/bootstrap.rs:L97-L99]]. At download time
-`resolve_client` [[cite:crates/limedl-core/src/manager.rs:L253-L348]]:
+`resolve_client` [[cite:crates/limedl-engine/src/manager.rs:L253-L348]]:
 
 1. returns the standard client when CDN acceleration is disabled;
 2. reads the accelerator's IP cache (or `None`) and calls `is_cloudflare_domain`;

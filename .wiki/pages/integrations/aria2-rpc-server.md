@@ -1,9 +1,9 @@
 ---
 id: integrations/aria2-rpc-server
 title: Aria2 JSON-RPC Compatibility Server
-status: draft
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+status: verified
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-rpc/Cargo.toml
   lines:
@@ -101,9 +101,9 @@ evidence:
   lines:
   - 406
   - 446
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 82935c62ffe75562add507d9343f2c6116034733
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L408-L448 -> L406-L446 (similarity 1.00)
+  note: drift-projected L406-L446@2361c059 -> L406-L446 (similarity 1.00)
 - path: crates/limedl-rpc/src/server.rs
   lines:
   - 56
@@ -443,11 +443,11 @@ evidence:
   note: drift-projected L95-L112@6d4ba265 -> L95-L112 (similarity 1.00)
 - path: crates/limedl-engine/src/manager.rs
   lines:
-  - 805
-  - 820
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  - 812
+  - 827
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 1a56344dc3a0c6c073e015bd5825637dd2c14041
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L818-L833 -> L805-L820 (similarity 1.00)
+  note: drift-projected L805-L820@2361c059 -> L812-L827 (similarity 1.00)
 - path: crates/limedl-rpc/src/options.rs
   lines:
   - 302
@@ -626,11 +626,11 @@ evidence:
   note: drift-projected L590-L638@6d4ba265 -> L582-L630 (similarity 1.00)
 - path: crates/limedl-engine/src/manager.rs
   lines:
-  - 839
-  - 915
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  - 846
+  - 922
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: a458ba9c07b0294a55ac3bc06b86039490f61b99
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L852-L931 -> L839-L915 (similarity 0.95)
+  note: drift-projected L839-L915@2361c059 -> L846-L922 (similarity 1.00)
 - path: crates/limedl-rpc/src/download.rs
   lines:
   - 609
@@ -945,7 +945,7 @@ The refusal is not cosmetic. The aria2 `dir` option is not confined to a
 download root — it only has to be an absolute path without `..` — so an
 anonymous network-reachable endpoint would let anyone who can reach the port
 write files anywhere the process can
-[[cite:crates/limedl-core/src/manager.rs:L408-L448]],
+[[cite:crates/limedl-engine/src/manager.rs:L408-L448]],
 [[cite:crates/limedl-rpc/src/server.rs:L56-L61]].
 
 ### CORS
@@ -1147,10 +1147,10 @@ request options into a `StartDownloadRequest`:
 A non-terminal HTTP download with the same URL is deduplicated: its existing GID
 is returned and cached instead of starting a second task
 [[cite:crates/limedl-rpc/src/download.rs:L95-L112]],
-[[cite:crates/limedl-core/src/manager.rs:L818-L833]]. `dir` must be absolute and
+[[cite:crates/limedl-engine/src/manager.rs:L818-L833]]. `dir` must be absolute and
 without `..` components, but it is not confined to a download root — which is
 why the bind gate above insists on authentication for a network-reachable
-listener [[cite:crates/limedl-core/src/manager.rs:L408-L448]].
+listener [[cite:crates/limedl-engine/src/manager.rs:L408-L448]].
 
 Trailing arguments are read **by JSON type**, not position (`split_aria2_tail`
 in `options.rs`). aria2's signatures are `addUri(uris[, options[, position]])`
@@ -1247,7 +1247,7 @@ than a constant [[cite:crates/limedl-rpc/src/query.rs:L409-L425]].
   entry, inserts `addUris` at `position`, refuses to remove the last URI, and
   returns aria2's `[deleted, added]`
   [[cite:crates/limedl-rpc/src/download.rs:L590-L638]],
-  [[cite:crates/limedl-core/src/manager.rs:L852-L931]]. `fileIndex` must be `1`
+  [[cite:crates/limedl-engine/src/manager.rs:L852-L931]]. `fileIndex` must be `1`
   for limedl's single-file HTTP downloads; BT is rejected
   [[cite:crates/limedl-rpc/src/download.rs:L617-L628]].
 - `aria2.changePosition` (`handle_change_position`) maps the requested index

@@ -1,9 +1,9 @@
 ---
 id: systems/persistence-and-recovery
 title: SQLite Persistence, Durable Progress and Crash Recovery
-status: draft
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+status: verified
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-engine/src/context.rs
   lines:
@@ -26,11 +26,11 @@ evidence:
   snippet_sha1: ad87bdff55895bb4e7e0127e439a75e66cd98a18
 - path: crates/limedl-engine/src/manager.rs
   lines:
-  - 1101
-  - 1115
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  - 1110
+  - 1124
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 56403cfe6fa0b94ee46badd089797fa099001728
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs; cited content lost, re-pinned for rewrite (draft)
+  note: drift-projected L1101-L1115@2361c059 -> L1110-L1124 (similarity 1.00)
 - path: crates/limedl-store/src/database/connection.rs
   lines:
   - 17
@@ -60,11 +60,11 @@ evidence:
   snippet_sha1: a072a04bd1ac2097d5279b0d7c7eeb866f03411f
 - path: crates/limedl-engine/src/manager.rs
   lines:
-  - 1154
-  - 1158
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  - 1163
+  - 1167
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 5e76ec0cc51c3c8c8b8e8c4cf3eb140d4bb6c01f
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L1183-L1187 -> L1154-L1158 (similarity 1.00)
+  note: drift-projected L1154-L1158@2361c059 -> L1163-L1167 (similarity 1.00)
 - path: crates/limedl-store/src/database/chunk_repo.rs
   lines:
   - 73
@@ -396,11 +396,11 @@ evidence:
   snippet_sha1: 32c1ebe7d16347532f53306017ed21828f719325
 - path: crates/limedl-engine/src/manager.rs
   lines:
-  - 1163
-  - 1176
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  - 1172
+  - 1185
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 0585c591d9a7fb641781404902358cb5b15f416d
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L1192-L1205 -> L1163-L1176 (similarity 1.00)
+  note: drift-projected L1163-L1176@2361c059 -> L1172-L1185 (similarity 1.00)
 - path: crates/limedl-store/src/database/chunk_repo.rs
   lines:
   - 63
@@ -416,11 +416,11 @@ evidence:
   note: drift-projected L184-L196@1425cef6 -> L140-L152 (similarity 1.00)
 - path: crates/limedl-engine/src/manager.rs
   lines:
-  - 1082
-  - 1161
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  - 1091
+  - 1170
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 1668cf16098e7b33d6c6dfb0ea2c9ae71aedfe58
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L1110-L1190 -> L1082-L1161 (similarity 0.98)
+  note: drift-projected L1082-L1161@2361c059 -> L1091-L1170 (similarity 1.00)
 - path: crates/limedl-store/src/database/chunk_repo.rs
   lines:
   - 48
@@ -527,11 +527,11 @@ evidence:
   note: drift-projected L198-L231@2c6501bf -> L207-L257 (similarity 1.00)
 - path: crates/limedl-engine/src/manager.rs
   lines:
-  - 1072
-  - 1076
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  - 1081
+  - 1085
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 1798cafd48d4b45c82f335aa3cf5468fa7b8b870
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L1093-L1097 -> L1072-L1076 (similarity 0.80)
+  note: drift-projected L1072-L1076@2361c059 -> L1081-L1085 (similarity 1.00)
 type: system
 ---
 # SQLite Persistence, Durable Progress and Crash Recovery
@@ -545,10 +545,10 @@ up in `limedl-engine::persistence`, because they name `download::ManagedDownload
 which sits above the store. The full upsert on state transitions and the
 load-back-into-memory path are inherent methods on `DownloadManager` in
 `limedl-core`.
-[[cite:crates/limedl-core/src/context.rs:L58-L59]]
+[[cite:crates/limedl-engine/src/context.rs:L58-L59]]
 [[cite:crates/limedl-store/src/lib.rs:L1-L21]]
 [[cite:crates/limedl-engine/src/persistence.rs:L1-L21]]
-[[cite:crates/limedl-core/src/manager.rs:L1101-L1115]]
+[[cite:crates/limedl-engine/src/manager.rs:L1101-L1115]]
 
 ## Dual connections and PRAGMAs
 
@@ -577,7 +577,7 @@ All DB calls are synchronous and blocking; async callers wrap them in
 during startup), and each repository fn holds the connection mutex only for the
 duration of its transaction.
 [[cite:crates/limedl-engine/src/persistence.rs:L77-L89]]
-[[cite:crates/limedl-core/src/manager.rs:L1183-L1187]]
+[[cite:crates/limedl-engine/src/manager.rs:L1183-L1187]]
 [[cite:crates/limedl-store/src/database/chunk_repo.rs:L73-L90]]
 
 ### Integrity probe and quarantine
@@ -800,7 +800,7 @@ just before finalize's full upsert cannot rewind a terminal row.
 [[cite:crates/limedl-engine/src/download/shared.rs:L16-L18]]
 [[cite:crates/limedl-engine/src/persistence.rs:L23-L71]]
 [[cite:crates/limedl-engine/src/persistence.rs:L113-L155]]
-[[cite:crates/limedl-core/src/manager.rs:L1192-L1205]]
+[[cite:crates/limedl-engine/src/manager.rs:L1192-L1205]]
 [[cite:crates/limedl-store/src/database/chunk_repo.rs:L63-L90]]
 
 The durability boundary is `pwrite`, not `fsync`: a successful flush counts, which
@@ -837,7 +837,7 @@ that feeds these counters.
    resumed task starts with received == durable and only diverges as new bytes are
    buffered.
 
-[[cite:crates/limedl-core/src/manager.rs:L1110-L1190]]
+[[cite:crates/limedl-engine/src/manager.rs:L1110-L1190]]
 [[cite:crates/limedl-store/src/database/chunk_repo.rs:L48-L61]]
 [[cite:crates/limedl-engine/src/download/managed.rs:L33-L42]]
 [[cite:crates/limedl-engine/src/http_executor/worker.rs:L190-L210]]
@@ -890,7 +890,7 @@ the freelist page count exceeds its threshold (100, at the `delete_download` cal
 site), so normal operation does not pay for a full vacuum; `shrink_memory` flushes
 unused page and statement caches on a best-effort `try_lock`.
 [[cite:crates/limedl-store/src/database/connection.rs:L198-L231]]
-[[cite:crates/limedl-core/src/manager.rs:L1093-L1097]]
+[[cite:crates/limedl-engine/src/manager.rs:L1093-L1097]]
 
 Related pages: [[wiki:workflows/http-download-lifecycle]],
 [[wiki:workflows/bit-torrent-backend]],

@@ -1,17 +1,17 @@
 ---
 id: architecture/overview
 title: Workspace and System Architecture
-status: draft
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+status: verified
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: Cargo.toml
   lines:
   - 1
   - 24
-  blob: 43aba5b75d53a98e9806b83bcacdb6c44e2f515a
-  snippet_sha1: 1c45b6b1bca0f44431807d3f6b043f7de9c1707f
-  note: drift-projected L1-L20@76657a09 -> L1-L24 (similarity 0.95)
+  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
+  snippet_sha1: 20279dc3e55ed8437ae29aeff846ddf1f62d71c1
+  note: drift-projected L1-L24@43aba5b7 -> L1-L24 (similarity 0.96)
 - path: crates/limedl-core/Cargo.toml
   lines:
   - 1
@@ -146,9 +146,9 @@ evidence:
   lines:
   - 42
   - 50
-  blob: 43aba5b75d53a98e9806b83bcacdb6c44e2f515a
+  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
   snippet_sha1: 668691eba5f196d0f2b26ca6ebce22452597206c
-  note: drift-projected L38-L46@76657a09 -> L42-L50 (similarity 1.00)
+  note: drift-projected L42-L50@43aba5b7 -> L42-L50 (similarity 1.00)
 - path: crates/limedl-core/src/lib.rs
   lines:
   - 1
@@ -284,11 +284,11 @@ evidence:
   note: drift-projected L224-L228@de0b4727 -> L237-L241 (similarity 1.00)
 - path: crates/limedl-native/src/event_stream/bus.rs
   lines:
-  - 294
-  - 347
-  blob: 9cf1bc3fea699e7a9c75ff7d4cd636c1f4f68278
+  - 312
+  - 365
+  blob: bc92ac69dedf4fc1bb684a580c62b02bf636b48c
   snippet_sha1: 9d6628ba57799dc494f5126e766a59f2ad317353
-  note: content lost at HEAD; re-pinned at recorded range (draft)
+  note: drift-projected L294-L347@9cf1bc3f -> L312-L365 (similarity 1.00)
 - path: crates/limedl-rpc/src/transport.rs
   lines:
   - 58
@@ -298,11 +298,11 @@ evidence:
   note: drift-projected L37-L68@eebb3201 -> L58-L102 (similarity 0.62)
 - path: crates/limedl-native/src/event_stream/bus.rs
   lines:
-  - 329
-  - 344
-  blob: 9cf1bc3fea699e7a9c75ff7d4cd636c1f4f68278
+  - 347
+  - 362
+  blob: bc92ac69dedf4fc1bb684a580c62b02bf636b48c
   snippet_sha1: 83be9875d535741fe5bc1a84ffcc87bb5729f168
-  note: content lost at HEAD; re-pinned at recorded range (draft)
+  note: drift-projected L329-L344@9cf1bc3f -> L347-L362 (similarity 1.00)
 - path: crates/limedl-rpc/src/transport.rs
   lines:
   - 97
@@ -346,9 +346,9 @@ evidence:
   lines:
   - 117
   - 130
-  blob: 43aba5b75d53a98e9806b83bcacdb6c44e2f515a
+  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
   snippet_sha1: 4ab52a74aacfae723ee4be672b98a700c2853877
-  note: drift-projected L113-L126@76657a09 -> L117-L130 (similarity 1.00)
+  note: drift-projected L117-L130@43aba5b7 -> L117-L130 (similarity 1.00)
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 41

@@ -1,9 +1,9 @@
 ---
 id: architecture/protocol-routing-and-dispatcher
 title: Protocol Routing and the Dispatcher Facade
-status: draft
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+status: verified
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
@@ -92,11 +92,11 @@ evidence:
   note: drift-projected L145-L149@90629ec9 -> L148-L152 (similarity 1.00)
 - path: crates/limedl-engine/src/task_lifecycle/mod.rs
   lines:
-  - 465
-  - 477
-  blob: f79123457a4d696179ee96b3725fabc9a64fe7a0
-  snippet_sha1: 5e31db1f66cb8a8137fd9bcccbf0b9b990d070bf
-  note: drift-projected L508-L520@e2b0f898 -> L465-L477 (similarity 0.92)
+  - 511
+  - 538
+  blob: 06fa226e016db7406aab96ecc589b08052421836
+  snippet_sha1: f39e5c5f33e24bb8d9e29c3295317623ad8eab57
+  note: drift-projected L465-L477@f7912345 -> L511-L538 (similarity 0.69)
 - path: crates/limedl-bt/src/alerts.rs
   lines:
   - 70

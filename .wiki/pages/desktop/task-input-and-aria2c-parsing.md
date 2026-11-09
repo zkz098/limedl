@@ -1,9 +1,9 @@
 ---
 id: desktop/task-input-and-aria2c-parsing
 title: Task Input Surfaces and aria2c Command Parsing
-status: draft
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+status: verified
+generated_at: 2026-11-09T15:14:11Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-native/src/handlers/new_task/payload.rs
   lines:
@@ -13,11 +13,10 @@ evidence:
   snippet_sha1: 226211b144c4cecf69611a1c8c0f0d5b92a6ba30
 - path: crates/limedl-native/src/main.rs
   lines:
-  - 275
-  - 285
+  - 262
+  - 272
   blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
-  snippet_sha1: acdc267c8182a1523cf0c7fde934d71c0cefad82
-  note: drift-projected L262-L272@de0b4727 -> L275-L285 (similarity 1.00)
+  snippet_sha1: 2391b0e3a708d8c025e5bc42f3bac4ee24e060fb
 - path: crates/limedl-native/src/platform_adapter.rs
   lines:
   - 12
@@ -102,125 +101,108 @@ evidence:
   - 238
   blob: bc1075ddf2471f3f069317f3e333a69f169642df
   snippet_sha1: 3c0a0ee4be3479cb7fc6bad67093439ed471f15f
-- path: crates/limedl-native/src/aria2_cli.rs
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 1
   - 11
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: d2ace39ffbc1b2906c7d8aa0e511c141e45f588a
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 4709a2695a6378252171260c048f514f8ac48d57
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 76
   - 82
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 609b6913989797f2d95db21cf5de035aca379f06
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 311
   - 315
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: afb480691045cede1ed399796bba3c8dace8aeee
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 84
   - 108
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 0b7d775fb7f34fb0e7d51c56e1e39435da9eeac8
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 217
   - 224
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 490fb9413d1a792685dc05a9e50db3feeab943f5
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 233
   - 250
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: d3a68de036e8c7dafed7a3f8be71235188ec53f2
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 252
   - 309
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 10a01eb3b616b7052a34ab43f6542cd7c8e8a3eb
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 317
   - 342
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 6bfb7eb413f6d8f1f49024621bd8a95c439afed4
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 55
   - 74
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 0af88c5180295828913712db680b7e93d667b1b4
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 132
   - 161
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 3a4407a30dcdc8c442f3b37b13838d60304e1803
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 192
   - 203
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 2f530d7b168f27ae341861978d8d2721ee356ab9
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 353
   - 371
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 4e0ed219d69fab8e7e896da156a64c1cb727495d
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 37
   - 53
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 65f8ff660000a7c2204da45d17a7dbb5ed0c252c
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 115
   - 130
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 26e10a2d9a2979134635ed649fdcb63f8abebf72
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 15
   - 35
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 6182e19c6497da1c0306b78f54c09e3fdd406b95
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 217
   - 231
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/aria2_cli.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 153ad309370fbde6302ea34f15a32a9f508ddef2
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 205
   - 215
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: 871aedce845e929929d8f7d541300f150a25adb6
 - path: crates/limedl-native/src/handlers/new_task/mod.rs
   lines:
   - 66
@@ -293,47 +275,42 @@ evidence:
   - 53
   blob: 710a6cbf037dffd21d580f238d15611dd994a60c
   snippet_sha1: ec9484d21999bcd2018f7574d39ae1d369b2aee9
-- path: crates/limedl-native/src/url_utils.rs
+- path: crates/limedl-types/src/url_utils.rs
   lines:
   - 33
   - 55
-  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/url_utils.rs
+  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  snippet_sha1: 5c7eb8f762aaa271f926502eaa1f7095bbf87a81
+- path: crates/limedl-types/src/url_utils.rs
   lines:
   - 57
   - 95
-  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/url_utils.rs
+  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  snippet_sha1: a040655fce0b704bec496b5090f83410daa31384
+- path: crates/limedl-types/src/url_utils.rs
   lines:
   - 57
   - 83
-  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
+  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  snippet_sha1: 1b50b5c2dd96fa37e87bd5a33257f56c13464478
 - path: crates/limedl-native/src/handlers/new_task/submit.rs
   lines:
   - 327
   - 408
   blob: 7c732ad86ff55ab57d8629bb80b440aed4640ab0
   snippet_sha1: 01c914f4beb593200cea211c6808f10263c94b71
-- path: crates/limedl-native/src/url_utils.rs
+- path: crates/limedl-types/src/url_utils.rs
   lines:
   - 141
   - 158
-  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/url_utils.rs
+  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  snippet_sha1: c89321c87b11cb6a94fa02b5748b215140b28e40
+- path: crates/limedl-types/src/url_utils.rs
   lines:
   - 97
   - 139
-  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
+  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  snippet_sha1: 242bf78a3d7e1c8622f901c0193d62b639b6cc06
 - path: crates/limedl-native/ui/components/common.slint
   lines:
   - 406
@@ -352,20 +329,18 @@ evidence:
   - 257
   blob: 31cea15864fd8641d0a75d29298d714c235bce27
   snippet_sha1: 8fbbbd8d9a13545ef73db36580d8e30571ea43ea
-- path: crates/limedl-native/src/aria2_cli.rs
+- path: crates/limedl-types/src/aria2_cli.rs
   lines:
   - 373
   - 414
-  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
-- path: crates/limedl-native/src/url_utils.rs
+  blob: f42c21c1371eb93def578c7ee083870876ef481d
+  snippet_sha1: f35e1210b93248a5ae595b66ea809db3cab16ee0
+- path: crates/limedl-types/src/url_utils.rs
   lines:
   - 181
   - 296
-  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
-  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
-  note: content lost at HEAD; re-pinned at recorded range (draft)
+  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  snippet_sha1: aadecea119b1f18d8956eb1a4a3b90560e8262ec
 - path: crates/limedl-native/src/ui_tests/new_task.rs
   lines:
   - 16
@@ -435,29 +410,29 @@ surrounding quotes) and then decides, in order:
 ## The aria2c tokenizer
 
 `aria2_cli` parses exactly one command; batch handling (one command per line)
-is `url_utils`'s job. [[cite:crates/limedl-native/src/aria2_cli.rs:L1-L11]]
+is `url_utils`'s job. [[cite:crates/limedl-types/src/aria2_cli.rs:L1-L11]]
 Two cheap gates keep the parser from hijacking the URL field:
 
 - `looks_like_aria2_command` normalizes the first token's basename
   (`aria2c`/`aria2c.exe`, path and quotes stripped) — that is what the clipboard
   classifier and the batch parser test before spending a full parse.
-  [[cite:crates/limedl-native/src/aria2_cli.rs:L76-L82]]
-  [[cite:crates/limedl-native/src/aria2_cli.rs:L311-L315]]
+  [[cite:crates/limedl-types/src/aria2_cli.rs:L76-L82]]
+  [[cite:crates/limedl-types/src/aria2_cli.rs:L311-L315]]
 - `parse` returns `None` when the command names no download target, so a stray
   `aria2c --help` on the clipboard is not treated as a download.
-  [[cite:crates/limedl-native/src/aria2_cli.rs:L84-L108]]
-  [[cite:crates/limedl-native/src/aria2_cli.rs:L217-L224]]
+  [[cite:crates/limedl-types/src/aria2_cli.rs:L84-L108]]
+  [[cite:crates/limedl-types/src/aria2_cli.rs:L217-L224]]
 
 `join_continuations` folds `^` and `\` line continuations into one logical line
-before `tokenize` runs. [[cite:crates/limedl-native/src/aria2_cli.rs:L233-L250]]
+before `tokenize` runs. [[cite:crates/limedl-types/src/aria2_cli.rs:L233-L250]]
 The tokenizer is quote-aware in a deliberately platform-friendly way: single
 and double quotes group a token; backslashes stay **literal** outside quotes,
 because a Windows path such as `C:\Downloads` must survive; inside double
-quotes, `\` escapes only `"` and `\`. [[cite:crates/limedl-native/src/aria2_cli.rs:L252-L309]]
+quotes, `\` escapes only `"` and `\`. [[cite:crates/limedl-types/src/aria2_cli.rs:L252-L309]]
 
 `split_option` accepts both `--name=value` and the attached short form
 (`-oNAME`, `-dNAME`, `-UNAME`, `-HNAME`), and `take_value` reads the value from
-the inline form or the following token. [[cite:crates/limedl-native/src/aria2_cli.rs:L317-L342]]
+the inline form or the following token. [[cite:crates/limedl-types/src/aria2_cli.rs:L317-L342]]
 
 ## What is honored, and what is only reported
 
@@ -465,33 +440,33 @@ The parser produces an `Aria2Command` of the fields limedl can actually honor
 (`--out`/`-o`, `--dir`/`-d`, repeatable `--header`/`-H`/`--http-header`,
 `--user-agent`/`-U`, `-Z`/`--force-sequential`); `--referer`/`--referrer`/
 `--http-referer` becomes a synthesized `Referer: …` entry in the same header
-list. [[cite:crates/limedl-native/src/aria2_cli.rs:L55-L74]]
-[[cite:crates/limedl-native/src/aria2_cli.rs:L132-L161]]
+list. [[cite:crates/limedl-types/src/aria2_cli.rs:L55-L74]]
+[[cite:crates/limedl-types/src/aria2_cli.rs:L132-L161]]
 `--checksum=TYPE=DIGEST` normalizes to `(ChecksumMode, digest)` with the digest
 lowercased; an algorithm limedl cannot verify (`sha1`, `md5`, …) is recorded as
 an ignored option, while a *malformed* digest is dropped silently.
-[[cite:crates/limedl-native/src/aria2_cli.rs:L192-L203]]
-[[cite:crates/limedl-native/src/aria2_cli.rs:L353-L371]]
+[[cite:crates/limedl-types/src/aria2_cli.rs:L192-L203]]
+[[cite:crates/limedl-types/src/aria2_cli.rs:L353-L371]]
 
 Two other option classes exist so that parsing stays honest:
 
 - **Proxy options** (`--all-proxy`, `--http-proxy`, `--proxy`,
   `--*-proxy-user`/`-passwd`) are consumed but ignored. They carry URLs, and
   without consuming their value a proxy URI would be mistaken for a download
-  target. [[cite:crates/limedl-native/src/aria2_cli.rs:L37-L53]]
-  [[cite:crates/limedl-native/src/aria2_cli.rs:L115-L130]]
+  target. [[cite:crates/limedl-types/src/aria2_cli.rs:L37-L53]]
+  [[cite:crates/limedl-types/src/aria2_cli.rs:L115-L130]]
 - **Materially unsupported options** (`--input-file`/`-i`, `--load-cookies`,
   `--save-cookies`, `--metalink-file`/`-M`, `--torrent-file`/`-T`,
   `--http-user`, `--http-passwd`, the FTP user/password pair, `--no-proxy`,
   `--no-check-certificate`) are recorded in `unsupported` with a canonical
   label, so an alias is reported as its long form and the list can be
-  deduplicated. [[cite:crates/limedl-native/src/aria2_cli.rs:L15-L35]]
-  [[cite:crates/limedl-native/src/aria2_cli.rs:L217-L231]]
+  deduplicated. [[cite:crates/limedl-types/src/aria2_cli.rs:L15-L35]]
+  [[cite:crates/limedl-types/src/aria2_cli.rs:L217-L231]]
 
 Anything else is a known-nothing option: its value is consumed only when the
 next token is neither another option nor a URL. That is what lets a valueless
 flag such as `--continue` sit directly before the target without swallowing it.
-[[cite:crates/limedl-native/src/aria2_cli.rs:L205-L215]]
+[[cite:crates/limedl-types/src/aria2_cli.rs:L205-L215]]
 
 ## From parsed command to dialog state
 
@@ -547,7 +522,7 @@ The batch textarea is parsed by `parse_batch_entries`: blank lines and `#`
 comments are skipped, and each remaining line is either a full `aria2c` command
 or one or more plain URLs. `entries_from_aria2` then applies the two rules that
 decide how many tasks a line becomes:
-[[cite:crates/limedl-native/src/url_utils.rs:L33-L55]]
+[[cite:crates/limedl-types/src/url_utils.rs:L33-L55]]
 
 - **Separate downloads** when `-Z`/`--force-sequential` was given, or when
   range expansion grew the URL count (a `[01-20]` range means the extra targets
@@ -555,23 +530,23 @@ decide how many tasks a line becomes:
 - **One download with mirrors** otherwise: `aria2c url1 url2` is a single
   transfer that may fall back to the second URL.
 
-[[cite:crates/limedl-native/src/url_utils.rs:L57-L95]]
+[[cite:crates/limedl-types/src/url_utils.rs:L57-L95]]
 
 `--out` is only kept when the command yields exactly one task, since two tasks
 cannot share a file name; each entry also carries its own `--dir`, headers, user
-agent and checksum. [[cite:crates/limedl-native/src/url_utils.rs:L57-L83]]
+agent and checksum. [[cite:crates/limedl-types/src/url_utils.rs:L57-L83]]
 At submit, per-entry `--out` wins over the file name derived from the URL (the
 last percent-decoded path segment of an HTTP(S) URL), and the per-entry `--dir`
 wins over the dialog's directory. Entries are started concurrently (one spawned
 task each) and the flow reports a done toast with the success count.
 [[cite:crates/limedl-native/src/handlers/new_task/submit.rs:L327-L408]]
-[[cite:crates/limedl-native/src/url_utils.rs:L141-L158]]
+[[cite:crates/limedl-types/src/url_utils.rs:L141-L158]]
 
 `expand_url_ranges` expands only the **first** `[start-end]` occurrence, pads to
 the width of the start token, refuses to expand when the range is malformed or
 descending, and caps a range at 1000 entries so a mistyped range cannot queue
 thousands of tasks. A URL without a valid range is returned unchanged.
-[[cite:crates/limedl-native/src/url_utils.rs:L97-L139]]
+[[cite:crates/limedl-types/src/url_utils.rs:L97-L139]]
 
 ## Clipboard monitoring
 
@@ -608,10 +583,10 @@ exists — for both a long URL and a long aria2c command.
 
 - `aria2_cli`'s unit tests cover the tokenizer (quotes, continuations, Windows
   paths), the honored options, the ignored-option labels and the checksum spec.
-  [[cite:crates/limedl-native/src/aria2_cli.rs:L373-L414]]
+  [[cite:crates/limedl-types/src/aria2_cli.rs:L373-L414]]
 - `url_utils`'s unit tests cover batch parsing (comments, mixed lines), the
   mirrors-versus-sequential decision and range expansion.
-  [[cite:crates/limedl-native/src/url_utils.rs:L181-L296]]
+  [[cite:crates/limedl-types/src/url_utils.rs:L181-L296]]
 - `src/ui_tests/new_task.rs` drives the real dialog: reopening resets batch mode
   and the probe, editing the URL drops a checksum that belonged to the old one,
   the batch counter follows the parser, an `aria2c` command fills the visible

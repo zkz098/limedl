@@ -2,8 +2,8 @@
 id: architecture/bootstrap-and-services
 title: Bootstrap, SystemContext and Shared Services
 status: verified
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-core/src/bootstrap.rs
   lines:
@@ -214,9 +214,9 @@ evidence:
   lines:
   - 369
   - 373
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 84e99ce806e3c98621ac4cad57421f42bfffe658
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L368-L372 -> L369-L373 (similarity 1.00)
+  note: drift-projected L369-L373@2361c059 -> L369-L373 (similarity 1.00)
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 297
@@ -228,9 +228,9 @@ evidence:
   lines:
   - 351
   - 379
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 727a99958d7cda31f22e493826cf0510509c11ff
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L350-L378 -> L351-L379 (similarity 1.00)
+  note: drift-projected L351-L379@2361c059 -> L351-L379 (similarity 1.00)
 - path: crates/limedl-bt/src/lazy.rs
   lines:
   - 879
@@ -309,10 +309,10 @@ engine's dependency graph. [[cite:crates/limedl-core/src/lib.rs:L25-L52]]
 `SystemContext` is a `Clone` bundle of shared infrastructure. Its `new()` creates
 a default `RateLimiter` and an `EventBus` with capacity **8192**, then delegates
 to `with_components`; tests and CLI paths can inject their own rate limiter and
-event bus through that second constructor. [[cite:crates/limedl-core/src/context.rs:L29-L37]]
+event bus through that second constructor. [[cite:crates/limedl-engine/src/context.rs:L29-L37]]
 
-`with_components` performs the state-dependent construction: [[cite:crates/limedl-core/src/context.rs:L42-L83]]
-[[cite:crates/limedl-core/src/context.rs:L86-L99]]
+`with_components` performs the state-dependent construction: [[cite:crates/limedl-engine/src/context.rs:L42-L83]]
+[[cite:crates/limedl-engine/src/context.rs:L86-L99]]
 
 - `state_dir` is created if missing, and the settings file is derived as its
   **parent** joined with `settings.json` — the state directory itself is
@@ -336,7 +336,7 @@ event bus through that second constructor. [[cite:crates/limedl-core/src/context
 `limedl-disk`'s buffer pool / device manager / services, `limedl-http`'s
 `RateLimiter`, `limedl-types`' `EventBus`), and it is the reason `limedl-disk`
 must not depend on `limedl-core`: the dependency points the other way.
-[[cite:crates/limedl-core/src/context.rs:L1-L11]]
+[[cite:crates/limedl-engine/src/context.rs:L1-L11]]
 
 ## The canonical initialization order
 
@@ -464,7 +464,7 @@ queue channel counts are fixed at construction. `get_io_status()` reports buffer
 usage/limits, active slots, queued count and per-device metrics, and game-mode
 toggling is delegated to the buffer pool.
 [[cite:crates/limedl-disk/src/services/disk_io.rs:L15-L135]]
-[[cite:crates/limedl-core/src/manager.rs:L368-L372]]
+[[cite:crates/limedl-engine/src/manager.rs:L368-L372]]
 
 ## How a settings change fans out
 
@@ -475,7 +475,7 @@ frontends. It calls `SettingsService::update_with`, then: [[cite:crates/limedl-c
   BT), which is where `DownloadManager::apply_settings` hot-reloads the rate
   limiter, buffer-pool limits, media overrides and — only when proxy or
   user-agent actually changed — rebuilds the HTTP client,
-  [[cite:crates/limedl-core/src/manager.rs:L350-L378]]
+  [[cite:crates/limedl-engine/src/manager.rs:L350-L378]]
   and where the BT backend applies its settings through
   `LazyBtBackend::update_settings`. [[cite:crates/limedl-bt/src/lazy.rs:L879-L882]]
 - clears the CDN service when `cdn_acceleration.enabled` is false;
@@ -498,7 +498,7 @@ Note that this path crosses four crates in one call: the facade is in
 ## Lifecycle and shutdown
 
 `SystemContext` carries a `CancellationToken` for cooperative cancellation of
-background work. [[cite:crates/limedl-core/src/context.rs:L86-L99]] Frontends shut
+background work. [[cite:crates/limedl-engine/src/context.rs:L86-L99]] Frontends shut
 the engine down through `registry.shutdown_all()`, which awaits each backend's
 `shutdown()` in iteration order. [[cite:crates/limedl-core/src/backend_registry/mod.rs:L116-L121]]
 The desktop additionally saves window geometry and flips the RPC `watch` channel

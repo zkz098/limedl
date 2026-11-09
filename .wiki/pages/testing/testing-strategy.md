@@ -2,8 +2,8 @@
 id: testing/testing-strategy
 title: Testing Strategy
 status: verified
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-core/src/lib.rs
   lines:
@@ -90,9 +90,9 @@ evidence:
   lines:
   - 240
   - 297
-  blob: 3c5b1d5209511f94237b8d457f054ca20866195b
+  blob: cbdab4e09f724cdf62156e4335b515d62cfa9d8f
   snippet_sha1: e90059407191f47965cc603cd9844115b16d5778
-  note: drift-projected L240-L298@db5543a7 -> L240-L297 (similarity 0.97)
+  note: drift-projected L240-L297@3c5b1d52 -> L240-L297 (similarity 1.00)
 - path: crates/limedl-store/src/database/tests/schema_migrations.rs
   lines:
   - 125
@@ -141,9 +141,9 @@ evidence:
   lines:
   - 184
   - 234
-  blob: 4afe6fd6ca8be705fd03c63a06c6362a9c7ff562
+  blob: 19a9c02020334dd73baba6bb8c65a5cbc3312a7c
   snippet_sha1: c064b3a0d3a0fb0605ae1707df827e5c31843ac3
-  note: drift-projected L249-L299@7c7fe3f3 -> L184-L234 (similarity 1.00)
+  note: drift-projected L184-L234@4afe6fd6 -> L184-L234 (similarity 1.00)
 - path: crates/limedl-core/src/tests/resume_corruption_tests.rs
   lines:
   - 1

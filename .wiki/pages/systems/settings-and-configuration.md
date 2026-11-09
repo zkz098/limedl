@@ -2,8 +2,8 @@
 id: systems/settings-and-configuration
 title: Settings and Configuration
 status: verified
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-types/src/types/settings.rs
   lines:
@@ -471,9 +471,9 @@ evidence:
   lines:
   - 351
   - 391
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: c7ae173973596d71dd5dbe42b3d498784946ab9d
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L350-L393 -> L351-L391 (similarity 0.93)
+  note: drift-projected L351-L391@2361c059 -> L351-L391 (similarity 1.00)
 - path: crates/limedl-bt/src/session.rs
   lines:
   - 194
@@ -587,8 +587,8 @@ directory resolves the base falls back to a temp directory
 `settings.json` sits in that base directory and the SQLite DB/torrent state live
 in `<base>/downloads`. `SystemContext::with_components` derives the settings path
 as the **parent** of `state_dir` joined with `settings.json`
-[[cite:crates/limedl-core/src/context.rs:L43-L55]], and opens the database as
-`<state_dir>/downloads.db` [[cite:crates/limedl-core/src/context.rs:L58-L59]].
+[[cite:crates/limedl-engine/src/context.rs:L43-L55]], and opens the database as
+`<state_dir>/downloads.db` [[cite:crates/limedl-engine/src/context.rs:L58-L59]].
 The headless `limedl-server` daemon resolves the same base directory (with
 `--data-dir` as an additional highest-precedence override) through its own
 `resolve_data_dir` [[cite:crates/limedl-server/src/config.rs:L88-L99]], a
@@ -800,7 +800,7 @@ frontends [[cite:crates/limedl-core/src/dispatcher.rs:L294-L348]]:
    `DownloadManager::apply_settings` sets the rate limiter and buffer-pool
    limits, pushes disk-type overrides into the scheduler, rebuilds the reqwest
    client **only when the proxy or user-agent changed**, re-applies logging and
-   rebalances the scheduler [[cite:crates/limedl-core/src/manager.rs:L350-L393]].
+   rebalances the scheduler [[cite:crates/limedl-engine/src/manager.rs:L350-L393]].
    The BT backend (`RqbitBtBackend` behind `LazyBtBackend`) stores the new
    settings and, when the engine is already running, rebuilds its auxiliary HTTP
    client and applies the global download/upload rate limits to the librqbit

@@ -2,8 +2,8 @@
 id: index
 title: Wiki 索引
 status: verified
-generated_at: 2026-10-31T15:59:16Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-09T15:14:30Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence: []
 tags:
 - generated
@@ -21,13 +21,13 @@ type: index
 
 ## desktop
 
-- [[wiki:desktop/native-ui-architecture]] —— Native Desktop UI (Slint) _( verified, 100 证据, type: desktop )_
+- [[wiki:desktop/native-ui-architecture]] —— Native Desktop UI (Slint) _( verified, 101 证据, type: desktop )_
 - [[wiki:desktop/self-update-and-distribution]] —— Self-Update and Distribution Channels _( verified, 71 证据, type: desktop )_
 - [[wiki:desktop/task-input-and-aria2c-parsing]] —— Task Input Surfaces and aria2c Command Parsing _( verified, 58 证据, type: desktop )_
 
 ## integrations
 
-- [[wiki:integrations/aria2-rpc-server]] —— Aria2 JSON-RPC Compatibility Server _( verified, 131 证据, type: integration )_
+- [[wiki:integrations/aria2-rpc-server]] —— Aria2 JSON-RPC Compatibility Server _( verified, 132 证据, type: integration )_
 - [[wiki:integrations/headless-server-daemon]] —— Headless Server Daemon (limedl-server) _( verified, 51 证据, type: integration )_
 
 ## operations
@@ -37,22 +37,22 @@ type: index
 
 ## systems
 
-- [[wiki:systems/disk-io-and-storage]] —— Disk I/O, Buffer Pool and Storage Detection _( verified, 62 证据, type: system )_
-- [[wiki:systems/networking-and-rate-control]] —— Networking, HTTP Clients and Rate Control _( verified, 62 证据, type: system )_
-- [[wiki:systems/persistence-and-recovery]] —— SQLite Persistence, Durable Progress and Crash Recovery _( verified, 64 证据, type: system )_
+- [[wiki:systems/disk-io-and-storage]] —— Disk I/O, Buffer Pool and Storage Detection _( verified, 70 证据, type: system )_
+- [[wiki:systems/networking-and-rate-control]] —— Networking, HTTP Clients and Rate Control _( verified, 63 证据, type: system )_
+- [[wiki:systems/persistence-and-recovery]] —— SQLite Persistence, Durable Progress and Crash Recovery _( verified, 79 证据, type: system )_
 - [[wiki:systems/settings-and-configuration]] —— Settings and Configuration _( verified, 85 证据, type: system )_
 
 ## testing
 
-- [[wiki:testing/slint-ui-testing]] —— Slint UI Testing _( verified, 40 证据, type: testing )_
+- [[wiki:testing/slint-ui-testing]] —— Slint UI Testing _( verified, 54 证据, type: testing )_
 - [[wiki:testing/testing-strategy]] —— Testing Strategy _( verified, 81 证据, type: testing )_
 
 ## workflows
 
 - [[wiki:workflows/bit-torrent-backend]] —— BitTorrent Backend _( verified, 41 证据, type: workflow )_
-- [[wiki:workflows/cdn-acceleration]] —— CDN Acceleration _( verified, 23 证据, type: workflow )_
-- [[wiki:workflows/http-download-lifecycle]] —— HTTP Download Lifecycle _( verified, 53 证据, type: workflow )_
+- [[wiki:workflows/cdn-acceleration]] —— CDN Acceleration _( verified, 24 证据, type: workflow )_
+- [[wiki:workflows/http-download-lifecycle]] —— HTTP Download Lifecycle _( verified, 55 证据, type: workflow )_
 - [[wiki:workflows/metalink-and-mirror-selection]] —— Metalink Parsing and Mirror Selection _( verified, 45 证据, type: workflow )_
 - [[wiki:workflows/scheduler-and-concurrency]] —— Scheduler, AIMD and Concurrency Control _( verified, 32 证据, type: workflow )_
 
-_共 21 页,0 页过期,生成于 2026-10-31T15:59:16Z_
+_共 21 页,0 页过期,生成于 2026-11-09T15:14:30Z_

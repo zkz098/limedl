@@ -1,9 +1,9 @@
 ---
 id: desktop/self-update-and-distribution
 title: Self-Update and Distribution Channels
-status: draft
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+status: verified
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-native/src/update/mod.rs
   lines:
@@ -473,11 +473,11 @@ evidence:
   note: drift-projected L274-L284@de0b4727 -> L287-L297 (similarity 1.00)
 - path: crates/limedl-native/src/ui_sync.rs
   lines:
-  - 131
-  - 133
-  blob: a7ac126bd0b5862707e639315664a27b5a80f1d0
+  - 132
+  - 134
+  blob: 001205c125f5d39bf5fbb233b9ee0d37adb6dc3f
   snippet_sha1: bda7ec0aac77b3ad431581c9d936ee0ff648ef18
-  note: drift-projected L131-L133@595efc59 -> L131-L133 (similarity 1.00)
+  note: drift-projected L131-L133@a7ac126b -> L132-L134 (similarity 1.00)
 - path: crates/limedl-native/src/update/mod.rs
   lines:
   - 693

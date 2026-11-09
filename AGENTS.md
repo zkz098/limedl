@@ -205,6 +205,7 @@ Agent 协议:
 2. 信任页面前先验证新鲜度:`loredex check`(或 MCP `wiki_check_freshness`);STALE 页面视为未验证,去读源码。
 3. 修改代码后:`loredex auto` 自愈漂移引用,`loredex plan` 列出剩余写作任务。
 4. 写页面时每条论断配一个行内 `[[cite:path:Lx-Ly]]`;无引用的正文会被拒绝。
+5. 仓库政策放在 wiki 页面里而不是本文件:类型为 `rule` / `troubleshooting` / `decision` 的页面承载约定、已知故障与设计取舍 —— `loredex search "<主题>"` 读取;暂时无法配引用的发现用 `loredex note` 落入(存为 draft,由 `loredex plan` 补引用);重复条目用 `loredex organize` 查出并合并。
 
 请勿手改本区块;用 `loredex agents-md` 重新生成(`loredex agents-md --remove` 移除)。
 <!-- END loredex -->

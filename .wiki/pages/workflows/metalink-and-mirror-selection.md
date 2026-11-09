@@ -2,8 +2,8 @@
 id: workflows/metalink-and-mirror-selection
 title: Metalink Parsing and Mirror Selection
 status: verified
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-engine/src/metalink/mod.rs
   lines:
@@ -185,18 +185,18 @@ evidence:
   note: drift-projected L148-L170@0cc22fba -> L148-L170 (similarity 1.00)
 - path: crates/limedl-engine/src/manager.rs
   lines:
-  - 823
-  - 837
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  - 830
+  - 844
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 33c274162455553f89eecad78ebd2da34a149030
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L836-L850 -> L823-L837 (similarity 1.00)
+  note: drift-projected L823-L837@2361c059 -> L830-L844 (similarity 1.00)
 - path: crates/limedl-engine/src/manager.rs
   lines:
-  - 734
-  - 740
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  - 741
+  - 747
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: ec08540616b9a036a4ad759107dae6c081b5122d
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L744-L750 -> L734-L740 (similarity 1.00)
+  note: drift-projected L734-L740@2361c059 -> L741-L747 (similarity 1.00)
 - path: crates/limedl-types/src/manifest.rs
   lines:
   - 55
@@ -206,11 +206,11 @@ evidence:
   note: drift-projected L55-L60@54ad6848 -> L55-L60 (similarity 1.00)
 - path: crates/limedl-engine/src/task_lifecycle/mod.rs
   lines:
-  - 97
-  - 144
-  blob: f79123457a4d696179ee96b3725fabc9a64fe7a0
+  - 117
+  - 164
+  blob: 06fa226e016db7406aab96ecc589b08052421836
   snippet_sha1: 2f7cba846017de1ca3bfc9f56c1c13c0b475e430
-  note: drift-projected L99-L150@e2b0f898 -> L97-L144 (similarity 0.92)
+  note: drift-projected L97-L144@f7912345 -> L117-L164 (similarity 1.00)
 - path: crates/limedl-store/src/database/schema.rs
   lines:
   - 137
@@ -219,11 +219,11 @@ evidence:
   snippet_sha1: c3e08afb5e9701077a64685fea83eb829b803ff2
 - path: crates/limedl-engine/src/manager.rs
   lines:
-  - 839
-  - 866
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  - 846
+  - 873
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: d0c7b47318584a70bee2c1bbab9a1404b593b0df
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L852-L879 -> L839-L866 (similarity 1.00)
+  note: drift-projected L839-L866@2361c059 -> L846-L873 (similarity 1.00)
 - path: crates/limedl-engine/src/http_executor/chunked.rs
   lines:
   - 115
@@ -286,11 +286,11 @@ evidence:
   note: drift-projected L546-L560@786277ec -> L580-L603 (similarity 0.93)
 - path: crates/limedl-engine/src/http_executor/run.rs
   lines:
-  - 158
-  - 166
-  blob: b3117828b3f21df5c5b00ea5cc8ef21433084925
-  snippet_sha1: 15ddfc98dd3d92fb4cda67523420e2d98c7b54c5
-  note: drift-projected L158-L166@925c25f2 -> L158-L166 (similarity 1.00)
+  - 172
+  - 181
+  blob: beca9b99784caae27de5ae257efb53cdd74b0418
+  snippet_sha1: 88603bec4708799488582d11446d6ac4a31fb116
+  note: drift-projected L158-L166@b3117828 -> L172-L181 (similarity 0.89)
 type: workflow
 ---
 # Metalink Parsing and Mirror Selection
@@ -458,8 +458,8 @@ rules when the caller supplied none, using `resolve_mirror_urls` (settings
 [[cite:crates/limedl-core/src/dispatcher.rs:L148-L170]]. `DownloadManager` also
 exposes `mirror_urls_for`, which re-resolves the candidate list at resume time
 so a settings change takes effect
-[[cite:crates/limedl-core/src/manager.rs:L836-L850]],
-[[cite:crates/limedl-core/src/manager.rs:L744-L750]].
+[[cite:crates/limedl-engine/src/manager.rs:L836-L850]],
+[[cite:crates/limedl-engine/src/manager.rs:L744-L750]].
 
 ## Engine failover and persistence
 
@@ -480,7 +480,7 @@ resumes on the same candidate
 [[cite:crates/limedl-store/src/database/schema.rs:L137-L154]].
 `aria2.changeUri` rewrites the candidate list and keeps the primary URL, mirror
 list, current index and snapshot consistent
-[[cite:crates/limedl-core/src/manager.rs:L852-L879]].
+[[cite:crates/limedl-engine/src/manager.rs:L852-L879]].
 
 ## What is wired vs. what is a library surface
 

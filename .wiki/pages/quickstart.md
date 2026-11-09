@@ -2,8 +2,8 @@
 id: quickstart
 title: Wiki 快速入口
 status: verified
-generated_at: 2026-10-31T15:59:16Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+generated_at: 2026-11-09T15:14:30Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence: []
 tags:
 - generated
@@ -59,3 +59,4 @@ type: index
 1. 信任任何页面前先调用 `wiki_check_freshness`(或 `loredex check`);过期页面按未验证对待,直接读源码。
 2. 用 `wiki_get_evidence` 核查论断 —— 每条引用都能解析到当前 git HEAD 上的精确文件内容。
 3. 保持 wiki 新鲜:`wiki_plan` 列出待写/待修页面;写作时每条论断配一个行内 `[[cite:path:Lx-Ly]]` 标记;漂移的引用用 `wiki_refresh_page` 自愈。
+4. 仓库政策在 `rule` / `troubleshooting` / `decision` 页面里:动手编码前先查阅;随手发现用 `loredex note` 落入(无引用的正文会存为 draft,由 `wiki_plan` 排队补引用);重复条目用 `loredex organize` 归纳。

@@ -2,8 +2,8 @@
 id: systems/networking-and-rate-control
 title: Networking, HTTP Clients and Rate Control
 status: verified
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+generated_at: 2026-11-09T15:10:34Z
+commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
 evidence:
 - path: crates/limedl-http/src/lib.rs
   lines:
@@ -86,9 +86,9 @@ evidence:
   lines:
   - 29
   - 51
-  blob: 43aba5b75d53a98e9806b83bcacdb6c44e2f515a
+  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
   snippet_sha1: df0d8f6e8963a752a9a9027579de5c1cfe2b51a7
-  note: drift-projected L25-L47@76657a09 -> L29-L51 (similarity 1.00)
+  note: drift-projected L29-L51@43aba5b7 -> L29-L51 (similarity 1.00)
 - path: crates/limedl-types/src/settings/mod.rs
   lines:
   - 21
@@ -111,9 +111,9 @@ evidence:
   lines:
   - 35
   - 42
-  blob: 43aba5b75d53a98e9806b83bcacdb6c44e2f515a
+  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
   snippet_sha1: 5dc63d006b85597f7462eff567d0c7d81825abab
-  note: drift-projected L31-L38@76657a09 -> L35-L42 (similarity 1.00)
+  note: drift-projected L35-L42@43aba5b7 -> L35-L42 (similarity 1.00)
 - path: .cargo/config.toml
   lines:
   - 1
@@ -144,9 +144,9 @@ evidence:
   lines:
   - 131
   - 132
-  blob: b3117828b3f21df5c5b00ea5cc8ef21433084925
-  snippet_sha1: 4fcc05854e6411f71e7aa883b1cce725cd25e63e
-  note: drift-projected L131-L132@925c25f2 -> L131-L132 (similarity 1.00)
+  blob: beca9b99784caae27de5ae257efb53cdd74b0418
+  snippet_sha1: eec5aad3e2e353eeb5a21e5ec4a2724448763aa4
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-store/src/alt_svc/mod.rs
   lines:
   - 264
@@ -185,16 +185,16 @@ evidence:
   lines:
   - 158
   - 163
-  blob: 2361c059cc2d5b4fa1ca688ea8acdfce132258e7
+  blob: 99d0894f5aa328b489e88b43c5664cab0759887a
   snippet_sha1: 6ebd9c52495128bc65da8c2387f50d38727bc8c5
-  note: renamed crates/limedl-core/src/manager.rs -> crates/limedl-engine/src/manager.rs, drift-projected L153-L158 -> L158-L163 (similarity 1.00)
+  note: drift-projected L158-L163@2361c059 -> L158-L163 (similarity 1.00)
 - path: Cargo.toml
   lines:
   - 43
   - 50
-  blob: 43aba5b75d53a98e9806b83bcacdb6c44e2f515a
+  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
   snippet_sha1: 3ce98a1a66badad25b6d761c17720a393f689b74
-  note: drift-projected L39-L46@76657a09 -> L43-L50 (similarity 1.00)
+  note: drift-projected L43-L50@43aba5b7 -> L43-L50 (similarity 1.00)
 - path: crates/limedl-http/src/http/mod.rs
   lines:
   - 246
@@ -206,16 +206,16 @@ evidence:
   lines:
   - 36
   - 56
-  blob: b3117828b3f21df5c5b00ea5cc8ef21433084925
-  snippet_sha1: 6df93404c9bd08fa3d2bf4b99574d4f61339ff0e
-  note: drift-projected L36-L56@925c25f2 -> L36-L56 (similarity 1.00)
+  blob: beca9b99784caae27de5ae257efb53cdd74b0418
+  snippet_sha1: 3879217884c1a08e8f5c2e8b8960af6749126946
+  note: drift-projected L36-L56@b3117828 -> L36-L56 (similarity 0.95)
 - path: crates/limedl-engine/src/http_executor/run.rs
   lines:
   - 82
   - 104
-  blob: b3117828b3f21df5c5b00ea5cc8ef21433084925
+  blob: beca9b99784caae27de5ae257efb53cdd74b0418
   snippet_sha1: 417e6dafd0bf4b98aa78d81d0f3f052e3e8a21e4
-  note: drift-projected L82-L104@925c25f2 -> L82-L104 (similarity 1.00)
+  note: drift-projected L82-L104@b3117828 -> L82-L104 (similarity 1.00)
 - path: crates/limedl-engine/src/http_executor/single.rs
   lines:
   - 571
@@ -344,18 +344,18 @@ evidence:
   note: drift-projected L173-L217@502dbddc -> L169-L213 (similarity 1.00)
 - path: crates/limedl-engine/src/task_lifecycle/mod.rs
   lines:
-  - 520
-  - 526
-  blob: f79123457a4d696179ee96b3725fabc9a64fe7a0
+  - 581
+  - 587
+  blob: 06fa226e016db7406aab96ecc589b08052421836
   snippet_sha1: f714324fc172e0fb1cbd0d61891906eb57ca8316
-  note: drift-projected L563-L569@e2b0f898 -> L520-L526 (similarity 1.00)
+  note: drift-projected L520-L526@f7912345 -> L581-L587 (similarity 1.00)
 - path: crates/limedl-engine/src/task_lifecycle/mod.rs
   lines:
-  - 156
-  - 165
-  blob: f79123457a4d696179ee96b3725fabc9a64fe7a0
+  - 176
+  - 185
+  blob: 06fa226e016db7406aab96ecc589b08052421836
   snippet_sha1: edb1d0b7d6afd7ee00f81d667609e11ecbafdd1f
-  note: drift-projected L162-L171@e2b0f898 -> L156-L165 (similarity 1.00)
+  note: drift-projected L156-L165@f7912345 -> L176-L185 (similarity 1.00)
 - path: crates/limedl-engine/src/http_executor/mod.rs
   lines:
   - 269
@@ -565,7 +565,7 @@ backoff (5 min, 10 min, 30 min, 24 h) and `mark_success` clears it.
 
 The manager is reloaded from SQLite at startup (`preload_from_db`) so a resumed
 session keeps its learned alternatives.
-[[cite:crates/limedl-core/src/manager.rs:L153-L158]]
+[[cite:crates/limedl-engine/src/manager.rs:L153-L158]]
 
 ### Response compression (gzip / brotli / zstd)
 
