@@ -710,3 +710,32 @@ fn build_snapshot_speed_tracker_overrides_average_speed_for_old_task() {
         "speed should reflect recent throughput, got {speed} B/s (old bug would be ~277 B/s)"
     );
 }
+
+#[tokio::test]
+async fn task_lifecycle_evict_completed_from_map_directly() {
+    use super::TaskLifecycle;
+
+    let lifecycle = TaskLifecycle;
+    let downloads = tokio::sync::RwLock::new(foldhash::HashMap::default());
+    {
+        let mut map = downloads.write().await;
+        map.insert(
+            "a".into(),
+            Arc::new(make_managed("a", DownloadState::Completed, 100)),
+        );
+        map.insert(
+            "b".into(),
+            Arc::new(make_managed("b", DownloadState::Failed, 200)),
+        );
+        map.insert(
+            "c".into(),
+            Arc::new(make_managed("c", DownloadState::Downloading, 300)),
+        );
+    }
+
+    let evicted = lifecycle.evict_completed_from_map(1, &downloads).await;
+    assert_eq!(evicted, 2);
+    let map = downloads.read().await;
+    assert_eq!(map.len(), 1);
+    assert!(map.contains_key("c"));
+}

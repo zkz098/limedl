@@ -37,13 +37,13 @@ pub struct TaskLifecycle;
 impl TaskLifecycle {
     // ── Lookup helpers ────────────────────────────────────────────────
 
-    /// Look up a managed download by ID.
-    pub async fn get(
+    /// Look up a managed download from the downloads map by ID.
+    pub async fn get_from_map(
         &self,
-        dm: &DownloadManager,
+        downloads: &tokio::sync::RwLock<foldhash::HashMap<String, Arc<ManagedDownload>>>,
         download_id: &str,
     ) -> Result<Arc<ManagedDownload>> {
-        dm.downloads()
+        downloads
             .read()
             .await
             .get(download_id)
@@ -51,19 +51,39 @@ impl TaskLifecycle {
             .ok_or(DownloadError::NotFound)
     }
 
+    /// Look up a managed download by ID.
+    pub async fn get(
+        &self,
+        dm: &DownloadManager,
+        download_id: &str,
+    ) -> Result<Arc<ManagedDownload>> {
+        self.get_from_map(dm.downloads().as_ref(), download_id)
+            .await
+    }
+
     // ── Shutdown ──────────────────────────────────────────────────────
 
-    /// Signal the scheduler loop and all active chunk workers to stop gracefully.
-    pub async fn shutdown(&self, dm: &DownloadManager) {
-        dm.controls().shutdown_token.cancel();
+    /// Signal the scheduler loop and all active chunk workers to stop gracefully with explicit controls.
+    pub async fn shutdown_with(
+        &self,
+        shutdown_token: &CancellationToken,
+        downloads: &tokio::sync::RwLock<foldhash::HashMap<String, Arc<ManagedDownload>>>,
+    ) {
+        shutdown_token.cancel();
 
-        let downloads = dm.downloads().read().await;
+        let downloads = downloads.read().await;
         for managed in downloads.values() {
             if let Some(token) = managed.lock_runtime().take() {
                 token.cancel();
             }
             managed.stop_notify.notify_waiters();
         }
+    }
+
+    /// Signal the scheduler loop and all active chunk workers to stop gracefully.
+    pub async fn shutdown(&self, dm: &DownloadManager) {
+        self.shutdown_with(&dm.controls().shutdown_token, dm.downloads().as_ref())
+            .await;
     }
 
     // ── Spawn download (background task orchestration) ────────────────
@@ -265,11 +285,10 @@ impl TaskLifecycle {
         notified.await;
     }
 
-    /// Wait until a download is allocated threads and actively running.
-    /// Returns the current wait state (Running, Paused, Canceled).
-    pub async fn wait_until_active(
+    /// Wait until a download is allocated threads and actively running, using explicit rebalance notifier.
+    pub async fn wait_until_active_with(
         &self,
-        dm: &DownloadManager,
+        rebalance_notify: &tokio::sync::Notify,
         managed: &Arc<ManagedDownload>,
         token: &CancellationToken,
     ) -> WaitState {
@@ -292,10 +311,22 @@ impl TaskLifecycle {
                     DownloadState::Canceled => WaitState::Canceled,
                     _ => WaitState::Paused,
                 },
-                _ = dm.controls().rebalance_notify.notified() => {}
+                _ = rebalance_notify.notified() => {}
                 _ = sleep(Duration::from_millis(120)) => {}
             }
         }
+    }
+
+    /// Wait until a download is allocated threads and actively running.
+    /// Returns the current wait state (Running, Paused, Canceled).
+    pub async fn wait_until_active(
+        &self,
+        dm: &DownloadManager,
+        managed: &Arc<ManagedDownload>,
+        token: &CancellationToken,
+    ) -> WaitState {
+        self.wait_until_active_with(&dm.controls().rebalance_notify, managed, token)
+            .await
     }
 
     // ── File operations ───────────────────────────────────────────────
@@ -377,16 +408,18 @@ impl TaskLifecycle {
     // ── Eviction ──────────────────────────────────────────────────────
 
     /// Evict terminal-state downloads (Completed/Failed/Canceled) when the
-    /// in-memory map exceeds `max_in_memory_downloads`.  Removes the oldest
-    /// terminal entries first.  Returns the number of entries removed.
-    pub async fn evict_completed(&self, dm: &DownloadManager) -> usize {
-        let limit = dm.settings_service().get().await.max_in_memory_downloads;
+    /// in-memory map exceeds `limit`. Removes the oldest terminal entries first.
+    pub async fn evict_completed_from_map(
+        &self,
+        limit: usize,
+        downloads: &tokio::sync::RwLock<foldhash::HashMap<String, Arc<ManagedDownload>>>,
+    ) -> usize {
         if limit == 0 {
             return 0;
         }
 
         let mut evicted = 0;
-        let mut map = dm.downloads().write().await;
+        let mut map = downloads.write().await;
         if map.len() <= limit {
             return 0;
         }
@@ -409,6 +442,15 @@ impl TaskLifecycle {
         }
 
         evicted
+    }
+
+    /// Evict terminal-state downloads (Completed/Failed/Canceled) when the
+    /// in-memory map exceeds `max_in_memory_downloads`. Removes the oldest
+    /// terminal entries first. Returns the number of entries removed.
+    pub async fn evict_completed(&self, dm: &DownloadManager) -> usize {
+        let limit = dm.settings_service().get().await.max_in_memory_downloads;
+        self.evict_completed_from_map(limit, dm.downloads().as_ref())
+            .await
     }
 
     // ── Snapshot building ─────────────────────────────────────────────
@@ -460,20 +502,39 @@ impl TaskLifecycle {
     // ── Event emission ────────────────────────────────────────────────
 
     /// Build a [`DownloadSummary`] from a managed download and emit a
-    /// `download-updated` event to the frontend.
-    pub fn emit_single_summary(&self, dm: &DownloadManager, managed: &Arc<ManagedDownload>) {
+    /// `download-updated` event to the frontend via the provided EventBus.
+    pub fn emit_single_summary_to(
+        &self,
+        event_bus: &crate::event_bus::EventBus,
+        managed: &Arc<ManagedDownload>,
+    ) {
         let snapshot = self.build_snapshot(managed.clone());
         let summary = DownloadSummary::from(&snapshot);
-        dm.event_bus().publish(DownloadEvent::Updated {
+        event_bus.publish(DownloadEvent::Updated {
             summary: Box::new(summary),
         });
     }
 
-    /// Emit a lightweight `download-progress` event for incremental UI updates.
-    pub fn emit_progress(&self, dm: &DownloadManager, managed: &Arc<ManagedDownload>) {
+    /// Build a [`DownloadSummary`] from a managed download and emit a
+    /// `download-updated` event to the frontend.
+    pub fn emit_single_summary(&self, dm: &DownloadManager, managed: &Arc<ManagedDownload>) {
+        self.emit_single_summary_to(dm.event_bus(), managed);
+    }
+
+    /// Emit a lightweight `download-progress` event to the provided EventBus.
+    pub fn emit_progress_to(
+        &self,
+        event_bus: &crate::event_bus::EventBus,
+        managed: &Arc<ManagedDownload>,
+    ) {
         let snapshot = self.build_snapshot(managed.clone());
         let progress = DownloadProgress::from(&snapshot);
-        dm.event_bus().publish(DownloadEvent::Progress { progress });
+        event_bus.publish(DownloadEvent::Progress { progress });
+    }
+
+    /// Emit a lightweight `download-progress` event for incremental UI updates.
+    pub fn emit_progress(&self, dm: &DownloadManager, managed: &Arc<ManagedDownload>) {
+        self.emit_progress_to(dm.event_bus(), managed);
     }
 
     /// Record downloaded bytes on a managed download (chunk index optional).

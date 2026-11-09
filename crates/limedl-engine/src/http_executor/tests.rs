@@ -295,3 +295,17 @@ fn finalize_refuses_a_download_with_unflushed_bytes() {
         "unexpected message: {message}"
     );
 }
+
+#[tokio::test]
+async fn probe_with_client_directly() {
+    let server = limedl_testkit::TestServer::new(1024).await;
+    let executor = super::HttpExecutor;
+    let client = reqwest::Client::new();
+    let metadata = executor
+        .probe(&client, None, &server.file_url_range(), "test-ua", &[])
+        .await
+        .expect("probe should succeed against test server");
+
+    assert_eq!(metadata.total_bytes, Some(1024));
+    assert!(metadata.supports_ranges);
+}

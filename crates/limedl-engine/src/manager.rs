@@ -573,8 +573,15 @@ impl DownloadManager {
         }
     }
 
+    /// Look up a managed download from the active downloads map by ID.
+    pub async fn get_managed(&self, download_id: &str) -> Result<Arc<ManagedDownload>> {
+        self.task_lifecycle
+            .get_from_map(self.downloads.as_ref(), download_id)
+            .await
+    }
+
     pub async fn pause(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let managed = self.task_lifecycle.get(self, download_id).await?;
+        let managed = self.get_managed(download_id).await?;
         {
             let mut core = managed.lock_core();
             if !matches!(
@@ -603,7 +610,7 @@ impl DownloadManager {
     }
 
     pub async fn cancel(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let managed = self.task_lifecycle.get(self, download_id).await?;
+        let managed = self.get_managed(download_id).await?;
 
         let is_completed = {
             let core = managed.lock_core();
@@ -655,7 +662,7 @@ impl DownloadManager {
     }
 
     pub async fn open_in_explorer(&self, download_id: &str) -> Result<()> {
-        let managed = self.task_lifecycle.get(self, download_id).await?;
+        let managed = self.get_managed(download_id).await?;
         let manifest = managed.lock_core().manifest.clone();
         let destination_path = PathBuf::from(&manifest.destination_path);
         let directory_path = PathBuf::from(&manifest.destination_dir);
@@ -682,7 +689,7 @@ impl DownloadManager {
     }
 
     pub async fn open_file(&self, download_id: &str) -> Result<()> {
-        let managed = self.task_lifecycle.get(self, download_id).await?;
+        let managed = self.get_managed(download_id).await?;
         let manifest = managed.lock_core().manifest.clone();
         let destination_path = PathBuf::from(&manifest.destination_path);
 
@@ -699,7 +706,7 @@ impl DownloadManager {
     }
 
     pub async fn open_dir(&self, download_id: &str) -> Result<()> {
-        let managed = self.task_lifecycle.get(self, download_id).await?;
+        let managed = self.get_managed(download_id).await?;
         let manifest = managed.lock_core().manifest.clone();
         let directory_path = PathBuf::from(&manifest.destination_dir);
         crate::platform::open_in_file_manager(&directory_path).map_err(DownloadError::Io)?;
@@ -707,7 +714,7 @@ impl DownloadManager {
     }
 
     pub async fn resume(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let managed = self.task_lifecycle.get(self, download_id).await?;
+        let managed = self.get_managed(download_id).await?;
         // Phase 1: check state (read-only, drop lock before fallible ops)
         {
             let core = managed.lock_core();
@@ -779,7 +786,7 @@ impl DownloadManager {
     }
 
     pub async fn status(&self, download_id: &str) -> Result<DownloadSnapshot> {
-        let managed = self.task_lifecycle.get(self, download_id).await?;
+        let managed = self.get_managed(download_id).await?;
         Ok(self.task_lifecycle.build_snapshot(managed))
     }
 
@@ -1039,7 +1046,7 @@ impl DownloadBackend for DownloadManager {
             return Err(DownloadError::NotFound);
         };
         let download_id = uuid.to_string();
-        let managed = self.task_lifecycle.get(self, &download_id).await?;
+        let managed = self.get_managed(&download_id).await?;
         {
             let mut core = managed.lock_core();
             core.manifest.priority = priority;
@@ -1053,7 +1060,9 @@ impl DownloadBackend for DownloadManager {
 
     async fn shutdown(&self) {
         tracing::info!("Shutting down download manager...");
-        self.task_lifecycle.shutdown(self).await;
+        self.task_lifecycle
+            .shutdown_with(&self.controls.shutdown_token, self.downloads.as_ref())
+            .await;
         // Wait for buffer pool to drain (max 15 seconds to allow large buffers to flush)
         let start = std::time::Instant::now();
         while self.buffer_pool.active_slots() > 0
@@ -1273,11 +1282,13 @@ impl DownloadManager {
     }
 
     pub fn emit_progress(&self, managed: &Arc<ManagedDownload>) {
-        self.task_lifecycle.emit_progress(self, managed)
+        self.task_lifecycle
+            .emit_progress_to(self.event_bus(), managed);
     }
 
     pub fn emit_single_summary(&self, managed: &Arc<ManagedDownload>) {
-        self.task_lifecycle.emit_single_summary(self, managed)
+        self.task_lifecycle
+            .emit_single_summary_to(self.event_bus(), managed);
     }
 
     pub fn cleanup_files(&self, managed: &Arc<ManagedDownload>) -> Result<()> {
@@ -1300,12 +1311,15 @@ impl DownloadManager {
         token: &CancellationToken,
     ) -> crate::download::WaitState {
         self.task_lifecycle
-            .wait_until_active(self, managed, token)
+            .wait_until_active_with(&self.controls.rebalance_notify, managed, token)
             .await
     }
 
     pub async fn evict_completed(&self) -> usize {
-        self.task_lifecycle.evict_completed(self).await
+        let limit = self.settings_service.get().await.max_in_memory_downloads;
+        self.task_lifecycle
+            .evict_completed_from_map(limit, self.downloads.as_ref())
+            .await
     }
 
     pub async fn rebalance_allocations(&self) -> Result<()> {

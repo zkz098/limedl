@@ -24,16 +24,16 @@ use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 impl HttpExecutor {
-    /// Probe a remote URL to obtain file metadata (final URL, file name,
+    /// Probe a remote URL with an HTTP client to obtain file metadata (final URL, file name,
     /// content length, ETag, Last-Modified, range support).
     pub async fn probe(
         &self,
-        dm: &DownloadManager,
+        client: &Client,
+        alt_svc: Option<&crate::alt_svc::AltSvcManager>,
         url: &str,
         user_agent: &str,
         extra_headers: &[String],
     ) -> Result<RemoteMetadata> {
-        let (client, _, _) = dm.resolve_client(url).await;
         let head = identity_encoding(apply_extra_headers(
             client.head(url).header(header::USER_AGENT, user_agent),
             extra_headers,
@@ -128,8 +128,9 @@ impl HttpExecutor {
         let file_name =
             infer_file_name(&final_url, &headers).ok_or(DownloadError::MissingFileName)?;
 
-        dm.alt_svc()
-            .record_from_response(&final_url, &headers, now_ms());
+        if let Some(alt_svc) = alt_svc {
+            alt_svc.record_from_response(&final_url, &headers, now_ms());
+        }
 
         let headers_checksum = crate::checksum::detect_checksum_from_headers(&headers);
 
@@ -145,6 +146,19 @@ impl HttpExecutor {
         })
     }
 
+    /// Convenience wrapper resolving client and Alt-Svc cache via DownloadManager before probing.
+    pub async fn probe_with_manager(
+        &self,
+        dm: &DownloadManager,
+        url: &str,
+        user_agent: &str,
+        extra_headers: &[String],
+    ) -> Result<RemoteMetadata> {
+        let (client, _, _) = dm.resolve_client(url).await;
+        self.probe(&client, Some(dm.alt_svc()), url, user_agent, extra_headers)
+            .await
+    }
+
     /// Main download run loop.  Decides between single-stream and chunked
     /// (parallel) download based on server capabilities.
     pub async fn run_download(
@@ -158,7 +172,8 @@ impl HttpExecutor {
         let current_manifest = { managed.lock_core().manifest.clone() };
         let metadata = self
             .probe(
-                dm.as_ref(),
+                &client,
+                Some(dm.alt_svc()),
                 &current_manifest.final_url,
                 &current_manifest.user_agent,
                 &current_manifest.extra_headers,
