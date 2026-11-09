@@ -1,9 +1,9 @@
 ---
 id: desktop/native-ui-architecture
 title: Native Desktop UI (Slint)
-status: verified
-generated_at: 2026-11-01T04:57:39Z
-commit: 69713d2c0b3f935fc12d948af13343754cd09bbb
+status: draft
+generated_at: 2026-11-09T11:42:32Z
+commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
 evidence:
 - path: crates/limedl-native/src/ui_boot.rs
   lines:
@@ -15,32 +15,37 @@ evidence:
   lines:
   - 56
   - 65
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: 837d3a45c580c9f924647b5445c4c2f416c46247
+  note: drift-projected L56-L65@de0b4727 -> L56-L65 (similarity 1.00)
 - path: crates/limedl-native/src/main.rs
   lines:
   - 1
   - 1
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: e12c52c7f6450912b7d8167ca74db4b3ff9963ce
+  note: drift-projected L1-L1@de0b4727 -> L1-L1 (similarity 1.00)
 - path: crates/limedl-native/src/main.rs
   lines:
   - 69
   - 167
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: 30fa916a4e5edef65669426130eaafef5790c9dc
+  note: drift-projected L69-L167@de0b4727 -> L69-L167 (similarity 1.00)
 - path: crates/limedl-native/src/main.rs
   lines:
-  - 186
-  - 303
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  - 199
+  - 316
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: 2249f4cdaa0f88afd226209e2c4cdc65f1531e57
+  note: drift-projected L186-L303@de0b4727 -> L199-L316 (similarity 1.00)
 - path: crates/limedl-native/src/main.rs
   lines:
   - 106
   - 121
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: 6ee0736377f801a501e2c4ab0c9a0e857d5df520
+  note: drift-projected L106-L121@de0b4727 -> L106-L121 (similarity 1.00)
 - path: crates/limedl-native/src/ui_boot.rs
   lines:
   - 90
@@ -57,32 +62,37 @@ evidence:
   lines:
   - 1
   - 11
-  blob: 9d98e28fb51d9f08d518412204d05fc334056a30
-  snippet_sha1: 3a426e4b98356da15083f56a925761c9782cb9c6
+  blob: 84b3d8ae4f7cc7a065b31816a88657ff3575b4d1
+  snippet_sha1: c86be95047f860908cd2861e3c9da6bc1e505710
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: Cargo.toml
   lines:
-  - 119
-  - 119
-  blob: 76657a09d63846e6e4df9e5ff601c82e5fe5f04e
+  - 123
+  - 123
+  blob: 43aba5b75d53a98e9806b83bcacdb6c44e2f515a
   snippet_sha1: 94a07f702c0c652110d2f2a331b2631d04afe300
+  note: drift-projected L119-L119@76657a09 -> L123-L123 (similarity 1.00)
 - path: crates/limedl-native/src/crash.rs
   lines:
   - 25
   - 41
-  blob: 9d98e28fb51d9f08d518412204d05fc334056a30
-  snippet_sha1: 18dc99b059df9e6f1a529fa10ed02f5502b48dff
+  blob: 84b3d8ae4f7cc7a065b31816a88657ff3575b4d1
+  snippet_sha1: ef3ca2739133a853ba65c0982e3a3b9ce6650783
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/crash.rs
   lines:
   - 87
   - 132
-  blob: 9d98e28fb51d9f08d518412204d05fc334056a30
-  snippet_sha1: c5c3f2c6ce405656c66f3d15bd1d38de2de96b47
+  blob: 84b3d8ae4f7cc7a065b31816a88657ff3575b4d1
+  snippet_sha1: 4871a524712049817ed17e96c79b38e6b160f032
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/crash.rs
   lines:
-  - 43
-  - 68
-  blob: 9d98e28fb51d9f08d518412204d05fc334056a30
+  - 13
+  - 38
+  blob: 84b3d8ae4f7cc7a065b31816a88657ff3575b4d1
   snippet_sha1: 6fd898c2e1db26a095f164324c22b630feb6b518
+  note: drift-projected L43-L68@9d98e28f -> L13-L38 (similarity 1.00)
 - path: crates/limedl-native/src/context.rs
   lines:
   - 17
@@ -105,14 +115,16 @@ evidence:
   lines:
   - 70
   - 108
-  blob: 595efc59053649e4c9c40881dc7862fd28496da5
+  blob: a7ac126bd0b5862707e639315664a27b5a80f1d0
   snippet_sha1: ce6f284918f39c54fc247b5d0d0639a31c6e1ffb
+  note: drift-projected L70-L108@595efc59 -> L70-L108 (similarity 1.00)
 - path: crates/limedl-native/src/ui_sync.rs
   lines:
   - 112
   - 121
-  blob: 595efc59053649e4c9c40881dc7862fd28496da5
+  blob: a7ac126bd0b5862707e639315664a27b5a80f1d0
   snippet_sha1: c5847236f3f44da21c286e8df1e12fc265752e76
+  note: drift-projected L112-L121@595efc59 -> L112-L121 (similarity 1.00)
 - path: crates/limedl-native/src/handlers/settings/disk_overrides.rs
   lines:
   - 83
@@ -141,26 +153,30 @@ evidence:
   lines:
   - 306
   - 346
-  blob: d73a979c318114afb86bafa7df107869c6cdd01e
-  snippet_sha1: e1b8f4fccf84917c4b3401ec88b5e1f479233f85
+  blob: 9cf1bc3fea699e7a9c75ff7d4cd636c1f4f68278
+  snippet_sha1: 9a111955cb5437f7bdb6c86ef984a23653e0bb0a
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/event_stream/bus.rs
   lines:
   - 114
   - 141
-  blob: d73a979c318114afb86bafa7df107869c6cdd01e
+  blob: 9cf1bc3fea699e7a9c75ff7d4cd636c1f4f68278
   snippet_sha1: bc30920b6ea8385e5bf3b5fa10b2c2717043f317
+  note: drift-projected L114-L141@d73a979c -> L114-L141 (similarity 1.00)
 - path: crates/limedl-native/src/event_stream/bus.rs
   lines:
   - 329
   - 344
-  blob: d73a979c318114afb86bafa7df107869c6cdd01e
-  snippet_sha1: 2954522d0cfc028ca75e5e5b0d8b77944075789c
+  blob: 9cf1bc3fea699e7a9c75ff7d4cd636c1f4f68278
+  snippet_sha1: 83be9875d535741fe5bc1a84ffcc87bb5729f168
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/event_stream/bus.rs
   lines:
   - 75
   - 112
-  blob: d73a979c318114afb86bafa7df107869c6cdd01e
+  blob: 9cf1bc3fea699e7a9c75ff7d4cd636c1f4f68278
   snippet_sha1: a10d5c26339a1455b3568070c2d8a34d800ff5d1
+  note: drift-projected L75-L112@d73a979c -> L75-L112 (similarity 1.00)
 - path: crates/limedl-native/src/toast.rs
   lines:
   - 147
@@ -171,8 +187,9 @@ evidence:
   lines:
   - 159
   - 237
-  blob: 595efc59053649e4c9c40881dc7862fd28496da5
+  blob: a7ac126bd0b5862707e639315664a27b5a80f1d0
   snippet_sha1: a2df11b70d98cca3c373141cd99cc20b29b20c71
+  note: drift-projected L159-L237@595efc59 -> L159-L237 (similarity 1.00)
 - path: crates/limedl-native/src/toast.rs
   lines:
   - 12
@@ -285,56 +302,65 @@ evidence:
   lines:
   - 56
   - 86
-  blob: 0622baf18785cfec2b591d7126b5e7890697021a
+  blob: 7006769e492545b0a5bfcfdfc9f90a0543a5cd60
   snippet_sha1: ff3ee54cec3c542494b8b93edb80fbbe50666270
+  note: drift-projected L56-L86@0622baf1 -> L56-L86 (similarity 1.00)
 - path: crates/limedl-native/src/single_instance.rs
   lines:
-  - 168
-  - 239
-  blob: 0622baf18785cfec2b591d7126b5e7890697021a
+  - 195
+  - 266
+  blob: 7006769e492545b0a5bfcfdfc9f90a0543a5cd60
   snippet_sha1: e532a93b4425fbfc6c4e1da76c2ff5c283ffc120
+  note: drift-projected L168-L239@0622baf1 -> L195-L266 (similarity 1.00)
 - path: crates/limedl-native/src/single_instance.rs
   lines:
-  - 257
-  - 313
-  blob: 0622baf18785cfec2b591d7126b5e7890697021a
+  - 284
+  - 340
+  blob: 7006769e492545b0a5bfcfdfc9f90a0543a5cd60
   snippet_sha1: a15479b2cde842e1b83a815a32b378be8e742fcd
+  note: drift-projected L257-L313@0622baf1 -> L284-L340 (similarity 1.00)
 - path: crates/limedl-native/src/single_instance.rs
   lines:
   - 31
   - 35
-  blob: 0622baf18785cfec2b591d7126b5e7890697021a
+  blob: 7006769e492545b0a5bfcfdfc9f90a0543a5cd60
   snippet_sha1: 6f61b25b0f8c2e66a1975d70cea70660f4df3a10
+  note: drift-projected L31-L35@0622baf1 -> L31-L35 (similarity 1.00)
 - path: crates/limedl-native/src/single_instance.rs
   lines:
-  - 315
-  - 328
-  blob: 0622baf18785cfec2b591d7126b5e7890697021a
+  - 342
+  - 355
+  blob: 7006769e492545b0a5bfcfdfc9f90a0543a5cd60
   snippet_sha1: 791e084e9e42993442e58cfb6d340c95ccf40bfc
+  note: drift-projected L315-L328@0622baf1 -> L342-L355 (similarity 1.00)
 - path: crates/limedl-native/src/single_instance.rs
   lines:
   - 37
   - 43
-  blob: 0622baf18785cfec2b591d7126b5e7890697021a
+  blob: 7006769e492545b0a5bfcfdfc9f90a0543a5cd60
   snippet_sha1: 1c7d14a7146439a70bc570d32b947d79066cf421
+  note: drift-projected L37-L43@0622baf1 -> L37-L43 (similarity 1.00)
 - path: crates/limedl-native/src/single_instance.rs
   lines:
-  - 350
-  - 396
-  blob: 0622baf18785cfec2b591d7126b5e7890697021a
+  - 377
+  - 423
+  blob: 7006769e492545b0a5bfcfdfc9f90a0543a5cd60
   snippet_sha1: 1c398de7d4439a42294e8b1aa64e49ace41cde87
+  note: drift-projected L350-L396@0622baf1 -> L377-L423 (similarity 1.00)
 - path: crates/limedl-native/src/main.rs
   lines:
   - 88
   - 100
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: c5998152d7fc0f27f71078ef2a9c6aa1708acb57
+  note: drift-projected L88-L100@de0b4727 -> L88-L100 (similarity 1.00)
 - path: crates/limedl-native/src/single_instance.rs
   lines:
   - 16
   - 22
-  blob: 0622baf18785cfec2b591d7126b5e7890697021a
+  blob: 7006769e492545b0a5bfcfdfc9f90a0543a5cd60
   snippet_sha1: ddd1ca3dd5f32fb0bc4cbabf3571c06be31f1116
+  note: drift-projected L16-L22@0622baf1 -> L16-L22 (similarity 1.00)
 - path: crates/limedl-native/src/autostart.rs
   lines:
   - 276
@@ -380,21 +406,24 @@ evidence:
 - path: crates/limedl-native/src/tray.rs
   lines:
   - 10
-  - 75
-  blob: 8a446e59c82674ed47e355a63bb4afc135ff50a2
-  snippet_sha1: 38d0264089af7761360e945e6b1940aac875d922
+  - 80
+  blob: abbdfef575e7a02f2c0d2d646ee3e728877be0e5
+  snippet_sha1: a85ebf23051f76f36603baec2ea8c90a62152d01
+  note: drift-projected L10-L75@8a446e59 -> L10-L80 (similarity 1.00)
 - path: crates/limedl-native/src/main.rs
   lines:
-  - 195
-  - 212
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  - 208
+  - 225
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: 7b36ee0dbc7e47feb2db0c6d16b13fc5faace4b4
+  note: drift-projected L195-L212@de0b4727 -> L208-L225 (similarity 1.00)
 - path: crates/limedl-native/src/tray.rs
   lines:
   - 43
   - 61
-  blob: 8a446e59c82674ed47e355a63bb4afc135ff50a2
+  blob: abbdfef575e7a02f2c0d2d646ee3e728877be0e5
   snippet_sha1: 867780502b907d0831747a1df1fd344624602fe9
+  note: drift-projected L43-L61@8a446e59 -> L43-L61 (similarity 1.00)
 - path: crates/limedl-native/src/event_stream/tray.rs
   lines:
   - 137
@@ -411,20 +440,23 @@ evidence:
   lines:
   - 34
   - 35
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: 883792700d29213411319beee2532b43d2fafccf
+  note: drift-projected L34-L35@de0b4727 -> L34-L35 (similarity 1.00)
 - path: crates/limedl-native/src/ui_sync.rs
   lines:
   - 135
   - 137
-  blob: 595efc59053649e4c9c40881dc7862fd28496da5
+  blob: a7ac126bd0b5862707e639315664a27b5a80f1d0
   snippet_sha1: ad8e4dbce0f009920edac0494798e8248201d690
+  note: drift-projected L135-L137@595efc59 -> L135-L137 (similarity 1.00)
 - path: crates/limedl-native/src/event_stream/bus.rs
   lines:
   - 52
   - 57
-  blob: d73a979c318114afb86bafa7df107869c6cdd01e
+  blob: 9cf1bc3fea699e7a9c75ff7d4cd636c1f4f68278
   snippet_sha1: fb59084783e1b977da8fd44c90a149fb2a9de6ce
+  note: drift-projected L52-L57@d73a979c -> L52-L57 (similarity 1.00)
 - path: crates/limedl-native/src/power.rs
   lines:
   - 99
@@ -511,10 +543,11 @@ evidence:
   snippet_sha1: 4af04ff4167e043c713a8140268082ddf1e1d364
 - path: crates/limedl-native/src/main.rs
   lines:
-  - 305
-  - 306
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  - 318
+  - 319
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: 6541cae5b6ebd83b6e9c60120a4e9065a4d707ae
+  note: drift-projected L305-L306@de0b4727 -> L318-L319 (similarity 1.00)
 - path: crates/limedl-native/src/platform_win.rs
   lines:
   - 589
@@ -567,20 +600,23 @@ evidence:
   lines:
   - 360
   - 390
-  blob: 595efc59053649e4c9c40881dc7862fd28496da5
+  blob: a7ac126bd0b5862707e639315664a27b5a80f1d0
   snippet_sha1: 4db788858e8fdb56eaf995dc00ce0bdc3893b50e
+  note: drift-projected L360-L390@595efc59 -> L360-L390 (similarity 1.00)
 - path: crates/limedl-native/src/main.rs
   lines:
-  - 298
-  - 301
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  - 311
+  - 314
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: 6d864434594fcede7e66c42355c6a41d35b0b9c7
+  note: drift-projected L298-L301@de0b4727 -> L311-L314 (similarity 1.00)
 - path: crates/limedl-native/src/ui_sync.rs
   lines:
   - 338
   - 358
-  blob: 595efc59053649e4c9c40881dc7862fd28496da5
+  blob: a7ac126bd0b5862707e639315664a27b5a80f1d0
   snippet_sha1: 925238e95edd073e766490a9b7116ae279de5ccc
+  note: drift-projected L338-L358@595efc59 -> L338-L358 (similarity 1.00)
 - path: crates/limedl-native/ui/theme.slint
   lines:
   - 1
@@ -603,8 +639,9 @@ evidence:
   lines:
   - 392
   - 409
-  blob: 595efc59053649e4c9c40881dc7862fd28496da5
+  blob: a7ac126bd0b5862707e639315664a27b5a80f1d0
   snippet_sha1: c6df9f11aa13b337c4dcbf343fb92f956d5d513a
+  note: drift-projected L392-L409@595efc59 -> L392-L409 (similarity 1.00)
 - path: xtask/src/theme.rs
   lines:
   - 272

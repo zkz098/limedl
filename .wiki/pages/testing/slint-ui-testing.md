@@ -2,8 +2,8 @@
 id: testing/slint-ui-testing
 title: Slint UI Testing
 status: verified
-generated_at: 2026-11-02T11:19:52Z
-commit: 8dc6f4da89661bc08ca60d0f37c9de1aa2da9eda
+generated_at: 2026-11-09T11:42:32Z
+commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
 evidence:
 - path: AGENTS.md
   lines:
@@ -46,9 +46,10 @@ evidence:
 - path: crates/limedl-native/src/ui_tests/async_contracts/mod.rs
   lines:
   - 1
-  - 99
-  blob: 1c85de80a722239ed9d595208562dd30e7352e60
-  snippet_sha1: f7e9fce56849ebc741bec09bf278afb5bf8f5363
+  - 100
+  blob: e1473470578982f45438c751dd48062f1b7282d7
+  snippet_sha1: 823cbcf0e4d897817a814349fb09418ee2f9ac36
+  note: drift-projected L1-L99@1c85de80 -> L1-L100 (similarity 1.00)
 - path: crates/limedl-native/src/ui_tests/mod.rs
   lines:
   - 214

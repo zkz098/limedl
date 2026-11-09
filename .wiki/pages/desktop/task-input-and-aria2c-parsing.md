@@ -1,9 +1,9 @@
 ---
 id: desktop/task-input-and-aria2c-parsing
 title: Task Input Surfaces and aria2c Command Parsing
-status: verified
-generated_at: 2026-10-31T14:52:31Z
-commit: b5102b9f00e4d40e84fa3ca5da17fc3e95e4c45b
+status: draft
+generated_at: 2026-11-09T11:42:32Z
+commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
 evidence:
 - path: crates/limedl-native/src/handlers/new_task/payload.rs
   lines:
@@ -13,10 +13,11 @@ evidence:
   snippet_sha1: 226211b144c4cecf69611a1c8c0f0d5b92a6ba30
 - path: crates/limedl-native/src/main.rs
   lines:
-  - 262
-  - 272
-  blob: de0b47270c1be4ea918f8af5fa13252cae4f38e5
+  - 275
+  - 285
+  blob: 9df6f3ec413bdfdd386fdcae9b5183feed2f7343
   snippet_sha1: acdc267c8182a1523cf0c7fde934d71c0cefad82
+  note: drift-projected L262-L272@de0b4727 -> L275-L285 (similarity 1.00)
 - path: crates/limedl-native/src/platform_adapter.rs
   lines:
   - 12
@@ -105,104 +106,121 @@ evidence:
   lines:
   - 1
   - 11
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 15a31217c844a4627a4112414acae1986ce25f8d
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: d2ace39ffbc1b2906c7d8aa0e511c141e45f588a
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 76
   - 82
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 609b6913989797f2d95db21cf5de035aca379f06
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 311
   - 315
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: afb480691045cede1ed399796bba3c8dace8aeee
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 84
   - 108
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 0b7d775fb7f34fb0e7d51c56e1e39435da9eeac8
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 217
   - 224
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 490fb9413d1a792685dc05a9e50db3feeab943f5
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 233
   - 250
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: d3a68de036e8c7dafed7a3f8be71235188ec53f2
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 252
   - 309
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 10a01eb3b616b7052a34ab43f6542cd7c8e8a3eb
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 317
   - 342
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 6bfb7eb413f6d8f1f49024621bd8a95c439afed4
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 55
   - 74
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 0af88c5180295828913712db680b7e93d667b1b4
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 132
   - 161
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 3a4407a30dcdc8c442f3b37b13838d60304e1803
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 192
   - 203
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 2f530d7b168f27ae341861978d8d2721ee356ab9
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 353
   - 371
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 4e0ed219d69fab8e7e896da156a64c1cb727495d
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 37
   - 53
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 65f8ff660000a7c2204da45d17a7dbb5ed0c252c
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 115
   - 130
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 26e10a2d9a2979134635ed649fdcb63f8abebf72
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 15
   - 35
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 6182e19c6497da1c0306b78f54c09e3fdd406b95
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 217
   - 231
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 153ad309370fbde6302ea34f15a32a9f508ddef2
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/aria2_cli.rs
   lines:
   - 205
   - 215
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: 871aedce845e929929d8f7d541300f150a25adb6
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/handlers/new_task/mod.rs
   lines:
   - 66
@@ -279,20 +297,23 @@ evidence:
   lines:
   - 33
   - 55
-  blob: 756a5c7ce35737b9e798a7dbec53d506bce47bd7
-  snippet_sha1: 5c7eb8f762aaa271f926502eaa1f7095bbf87a81
+  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/url_utils.rs
   lines:
   - 57
   - 95
-  blob: 756a5c7ce35737b9e798a7dbec53d506bce47bd7
-  snippet_sha1: a040655fce0b704bec496b5090f83410daa31384
+  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/url_utils.rs
   lines:
   - 57
   - 83
-  blob: 756a5c7ce35737b9e798a7dbec53d506bce47bd7
-  snippet_sha1: 1b50b5c2dd96fa37e87bd5a33257f56c13464478
+  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/handlers/new_task/submit.rs
   lines:
   - 327
@@ -303,14 +324,16 @@ evidence:
   lines:
   - 141
   - 158
-  blob: 756a5c7ce35737b9e798a7dbec53d506bce47bd7
-  snippet_sha1: e4fa8fc3803ea7e1e36181c44451cfc832ae1451
+  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/url_utils.rs
   lines:
   - 97
   - 139
-  blob: 756a5c7ce35737b9e798a7dbec53d506bce47bd7
-  snippet_sha1: 242bf78a3d7e1c8622f901c0193d62b639b6cc06
+  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/ui/components/common.slint
   lines:
   - 406
@@ -333,14 +356,16 @@ evidence:
   lines:
   - 373
   - 414
-  blob: 33f7b198e9f9c4b8aca1dab1cce7a516181ac51c
-  snippet_sha1: f35e1210b93248a5ae595b66ea809db3cab16ee0
+  blob: b9c641607390ab5d5b866d86a97c5f69ffc3c55f
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/url_utils.rs
   lines:
   - 181
   - 296
-  blob: 756a5c7ce35737b9e798a7dbec53d506bce47bd7
-  snippet_sha1: aadecea119b1f18d8956eb1a4a3b90560e8262ec
+  blob: 30d0e796db808c99555b1b7a50fa49f61b2393c7
+  snippet_sha1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/ui_tests/new_task.rs
   lines:
   - 16
