@@ -2,8 +2,8 @@
 id: systems/disk-io-and-storage
 title: Disk I/O, Buffer Pool and Storage Detection
 status: verified
-generated_at: 2026-11-13T06:42:18Z
-commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
+generated_at: 2026-11-13T10:44:49Z
+commit: ef4bed786d602c1598991bc6d8ce0eb0856786ce
 evidence:
 - path: crates/limedl-disk/src/buffer_pool/mod.rs
   lines:
@@ -174,8 +174,9 @@ evidence:
   lines:
   - 113
   - 119
-  blob: d6e99b280b6758f713130a1a7201dac7463dd565
+  blob: 4432791995601330a33bc1b6d774c6fa31036526
   snippet_sha1: 35744ee7c901b9cab8b0e3971c7bca00fce35bdc
+  note: drift-projected L113-L119@d6e99b28 -> L113-L119 (similarity 1.00)
 - path: crates/limedl-core/src/crash.rs
   lines:
   - 18

@@ -2,8 +2,8 @@
 id: desktop/native-ui-architecture
 title: Native Desktop UI (Slint)
 status: verified
-generated_at: 2026-11-13T06:38:13Z
-commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
+generated_at: 2026-11-13T10:44:49Z
+commit: ef4bed786d602c1598991bc6d8ce0eb0856786ce
 evidence:
 - path: crates/limedl-native/src/ui_boot.rs
   lines:
@@ -63,9 +63,9 @@ evidence:
   lines:
   - 120
   - 120
-  blob: d6e99b280b6758f713130a1a7201dac7463dd565
+  blob: 4432791995601330a33bc1b6d774c6fa31036526
   snippet_sha1: 90ee0cfb8975482cd6a48740aa919745687668a8
-  note: drift-projected L119-L119@981be642 -> L120-L120 (similarity 1.00)
+  note: drift-projected L120-L120@d6e99b28 -> L120-L120 (similarity 1.00)
 - path: crates/limedl-native/src/crash.rs
   lines:
   - 25

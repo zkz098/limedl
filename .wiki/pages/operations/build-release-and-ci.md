@@ -2,8 +2,8 @@
 id: operations/build-release-and-ci
 title: Build, Tooling, CI and Release Operations
 status: verified
-generated_at: 2026-11-13T10:12:27Z
-commit: 6febc9bfbb09bad587f195385ec91f537f1ad6ac
+generated_at: 2026-11-13T10:44:49Z
+commit: ef4bed786d602c1598991bc6d8ce0eb0856786ce
 evidence:
 - path: AGENTS.md
   lines:
@@ -617,9 +617,9 @@ evidence:
   lines:
   - 84
   - 85
-  blob: d6e99b280b6758f713130a1a7201dac7463dd565
+  blob: 4432791995601330a33bc1b6d774c6fa31036526
   snippet_sha1: c6cdc067f82c2cfae6361b08e21671f04b0860c6
-  note: drift-projected L84-L85@981be642 -> L84-L85 (similarity 1.00)
+  note: drift-projected L84-L85@d6e99b28 -> L84-L85 (similarity 1.00)
 - path: crates/limedl-bt/Cargo.toml
   lines:
   - 13
