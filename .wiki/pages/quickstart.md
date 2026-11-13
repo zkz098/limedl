@@ -2,8 +2,8 @@
 id: quickstart
 title: Wiki 快速入口
 status: verified
-generated_at: 2026-11-09T15:14:30Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T03:32:42Z
+commit: b56ef11879fd182cdb250f518a7360caf8eda9c3
 evidence: []
 tags:
 - generated

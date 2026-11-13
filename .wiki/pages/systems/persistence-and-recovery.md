@@ -2,8 +2,8 @@
 id: systems/persistence-and-recovery
 title: SQLite Persistence, Durable Progress and Crash Recovery
 status: verified
-generated_at: 2026-11-09T15:10:34Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T03:30:34Z
+commit: b56ef11879fd182cdb250f518a7360caf8eda9c3
 evidence:
 - path: crates/limedl-engine/src/context.rs
   lines:
@@ -319,16 +319,16 @@ evidence:
   lines:
   - 917
   - 924
-  blob: d7a4a2f3b593fb1d3304a1864b3e098b1fc289d5
+  blob: 0012f335bc581a08bb3b0bf8f60f01a76834526b
   snippet_sha1: 0ae6fdde940b8a786dbbd8e4085c34e33dc0909e
-  note: drift-projected L917-L924@0fe3a52d -> L917-L924 (similarity 1.00)
+  note: drift-projected L917-L924@d7a4a2f3 -> L917-L924 (similarity 1.00)
 - path: crates/limedl-native/lang/zh_CN/LC_MESSAGES/limedl-native.po
   lines:
   - 917
   - 926
-  blob: ad7123edcf4391a701fbeb2b7142f275004e368d
+  blob: 65abc80b400eaf53b4ee4b92d5b19b35726acb7d
   snippet_sha1: f92c2e88e3f9b997d4dad7cb611e458e92b49f6f
-  note: drift-projected L917-L926@e10359c9 -> L917-L926 (similarity 1.00)
+  note: drift-projected L917-L926@ad7123ed -> L917-L926 (similarity 1.00)
 - path: crates/limedl-types/src/settings/mod.rs
   lines:
   - 522

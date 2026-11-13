@@ -2,8 +2,8 @@
 id: desktop/self-update-and-distribution
 title: Self-Update and Distribution Channels
 status: verified
-generated_at: 2026-11-09T15:10:34Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T03:30:34Z
+commit: b56ef11879fd182cdb250f518a7360caf8eda9c3
 evidence:
 - path: crates/limedl-native/src/update/mod.rs
   lines:
@@ -229,10 +229,11 @@ evidence:
   note: drift-projected L289-L331@d33fada0 -> L289-L331 (similarity 1.00)
 - path: xtask/src/main.rs
   lines:
-  - 110
-  - 120
-  blob: da200792d0ff0e9c83b330bc2ce7f45c218bdf66
+  - 108
+  - 118
+  blob: 6d1a6325703baeb3c6c97fa854e9de220119fbd2
   snippet_sha1: e6cf54e3b11cfcd7bf2e1cea200e0025db77ae42
+  note: drift-projected L110-L120@da200792 -> L108-L118 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 793
@@ -249,10 +250,11 @@ evidence:
   note: drift-projected L386-L471@594a999f -> L381-L467 (similarity 0.91)
 - path: xtask/src/main.rs
   lines:
-  - 65
-  - 69
-  blob: da200792d0ff0e9c83b330bc2ce7f45c218bdf66
+  - 63
+  - 67
+  blob: 6d1a6325703baeb3c6c97fa854e9de220119fbd2
   snippet_sha1: 166556363fcf61af950fd83fddc3aebf6835bbb2
+  note: drift-projected L65-L69@da200792 -> L63-L67 (similarity 1.00)
 - path: crates/limedl-native/src/update/mod.rs
   lines:
   - 795

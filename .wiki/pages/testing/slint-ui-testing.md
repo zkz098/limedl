@@ -2,23 +2,21 @@
 id: testing/slint-ui-testing
 title: Slint UI Testing
 status: verified
-generated_at: 2026-11-09T15:10:34Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T03:32:42Z
+commit: b56ef11879fd182cdb250f518a7360caf8eda9c3
 evidence:
 - path: AGENTS.md
   lines:
   - 15
   - 16
-  blob: dfad3e0735a83faa3d6069fddecedcae8a13a25c
-  snippet_sha1: 5acce1c51c5cc1ffab8b5d445d085083924ca802
-  note: drift-projected L15-L16@418ad710 -> L15-L16 (similarity 1.00)
+  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  snippet_sha1: 55de907211d7b11b72c863ba91f10b8797185014
 - path: AGENTS.md
   lines:
-  - 120
-  - 125
-  blob: dfad3e0735a83faa3d6069fddecedcae8a13a25c
-  snippet_sha1: 708f1c9f06b888fb8c881fab476d8f2f2efd63df
-  note: drift-projected L121-L126@418ad710 -> L120-L125 (similarity 1.00)
+  - 121
+  - 126
+  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  snippet_sha1: 8c38b69fad4040cdeff4a3c1f6abaf3b10a85051
 - path: crates/limedl-native/src/ui_tests/mod.rs
   lines:
   - 1
@@ -46,10 +44,9 @@ evidence:
 - path: crates/limedl-native/src/ui_tests/async_contracts/mod.rs
   lines:
   - 1
-  - 100
+  - 99
   blob: e1473470578982f45438c751dd48062f1b7282d7
-  snippet_sha1: 823cbcf0e4d897817a814349fb09418ee2f9ac36
-  note: drift-projected L1-L99@1c85de80 -> L1-L100 (similarity 1.00)
+  snippet_sha1: 20b32c5581ce7df6a8815981194548c42b7beb79
 - path: crates/limedl-native/src/ui_tests/mod.rs
   lines:
   - 214
@@ -236,7 +233,6 @@ evidence:
   - 322
   blob: d6fd9974372ece4acd76f4ab35c76cc93c7dd56f
   snippet_sha1: 0e3c4418429c72f6aedb1015087e174574fc2aae
-  note: drift-projected L289-L322@edd90516 -> L289-L322 (similarity 1.00)
 - path: crates/limedl-native/src/ui_tests/layout.rs
   lines:
   - 30
@@ -311,11 +307,10 @@ evidence:
   snippet_sha1: 6e389a41a561e865131a4bb2575b65dc1a50a665
 - path: AGENTS.md
   lines:
-  - 21
-  - 23
-  blob: dfad3e0735a83faa3d6069fddecedcae8a13a25c
-  snippet_sha1: 79eae2e8dc01b5ec7b4e1a0eab01025cdaec4dff
-  note: drift-projected L21-L23@418ad710 -> L21-L23 (similarity 1.00)
+  - 22
+  - 22
+  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  snippet_sha1: fda0d89a6ecf2c09cfba7ff8ebaff183170ff13e
 - path: docs/manual-smoke-testing.md
   lines:
   - 32
@@ -340,7 +335,7 @@ type: testing
 
 The desktop UI is tested at two layers, chosen by what regression you want to
 catch: **L1** in-process tests that run in the normal `cargo nextest` gate (which
-`cargo xtask gate` mirrors), and **L2** the MCP server for interactive inspection
+`cargo warden gate` mirrors), and **L2** the MCP server for interactive inspection
 of a running app. [[cite:AGENTS.md:L15-L16]] [[cite:AGENTS.md:L121-L126]]
 
 ## L1: in-process tests
@@ -619,7 +614,7 @@ prerequisites:
   `SLINT_MCP_PORT=8080` (the command is `cargo run -p limedl-native --features
   slint/mcp`). `build.rs` already embeds the metadata for debug builds, so only
   a release-driven session needs the env var.
-  [[cite:docs/manual-smoke-testing.md:L13-L31]] [[cite:AGENTS.md:L21-L23]]
+  [[cite:docs/manual-smoke-testing.md:L13-L31]] [[cite:AGENTS.md:L22-L22]]
 - Quit any running limedl first: the single-instance guard makes a second process
   notify the primary and exit immediately, so the port never opens.
   [[cite:docs/manual-smoke-testing.md:L32-L35]]

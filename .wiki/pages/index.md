@@ -2,8 +2,8 @@
 id: index
 title: Wiki 索引
 status: verified
-generated_at: 2026-11-09T15:14:30Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T03:32:42Z
+commit: b56ef11879fd182cdb250f518a7360caf8eda9c3
 evidence: []
 tags:
 - generated
@@ -16,12 +16,12 @@ type: index
 ## architecture
 
 - [[wiki:architecture/bootstrap-and-services]] —— Bootstrap, SystemContext and Shared Services _( verified, 38 证据, type: architecture )_
-- [[wiki:architecture/overview]] —— Workspace and System Architecture _( verified, 53 证据, type: architecture )_
+- [[wiki:architecture/overview]] —— Workspace and System Architecture _( verified, 55 证据, type: architecture )_
 - [[wiki:architecture/protocol-routing-and-dispatcher]] —— Protocol Routing and the Dispatcher Facade _( verified, 26 证据, type: architecture )_
 
 ## desktop
 
-- [[wiki:desktop/native-ui-architecture]] —— Native Desktop UI (Slint) _( verified, 101 证据, type: desktop )_
+- [[wiki:desktop/native-ui-architecture]] —— Native Desktop UI (Slint) _( verified, 103 证据, type: desktop )_
 - [[wiki:desktop/self-update-and-distribution]] —— Self-Update and Distribution Channels _( verified, 71 证据, type: desktop )_
 - [[wiki:desktop/task-input-and-aria2c-parsing]] —— Task Input Surfaces and aria2c Command Parsing _( verified, 58 证据, type: desktop )_
 
@@ -32,7 +32,7 @@ type: index
 
 ## operations
 
-- [[wiki:operations/build-release-and-ci]] —— Build, Tooling, CI and Release Operations _( verified, 88 证据, type: operations )_
+- [[wiki:operations/build-release-and-ci]] —— Build, Tooling, CI and Release Operations _( verified, 96 证据, type: operations )_
 - [[wiki:operations/server-deployment-and-packaging]] —— Server Deployment and Packaging _( verified, 25 证据, type: operations )_
 
 ## systems
@@ -55,4 +55,4 @@ type: index
 - [[wiki:workflows/metalink-and-mirror-selection]] —— Metalink Parsing and Mirror Selection _( verified, 45 证据, type: workflow )_
 - [[wiki:workflows/scheduler-and-concurrency]] —— Scheduler, AIMD and Concurrency Control _( verified, 32 证据, type: workflow )_
 
-_共 21 页,0 页过期,生成于 2026-11-09T15:14:30Z_
+_共 21 页,0 页过期,生成于 2026-11-13T03:32:42Z_

@@ -2,8 +2,8 @@
 id: testing/testing-strategy
 title: Testing Strategy
 status: verified
-generated_at: 2026-11-09T15:10:34Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T03:30:34Z
+commit: b56ef11879fd182cdb250f518a7360caf8eda9c3
 evidence:
 - path: crates/limedl-core/src/lib.rs
   lines:
@@ -15,17 +15,17 @@ evidence:
 - path: crates/limedl-core/src/tests/mod.rs
   lines:
   - 1
-  - 27
-  blob: f5f3aa363a34423971ab3944934c7d4820ed5248
-  snippet_sha1: bdac79cc9d39dde863a96ccdce31f36b9ff65421
-  note: drift-projected L1-L25@211792f4 -> L1-L27 (similarity 1.00)
+  - 26
+  blob: 17b5be2e1d6457f83b2bcfda6b6a33bac957a8fd
+  snippet_sha1: aca64350eeeb87a92d09cef65c46e7c828e99361
+  note: drift-projected L1-L27@f5f3aa36 -> L1-L26 (similarity 0.96)
 - path: crates/limedl-core/src/tests/mod.rs
   lines:
   - 14
-  - 25
-  blob: f5f3aa363a34423971ab3944934c7d4820ed5248
-  snippet_sha1: 3041e1b98c17ca3ea285e2c440f14660e9d8aabc
-  note: drift-projected L13-L23@211792f4 -> L14-L25 (similarity 1.00)
+  - 24
+  blob: 17b5be2e1d6457f83b2bcfda6b6a33bac957a8fd
+  snippet_sha1: 0457bfd3a72b5c9d15d593d868a00216fdceaade
+  note: drift-projected L14-L25@f5f3aa36 -> L14-L24 (similarity 0.92)
 - path: crates/limedl-core/tests/logging_reload_repro.rs
   lines:
   - 1
@@ -36,9 +36,9 @@ evidence:
   lines:
   - 98
   - 106
-  blob: a6164b5e0c6079310fbc23db67d73a29e278507a
+  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
   snippet_sha1: d5d4d8c113cba74fe007e596a4281fb3654b85e1
-  note: drift-projected L98-L106@b805362d -> L98-L106 (similarity 1.00)
+  note: drift-projected L98-L106@a6164b5e -> L98-L106 (similarity 1.00)
 - path: crates/limedl-core/src/tests/corruption_oracle_tests.rs
   lines:
   - 1
@@ -353,9 +353,9 @@ evidence:
   lines:
   - 246
   - 248
-  blob: a6164b5e0c6079310fbc23db67d73a29e278507a
+  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
   snippet_sha1: 6c9298e41bd8d3496b6f27549d066350d9e6b8e8
-  note: drift-projected L246-L248@b805362d -> L246-L248 (similarity 1.00)
+  note: drift-projected L246-L248@a6164b5e -> L246-L248 (similarity 1.00)
 - path: docs/aria2-interop-testing.md
   lines:
   - 12
@@ -475,11 +475,11 @@ evidence:
   note: drift-projected L135-L141@db33f43e -> L133-L156 (similarity 0.86)
 - path: .github/workflows/ci.yml
   lines:
-  - 596
-  - 603
-  blob: a6164b5e0c6079310fbc23db67d73a29e278507a
+  - 587
+  - 594
+  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
   snippet_sha1: 901c5378cc4165c563a176b529c89789a04ea0a8
-  note: drift-projected L596-L603@b805362d -> L596-L603 (similarity 1.00)
+  note: drift-projected L596-L603@a6164b5e -> L587-L594 (similarity 1.00)
 - path: crates/limedl-server/src/lib.rs
   lines:
   - 203
@@ -491,42 +491,44 @@ evidence:
   lines:
   - 396
   - 402
-  blob: a6164b5e0c6079310fbc23db67d73a29e278507a
+  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
   snippet_sha1: 24ff3d72650a9bc26cf518b3117fbd4f418e3510
-  note: drift-projected L396-L402@b805362d -> L396-L402 (similarity 1.00)
+  note: drift-projected L396-L402@a6164b5e -> L396-L402 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 436
   - 448
-  blob: a6164b5e0c6079310fbc23db67d73a29e278507a
+  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
   snippet_sha1: a0b7aef69bd0141448a8908b973e8e485a32ac97
-  note: drift-projected L436-L448@b805362d -> L436-L448 (similarity 1.00)
+  note: drift-projected L436-L448@a6164b5e -> L436-L448 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 475
   - 477
-  blob: a6164b5e0c6079310fbc23db67d73a29e278507a
+  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
   snippet_sha1: 938944dc4171ac354eff9b01764dcfd0a32f731c
-  note: drift-projected L475-L477@b805362d -> L475-L477 (similarity 1.00)
+  note: drift-projected L475-L477@a6164b5e -> L475-L477 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 505
   - 508
-  blob: a6164b5e0c6079310fbc23db67d73a29e278507a
+  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
   snippet_sha1: fe213d8357a2c76009c9af6e5520ac30a80e9805
-  note: drift-projected L505-L508@b805362d -> L505-L508 (similarity 1.00)
+  note: drift-projected L505-L508@a6164b5e -> L505-L508 (similarity 1.00)
 - path: sonar-project.properties
   lines:
   - 54
   - 56
-  blob: b94b995f2572baaa24363962787c936892c95a6b
+  blob: 2d99bfa8683fa799038c80e0b526d39ad5826d01
   snippet_sha1: a029c63a69da2977822ee0802fcd1336e5bbcd57
+  note: drift-projected L54-L56@b94b995f -> L54-L56 (similarity 1.00)
 - path: sonar-project.properties
   lines:
   - 83
   - 84
-  blob: b94b995f2572baaa24363962787c936892c95a6b
+  blob: 2d99bfa8683fa799038c80e0b526d39ad5826d01
   snippet_sha1: 8a988f6a51837c0c85ccc03c4a64f36acf82674a
+  note: drift-projected L83-L84@b94b995f -> L83-L84 (similarity 1.00)
 type: testing
 ---
 # Testing Strategy
