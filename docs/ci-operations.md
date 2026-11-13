@@ -218,21 +218,16 @@ job was not already building).
   feature-unification-only dependencies are the two recurring classes — see
   `crates/limedl-native/Cargo.toml`). A new entry there means "verify by hand
   that the crate is still needed", not "silence the tool".
-- **Theme tokens (`check-rust`, `cargo xtask theme check`).**
+- **Theme tokens (`gate-contract`, `cargo warden check` / `cargo warden slint-theme`).**
   `Theme.c<hex>` tokens from `ui/theme.slint` are the only colors allowed in
   `ui/*.slint`; the scanner walks every component for hex literals and fails on
-  one that is neither in `STATIC_MAP` (dark→light) nor in `UNCHANGED` (identical
-  in both schemes, so a per-scheme token would only add indirection). Alpha tints
-  belong in `UNCHANGED`: they compose over whatever surface they sit on, which is
-  why the file-type palette's translucent backgrounds and borders are listed
-  there while its three opaque colors are mapped. Adding a token is
-  `cargo xtask theme generate` (emits `theme.slint`) then `cargo xtask theme
-  apply` (rewrites the literals at the call sites); `generate` alone would leave
-  the old hex in the components and `apply` alone would reference a token that
-  does not exist yet. The step exists because the scanner had no caller until
-  then — the xtask suite only pins `theme generate` against the checked-in
-  `theme.slint` — so the file-type palette drifted in with 3 unmapped colors and
-  13 unmapped tints.
+  one that is neither in `STATIC_MAP` (dark→light) nor in the `allow_colors`
+  list in `warden.toml` (`[slint_theme]`, for alpha tints and scheme-identical
+  literals). Adding a token to the 5-hue `ThemeAccent` palette is
+  `cargo xtask theme generate` (emits `theme.slint`) and updating the `.slint`
+  call sites (`xtask` keeps the 5-hue generator; `cargo warden` checks the token
+  rules). The CI check exists because the file-type palette once drifted in
+  with 3 unmapped colors and 13 unmapped tints when the scanner had no caller.
 - **Formatting (`check-rust`, rustfmt pinned to 1.99.0).**
   `cargo +1.99.0 fmt --all -- --check` runs before clippy. The pin is the point:
   rustfmt's output changes between Rust releases (style edition, plus
@@ -252,8 +247,8 @@ job was not already building).
   `rustfmt.toml` is deliberately minimal because the options that would let the
   style follow this repository's hand-laid tables (`imports_granularity`,
   `group_imports`, `style_edition`, `fn_single_line`) are nightly-only and are
-  *silently ignored* on stable — the file says so, and `theme.rs`'s
-  `ACCENT_MAP`/`UNCHANGED` carry a `#[rustfmt::skip]` with the reason instead.
+  *silently ignored* on stable — the file says so, and `xtask/src/theme.rs`'s
+  `ACCENT_MAP` carries a `#[rustfmt::skip]` with the reason instead.
   `max_width` stays at 100: raising it to 120 was measured against the
   pre-rustfmt tree and made the diff worse (178 → 272 changed files), because
   rustfmt then rejoins the multi-line argument wraps the code already had.
@@ -277,29 +272,29 @@ job was not already building).
 
 ## Local pre-commit gate
 
-Run `cargo xtask gate --full`. The command lives in `xtask/src/gate.rs` and
+Run `cargo warden gate --full`. The configuration lives in `warden.toml` and
 mirrors `.github/workflows/ci.yml` (same crate list, same features, same pinned
-tools), so a green local run means a green CI run. `cargo xtask gate` is the
-~3 minute subset CI turns red on for a code change; `--full` adds the feature
-matrix, `cargo machete`, `cargo deny` and `cargo audit`.
+rustfmt), so a green local run means a green CI run. `cargo warden gate` is the
+~4 minute subset CI turns red on for a code change (plus `cargo warden check`
+static checks); `--full` adds the feature matrix, `cargo machete`, `cargo deny`
+and `cargo audit`.
 
-The gate is code, not a command list in a doc, because the list drifted twice:
-it never grew `cargo deny`/`cargo audit` (a push went red on four newly published
-RustSec advisories), and every `--manifest-path crates/limedl-core/Cargo.toml`
-silently skipped the suites of the crates split out of it. `TEST_GROUPS` in the
-gate now has to cover every workspace member and `ci_parity` (run before every
-gate step, and in `xtask::tests::ci_parity_accepts_the_real_workspace`) fails
-when `ci.yml` stops naming one of them. `cargo xtask gate --check-ci` runs only
-that check, offline.
+The gate is driven by `cargo-warden` (`warden.toml`), not a command list in a
+doc, because the list drifted twice: it never grew `cargo deny`/`cargo audit`
+(a push went red on four newly published RustSec advisories), and every
+`--manifest-path crates/limedl-core/Cargo.toml` silently skipped the suites of
+the crates split out of it. `test_groups` in `warden.toml` now has to cover
+every workspace member and `ci-parity` (run in `cargo warden check` and in CI's
+`gate-contract` job) fails when `ci.yml` stops naming one of them.
+`cargo warden ci-parity` runs only that check, offline.
 
-Two host hazards the gate handles, both of which it had to discover itself:
+Two hazards the gate handles:
 
-- `cargo run -p xtask` hands its child a `CARGO_PKG_*` block, which flips the
-  argument parser of any cargo subcommand that sniffs "am I being run by cargo?"
-  (`cargo-machete` read `machete` as a directory). The gate scrubs the block
-  before spawning each step.
-- A missing `cargo-<tool>` is reported as **not run**, never as passing, and the
-  summary stops claiming "all green" when any step was skipped.
+- No stale `CARGO_PKG_*` interference: `cargo-warden` runs as a standalone
+  binary rather than via `cargo run -p xtask`, so child subcommands like
+  `cargo-machete` see a clean cargo environment.
+- A missing `cargo-<tool>` fails cleanly in the gate runner instead of silently
+  reporting green.
 
 The details below are what those steps mean and why they stay per-crate.
 
@@ -313,8 +308,8 @@ The details below are what those steps mean and why they stay per-crate.
   the UI crate just to check its flags. The nine engine crates are always
   selected together: `--features` binds to `limedl-core` and `--manifest-path`
   on one of them silently skips the other eight suites (269 tests vanished that
-  way during the split, which is why `cargo xtask gate --check-ci` now fails when
-  a member is not named on a `nextest`/`llvm-cov` line).
+  way during the split, which is why `cargo warden ci-parity` now fails when a
+  member is not named on a `nextest`/`llvm-cov` line).
   `xtask` is in the gate because it holds the release-guard tests
   (`cargo xtask guard` runs in `release.yml`, and its default `--update-rs` path
   broke a release once).
@@ -333,10 +328,10 @@ The details below are what those steps mean and why they stay per-crate.
   clippy, or the feature-matrix step stops being fatal on warnings. The
   `--keep-going` flag makes it report *every* broken combination rather than
   stopping at the first, matching the gate's preference for complete failure
-  output. `cargo xtask theme check` is a step in `check-rust`, and
-  `cargo xtask i18n check` rides in the xtask nextest run
-  (`i18n_catalog_matches_repo_catalogs`). `cargo fmt --all -- --check` is the
-  first step of `check-rust`; see the formatting bullet above.
+  output. `cargo warden slint-theme` and `cargo warden i18n check` run as part of
+  `cargo warden check` in `gate-contract` (and at the start of `cargo warden gate`).
+  `cargo fmt --all -- --check` is the first step of `check-rust`; see the
+  formatting bullet above.
 - Windows: initialize MSVC first (`vcvarsall.bat x64`).
 
 ## macOS linker note (`-A linker_messages`)

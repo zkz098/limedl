@@ -239,10 +239,10 @@ jobs:
       # (file_ops::{mod,disk_detect}.rs) only run here — check-rust executes the
       # same suites on Linux but compiles the unix branches.
       #
-      # All three engine crates are selected together on purpose: a
+      # All workspace engine/RPC crates are selected together on purpose: a
       # `--manifest-path` pointing at one of them silently skips the others'
       # suites, which is how the crate split would otherwise retire 269 tests.
-      # `cargo xtask gate` and its `ci_covers_every_workspace_crate` test fail
+      # `cargo warden ci-parity` (and `cargo warden gate` / `check`) fails
       # when this list and the workspace members drift apart.
       # Deliberately no MiSans font step: none of these packages build the UI.
       - run: cargo nextest run -p limedl-types -p limedl-disk -p limedl-store -p limedl-http -p limedl-engine -p limedl-bt -p limedl-rpc -p limedl-testkit -p limedl-core --features "limedl-core/test-utils"
@@ -532,15 +532,6 @@ jobs:
       - run: cargo doc --workspace --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
-      # The theme-token convention ("`Theme.c<hex>` tokens only, never new hardcoded
-      # hex in components") had a scanner but no caller: `cargo xtask theme check`
-      # was documented in AGENTS.md and never wired, so the file-type palette in
-      # `task_card`/`task_table` (3 opaque colors + 13 alpha tints) drifted in
-      # unnoticed. The xtask suite only pins `theme generate` against the
-      # checked-in `theme.slint`, so without this step nothing fails on a new
-      # literal. `xtask` is already built by the clippy step above, so this is a
-      # warm no-op build plus a regex scan of `ui/*.slint`.
-      - run: cargo xtask theme check
       # Every `limedl-core` feature combination, including ones no consumer
       # uses today. `--no-default-features` (BT engine absent) is a documented
       # configuration — the commit that added the `bt` feature promised it — but
@@ -612,27 +603,38 @@ jobs:
             crates/*/lcov.info
           if-no-files-found: warn
 
-  # The gate is code now (`cargo xtask gate`), and this job is what keeps it
-  # honest: `--check-ci` re-reads *this file* and fails when a workspace member's
-  # tests are not run here, or when the coverage fan-out loop misses a crate.
-  # Without it the gate and CI would drift exactly the way the old AGENTS.md
-  # command list did — it never grew `cargo deny`/`cargo audit`, and every
-  # `--manifest-path crates/limedl-core` silently skipped the crates that were
-  # split out of it.
+  # Quality checks & CI parity are handled by `cargo-warden` (`warden.toml`).
+  # `cargo warden check` runs all static checks (module DAG, CI parity — which
+  # re-reads *this file* so no workspace member's tests or coverage fan-out
+  # entries can drift — Slint theme tokens, i18n catalogs, complexity, and
+  # file length against `warden-baseline.json`). The pinned release binary is
+  # sha256-verified, matching the `wiki` job's `loredex` setup.
   #
-  # No rust-cache on purpose: this builds one small binary (`xtask`) and every
-  # cache entry competes with the 10 GB per-repo budget documented at the top.
+  # No rust-cache on purpose: this downloads a prebuilt binary and every cache
+  # entry competes with the 10 GB per-repo budget documented at the top.
   gate-contract:
-    name: Gate / CI parity
+    name: Warden (Linux, checks & CI parity)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      WARDEN_VERSION: "0.2.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
         with:
           cache: false
           rustflags: ""
-      - run: cargo xtask gate --check-ci
+      - name: install cargo-warden
+        run: |
+          set -euo pipefail
+          asset="cargo-warden-v${WARDEN_VERSION}-x86_64-unknown-linux-gnu"
+          base="https://github.com/zkz098/cargo-warden/releases/download/v${WARDEN_VERSION}"
+          curl -sSfL -o "$asset.tar.gz" "$base/$asset.tar.gz"
+          curl -sSfL -o SHA256SUMS.txt "$base/SHA256SUMS.txt"
+          grep -F "  $asset.tar.gz" SHA256SUMS.txt | sha256sum -c -
+          tar -xzf "$asset.tar.gz"
+          echo "$PWD/$asset" >> "$GITHUB_PATH"
+      - run: cargo warden check
 
   # Loredex wiki gate: `lint` checks page structure (broken [[wiki:]] links,
   # unregistered types, stale-but-verified, body/frontmatter drift);

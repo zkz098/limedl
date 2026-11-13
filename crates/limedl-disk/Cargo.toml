@@ -13,7 +13,7 @@ name = "limedl_disk"
 [dependencies]
 # The only limedl crate this layer may name. Everything below it lives in
 # `limedl-types`; everything above it (the HTTP engine, the BT backend) depends
-# on *this* crate, never the other way round — `module_boundaries_tests`
+# on *this* crate, never the other way round — `cargo warden dag` (`warden.toml`)
 # enforces the same relation inside the engine and `Cargo.toml` enforces it here.
 limedl-types = { path = "../limedl-types", default-features = false }
 tokio = { workspace = true }

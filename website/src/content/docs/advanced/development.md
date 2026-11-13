@@ -71,9 +71,10 @@ limedl 的 GitHub Actions CI 检查极为严苛：任何编译警告、Clippy �
 在提交 Pull Request 之前，运行仓库自带的门禁命令：
 
 ```bash
-cargo xtask gate            # fmt + clippy + doc + 全部测试 + theme，约 4 分钟
-cargo xtask gate --full     # 额外跑 feature matrix、未使用依赖、许可证与 RustSec 审计
-cargo xtask gate --check-ci # 离线检查 ci.yml 是否仍覆盖每个 crate 的测试
+cargo warden check          # 快速静态检查：DAG、CI parity、theme、i18n、复杂度与文件长度
+cargo warden gate           # warden check + fmt + clippy + doc + 全部测试，约 4 分钟
+cargo warden gate --full    # 额外跑 feature matrix、未使用依赖、许可证与 RustSec 审计
+cargo warden ci-parity      # 离线检查 ci.yml 是否仍覆盖每个 crate 的测试
 ```
 
 门禁会自行应用 CI 的环境（`CARGO_BUILD_WARNINGS=deny`、sparse registry），并报告失败的具体命令；在 Windows 上请先初始化 MSVC 环境。任何 warning、Clippy 提示或测试失败都必须修复后再提交。

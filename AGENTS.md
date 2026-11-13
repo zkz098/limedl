@@ -12,7 +12,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 
 | Purpose         | Command                                                                                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Gate (all)      | `cargo xtask gate` · `cargo xtask gate --full` · `cargo xtask gate --check-ci` (see "Pre-commit verification gate")                                   |
+| Gate (all)      | `cargo warden gate` · `cargo warden gate --full` · `cargo warden check` (see "Pre-commit verification gate")                                                       |
 | Test (Rust)     | `cargo nextest run -p limedl-types -p limedl-disk -p limedl-store -p limedl-http -p limedl-engine -p limedl-bt -p limedl-rpc -p limedl-testkit -p limedl-core --features "limedl-core/test-utils"` (engine), then `xtask`, `limedl-native`, `limedl-server` (see the gate below)                                                                |
 | Feature matrix  | `cargo hack check --feature-powerset --all-targets --keep-going --manifest-path crates/limedl-core/Cargo.toml`                                                      |
 | Unused deps     | `cargo machete --with-metadata`                                                                                                                                     |
@@ -20,9 +20,9 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Release preview | `git-cliff --config cliff.toml --strip header vX.Y.Z..vA.B.C`                                                                                                      |
 | Fetch UI font   | `cargo xtask fetch-font [--verify]` (one-time, required before building limedl-native; font is not in git due to MiSans license)                                  |
 | Drive the UI    | `set "SLINT_EMIT_DEBUG_INFO=1" && set "SLINT_MCP_PORT=8080" && cargo run -p limedl-native --features slint/mcp` (see `docs/manual-smoke-testing.md`)              |
-| Theme / tokens  | `cargo xtask theme generate` · `cargo xtask theme apply` · `cargo xtask theme check`                                                                               |
+| Theme / tokens  | `cargo xtask theme generate` · `cargo warden slint-theme` (`xtask` generates 5-hue accent ramps; `cargo warden` validates tokens)                                 |
 | Format          | `cargo fmt --all` · `cargo fmt --all -- --check` (CI pins rustfmt to 1.99.0; `newline_style = "Unix"` + `.gitattributes eol=lf`)                                  |
-| Translations    | `cargo xtask i18n generate` · `cargo xtask i18n check` (see `docs/i18n.md`)                                                                                          |
+| Translations    | `cargo warden i18n generate` · `cargo warden i18n check` (see `docs/i18n.md`)                                                                                     |
 | Generate icons  | `cargo xtask gen-icons [msix\|hicolor\|macos-iconset] --out-dir <dir>`                                                                                             |
 | Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `docs/update-signing-key.md`)             |
 
@@ -50,10 +50,10 @@ The engine is split: `limedl-types`, `limedl-disk`, `limedl-store`,
 `limedl-bt` is an *optional* dependency, so `--no-default-features` still builds
 an engine with no BitTorrent protocol and no `librqbit` in the graph. `limedl-core` keeps a `pub use` shim per
 module (`pub use limedl_types::{types, error, …}`) so every historical path —
-including the ~12k lines of tests in `src/tests/` — still resolves; the remaining
-`LAYERS` in `crates/limedl-core/src/tests/module_boundaries_tests.rs` remains as
-the guard for the eight modules left in the facade: it fails on an upward edge,
-on a module it cannot classify, and on an entry that no longer exists.
+including the ~12k lines of tests in `src/tests/` — still resolves; the module
+layering and acyclic dependency rules for the facade are enforced by
+`cargo warden dag` (configured in `warden.toml`), which fails on any cycle or
+forbidden dependency edge.
 
 All Rust crates use edition 2024.
 
@@ -119,25 +119,25 @@ errors before committing, even pre-existing ones.
 Run it with one command (Windows: init MSVC first, as above):
 
 ```powershell
-cargo xtask gate            # ~4 min: fmt, clippy, doc, all test suites, theme check
-cargo xtask gate --full     # + feature matrix, unused deps, license gate, RustSec audit
-cargo xtask gate --check-ci # offline: does ci.yml still run every crate's tests?
-cargo xtask gate --keep-going
+cargo warden check           # fast static checks: dag, ci-parity, slint-theme, i18n, complexity, file-length
+cargo warden gate            # ~4 min: warden check, fmt, clippy, doc, all test suites
+cargo warden gate --full     # + feature matrix, unused deps, license gate, RustSec audit
+cargo warden ci-parity       # offline: does ci.yml still run every crate's tests?
 ```
 
-`cargo xtask gate` (xtask/src/gate.rs) is the hand-written command list this
-section used to carry, moved into code so it cannot drift again:
+`cargo warden gate` (configured in `warden.toml`) drives the workspace quality
+gate cleanly without ad-hoc command lists drifting out of sync:
 
-- **The package list comes from `cargo metadata`.** `TEST_GROUPS` must cover
-  every workspace member and `ci.yml` must name each one on a `nextest` /
-  `llvm-cov` line — `ci_parity` (run before every gate, and by
-  `xtask::tests::ci_parity_accepts_the_real_workspace`) fails otherwise. This is
-  not cosmetic: `--manifest-path crates/limedl-core/Cargo.toml` silently skipped
-  269 tests the day `limedl-types` and `limedl-disk` were split out.
-- **CI's environment is applied for you** (`CARGO_BUILD_WARNINGS=deny`, sparse
-  registry protocol), and the `rustfmt` pin is checked: with `1.99.0` installed
-  the gate formats through it exactly like `check-rust` does, otherwise it warns
-  and uses the host toolchain.
+- **The package list comes from `cargo metadata`.** `test_groups` in
+  `warden.toml` must cover every workspace member and `.github/workflows/ci.yml`
+  must name each one on a `nextest` / `llvm-cov` line — `cargo warden ci-parity`
+  (run as part of `cargo warden check` and CI's `gate-contract` job) fails
+  otherwise. This is not cosmetic: `--manifest-path crates/limedl-core/Cargo.toml`
+  silently skipped 269 tests the day `limedl-types` and `limedl-disk` were split
+  out.
+- **CI's environment is applied for you** (`CARGO_BUILD_WARNINGS=deny`), and the
+  `rustfmt` pin is checked: with `1.99.0` installed the gate formats through it
+  exactly like `check-rust` does, otherwise it falls back to the host toolchain.
 - **`cargo doc` runs with `RUSTDOCFLAGS=-D warnings`.** Clippy compiles the tree
   but never resolves doc links or parses prose, so a doc comment pointing at a
   module that has since moved to another crate stays green forever — which is
@@ -150,20 +150,26 @@ section used to carry, moved into code so it cannot drift again:
   licenses sources` and `cargo audit` are part of it — they live only in the
   `supply-chain` job, and a push has already gone red on four freshly published
   RustSec advisories that the old command list never ran.
-- **CI does not call the gate.** `.github/workflows/ci.yml` is the authority;
-  the gate mirrors it and `ci_parity` keeps the mirror honest.
+- **CI does not call `cargo warden gate` directly.** `.github/workflows/ci.yml`
+  is the authority; `warden.toml` mirrors it, and CI's `gate-contract` job runs
+  `cargo warden check` (including `ci-parity`) to keep the mirror honest.
 
 What each step means:
 
-- `cargo hack` walks every `limedl-core` feature combination —
-  `--no-default-features` (BT engine absent) included — with
+- `cargo hack` walks the configured feature combinations (`limedl-core` and
+  `limedl-types`) — `--no-default-features` (BT engine absent) included — with
   `CARGO_BUILD_WARNINGS=deny` in force, so a warning in *any* combination fails.
 - `cargo machete` runs with `--with-metadata`; its false positives are listed
   with reasons under `[package.metadata.cargo-machete]` in the crate that owns
   them.
-- `cargo xtask theme check` is the token scanner: no new hardcoded hex in
-  `ui/*.slint` components (alpha tints and scheme-identical colors are
-  allowlisted in `xtask/src/theme.rs`).
+- `cargo warden slint-theme` (and `cargo warden check`) runs the token scanner:
+  no new hardcoded hex in `ui/*.slint` components (alpha tints and
+  scheme-identical colors are allowlisted in `warden.toml`). Note that
+  generating `ui/theme.slint`'s 5-hue accent ramps still uses `cargo xtask theme
+  generate`.
+- `cargo warden baseline generate` updates `warden-baseline.json` when an
+  existing complexity (`> 25`) or file-length (`> 800`) suppression moves lines;
+  do not add new violations.
 
 See `docs/ci-operations.md` for the cache/RUSTFLAGS contract, the coverage gate
 and the macOS linker exemption.

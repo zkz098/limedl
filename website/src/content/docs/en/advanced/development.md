@@ -71,9 +71,10 @@ limedl enforces strict CI rules: any compiler warning, Clippy lint, or test fail
 Before committing and pushing, run the repository gate:
 
 ```bash
-cargo xtask gate            # fmt + clippy + doc + all tests + theme, ~4 minutes
-cargo xtask gate --full     # adds feature matrix, unused deps, license and RustSec audit
-cargo xtask gate --check-ci # offline check that ci.yml still runs every crate's tests
+cargo warden check          # fast static checks: DAG, CI parity, theme, i18n, complexity, file length
+cargo warden gate           # warden check + fmt + clippy + doc + all tests, ~4 minutes
+cargo warden gate --full    # adds feature matrix, unused deps, license and RustSec audit
+cargo warden ci-parity      # offline check that ci.yml still runs every crate's tests
 ```
 
 The gate applies CI's environment itself (`CARGO_BUILD_WARNINGS=deny`, sparse registry) and reports the exact command that failed. On Windows, initialize MSVC first. Fix every warning, Clippy lint, or failing test before committing.

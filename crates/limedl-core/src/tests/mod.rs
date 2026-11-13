@@ -17,7 +17,6 @@ mod http_executor_tests;
 mod integrity_tests;
 mod manager_tests;
 mod mirror_e2e_tests;
-mod module_boundaries_tests;
 mod persistence_e2e_tests;
 mod persistence_tests;
 mod protocol_tests;

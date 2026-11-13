@@ -1,18 +1,15 @@
-//! Slint color theme generator and token rewriter.
+//! Slint color theme generator (`ThemeAccent` 5-hue ramps).
 //!
-//! Replaces `scripts/theme-tokens.ps1`, `scripts/generate-theme-slint.ps1`, and
-//! `scripts/apply-theme-tokens.ps1`:
-//! - `cargo xtask theme generate`: emits `crates/limedl-native/ui/theme.slint`
-//! - `cargo xtask theme apply`: rewrites hex literals in `ui/*.slint` to `Theme.c<hex>`
-//! - `cargo xtask theme check`: scans for unmapped hex literals across UI components
+//! `cargo xtask theme generate` emits `crates/limedl-native/ui/theme.slint`.
+//! Token checking and rewriting (`check` / `apply`) live in `cargo-warden`
+//! (`cargo warden theme check` / `cargo warden theme apply`, configured in
+//! `warden.toml`).
 
-use std::collections::{BTreeMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use clap::Subcommand;
-use regex::Regex;
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum ThemeCommand {
@@ -22,58 +19,7 @@ pub enum ThemeCommand {
         #[arg(long, default_value = "crates/limedl-native/ui/theme.slint")]
         out_file: PathBuf,
     },
-    /// Rewrite hardcoded hex literals in ui/*.slint to `Theme.c<hex>` references.
-    Apply {
-        /// UI source directory.
-        #[arg(long, default_value = "crates/limedl-native/ui")]
-        ui_dir: PathBuf,
-    },
-    /// Scan ui/*.slint for unmapped hex literals.
-    Check {
-        /// UI source directory.
-        #[arg(long, default_value = "crates/limedl-native/ui")]
-        ui_dir: PathBuf,
-    },
 }
-
-/// Identical in both schemes: rewriting it would only add indirection.
-pub const KEEP_LITERAL: &[&str] = &["6b7280"];
-
-/// Colors with identical values in both schemes stay as literals in the UI.
-///
-/// The 8-digit entries are the file-type palette's translucent background/border
-/// tints and the card drag-target overlay: each is an alpha value composed over
-/// whatever surface the card sits on, so the same literal reads correctly on the
-/// light and the dark surface and a per-scheme token would only add indirection.
-/// That is also why their opaque counterparts *are* in [`STATIC_MAP`].
-//
-// `rustfmt::skip`: the list is grouped (allowlisted neutrals, then the file-type
-// tints) and one entry per line keeps that grouping visible; rustfmt would pack
-// it back into ~100-column lines and lose the comment boundaries.
-#[rustfmt::skip]
-pub const UNCHANGED: &[&str] = &[
-    "ffffff",
-    "dc2626",
-    "b91c1c",
-    "fecaca",
-    "fef2f2",
-    "0b1104",
-    "6b7280",
-    // file-type tints (bg / border) and the drag overlay
-    "ffffff55",
-    "3b076466",
-    "50072466",
-    "451a0366",
-    "082f4966",
-    "022c2266",
-    "08334466",
-    "7e22ce80",
-    "be185d80",
-    "b4530980",
-    "0284c780",
-    "05966980",
-    "0e749080",
-];
 
 /// Static dark -> light mappings.
 pub const STATIC_MAP: &[(&str, &str)] = &[
@@ -357,194 +303,5 @@ pub fn run(cmd: ThemeCommand) -> Result<()> {
             println!("wrote Slint theme -> {}", out_file.display());
             Ok(())
         }
-        ThemeCommand::Apply { ui_dir } => apply_tokens(&ui_dir),
-        ThemeCommand::Check { ui_dir } => {
-            let unmapped = scan_unmapped(&ui_dir)?;
-            if unmapped.is_empty() {
-                println!("all hex colors in {} are mapped", ui_dir.display());
-                Ok(())
-            } else {
-                println!("unmapped hex colors found ({}):", unmapped.len());
-                for (color, files) in &unmapped {
-                    println!("  #{color} in: {}", files.join(", "));
-                }
-                bail!("unmapped colors remain in UI components");
-            }
-        }
     }
-}
-
-/// Recursively find all `.slint` files under `dir`, excluding `theme.slint`.
-fn find_slint_files(dir: &Path) -> Result<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    if !dir.exists() {
-        return Ok(files);
-    }
-    for entry in fs::read_dir(dir).with_context(|| format!("read dir {}", dir.display()))? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() {
-            files.extend(find_slint_files(&path)?);
-        } else if path.extension().is_some_and(|ext| ext == "slint")
-            && path.file_name().is_some_and(|n| n != "theme.slint")
-        {
-            files.push(path);
-        }
-    }
-    files.sort();
-    Ok(files)
-}
-
-/// Apply tokens across `.slint` files in `ui_dir`.
-fn apply_tokens(ui_dir: &Path) -> Result<()> {
-    let key_map = build_key_map();
-    let token_re = Regex::new(r"#([0-9a-fA-F]{3,8})\b")?;
-    let slint_files = find_slint_files(ui_dir)?;
-    let mut updated = 0;
-
-    for file in &slint_files {
-        let text = fs::read_to_string(file).with_context(|| format!("read {}", file.display()))?;
-        let mut result = replace_tokens(&text, &token_re, &key_map);
-
-        if result != text {
-            // Ensure `import { Theme }` is present
-            if !result.contains("import { Theme") && !result.contains("import {Theme") {
-                result = insert_import(&result, &theme_import(file));
-            }
-
-            fs::write(file, &result).with_context(|| format!("write {}", file.display()))?;
-            println!("updated {}", file.display());
-            updated += 1;
-        }
-    }
-
-    println!("updated {updated} Slint file(s)");
-    report_unmapped(ui_dir)?;
-
-    Ok(())
-}
-
-/// The `Theme.c<hex>` replacement for every color token `keep_set` does not keep.
-fn build_key_map() -> BTreeMap<String, String> {
-    let keep_set: HashSet<&str> = KEEP_LITERAL.iter().copied().collect();
-    let mut key_map: BTreeMap<String, String> = BTreeMap::new();
-
-    for (k, _) in STATIC_MAP {
-        if !keep_set.contains(k) {
-            key_map.insert(k.to_ascii_lowercase(), format!("Theme.c{k}"));
-        }
-    }
-    for e in ACCENT_MAP {
-        if !keep_set.contains(e.key) {
-            key_map.insert(e.key.to_ascii_lowercase(), format!("Theme.c{}", e.key));
-        }
-    }
-
-    key_map
-}
-
-/// Rewrite every hex literal in `text` that `key_map` knows about.
-fn replace_tokens(text: &str, token_re: &Regex, key_map: &BTreeMap<String, String>) -> String {
-    token_re
-        .replace_all(text, |caps: &regex::Captures| {
-            let hex = caps[1].to_ascii_lowercase();
-            match key_map.get(&hex) {
-                Some(replacement) => replacement.clone(),
-                None => caps[0].to_string(),
-            }
-        })
-        .into_owned()
-}
-
-/// The `import { Theme }` statement a file in `file`'s directory needs.
-fn theme_import(file: &Path) -> String {
-    let is_component = file
-        .parent()
-        .and_then(Path::file_name)
-        .is_some_and(|n| n == "components");
-    let rel = if is_component {
-        "../theme.slint"
-    } else {
-        "theme.slint"
-    };
-    format!("import {{ Theme }} from \"{rel}\";")
-}
-
-/// Insert `import_stmt` right after the last top-level import of `text`.
-fn insert_import(text: &str, import_stmt: &str) -> String {
-    let lines: Vec<&str> = text.lines().collect();
-    let mut last_import_idx = None;
-    for (i, line) in lines.iter().enumerate() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("import ") {
-            last_import_idx = Some(i);
-        } else if last_import_idx.is_some() && !trimmed.is_empty() && !trimmed.starts_with("//") {
-            // Stopped seeing imports
-            break;
-        }
-    }
-
-    let mut new_lines = Vec::with_capacity(lines.len() + 1);
-    match last_import_idx {
-        Some(idx) => {
-            for (i, line) in lines.into_iter().enumerate() {
-                new_lines.push(line.to_string());
-                if i == idx {
-                    new_lines.push(import_stmt.to_string());
-                }
-            }
-        }
-        None => {
-            new_lines.push(import_stmt.to_string());
-            new_lines.extend(lines.into_iter().map(String::from));
-        }
-    }
-
-    let mut result = new_lines.join("\n");
-    if !result.ends_with('\n') {
-        result.push('\n');
-    }
-    result
-}
-
-/// Print the hex literals that `apply` could not map, for a human to triage.
-fn report_unmapped(ui_dir: &Path) -> Result<()> {
-    let unmapped = scan_unmapped(ui_dir)?;
-    if !unmapped.is_empty() {
-        println!("\nUNMAPPED colors remaining ({}):", unmapped.len());
-        for (color, files) in &unmapped {
-            println!("  #{color} in: {}", files.join(", "));
-        }
-    } else {
-        println!("no unmapped colors remaining");
-    }
-    Ok(())
-}
-
-/// Scan `ui_dir` for hex literals not in `UNCHANGED`.
-pub fn scan_unmapped(ui_dir: &Path) -> Result<BTreeMap<String, Vec<String>>> {
-    let unchanged_set: HashSet<&str> = UNCHANGED.iter().copied().collect();
-    let re = Regex::new(r"#([0-9a-fA-F]{3,8})\b")?;
-    let slint_files = find_slint_files(ui_dir)?;
-    let mut unmapped: BTreeMap<String, Vec<String>> = BTreeMap::new();
-
-    for file in &slint_files {
-        let file_name = file
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| file.display().to_string());
-        let text = fs::read_to_string(file).with_context(|| format!("read {}", file.display()))?;
-
-        for cap in re.captures_iter(&text) {
-            let hex = cap[1].to_ascii_lowercase();
-            if (hex.len() == 6 || hex.len() == 8) && !unchanged_set.contains(hex.as_str()) {
-                let entry = unmapped.entry(hex).or_default();
-                if !entry.contains(&file_name) {
-                    entry.push(file_name.clone());
-                }
-            }
-        }
-    }
-
-    Ok(unmapped)
 }

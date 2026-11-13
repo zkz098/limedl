@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "entries": {
+    "complexity:crates/limedl-bt/src/lifecycle.rs:start": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "crates/limedl-bt/src/lifecycle.rs",
+      "message": "crates/limedl-bt/src/lifecycle.rs:71 - `start()` score: 27 (> 25)",
+      "max_value": 27
+    },
+    "complexity:crates/limedl-engine/src/http_executor/chunked.rs:run_chunked": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "crates/limedl-engine/src/http_executor/chunked.rs",
+      "message": "crates/limedl-engine/src/http_executor/chunked.rs:82 - `run_chunked()` score: 29 (> 25)",
+      "max_value": 29
+    },
+    "complexity:crates/limedl-engine/src/http_executor/finalize.rs:finalize_download": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "crates/limedl-engine/src/http_executor/finalize.rs",
+      "message": "crates/limedl-engine/src/http_executor/finalize.rs:18 - `finalize_download()` score: 28 (> 25)",
+      "max_value": 28
+    },
+    "complexity:crates/limedl-engine/src/http_executor/worker.rs:consume_segment": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "crates/limedl-engine/src/http_executor/worker.rs",
+      "message": "crates/limedl-engine/src/http_executor/worker.rs:758 - `consume_segment()` score: 27 (> 25)",
+      "max_value": 27
+    },
+    "complexity:crates/limedl-engine/src/scheduler/mod.rs:order_and_rotate_candidates": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "crates/limedl-engine/src/scheduler/mod.rs",
+      "message": "crates/limedl-engine/src/scheduler/mod.rs:1063 - `order_and_rotate_candidates()` score: 26 (> 25)",
+      "max_value": 26
+    },
+    "complexity:crates/limedl-native/src/bridge/forms/fields.rs:strip_comments_and_strings": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "crates/limedl-native/src/bridge/forms/fields.rs",
+      "message": "crates/limedl-native/src/bridge/forms/fields.rs:528 - `strip_comments_and_strings()` score: 29 (> 25)",
+      "max_value": 29
+    },
+    "complexity:crates/limedl-native/src/handlers/new_task/submit.rs:submit_single": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "crates/limedl-native/src/handlers/new_task/submit.rs",
+      "message": "crates/limedl-native/src/handlers/new_task/submit.rs:79 - `submit_single()` score: 27 (> 25)",
+      "max_value": 27
+    },
+    "complexity:crates/limedl-native/src/ui_sync.rs:apply_tasks": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "crates/limedl-native/src/ui_sync.rs",
+      "message": "crates/limedl-native/src/ui_sync.rs:225 - `apply_tasks()` score: 30 (> 25)",
+      "max_value": 30
+    },
+    "complexity:crates/limedl-rpc/src/options.rs:handle_change_global_option": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "crates/limedl-rpc/src/options.rs",
+      "message": "crates/limedl-rpc/src/options.rs:750 - `handle_change_global_option()` score: 29 (> 25)",
+      "max_value": 29
+    },
+    "complexity:crates/limedl-rpc/src/query.rs:enrich_status": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "crates/limedl-rpc/src/query.rs",
+      "message": "crates/limedl-rpc/src/query.rs:75 - `enrich_status()` score: 28 (> 25)",
+      "max_value": 28
+    },
+    "complexity:xtask/src/fetch_font.rs:serve": {
+      "rule_id": "warden/complexity",
+      "check": "complexity",
+      "file": "xtask/src/fetch_font.rs",
+      "message": "xtask/src/fetch_font.rs:1220 - `serve()` score: 29 (> 25)",
+      "max_value": 29
+    },
+    "file-length:crates/limedl-bt/src/lazy.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-bt/src/lazy.rs",
+      "message": "crates/limedl-bt/src/lazy.rs has 1192 physical lines (> 800)",
+      "max_value": 1192
+    },
+    "file-length:crates/limedl-core/src/dispatcher.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-core/src/dispatcher.rs",
+      "message": "crates/limedl-core/src/dispatcher.rs has 809 physical lines (> 800)",
+      "max_value": 809
+    },
+    "file-length:crates/limedl-core/src/logging.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-core/src/logging.rs",
+      "message": "crates/limedl-core/src/logging.rs has 805 physical lines (> 800)",
+      "max_value": 805
+    },
+    "file-length:crates/limedl-disk/src/buffer_pool/download_buffer.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-disk/src/buffer_pool/download_buffer.rs",
+      "message": "crates/limedl-disk/src/buffer_pool/download_buffer.rs has 832 physical lines (> 800)",
+      "max_value": 832
+    },
+    "file-length:crates/limedl-disk/src/file_ops/disk_detect.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-disk/src/file_ops/disk_detect.rs",
+      "message": "crates/limedl-disk/src/file_ops/disk_detect.rs has 1386 physical lines (> 800)",
+      "max_value": 1386
+    },
+    "file-length:crates/limedl-engine/src/http_executor/worker.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-engine/src/http_executor/worker.rs",
+      "message": "crates/limedl-engine/src/http_executor/worker.rs has 1012 physical lines (> 800)",
+      "max_value": 1012
+    },
+    "file-length:crates/limedl-engine/src/manager.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-engine/src/manager.rs",
+      "message": "crates/limedl-engine/src/manager.rs has 1328 physical lines (> 800)",
+      "max_value": 1328
+    },
+    "file-length:crates/limedl-engine/src/scheduler/mod.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-engine/src/scheduler/mod.rs",
+      "message": "crates/limedl-engine/src/scheduler/mod.rs has 1349 physical lines (> 800)",
+      "max_value": 1349
+    },
+    "file-length:crates/limedl-native/src/platform_win.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-native/src/platform_win.rs",
+      "message": "crates/limedl-native/src/platform_win.rs has 1237 physical lines (> 800)",
+      "max_value": 1237
+    },
+    "file-length:crates/limedl-native/src/update/mod.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-native/src/update/mod.rs",
+      "message": "crates/limedl-native/src/update/mod.rs has 971 physical lines (> 800)",
+      "max_value": 971
+    },
+    "file-length:crates/limedl-native/ui/appwindow.slint": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-native/ui/appwindow.slint",
+      "message": "crates/limedl-native/ui/appwindow.slint has 1524 physical lines (> 800)",
+      "max_value": 1524
+    },
+    "file-length:crates/limedl-native/ui/components/common.slint": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-native/ui/components/common.slint",
+      "message": "crates/limedl-native/ui/components/common.slint has 885 physical lines (> 800)",
+      "max_value": 885
+    },
+    "file-length:crates/limedl-native/ui/components/labs_dialog.slint": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-native/ui/components/labs_dialog.slint",
+      "message": "crates/limedl-native/ui/components/labs_dialog.slint has 964 physical lines (> 800)",
+      "max_value": 964
+    },
+    "file-length:crates/limedl-native/ui/components/setup_wizard.slint": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-native/ui/components/setup_wizard.slint",
+      "message": "crates/limedl-native/ui/components/setup_wizard.slint has 1117 physical lines (> 800)",
+      "max_value": 1117
+    },
+    "file-length:crates/limedl-rpc/src/options.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-rpc/src/options.rs",
+      "message": "crates/limedl-rpc/src/options.rs has 1276 physical lines (> 800)",
+      "max_value": 1276
+    },
+    "file-length:crates/limedl-testkit/src/lib.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-testkit/src/lib.rs",
+      "message": "crates/limedl-testkit/src/lib.rs has 1203 physical lines (> 800)",
+      "max_value": 1203
+    },
+    "file-length:crates/limedl-types/src/checksum/detect.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "crates/limedl-types/src/checksum/detect.rs",
+      "message": "crates/limedl-types/src/checksum/detect.rs has 929 physical lines (> 800)",
+      "max_value": 929
+    },
+    "file-length:xtask/src/fetch_font.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "xtask/src/fetch_font.rs",
+      "message": "xtask/src/fetch_font.rs has 1290 physical lines (> 800)",
+      "max_value": 1290
+    },
+    "file-length:xtask/src/main.rs": {
+      "rule_id": "warden/file-length",
+      "check": "file-length",
+      "file": "xtask/src/main.rs",
+      "message": "xtask/src/main.rs has 873 physical lines (> 800)",
+      "max_value": 873
+    }
+  }
+}

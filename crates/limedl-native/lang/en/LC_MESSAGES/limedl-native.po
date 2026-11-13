@@ -1839,7 +1839,7 @@ msgstr "Custom"
 # same catalogs as the Slint `@tr` strings, so a translator edits one file per
 # locale. The msgid is the English source string; `{}` are positional arguments
 # substituted by `i18n::tr_fmt`. Regenerate `src/i18n/catalog.rs` with
-# `cargo xtask i18n generate`; `cargo xtask i18n check` is the gate.
+# `cargo warden i18n generate`; `cargo warden i18n check` is the gate.
 # ─────────────────────────────────────────────────────────────────────────────
 
 msgid "Download task added: {}"

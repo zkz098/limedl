@@ -473,7 +473,7 @@ fn every_rust_message_exists_in_the_catalogs() {
     }
     assert!(
         missing.is_empty(),
-        "tr/tr_fmt keys missing from the .po catalogs (run `cargo xtask i18n generate` \
+        "tr/tr_fmt keys missing from the .po catalogs (run `cargo warden i18n generate` \
          after adding them): {missing:#?}"
     );
 }
@@ -529,7 +529,7 @@ fn every_catalog_entry_is_referenced() {
     assert!(
         orphans.is_empty(),
         "catalog entries no longer referenced from .slint or Rust (remove them from the \
-         .po files and run `cargo xtask i18n generate`): {orphans:#?}"
+         .po files and run `cargo warden i18n generate`): {orphans:#?}"
     );
 }
 

@@ -131,7 +131,7 @@ three-language `match lang` in every `i18n/*.rs` function. A message needed in
 both places existed twice and had already diverged — the About tab's
 "v{} downloaded and verified. Restart to apply." said `重启后生效` in the catalog
 and `重启应用后生效` in the toast. Both sides now read the `.po` catalogs;
-`src/i18n/catalog.rs` is generated from them by `cargo xtask i18n generate`, and
+`src/i18n/catalog.rs` is generated from them by `cargo warden i18n generate`, and
 `i18n::tr`/`tr_fmt` look up the same msgids the Slint compiler bundles.
 
 The tests that keep it honest are listed in

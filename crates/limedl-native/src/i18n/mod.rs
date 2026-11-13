@@ -9,7 +9,7 @@
 //! (`lang/<locale>/LC_MESSAGES/limedl-native.po`): `@tr` in `.slint` files and
 //! [`tr()`]/[`tr_fmt`] here read the same catalogs, so a message used from both
 //! sides is translated once. `catalog.rs` is generated from them by
-//! `cargo xtask i18n generate`.
+//! `cargo warden i18n generate`.
 
 use limedl_core::types::DownloadState;
 

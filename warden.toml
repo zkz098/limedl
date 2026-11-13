@@ -1,0 +1,135 @@
+# cargo-warden configuration for limedl
+
+baseline = "warden-baseline.json"
+
+[dag]
+roots = ["crates/limedl-core/src"]
+forbid_imports = ["bootstrap"]
+
+[ci_parity]
+workflow = ".github/workflows/ci.yml"
+test_patterns = ["nextest", "llvm-cov"]
+ignore_crates = []
+fanout_crates = ["types", "disk", "store", "http", "engine", "bt", "rpc", "testkit"]
+
+[slint_theme]
+ui_dir = "crates/limedl-native/ui"
+out_file = "crates/limedl-native/ui/theme.slint"
+unchanged_colors = [
+    "ffffff",
+    "dc2626",
+    "b91c1c",
+    "fecaca",
+    "fef2f2",
+    "0b1104",
+    "6b7280",
+    # file-type tints (bg / border) and the drag overlay
+    "ffffff55",
+    "3b076466",
+    "50072466",
+    "451a0366",
+    "082f4966",
+    "022c2266",
+    "08334466",
+    "7e22ce80",
+    "be185d80",
+    "b4530980",
+    "0284c780",
+    "05966980",
+    "0e749080",
+]
+
+[i18n]
+lang_dir = "crates/limedl-native/lang"
+out_file = "crates/limedl-native/src/i18n/catalog.rs"
+domain = "limedl-native"
+locales = ["zh_CN", "zh_TW", "en"]
+source_dirs = ["crates/limedl-native/ui", "crates/limedl-native/src"]
+tr_macros = ["tr", "tr_fmt"]
+strict = false
+check_placeholders = false
+check_unused = false
+
+[complexity]
+max = 25
+paths = ["crates", "xtask"]
+ignore_tests = true
+ignore = ["target"]
+
+[file_length]
+max_lines = 800
+extensions = ["rs", "slint"]
+paths = ["crates", "xtask"]
+ignore = ["target", "tests"]
+mode = "physical"
+
+[check]
+fmt = false
+clippy = false
+doc = false
+parallel = true
+
+[gate]
+include_checks = true
+parallel = true
+rustfmt_toolchain = "1.99.0"
+
+[[gate.test_groups]]
+name = "engine"
+packages = [
+    "limedl-types",
+    "limedl-disk",
+    "limedl-store",
+    "limedl-http",
+    "limedl-engine",
+    "limedl-bt",
+    "limedl-rpc",
+    "limedl-testkit",
+    "limedl-core",
+]
+features = ["limedl-core/test-utils"]
+
+[[gate.test_groups]]
+name = "native"
+packages = ["limedl-native"]
+features = []
+
+[[gate.test_groups]]
+name = "server"
+packages = ["limedl-server"]
+features = []
+
+[[gate.test_groups]]
+name = "xtask"
+packages = ["xtask"]
+features = []
+
+[[gate.custom_steps]]
+name = "hack-core"
+program = "cargo"
+args = [
+    "hack",
+    "check",
+    "--feature-powerset",
+    "--all-targets",
+    "--keep-going",
+    "--manifest-path",
+    "crates/limedl-core/Cargo.toml",
+]
+cargo_tool = "hack"
+full_only = true
+
+[[gate.custom_steps]]
+name = "hack-types"
+program = "cargo"
+args = [
+    "hack",
+    "check",
+    "--feature-powerset",
+    "--all-targets",
+    "--keep-going",
+    "--manifest-path",
+    "crates/limedl-types/Cargo.toml",
+]
+cargo_tool = "hack"
+full_only = true

@@ -2,7 +2,7 @@
 //!
 //! Rust-side text (toasts, settings validation) resolves through the same
 //! gettext catalogs the Slint `@tr` strings use; see `catalog.rs` for the
-//! generated table and `xtask/src/i18n.rs` for the generator.
+//! generated table and `warden.toml` (`[i18n]`) for the `cargo-warden` config.
 
 use std::fmt::{self, Write as _};
 
@@ -50,7 +50,7 @@ mod tests {
     use super::*;
 
     /// Pins the catalog column order against the `Language` variants, which the
-    /// generator cannot check on its own (`xtask` does not know the enum).
+    /// generator cannot check on its own (`cargo-warden` does not know the enum).
     #[test]
     fn catalog_columns_follow_language_order() {
         assert_eq!(tr("Settings saved", Language::ZhCn), "设置已保存");

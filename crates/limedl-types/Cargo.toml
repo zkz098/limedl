@@ -5,7 +5,7 @@ description = "Foundation layer for limedl — domain types, settings, errors, e
 license.workspace = true
 edition = "2024"
 # Workspace-internal, like every other limedl crate: the split exists to give the
-# compiler the layering that `module_boundaries_tests` used to police by hand,
+# compiler the layering that `module_boundaries_tests` (`cargo warden dag`) used to police,
 # not to publish. `publish = false` is what makes `pub(crate)` -> `pub`
 # promotions a non-event for semver.
 publish = false
