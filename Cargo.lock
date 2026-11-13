@@ -4117,7 +4117,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-bt"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "async-trait",
  "librqbit",
@@ -4136,7 +4136,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-core"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4167,7 +4167,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-disk"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "async-trait",
  "bytes",
@@ -4186,7 +4186,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-engine"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4220,7 +4220,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-http"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "axum",
  "divan",
@@ -4236,7 +4236,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-native"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "arboard",
@@ -4286,7 +4286,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-rpc"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "argon2",
@@ -4313,7 +4313,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-server"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -4328,7 +4328,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-store"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "foldhash 0.2.0",
@@ -4346,7 +4346,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-testkit"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "axum",
  "brotli",
@@ -4363,7 +4363,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-types"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "async-trait",
