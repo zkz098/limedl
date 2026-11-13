@@ -4,8 +4,11 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 use reqwest::Response;
 
+use super::chunk_steal_sync::{
+    FlushOutcome, claim_clamped_batch_len, claim_or_steal_chunk_with_min_size,
+};
 #[cfg(test)]
-use super::WORK_STEAL_MIN_SPLIT_SIZE;
+pub(super) use super::chunk_steal_sync::{claim_next_chunk, claim_or_steal_chunk, steal_chunk};
 use super::{BatchLimiter, MICRO_BATCH_MAX_INTERVAL, ProgressThrottle, RequestBudget};
 use crate::buffer_pool::DownloadBuffer;
 use crate::checksum::hash_slices;
@@ -50,129 +53,6 @@ pub(super) fn all_chunks_completed(managed: &Arc<ManagedDownload>) -> bool {
         .chunks
         .iter()
         .all(|chunk| chunk.completed)
-}
-
-pub(super) fn claim_next_chunk(
-    manifest: &mut crate::manifest::Manifest,
-    worker_id: usize,
-    total_workers: usize,
-) -> Option<ChunkManifest> {
-    let stripe_count = total_workers.max(1);
-    let stripe = worker_id % stripe_count;
-    // Try interleaved: chunks whose index matches the worker's stripe
-    if let Some(chunk) = manifest
-        .chunks
-        .iter_mut()
-        .find(|c| !c.completed && c.claimed_by.is_none() && c.index % stripe_count == stripe)
-    {
-        chunk.claimed_by = Some(worker_id);
-        chunk.dirty = true;
-        return Some(chunk.clone());
-    }
-    // Fallback: any unclaimed chunk (handles cases where stripe is exhausted)
-    let chunk = manifest
-        .chunks
-        .iter_mut()
-        .find(|chunk| !chunk.completed && chunk.claimed_by.is_none())?;
-    chunk.claimed_by = Some(worker_id);
-    chunk.dirty = true;
-    Some(chunk.clone())
-}
-
-/// Dynamically steal work from the active chunk with the largest remaining un-downloaded range.
-pub(super) fn steal_chunk_with_min_size(
-    manifest: &mut crate::manifest::Manifest,
-    worker_id: usize,
-    min_split_size: u64,
-) -> Option<ChunkManifest> {
-    let mut best_chunk_idx: Option<usize> = None;
-    let mut max_remaining: u64 = 0;
-
-    for (idx, chunk) in manifest.chunks.iter().enumerate() {
-        if !chunk.completed && chunk.claimed_by.is_some() {
-            let current_pos = chunk.start.saturating_add(chunk.downloaded);
-            if chunk.end > current_pos {
-                let remaining = chunk.end - current_pos;
-                if remaining >= min_split_size && remaining > max_remaining {
-                    max_remaining = remaining;
-                    best_chunk_idx = Some(idx);
-                }
-            }
-        }
-    }
-
-    let target_idx = best_chunk_idx?;
-    let target_chunk = manifest.chunks.get_mut(target_idx)?;
-    let current_pos = target_chunk.start.saturating_add(target_chunk.downloaded);
-    let original_end = target_chunk.end;
-    let remaining = original_end.saturating_sub(current_pos);
-    if remaining < min_split_size {
-        return None;
-    }
-    let half = remaining / 2;
-    let mid = current_pos + half;
-
-    target_chunk.end = mid;
-    target_chunk.dirty = true;
-
-    let new_index = manifest.chunks.len();
-    let stolen_chunk = ChunkManifest {
-        index: new_index,
-        start: mid + 1,
-        end: original_end,
-        downloaded: 0,
-        completed: false,
-        durable_downloaded: 0,
-        claimed_by: Some(worker_id),
-        dirty: true,
-    };
-    manifest.chunks.push(stolen_chunk.clone());
-    manifest.updated_at_ms = now_ms();
-
-    tracing::info!(
-        "Work stealing: worker {worker_id} stole bytes {}-{} from chunk {target_idx} (new chunk {new_index})",
-        mid + 1,
-        original_end
-    );
-
-    Some(stolen_chunk)
-}
-
-/// Dynamically steal work from the active chunk using the default minimum split size.
-#[cfg(test)]
-pub(super) fn steal_chunk(
-    manifest: &mut crate::manifest::Manifest,
-    worker_id: usize,
-) -> Option<ChunkManifest> {
-    steal_chunk_with_min_size(manifest, worker_id, WORK_STEAL_MIN_SPLIT_SIZE)
-}
-
-/// Attempt to claim an unclaimed chunk, or dynamically steal work from an active chunk.
-pub(super) fn claim_or_steal_chunk_with_min_size(
-    manifest: &mut crate::manifest::Manifest,
-    worker_id: usize,
-    total_workers: usize,
-    min_split_size: u64,
-) -> Option<ChunkManifest> {
-    if let Some(chunk) = claim_next_chunk(manifest, worker_id, total_workers) {
-        return Some(chunk);
-    }
-    steal_chunk_with_min_size(manifest, worker_id, min_split_size)
-}
-
-/// Attempt to claim an unclaimed chunk, or dynamically steal work from an active chunk using the default split size.
-#[cfg(test)]
-pub(super) fn claim_or_steal_chunk(
-    manifest: &mut crate::manifest::Manifest,
-    worker_id: usize,
-    total_workers: usize,
-) -> Option<ChunkManifest> {
-    claim_or_steal_chunk_with_min_size(
-        manifest,
-        worker_id,
-        total_workers,
-        WORK_STEAL_MIN_SPLIT_SIZE,
-    )
 }
 
 pub fn mark_chunk_released(managed: &Arc<ManagedDownload>, chunk_index: usize, worker_id: usize) {
@@ -771,11 +651,7 @@ impl ChunkWorkerCtx {
 
         while let Some(bytes) = tokio::select! {
             _ = self.token.cancelled() => {
-                if !local_buf.is_empty() {
-                    let b = Bytes::from(std::mem::take(&mut local_buf));
-                    let _ = self.write_bytes(batch_start_offset, &b).await;
-                    record_progress_on_managed(&self.managed, Some(chunk_idx), b.len() as u64);
-                }
+                let _ = self.flush_local_buf(chunk_idx, batch_start_offset, &mut local_buf, 0).await;
                 batch.flush(&self.rate_limiter).await;
                 self.release(chunk_idx);
                 return Ok(SegmentBody::Stop(cancellation_chunk_outcome(&self.managed)));
@@ -785,11 +661,9 @@ impl ChunkWorkerCtx {
             let bytes = match bytes {
                 Ok(bytes) => bytes,
                 Err(err) => {
-                    if !local_buf.is_empty() {
-                        let b = Bytes::from(std::mem::take(&mut local_buf));
-                        let _ = self.write_bytes(batch_start_offset, &b).await;
-                        record_progress_on_managed(&self.managed, Some(chunk_idx), b.len() as u64);
-                    }
+                    let _ = self
+                        .flush_local_buf(chunk_idx, batch_start_offset, &mut local_buf, 0)
+                        .await;
                     batch.flush(&self.rate_limiter).await;
                     return Ok(SegmentBody::StreamInterrupted(err));
                 }
@@ -802,11 +676,9 @@ impl ChunkWorkerCtx {
             }
 
             if *current + bytes.len() as u64 - 1 > original_end {
-                if !local_buf.is_empty() {
-                    let b = Bytes::from(std::mem::take(&mut local_buf));
-                    let _ = self.write_bytes(batch_start_offset, &b).await;
-                    record_progress_on_managed(&self.managed, Some(chunk_idx), b.len() as u64);
-                }
+                let _ = self
+                    .flush_local_buf(chunk_idx, batch_start_offset, &mut local_buf, 0)
+                    .await;
                 self.release(chunk_idx);
                 return Err(DownloadError::InvalidResponse(String::from(
                     "segment body exceeded requested range",
@@ -829,20 +701,29 @@ impl ChunkWorkerCtx {
                 return Ok(SegmentBody::Stop(ChunkWorkerOutcome::Finished));
             }
 
+            let mut clamped_on_flush = false;
             if local_buf.len() >= MICRO_BATCH_SIZE
                 || (!local_buf.is_empty() && last_flush.elapsed() >= MICRO_BATCH_MAX_INTERVAL)
             {
-                let coalesced = Bytes::from(std::mem::replace(
-                    &mut local_buf,
-                    Vec::with_capacity(MICRO_BATCH_SIZE),
-                ));
-                self.write_bytes(batch_start_offset, &coalesced).await?;
-                record_progress_on_managed(&self.managed, Some(chunk_idx), coalesced.len() as u64);
+                let FlushOutcome::Written { flushed, clamped } = self
+                    .flush_local_buf(
+                        chunk_idx,
+                        batch_start_offset,
+                        &mut local_buf,
+                        MICRO_BATCH_SIZE,
+                    )
+                    .await?
+                else {
+                    batch.flush(&self.rate_limiter).await;
+                    return Ok(SegmentBody::Stop(ChunkWorkerOutcome::Finished));
+                };
+                *current = batch_start_offset + flushed;
                 batch_start_offset = *current;
                 last_flush = std::time::Instant::now();
+                clamped_on_flush = clamped;
             }
 
-            if reached_dynamic_end {
+            if reached_dynamic_end || clamped_on_flush {
                 break;
             }
 
@@ -851,20 +732,78 @@ impl ChunkWorkerCtx {
                 .await?;
         }
 
-        if !local_buf.is_empty() {
-            if !self.owns_claim(chunk_idx) {
-                batch.flush(&self.rate_limiter).await;
-                return Ok(SegmentBody::Stop(ChunkWorkerOutcome::Finished));
-            }
-            let coalesced = Bytes::from(std::mem::take(&mut local_buf));
-            self.write_bytes(batch_start_offset, &coalesced).await?;
-            record_progress_on_managed(&self.managed, Some(chunk_idx), coalesced.len() as u64);
+        let FlushOutcome::Written { flushed, .. } = self
+            .flush_local_buf(chunk_idx, batch_start_offset, &mut local_buf, 0)
+            .await?
+        else {
+            batch.flush(&self.rate_limiter).await;
+            return Ok(SegmentBody::Stop(ChunkWorkerOutcome::Finished));
+        };
+        if flushed > 0 {
+            *current = batch_start_offset + flushed;
             throttle
                 .tick(&self.db, self.manager.as_ref(), &self.managed)
                 .await?;
         }
 
         Ok(SegmentBody::Exhausted)
+    }
+
+    async fn flush_local_buf(
+        &self,
+        chunk_idx: usize,
+        batch_start_offset: u64,
+        buf: &mut Vec<u8>,
+        next_cap: usize,
+    ) -> Result<FlushOutcome> {
+        let raw = std::mem::replace(buf, Vec::with_capacity(next_cap));
+        let raw_len = raw.len();
+        if raw_len == 0 {
+            return Ok(FlushOutcome::Written {
+                flushed: 0,
+                clamped: false,
+            });
+        }
+        let Some(allowed) = ({
+            let core = self.managed.lock_core();
+            claim_clamped_batch_len(
+                &core.manifest,
+                chunk_idx,
+                self.worker_id,
+                batch_start_offset,
+                raw_len,
+            )
+        }) else {
+            return Ok(FlushOutcome::LostClaim);
+        };
+        if allowed == 0 {
+            return Ok(FlushOutcome::Written {
+                flushed: 0,
+                clamped: true,
+            });
+        }
+        let coalesced = Bytes::from(raw).slice(..allowed);
+        self.write_bytes(batch_start_offset, &coalesced).await?;
+        let post_allowed = {
+            let core = self.managed.lock_core();
+            claim_clamped_batch_len(
+                &core.manifest,
+                chunk_idx,
+                self.worker_id,
+                batch_start_offset,
+                coalesced.len(),
+            )
+        };
+        let Some(delta) = post_allowed else {
+            return Ok(FlushOutcome::LostClaim);
+        };
+        if delta > 0 {
+            record_progress_on_managed(&self.managed, Some(chunk_idx), delta as u64);
+        }
+        Ok(FlushOutcome::Written {
+            flushed: delta as u64,
+            clamped: delta < raw_len,
+        })
     }
 
     /// Verify the piece hash for a completed chunk if Metalink piece verification is configured.

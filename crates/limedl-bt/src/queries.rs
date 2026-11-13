@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::num::NonZeroU32;
-use std::sync::atomic::Ordering;
 
 use librqbit::api::TorrentIdOrHash;
 use librqbit::dht::Id20;
@@ -306,7 +305,7 @@ impl RqbitBtBackend {
     /// Lightweight BT mode unloads the session when this returns `false`.
     pub async fn has_active_torrents(&self) -> Result<bool> {
         for entry in self.pending_magnets.iter() {
-            if !entry.value().paused.load(Ordering::Acquire) {
+            if !entry.value().is_paused() {
                 return Ok(true);
             }
         }

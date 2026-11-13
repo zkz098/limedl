@@ -12,6 +12,11 @@ use loom::sync::{
 
 use crate::error::DownloadError;
 
+/// Shared `Arc` type matching the atomic backend (`std::sync` vs `loom::sync`).
+pub type SlotArc<T> = Arc<T>;
+/// Shared `AtomicUsize` matching the atomic backend (`std::sync` vs `loom::sync`).
+pub type SlotAtomicUsize = AtomicUsize;
+
 /// RAII guard that holds a concurrent download slot.
 ///
 /// The slot is automatically released (counter decremented) when the guard is dropped.

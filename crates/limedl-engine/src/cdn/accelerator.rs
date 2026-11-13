@@ -1,7 +1,10 @@
 use std::net::IpAddr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 
+#[cfg(limedl_loom)]
+use loom::sync::{Mutex as PhaseMutex, MutexGuard as PhaseMutexGuard};
+#[cfg(not(limedl_loom))]
+use parking_lot::{Mutex as PhaseMutex, MutexGuard as PhaseMutexGuard};
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
@@ -27,8 +30,55 @@ pub enum AccelState {
     Error(String),
 }
 
-/// Sentinel value for phase_atomic meaning "no active phase".
-const PHASE_NONE: u8 = 0xFF;
+/// Consistent snapshot of the active CDN test phase and its `(current, total)` counts.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct PhaseSnapshot {
+    phase: Option<CdnTestPhase>,
+    current: u64,
+    total: u64,
+}
+
+/// Synchronizes phase transitions and progress counts under a short-lived sync mutex
+/// so readers never observe a phase from one stage paired with counts from another.
+#[derive(Debug, Default)]
+struct PhaseTracker {
+    inner: PhaseMutex<PhaseSnapshot>,
+}
+
+impl PhaseTracker {
+    fn new() -> Self {
+        Self {
+            inner: PhaseMutex::new(PhaseSnapshot::default()),
+        }
+    }
+
+    #[cfg(not(limedl_loom))]
+    fn lock_inner(&self) -> PhaseMutexGuard<'_, PhaseSnapshot> {
+        self.inner.lock()
+    }
+
+    #[cfg(limedl_loom)]
+    fn lock_inner(&self) -> PhaseMutexGuard<'_, PhaseSnapshot> {
+        self.inner.lock().expect("phase tracker mutex poisoned")
+    }
+
+    fn set(&self, phase: CdnTestPhase, current: u64, total: u64) {
+        *self.lock_inner() = PhaseSnapshot {
+            phase: Some(phase),
+            current,
+            total,
+        };
+    }
+
+    fn clear(&self) {
+        *self.lock_inner() = PhaseSnapshot::default();
+    }
+
+    fn snapshot(&self) -> (Option<CdnTestPhase>, u64, u64) {
+        let guard = self.lock_inner();
+        (guard.phase, guard.current, guard.total)
+    }
+}
 
 /// State machine that manages the CDN acceleration lifecycle.
 ///
@@ -40,12 +90,9 @@ pub struct CdnAccelerator {
     active_speed_mbps: RwLock<Option<f64>>,
     cancel_token: RwLock<Option<CancellationToken>>,
     accelerated_client: RwLock<Option<reqwest::Client>>,
-    /// Atomic phase indicator: 0=FetchingRanges, 1=Screening,
-    /// 2=MeasuringThroughput, 0xFF=None. Written from sync progress
-    /// callbacks without spawning.
-    phase_atomic: AtomicU8,
-    phase_progress_current: AtomicU64,
-    phase_progress_total: AtomicU64,
+    /// Synchronized `(phase, current, total)` written from sync progress callbacks
+    /// and sampled atomically via `phase_snapshot()`.
+    phase: PhaseTracker,
     all_candidates: RwLock<Vec<SpeedTestResult>>,
     default_node: RwLock<Option<DefaultNodeResult>>,
     /// Shared IP range cache — populated by `start_test()` and available
@@ -80,9 +127,7 @@ impl CdnAccelerator {
             active_speed_mbps: RwLock::new(None),
             cancel_token: RwLock::new(None),
             accelerated_client: RwLock::new(None),
-            phase_atomic: AtomicU8::new(PHASE_NONE),
-            phase_progress_current: AtomicU64::new(0),
-            phase_progress_total: AtomicU64::new(0),
+            phase: PhaseTracker::new(),
             all_candidates: RwLock::new(Vec::new()),
             default_node: RwLock::new(None),
             ip_cache: RwLock::new(None),
@@ -139,10 +184,7 @@ impl CdnAccelerator {
         tokio::spawn(async move {
             // ── Phase: FetchingRanges ────────────────────────────
             tracing::info!("cdn test: phase=FetchingRanges");
-            this.phase_atomic
-                .store(CdnTestPhase::FetchingRanges as u8, Ordering::Release);
-            this.phase_progress_current.store(0, Ordering::Release);
-            this.phase_progress_total.store(0, Ordering::Release);
+            this.phase.set(CdnTestPhase::FetchingRanges, 0, 0);
 
             let provider = this.provider.read().await.clone();
             let range_data = provider.fetch_ip_ranges(token.child_token()).await;
@@ -151,9 +193,7 @@ impl CdnAccelerator {
             if token.is_cancelled() {
                 tracing::info!("cdn test: cancelled during FetchingRanges");
                 *this.state.write().await = AccelState::Idle;
-                this.phase_atomic.store(PHASE_NONE, Ordering::Release);
-                this.phase_progress_current.store(0, Ordering::Release);
-                this.phase_progress_total.store(0, Ordering::Release);
+                this.phase.clear();
                 return;
             }
 
@@ -174,9 +214,7 @@ impl CdnAccelerator {
                 let err_msg = format!("no {} IPs available", provider.name());
                 tracing::error!("cdn test: {err_msg}");
                 *this.state.write().await = AccelState::Error(err_msg);
-                this.phase_atomic.store(PHASE_NONE, Ordering::Release);
-                this.phase_progress_current.store(0, Ordering::Release);
-                this.phase_progress_total.store(0, Ordering::Release);
+                this.phase.clear();
                 return;
             }
 
@@ -193,22 +231,16 @@ impl CdnAccelerator {
             let acc_ref = Arc::clone(&this);
             let progress_cb: crate::cdn::speed_test::ProgressFn =
                 Box::new(move |phase, current, total| {
-                    // Direct atomic stores — no tokio::spawn needed since
+                    // Direct mutex update — no tokio::spawn needed since
                     // the callback is already called from a sync context.
-                    acc_ref.phase_atomic.store(phase as u8, Ordering::Release);
-                    acc_ref
-                        .phase_progress_current
-                        .store(current, Ordering::Release);
-                    acc_ref.phase_progress_total.store(total, Ordering::Release);
+                    acc_ref.phase.set(phase, current, total);
                 });
 
             let (results, default_node) = tokio::select! {
                 _ = token.cancelled() => {
                     tracing::info!("cdn test: cancelled during speed test");
                     *this.state.write().await = AccelState::Idle;
-                    this.phase_atomic.store(PHASE_NONE, Ordering::Release);
-                    this.phase_progress_current.store(0, Ordering::Release);
-                    this.phase_progress_total.store(0, Ordering::Release);
+                    this.phase.clear();
                     return;
                 }
                 r = async {
@@ -222,9 +254,7 @@ impl CdnAccelerator {
             if token.is_cancelled() {
                 tracing::info!("cdn test: cancelled after speed test completed");
                 *this.state.write().await = AccelState::Idle;
-                this.phase_atomic.store(PHASE_NONE, Ordering::Release);
-                this.phase_progress_current.store(0, Ordering::Release);
-                this.phase_progress_total.store(0, Ordering::Release);
+                this.phase.clear();
                 return;
             }
 
@@ -242,9 +272,7 @@ impl CdnAccelerator {
                 );
                 tracing::warn!("cdn test: {msg}");
                 *this.state.write().await = AccelState::Error(msg);
-                this.phase_atomic.store(PHASE_NONE, Ordering::Release);
-                this.phase_progress_current.store(0, Ordering::Release);
-                this.phase_progress_total.store(0, Ordering::Release);
+                this.phase.clear();
                 return;
             }
 
@@ -309,9 +337,7 @@ impl CdnAccelerator {
                 }
             }
 
-            this.phase_atomic.store(PHASE_NONE, Ordering::Release);
-            this.phase_progress_current.store(0, Ordering::Release);
-            this.phase_progress_total.store(0, Ordering::Release);
+            this.phase.clear();
         });
 
         Ok(())
@@ -405,9 +431,7 @@ impl CdnAccelerator {
         *self.active_speed_mbps.write().await = None;
         *self.cancel_token.write().await = None;
         *self.accelerated_client.write().await = None;
-        self.phase_atomic.store(PHASE_NONE, Ordering::Release);
-        self.phase_progress_current.store(0, Ordering::Release);
-        self.phase_progress_total.store(0, Ordering::Release);
+        self.phase.clear();
         *self.all_candidates.write().await = Vec::new();
         *self.default_node.write().await = None;
     }
@@ -428,21 +452,20 @@ impl CdnAccelerator {
         *self.active_speed_mbps.read().await
     }
 
+    /// Return an atomic snapshot of `(phase, current, total)` so callers never
+    /// observe a phase paired with progress counts from a different stage.
+    pub async fn phase_snapshot(&self) -> (Option<CdnTestPhase>, u64, u64) {
+        self.phase.snapshot()
+    }
+
     /// Return the current test phase, or None if no test is active.
     pub async fn phase(&self) -> Option<CdnTestPhase> {
-        let p = self.phase_atomic.load(Ordering::Acquire);
-        match p {
-            0 => Some(CdnTestPhase::FetchingRanges),
-            1 => Some(CdnTestPhase::Screening),
-            2 => Some(CdnTestPhase::MeasuringThroughput),
-            _ => None,
-        }
+        self.phase.snapshot().0
     }
 
     /// Return the current phase progress as (current, total).
     pub async fn phase_progress(&self) -> (u64, u64) {
-        let current = self.phase_progress_current.load(Ordering::Acquire);
-        let total = self.phase_progress_total.load(Ordering::Acquire);
+        let (_, current, total) = self.phase.snapshot();
         (current, total)
     }
 
@@ -631,5 +654,79 @@ mod tests {
             custom_acc.provider().await.default_test_url(),
             "https://example.com/test"
         );
+    }
+}
+
+#[cfg(all(test, limedl_loom))]
+mod loom_tests {
+    use super::*;
+
+    #[test]
+    fn phase_snapshot_never_tears_across_transitions() {
+        loom::model(|| {
+            let tracker = loom::sync::Arc::new(PhaseTracker::new());
+            let writer = loom::sync::Arc::clone(&tracker);
+            let reader = loom::sync::Arc::clone(&tracker);
+
+            let t_write = loom::thread::spawn(move || {
+                writer.set(CdnTestPhase::FetchingRanges, 0, 0);
+                writer.set(CdnTestPhase::Screening, 12, 64);
+                writer.set(CdnTestPhase::MeasuringThroughput, 3, 5);
+                writer.clear();
+            });
+
+            let t_read = loom::thread::spawn(move || {
+                for _ in 0..2 {
+                    let snap = reader.snapshot();
+                    match snap {
+                        (None, 0, 0)
+                        | (Some(CdnTestPhase::FetchingRanges), 0, 0)
+                        | (Some(CdnTestPhase::Screening), 12, 64)
+                        | (Some(CdnTestPhase::MeasuringThroughput), 3, 5) => {}
+                        other => panic!("torn phase snapshot observed: {other:?}"),
+                    }
+                }
+            });
+
+            t_write.join().unwrap();
+            t_read.join().unwrap();
+        });
+    }
+
+    #[test]
+    fn phase_clear_never_exposes_stale_counts() {
+        loom::model(|| {
+            let tracker = loom::sync::Arc::new(PhaseTracker::new());
+            tracker.set(CdnTestPhase::Screening, 40, 100);
+
+            let t_clear = {
+                let tracker = loom::sync::Arc::clone(&tracker);
+                loom::thread::spawn(move || {
+                    tracker.clear();
+                })
+            };
+            let t_update = {
+                let tracker = loom::sync::Arc::clone(&tracker);
+                loom::thread::spawn(move || {
+                    tracker.set(CdnTestPhase::MeasuringThroughput, 2, 5);
+                })
+            };
+            let t_read = {
+                let tracker = loom::sync::Arc::clone(&tracker);
+                loom::thread::spawn(move || {
+                    let snap = tracker.snapshot();
+                    match snap {
+                        (None, 0, 0)
+                        | (Some(CdnTestPhase::Screening), 40, 100)
+                        | (Some(CdnTestPhase::MeasuringThroughput), 2, 5) => {}
+                        other => panic!("torn phase/clear snapshot observed: {other:?}"),
+                    }
+                })
+            };
+
+            t_clear.join().unwrap();
+            t_update.join().unwrap();
+            t_read.join().unwrap();
+        });
     }
 }

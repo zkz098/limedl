@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
 
 use parking_lot::Mutex;
 
+use crate::slot_guard::{SlotArc, SlotAtomicUsize};
 use crate::types::FastDashMap;
 
 use librqbit::dht::Id20;
@@ -22,8 +22,8 @@ impl RqbitBtBackend {
         state_dir: PathBuf,
         default_output_dir: PathBuf,
         event_bus: Arc<EventBus>,
-        active_bt_count: Arc<AtomicUsize>,
-        max_concurrent_bt: Arc<AtomicUsize>,
+        active_bt_count: SlotArc<SlotAtomicUsize>,
+        max_concurrent_bt: SlotArc<SlotAtomicUsize>,
     ) -> Result<Self> {
         let bt = &settings.bt;
 
@@ -180,7 +180,7 @@ impl RqbitBtBackend {
 
         // Phase 2: abort pending magnet resolutions
         for entry in self.pending_magnets.iter() {
-            entry.value().abort_handle.abort();
+            entry.value().abort();
         }
         self.pending_magnets.clear();
         self.bt_slot_guards.clear();

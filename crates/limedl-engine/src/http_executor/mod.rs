@@ -337,6 +337,7 @@ impl ProgressThrottle {
     }
 }
 
+mod chunk_steal_sync;
 mod chunked;
 mod finalize;
 mod run;

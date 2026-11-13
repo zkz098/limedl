@@ -6,7 +6,9 @@ pub mod alerts;
 pub mod anti_leech;
 pub mod fixtures;
 pub mod lazy;
+mod lazy_sync;
 pub mod lifecycle;
+mod pending_magnet_sync;
 pub mod queries;
 pub mod session;
 pub mod snapshot;
@@ -19,7 +21,6 @@ pub use lazy::{LazyBtBackend, take_legacy_resume_files};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize};
 
 use async_trait::async_trait;
 use parking_lot::{Mutex, RwLock};
@@ -40,7 +41,7 @@ use crate::error::DownloadError;
 use crate::error::Result;
 use crate::event_bus::EventBus;
 use crate::protocol::DownloadBackend;
-use crate::slot_guard::DownloadSlotGuard;
+use crate::slot_guard::{DownloadSlotGuard, SlotArc, SlotAtomicUsize};
 use crate::types::{
     AppSettings, DownloadSnapshot, DownloadSummary, FastDashMap, InfoHash, StartDownloadRequest,
     TaskId,
@@ -74,8 +75,21 @@ pub struct PendingMagnet {
     pub name: String,
     pub destination_path: String,
     pub created_at_ms: u64,
-    pub paused: Arc<AtomicBool>,
-    pub abort_handle: tokio::task::AbortHandle,
+    pub(crate) control: Arc<pending_magnet_sync::PendingMagnetControl>,
+    pub(crate) abort_handle: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
+}
+
+impl PendingMagnet {
+    pub(crate) fn is_paused(&self) -> bool {
+        self.control.is_paused()
+    }
+
+    pub(crate) fn abort(&self) {
+        self.control.mark_canceled();
+        if let Some(handle) = lock(&self.abort_handle).as_ref() {
+            handle.abort();
+        }
+    }
 }
 
 /// Librqbit-based BitTorrent backend.
@@ -117,9 +131,9 @@ pub struct RqbitBtBackend {
     /// Tokio runtime handle, captured at construction time.
     pub(crate) runtime_handle: tokio::runtime::Handle,
     /// Active BT download counter (shared with DownloadManager for global throttle).
-    pub(crate) active_bt_count: Arc<AtomicUsize>,
+    pub(crate) active_bt_count: SlotArc<SlotAtomicUsize>,
     /// Maximum concurrent BT downloads allowed.
-    pub max_concurrent_bt: Arc<AtomicUsize>,
+    pub max_concurrent_bt: SlotArc<SlotAtomicUsize>,
     /// Guards holding BT download slots for active torrents.
     pub(crate) bt_slot_guards: Arc<FastDashMap<Id20, DownloadSlotGuard>>,
     /// Creation timestamps for active torrents (populated on start).

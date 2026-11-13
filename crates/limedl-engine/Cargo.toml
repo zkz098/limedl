@@ -65,6 +65,12 @@ limedl-http = { path = "../limedl-http", default-features = false, features = [
   "test-utils",
 ] }
 
+[target.'cfg(limedl_loom)'.dependencies]
+loom = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(limedl_loom)'] }
+
 # Pure AIMD arithmetic: no runtime, no server, no seams.
 [[bench]]
 name = "aimd"

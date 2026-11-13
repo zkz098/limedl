@@ -47,18 +47,21 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use librqbit::dht::Id20;
 use parking_lot::{Mutex, RwLock};
 
+use super::lazy_sync::idle_settle_elapsed;
+pub use super::lazy_sync::take_legacy_resume_files;
 use super::{RqbitBtBackend, info_hash_from_engine, info_hash_to_engine};
 use crate::database::Database;
 use crate::error::{DownloadError, Result};
 use crate::event_bus::{DownloadEvent, EventBus};
 use crate::protocol::DownloadBackend;
+use crate::slot_guard::{SlotArc, SlotAtomicUsize};
 use crate::types::{
     AppSettings, BtFileStatus, BtPeerInfo, BtPieceInfo, BtRuntimeStatus, BtSettings, BtTrackerInfo,
     BtUploadStatus, DownloadSnapshot, DownloadState, DownloadSummary, StartDownloadRequest, TaskId,
@@ -92,39 +95,6 @@ const IDLE_CHECK_INTERVAL: Duration = Duration::from_secs(10);
 /// user request.
 const IDLE_SETTLE: Duration = Duration::from_secs(20);
 
-/// Remove resume data left by the previous BitTorrent engine and return how
-/// many files were deleted.
-///
-/// irontide wrote `<state>/resume/torrents/<hex>.resume`; some older builds also
-/// left `.resume` files directly under `<state>/resume`. librqbit's JSON
-/// persistence only writes `session.json`, `<hash>.torrent` and `<hash>.bitv`
-/// there, so no live state uses the `.resume` extension.
-pub fn take_legacy_resume_files(state_dir: &std::path::Path) -> usize {
-    let resume_dir = state_dir.join("resume");
-    let removed =
-        remove_resume_files(&resume_dir) + remove_resume_files(&resume_dir.join("torrents"));
-    if removed > 0 {
-        tracing::warn!(
-            removed,
-            "removed resume files left by the previous BitTorrent engine; those tasks cannot be restored"
-        );
-    }
-    removed
-}
-
-fn remove_resume_files(dir: &std::path::Path) -> usize {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return 0;
-    };
-    entries
-        .flatten()
-        .filter(|entry| {
-            entry.path().extension().and_then(std::ffi::OsStr::to_str) == Some("resume")
-        })
-        .filter(|entry| std::fs::remove_file(entry.path()).is_ok())
-        .count()
-}
-
 /// Whether a persisted state means "there is still work to do".
 ///
 /// Paused, completed, failed and canceled tasks do not justify loading the
@@ -155,10 +125,10 @@ pub struct LazyBtBackend {
     /// SQLite handle for the persisted BT task index.
     db: Arc<Database>,
     /// Active BT download counter, shared with `DownloadManager`.
-    pub(crate) active_bt_count: Arc<AtomicUsize>,
+    pub(crate) active_bt_count: SlotArc<SlotAtomicUsize>,
     /// Maximum concurrent BT downloads, shared with `DownloadManager`.
     /// Read by `limedl-core`'s BT integration tests (concurrency assertion).
-    pub max_concurrent_bt: Arc<AtomicUsize>,
+    pub max_concurrent_bt: SlotArc<SlotAtomicUsize>,
     /// The started engine; empty while the engine is unloaded.
     ///
     /// A `parking_lot` lock (not an async one) so [`Self::engine_if_ready`] can
@@ -192,8 +162,8 @@ impl LazyBtBackend {
         default_output_dir: PathBuf,
         event_bus: Arc<EventBus>,
         db: Arc<Database>,
-        active_bt_count: Arc<AtomicUsize>,
-        max_concurrent_bt: Arc<AtomicUsize>,
+        active_bt_count: SlotArc<SlotAtomicUsize>,
+        max_concurrent_bt: SlotArc<SlotAtomicUsize>,
     ) -> Self {
         Self {
             settings: Mutex::new(settings.clone()),
@@ -289,11 +259,11 @@ impl LazyBtBackend {
                 if !this.lightweight_mode() {
                     continue;
                 }
-                // A task op merely *handing out* the engine (before its torrent
-                // is in the session) must not be mistaken for idleness.
-                let idle_for_ms =
-                    now_ms().saturating_sub(this.last_activity_ms.load(Ordering::Acquire));
-                if idle_for_ms < u64::try_from(IDLE_SETTLE.as_millis()).unwrap_or(u64::MAX) {
+                if !idle_settle_elapsed(
+                    this.last_activity_ms.load(Ordering::Acquire),
+                    now_ms(),
+                    IDLE_SETTLE.as_millis() as u64,
+                ) {
                     continue;
                 }
                 let Some(engine) = this.engine_if_ready() else {
@@ -377,6 +347,7 @@ impl LazyBtBackend {
         // alert bridge's `TorrentAdded` alerts fire during session creation,
         // before it subscribes.
         self.refresh_index_and_publish(&engine).await;
+        self.last_activity_ms.store(now_ms(), Ordering::Release);
         drop(_guard);
 
         Ok(engine)
@@ -650,9 +621,21 @@ impl LazyBtBackend {
             }
         }
 
-        tracing::info!("BT lightweight mode: engine idle, shutting the session down");
-        let engine = self.engine.write().take();
+        // Re-check activity under `self.engine.write()` so an `engine()` fast-path
+        // caller cannot read `Some(engine)` while we unload it.
+        let engine = {
+            let mut slot = self.engine.write();
+            if !idle_settle_elapsed(
+                self.last_activity_ms.load(Ordering::Acquire),
+                now_ms(),
+                IDLE_SETTLE.as_millis() as u64,
+            ) {
+                return;
+            }
+            slot.take()
+        };
         if let Some(engine) = engine {
+            tracing::info!("BT lightweight mode: engine idle, shutting the session down");
             self.sync_index_with(&engine).await;
             engine.shutdown().await;
         }
@@ -888,8 +871,6 @@ impl DownloadBackend for LazyBtBackend {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::AtomicUsize;
-
     use super::*;
 
     /// Settings that start a session without any network I/O.
@@ -916,8 +897,8 @@ mod tests {
             output_dir,
             Arc::new(EventBus::new(64)),
             Arc::new(Database::open_in_memory().expect("in-memory db")),
-            Arc::new(AtomicUsize::new(0)),
-            Arc::new(AtomicUsize::new(5)),
+            SlotArc::new(SlotAtomicUsize::new(0)),
+            SlotArc::new(SlotAtomicUsize::new(5)),
         ));
         (tmp, backend)
     }
@@ -1119,7 +1100,15 @@ mod tests {
         assert!(backend.engine().await.is_ok());
         assert!(backend.is_ready());
 
-        // The idle supervisor path: no torrent in the session, so it unloads.
+        // While within the idle settle window, stop_idle_engine must keep the engine up.
+        backend.stop_idle_engine().await;
+        assert!(
+            backend.is_ready(),
+            "active settle window must keep engine up"
+        );
+
+        // Simulate elapsed IDLE_SETTLE window before the idle supervisor unloads it.
+        backend.last_activity_ms.store(0, Ordering::Release);
         backend.stop_idle_engine().await;
         assert!(!backend.is_ready(), "idle engine must be unloaded");
 
@@ -1136,6 +1125,7 @@ mod tests {
 
         backend.spawn_startup();
         assert!(backend.wait_for_warmup().await);
+        backend.last_activity_ms.store(0, Ordering::Release);
         backend.stop_idle_engine().await;
         assert!(!backend.is_ready());
 

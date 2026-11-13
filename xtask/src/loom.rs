@@ -13,7 +13,13 @@ use std::process::Command;
 use anyhow::{Context, Result, bail};
 
 /// Crates that carry `#[cfg(all(test, limedl_loom))]` concurrency suites.
-const LOOM_PACKAGES: &[&str] = &["limedl-types", "limedl-disk", "limedl-http"];
+const LOOM_PACKAGES: &[&str] = &[
+    "limedl-types",
+    "limedl-disk",
+    "limedl-http",
+    "limedl-engine",
+    "limedl-bt",
+];
 
 pub fn run(root: &Path, clippy_only: bool, extra_args: &[String]) -> Result<()> {
     let host = detect_host_triple()?;

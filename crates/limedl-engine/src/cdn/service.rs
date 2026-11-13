@@ -108,6 +108,10 @@ impl CdnService {
         self.accelerator.active_speed_mbps().await
     }
 
+    pub async fn phase_snapshot(&self) -> (Option<CdnTestPhase>, u64, u64) {
+        self.accelerator.phase_snapshot().await
+    }
+
     pub async fn phase(&self) -> Option<CdnTestPhase> {
         self.accelerator.phase().await
     }
@@ -153,8 +157,7 @@ impl CdnService {
             match st {
                 AccelState::Testing => {
                     was_testing = true;
-                    if let Some(phase) = self.phase().await {
-                        let (current, total) = self.phase_progress().await;
+                    if let (Some(phase), current, total) = self.phase_snapshot().await {
                         let phase_str = match phase {
                             CdnTestPhase::FetchingRanges => "fetchingRanges",
                             CdnTestPhase::Screening => "screening",

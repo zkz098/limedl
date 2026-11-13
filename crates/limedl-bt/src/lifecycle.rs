@@ -1,11 +1,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use librqbit::api::TorrentIdOrHash;
 use librqbit::dht::Id20;
 use librqbit::{AddTorrent, AddTorrentOptions};
+use parking_lot::Mutex;
 
+use super::pending_magnet_sync::{HandoffStep, IntentOutcome, PendingMagnetControl};
 use super::{PendingMagnet, RqbitBtBackend};
 use crate::error::{DownloadError, Result, io_error_with_path};
 use crate::slot_guard::DownloadSlotGuard;
@@ -145,46 +146,14 @@ impl RqbitBtBackend {
             self.torrent_created_at.insert(info_hash, now);
             self.bt_slot_guards.insert(info_hash, _guard);
 
-            let paused = Arc::new(AtomicBool::new(request.start_paused));
-            let session = self.session.clone();
-            let pending_map = self.pending_magnets.clone();
-            let slot_guards = self.bt_slot_guards.clone();
-            let paused_flag = paused.clone();
-            let magnet_source = magnet_str.clone();
-
-            let bg_task = tokio::spawn(async move {
-                let add_torrent = AddTorrent::from_url(magnet_source);
-                match session.add_torrent(add_torrent, Some(opts)).await {
-                    Ok(res) => {
-                        pending_map.remove(&info_hash);
-                        if let Some(h) = res.into_handle()
-                            && paused_flag.load(Ordering::Acquire)
-                        {
-                            let _ = session.pause(&h).await;
-                        }
-                    }
-                    Err(e) => {
-                        // Release the active concurrency slot when background
-                        // resolution terminates without adding a torrent handle,
-                        // while keeping the pending entry visible to status/remove.
-                        slot_guards.remove(&info_hash);
-                        let ih_str = info_hash.as_string();
-                        tracing::debug!("magnet resolution ended for {ih_str}: {e}");
-                    }
-                }
-            });
-
-            self.pending_magnets.insert(
+            self.spawn_pending_magnet(
                 info_hash,
-                PendingMagnet {
-                    info_hash,
-                    magnet_url: magnet_str,
-                    name: magnet.name.unwrap_or_else(|| info_hash.as_string()),
-                    destination_path: dest_dir.to_string_lossy().to_string(),
-                    created_at_ms: now,
-                    paused,
-                    abort_handle: bg_task.abort_handle(),
-                },
+                magnet_str,
+                magnet.name.unwrap_or_else(|| info_hash.as_string()),
+                dest_dir.to_string_lossy().to_string(),
+                now,
+                opts,
+                request.start_paused,
             );
 
             self.emit_pending_summary(info_hash);
@@ -227,7 +196,101 @@ impl RqbitBtBackend {
         Ok(info_hash)
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn spawn_pending_magnet(
+        &self,
+        info_hash: Id20,
+        magnet_str: String,
+        name: String,
+        destination_path: String,
+        now: u64,
+        opts: AddTorrentOptions,
+        initial_paused: bool,
+    ) {
+        let control = Arc::new(PendingMagnetControl::new(initial_paused));
+        let abort_slot = Arc::new(Mutex::new(None));
+        self.pending_magnets.insert(
+            info_hash,
+            PendingMagnet {
+                info_hash,
+                magnet_url: magnet_str.clone(),
+                name,
+                destination_path,
+                created_at_ms: now,
+                control: control.clone(),
+                abort_handle: abort_slot.clone(),
+            },
+        );
+
+        let session = self.session.clone();
+        let pending_map = self.pending_magnets.clone();
+        let slot_guards = self.bt_slot_guards.clone();
+        let bg_control = Arc::clone(&control);
+        let bg_task = tokio::spawn(async move {
+            if bg_control.is_canceled() {
+                slot_guards.remove(&info_hash);
+                return;
+            }
+            let add_torrent = AddTorrent::from_url(magnet_str);
+            match session.add_torrent(add_torrent, Some(opts)).await {
+                Ok(res) => {
+                    let Some(handle) = res.into_handle() else {
+                        pending_map.remove(&info_hash);
+                        return;
+                    };
+                    let mut applied_paused = initial_paused;
+                    loop {
+                        match bg_control.poll_handoff(applied_paused) {
+                            HandoffStep::Canceled => {
+                                pending_map.remove(&info_hash);
+                                slot_guards.remove(&info_hash);
+                                let _ = session
+                                    .delete(TorrentIdOrHash::Hash(info_hash), false)
+                                    .await;
+                                break;
+                            }
+                            HandoffStep::ApplyPaused(target_paused) => {
+                                if target_paused {
+                                    let _ = session.pause(&handle).await;
+                                } else {
+                                    let _ = session.unpause(&handle).await;
+                                }
+                                applied_paused = target_paused;
+                            }
+                            HandoffStep::HandedOff => {
+                                pending_map.remove(&info_hash);
+                                break;
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    // Release the active concurrency slot when background
+                    // resolution terminates without adding a torrent handle,
+                    // while keeping the pending entry visible to status/remove.
+                    slot_guards.remove(&info_hash);
+                    let ih_str = info_hash.as_string();
+                    tracing::debug!("magnet resolution ended for {ih_str}: {e}");
+                }
+            }
+        });
+        *lock(&abort_slot) = Some(bg_task.abort_handle());
+        if control.is_canceled() {
+            bg_task.abort();
+        }
+    }
+
     pub async fn pause(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
+        if let Some(pending) = self.pending_magnets.get(&info_hash) {
+            match pending.control.record_user_intent(true) {
+                IntentOutcome::PendingHandled => {
+                    return Ok(self.pending_snapshot(&pending, DownloadState::Paused));
+                }
+                IntentOutcome::Canceled => return Err(DownloadError::NotFound),
+                IntentOutcome::HandedOff => {}
+            }
+        }
+
         if let Some(handle) = self.session.get(TorrentIdOrHash::Hash(info_hash)) {
             self.session
                 .pause(&handle)
@@ -244,15 +307,20 @@ impl RqbitBtBackend {
             });
         }
 
-        if let Some(pending) = self.pending_magnets.get(&info_hash) {
-            pending.paused.store(true, Ordering::Release);
-            return Ok(self.pending_snapshot(&pending, DownloadState::Paused));
-        }
-
         Err(DownloadError::NotFound)
     }
 
     pub async fn resume(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
+        if let Some(pending) = self.pending_magnets.get(&info_hash) {
+            match pending.control.record_user_intent(false) {
+                IntentOutcome::PendingHandled => {
+                    return Ok(self.pending_snapshot(&pending, DownloadState::Queued));
+                }
+                IntentOutcome::Canceled => return Err(DownloadError::NotFound),
+                IntentOutcome::HandedOff => {}
+            }
+        }
+
         if let Some(handle) = self.session.get(TorrentIdOrHash::Hash(info_hash)) {
             self.session
                 .unpause(&handle)
@@ -263,11 +331,6 @@ impl RqbitBtBackend {
                 updated_at_ms: now_ms(),
                 ..snapshot
             });
-        }
-
-        if let Some(pending) = self.pending_magnets.get(&info_hash) {
-            pending.paused.store(false, Ordering::Release);
-            return Ok(self.pending_snapshot(&pending, DownloadState::Queued));
         }
 
         Err(DownloadError::NotFound)
@@ -287,7 +350,7 @@ impl RqbitBtBackend {
         };
 
         if let Some((_, p)) = self.pending_magnets.remove(&info_hash) {
-            p.abort_handle.abort();
+            p.abort();
         }
         let _ = self
             .session
@@ -303,7 +366,7 @@ impl RqbitBtBackend {
     pub async fn remove(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
         let snapshot = self.status(info_hash).await?;
         if let Some((_, p)) = self.pending_magnets.remove(&info_hash) {
-            p.abort_handle.abort();
+            p.abort();
         }
         let _ = self
             .session
@@ -319,7 +382,7 @@ impl RqbitBtBackend {
     pub async fn purge(&self, info_hash: Id20) -> Result<DownloadSnapshot> {
         let snapshot = self.status(info_hash).await?;
         if let Some((_, p)) = self.pending_magnets.remove(&info_hash) {
-            p.abort_handle.abort();
+            p.abort();
         }
         let _ = self
             .session
@@ -383,7 +446,7 @@ impl RqbitBtBackend {
         }
 
         if let Some(pending) = self.pending_magnets.get(&info_hash) {
-            let state = if pending.paused.load(Ordering::Acquire) {
+            let state = if pending.is_paused() {
                 DownloadState::Paused
             } else {
                 DownloadState::Queued

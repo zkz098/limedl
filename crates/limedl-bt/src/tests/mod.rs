@@ -1,6 +1,5 @@
 pub use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
 use std::time::Duration;
 
 use librqbit::dht::Id20;
@@ -17,6 +16,7 @@ pub use crate::fixtures::{
     write_torrent_fixture,
 };
 use crate::protocol::DownloadBackend;
+use crate::slot_guard::{SlotArc, SlotAtomicUsize};
 use crate::types::{
     AppSettings, DownloadState, DownloadSummary, StartDownloadRequest, TaskId, TaskKind,
 };
@@ -88,8 +88,8 @@ async fn make_backend() -> (tempfile::TempDir, RqbitBtBackend) {
     settings.bt.listen_port = Some(0);
 
     let event_bus = Arc::new(EventBus::new(16));
-    let active_bt_count = Arc::new(AtomicUsize::new(0));
-    let max_concurrent_bt = Arc::new(AtomicUsize::new(5));
+    let active_bt_count = SlotArc::new(SlotAtomicUsize::new(0));
+    let max_concurrent_bt = SlotArc::new(SlotAtomicUsize::new(5));
 
     let backend = RqbitBtBackend::new(
         &settings,
@@ -124,8 +124,8 @@ async fn make_network_backend() -> (tempfile::TempDir, RqbitBtBackend) {
     settings.bt.listen_port = Some(0);
 
     let event_bus = Arc::new(EventBus::new(16));
-    let active_bt_count = Arc::new(AtomicUsize::new(0));
-    let max_concurrent_bt = Arc::new(AtomicUsize::new(5));
+    let active_bt_count = SlotArc::new(SlotAtomicUsize::new(0));
+    let max_concurrent_bt = SlotArc::new(SlotAtomicUsize::new(5));
 
     let backend = RqbitBtBackend::new(
         &settings,
