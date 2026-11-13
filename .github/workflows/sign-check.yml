@@ -53,5 +53,9 @@ jobs:
         if: env.SIGILUP_SIGNING_KEY != ''
         run: |
           cargo install sigilup-cli --version 0.1.0 --locked
+          if [[ "${SIGILUP_SIGNING_KEY}" =~ ^[[:space:]]*\{ ]]; then
+            printf '%s' "${SIGILUP_SIGNING_KEY}" > "${RUNNER_TEMP}/sigilup.sk.json"
+            export SIGILUP_SIGNING_KEY="${RUNNER_TEMP}/sigilup.sk.json"
+          fi
           sigilup sign README.md
           sigilup guard --pins crates/limedl-native/src/update/sigilup-pins.json README.md

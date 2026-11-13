@@ -883,6 +883,11 @@ jobs:
           # ── sigilup: DSSEv1 hybrid-signed manifest + .hsig envelopes ─────
           # Dual-published alongside `latest-native.json` during the transition
           # so pre-sigilup clients can upgrade seamlessly.
+          if ($env:SIGILUP_SIGNING_KEY.TrimStart().StartsWith('{')) {
+            $sigilupKeyPath = Join-Path $env:RUNNER_TEMP "sigilup.sk.json"
+            [System.IO.File]::WriteAllText($sigilupKeyPath, $env:SIGILUP_SIGNING_KEY)
+            $env:SIGILUP_SIGNING_KEY = $sigilupKeyPath
+          }
           $sigilupAssets = [ordered]@{}
           $releaseUrlBase = "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.VERSION }}"
           foreach ($kv in $assets.GetEnumerator()) {
