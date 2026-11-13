@@ -887,6 +887,15 @@ jobs:
             $sigilupKeyPath = Join-Path $env:RUNNER_TEMP "sigilup.sk.json"
             [System.IO.File]::WriteAllText($sigilupKeyPath, $env:SIGILUP_SIGNING_KEY)
             $env:SIGILUP_SIGNING_KEY = $sigilupKeyPath
+          } elseif (-not $env:SIGILUP_SIGNING_KEY.StartsWith('sigilup-sk:v2:') -and -not (Test-Path $env:SIGILUP_SIGNING_KEY)) {
+            try {
+              $decoded = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:SIGILUP_SIGNING_KEY.Trim()))
+              if ($decoded.TrimStart().StartsWith('{') -or $decoded.StartsWith('sigilup-sk:v2:')) {
+                $sigilupKeyPath = Join-Path $env:RUNNER_TEMP "sigilup.sk.key"
+                [System.IO.File]::WriteAllText($sigilupKeyPath, $decoded)
+                $env:SIGILUP_SIGNING_KEY = $sigilupKeyPath
+              }
+            } catch {}
           }
           $sigilupAssets = [ordered]@{}
           $releaseUrlBase = "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.VERSION }}"

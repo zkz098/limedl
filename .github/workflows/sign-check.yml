@@ -56,6 +56,11 @@ jobs:
           if [[ "${SIGILUP_SIGNING_KEY}" =~ ^[[:space:]]*\{ ]]; then
             printf '%s' "${SIGILUP_SIGNING_KEY}" > "${RUNNER_TEMP}/sigilup.sk.json"
             export SIGILUP_SIGNING_KEY="${RUNNER_TEMP}/sigilup.sk.json"
+          elif [[ ! "${SIGILUP_SIGNING_KEY}" =~ ^sigilup-sk:v2: && ! -f "${SIGILUP_SIGNING_KEY}" ]]; then
+            if decoded="$(printf '%s' "${SIGILUP_SIGNING_KEY}" | base64 -d 2>/dev/null)" && [[ "${decoded}" =~ ^[[:space:]]*(\{|sigilup-sk:v2:) ]]; then
+              printf '%s' "${decoded}" > "${RUNNER_TEMP}/sigilup.sk.key"
+              export SIGILUP_SIGNING_KEY="${RUNNER_TEMP}/sigilup.sk.key"
+            fi
           fi
           sigilup sign README.md
           sigilup guard --pins crates/limedl-native/src/update/sigilup-pins.json README.md
