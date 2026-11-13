@@ -23,6 +23,8 @@ jobs:
       LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY }}
       LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD }}
       LIMEDL_PQC_SIGNING_KEY: ${{ secrets.LIMEDL_PQC_SIGNING_KEY }}
+      SIGILUP_SIGNING_KEY: ${{ secrets.SIGILUP_SIGNING_KEY }}
+      SIGILUP_SIGNING_KEY_PASSWORD: ${{ secrets.SIGILUP_SIGNING_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
@@ -42,7 +44,14 @@ jobs:
           # Only xtask is built here — the registry cache is all that helps.
           cache-targets: false
 
-      - name: Sign and verify a throwaway file
+      - name: Sign and verify a throwaway file (legacy xtask)
         run: |
           cargo xtask sign README.md
           cargo xtask guard README.md
+
+      - name: Sign and verify a throwaway file (sigilup)
+        if: env.SIGILUP_SIGNING_KEY != ''
+        run: |
+          cargo install sigilup-cli --version 0.1.0 --locked
+          sigilup sign README.md
+          sigilup guard --pins crates/limedl-native/src/update/sigilup-pins.json README.md

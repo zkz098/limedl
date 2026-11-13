@@ -747,6 +747,8 @@ jobs:
       LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY }}
       LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD }}
       LIMEDL_PQC_SIGNING_KEY: ${{ secrets.LIMEDL_PQC_SIGNING_KEY }}
+      SIGILUP_SIGNING_KEY: ${{ secrets.SIGILUP_SIGNING_KEY }}
+      SIGILUP_SIGNING_KEY_PASSWORD: ${{ secrets.SIGILUP_SIGNING_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
@@ -760,6 +762,10 @@ jobs:
           toolchain: stable
           cache: false
           rustflags: ""
+
+      - name: Install sigilup CLI
+        shell: bash
+        run: cargo install sigilup-cli --version 0.1.0 --locked
 
       - name: Download Windows desktop artifacts
         if: needs.build-native.result == 'success'
@@ -873,6 +879,43 @@ jobs:
 
           cargo xtask guard @guarded
           if ($LASTEXITCODE -ne 0) { throw "release guard failed" }
+
+          # ── sigilup: DSSEv1 hybrid-signed manifest + .hsig envelopes ─────
+          # Dual-published alongside `latest-native.json` during the transition
+          # so pre-sigilup clients can upgrade seamlessly.
+          $sigilupAssets = [ordered]@{}
+          $releaseUrlBase = "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.VERSION }}"
+          foreach ($kv in $assets.GetEnumerator()) {
+            $fileName = Split-Path -Leaf $kv.Value.path
+            $sigilupAssets[$kv.Key] = [ordered]@{
+              kind = $kv.Value.kind
+              path = $kv.Value.path
+              url = "$releaseUrlBase/$fileName"
+            }
+          }
+          $sigilupAssets | ConvertTo-Json -Depth 4 | Set-Content dist/sigilup-assets.json -Encoding utf8
+
+          $sigilupFiles = @($guarded | Where-Object { $_ -ne "dist/latest-native.json" })
+          sigilup sign @sigilupFiles
+          if ($LASTEXITCODE -ne 0) { throw "sigilup signing failed" }
+
+          $epoch = [int](git rev-list --count HEAD)
+          sigilup manifest `
+            --version "${{ steps.version.outputs.VERSION }}" `
+            --epoch $epoch `
+            --expires-in-days 180 `
+            --assets-json dist/sigilup-assets.json `
+            --notes @'
+          ${{ needs.changelog.outputs.body }}
+          '@ `
+            --out-file dist/latest.hsig.json
+          if ($LASTEXITCODE -ne 0) { throw "sigilup manifest generation failed" }
+
+          sigilup guard `
+            --pins crates/limedl-native/src/update/sigilup-pins.json `
+            --manifest dist/latest.hsig.json `
+            @sigilupFiles
+          if ($LASTEXITCODE -ne 0) { throw "sigilup release guard failed" }
         env:
           HAS_WINDOWS: ${{ needs.build-native.result == 'success' }}
           HAS_MACOS: ${{ needs.build-native-macos.result == 'success' }}
@@ -887,9 +930,11 @@ jobs:
         with:
           preserve_order: true
           files: |
+            dist/latest.hsig.json
             dist/latest-native.json
             dist/latest-native.json.sig
             dist/latest-native.json.pqc.sig
+            dist/*.hsig
             dist/limedl-native-v*-windows-x86_64-setup.exe.sig
             dist/limedl-native-v*-windows-x86_64-setup.exe.pqc.sig
             dist/limedl-native-v*-windows-x86_64-portable.zip.sig

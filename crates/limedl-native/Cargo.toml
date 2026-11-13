@@ -117,11 +117,7 @@ arboard = "3.7"
 png = "0.18"
 sys-locale = "0.3"
 reqwest = { workspace = true }
-minisign-verify = { workspace = true }
-ml-dsa = { workspace = true }
-base64 = { workspace = true }
-sha2 = { workspace = true }
-self-replace = "1.5"
+sigilup = { version = "0.1", features = ["reqwest", "self-replace"] }
 percent-encoding = { workspace = true }
 
 [target.'cfg(windows)'.build-dependencies]
@@ -135,7 +131,6 @@ embed-resource = "3"
 
 [target.'cfg(windows)'.dependencies]
 windows-registry = "0.6"
-zip = { version = "9", default-features = false, features = ["deflate"] }
 windows = { version = "0.62", features = [
   "Foundation",
   "ApplicationModel",
@@ -163,12 +158,6 @@ windows = { version = "0.62", features = [
 # so the pin stands until a dependency refresh has a reason to move it.
 windows-future = { version = "0.3", default-features = false, features = ["std"] }
 
-[target.'cfg(not(windows))'.dependencies]
-# `zlib-rs` (pure Rust, no C) replaces `miniz_oxide` as flate2's backend; the
-# backend is a workspace-wide choice, see `crates/limedl-testkit/Cargo.toml`.
-flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
-tar = "0.4"
-
 # Sleep inhibition is a per-platform OS API, so each backend's dependency is
 # scoped to its own target and stays out of the other graphs:
 #
@@ -195,11 +184,7 @@ slint-build = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-limedl-testkit = { path = "../limedl-testkit" }
-# Signing side of the updater's minisign key pair, used only to build a valid
-# artifact signature in `update::tests`; the shipped verifier stays
-# `minisign-verify`.
-minisign = "0.10"
+sigilup = { version = "0.1", features = ["sign"] }
 # In-process UI testing: drives the real `MainWindow` (element queries, simulated
 # clicks and keystrokes, accessibility actions) with no window and no event loop.
 #

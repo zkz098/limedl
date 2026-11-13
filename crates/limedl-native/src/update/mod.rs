@@ -1,80 +1,70 @@
-// Self-update integration for limedl-native.
+// Self-update integration for limedl-native (backed by `sigilup`).
 //
 // Three distribution channels with separate update paths:
 //
 // - **MSIX / Microsoft Store**: the OS signs and updates the package. We only
 //   surface `StoreContext` update checks/installs (see [`store`]). Package
 //   identity (`Package::Current()`) is the discriminator.
-// - **GitHub installer** (NSIS setup.exe, per-user): download → minisign
-//   verify → spawn the installer in passive mode; the installer handles
-//   stopping the running app and relaunching.
-// - **GitHub portable** (single exe zip / linux tar.gz): download → verify →
-//   `self_replace` in place → relaunch.
+// - **GitHub installer** (NSIS setup.exe, per-user): download + streaming
+//   `BLAKE3 + SHA-512` verification via `sigilup` -> spawn the installer in
+//   passive mode; the installer handles stopping the running app and
+//   relaunching.
+// - **GitHub portable** (single exe zip / linux & macOS tar.gz): download +
+//   streaming verification -> `sigilup::replace::install_portable_update`
+//   (extract + `self_replace` + macOS `.app` ad-hoc re-sign) -> relaunch.
 //
-// All GitHub-channel artifacts are described by `latest-native.json`, hosted
-// as a release asset and reached through the permanently-named
-// `releases/latest/download/...` URL (GitHub excludes draft/prerelease
-// releases there, so stable users never see rc/alpha builds).
-//
-// Trust chain, each step checked before the next one happens:
-//
-// 1. `latest-native.json.sig` (minisign, written by `cargo xtask sign`) is
-//    verified over the exact manifest bytes, so a tampered manifest cannot even
-//    choose a download URL.
-// 2. Every artifact `url` must be a GitHub release download of this repo for the
-//    version the manifest advertises.
-// 3. The artifact's `signature` field is base64(minisign signature text) over the
-//    exact downloaded bytes, verified against [`PUBKEY_B64`].
-//
-// The signing key lives in the CI secret `LIMEDL_SIGNING_KEY`;
-// `cargo xtask generate-key` creates a new pair and `cargo xtask guard` (run by
-// the release job) keeps that secret and [`PUBKEY_B64`] in sync.
+// All GitHub-channel artifacts are described by `latest.hsig.json`, a
+// self-contained DSSEv1 hybrid-signed (`Ed25519 + ML-DSA-65`) manifest hosted as
+// a release asset and reached through `releases/latest/download/latest.hsig.json`
+// (GitHub excludes draft/prerelease releases there, so stable users never see
+// rc/alpha builds).
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use anyhow::{Context, Result, anyhow, bail};
-use base64::Engine as _;
+use anyhow::{Context, Result, bail};
 use limedl_core::http_client_factory::configure_client_builder;
 use limedl_core::types::AppSettings;
-use serde::Deserialize;
+use sigilup::manifest::{FileEpochStore, KeyPinFile, semver};
+use sigilup::transport::ReqwestUpdater;
+use sigilup::{
+    EpochStore, TrustStore, UpdateDecision, UpdateEvaluator, UrlPolicy, VerificationPolicy,
+    VerifyContext,
+};
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-/// minisign public key (base64 of the key file text). Public by design — the
-/// private key only lives in the CI secret `LIMEDL_SIGNING_KEY`.
+/// Embedded `sigilup` trust-root pin file (`Ed25519 + ML-DSA-65`).
 ///
-/// `cargo xtask guard` (release job) refuses to ship a build whose constant does
-/// not match the key the artifacts were signed with, so rotating the secret
-/// cannot silently break the update channel. Rotation runbook:
-/// `docs/update-signing-key.md` (keynum E0CB82693CECD49E).
+/// The private signing keys live in CI secrets (`SIGILUP_SIGNING_KEY` /
+/// `SIGILUP_SIGNING_KEY_PASSWORD`); `sigilup guard` in the release workflow
+/// refuses to ship a build whose signing key is not pinned here.
+const EMBEDDED_PINS_JSON: &str = include_str!("sigilup-pins.json");
+
+/// Legacy minisign public key retained solely for `cargo xtask guard` while
+/// `release.yml` dual-publishes `latest-native.json` for older clients during
+/// the `sigilup` migration window. Remove in the post-transition cleanup.
+#[allow(dead_code)]
 const PUBKEY_B64: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUwQ0I4MjY5M0NFQ0Q0OUUKUldTZTFPdzhhWUxMNEl5MGVSRk4rNDB1bXF4ZDJreGxQb3lnMUFxSmRQQmJsQk1TTURPaEt3KzcK";
 
-/// ML-DSA-65 post-quantum public key (raw 1952 bytes, standard base64).
-/// Public by design — the 32-byte seed private key only lives in the CI secret
-/// `LIMEDL_PQC_SIGNING_KEY`.
-///
-/// `cargo xtask guard` refuses to ship a build whose constant does not match
-/// the key derived from `LIMEDL_PQC_SIGNING_KEY`.
+/// Legacy ML-DSA-65 public key retained solely for `cargo xtask guard` during
+/// the `latest-native.json` dual-publish transition window.
+#[allow(dead_code)]
 const PQC_PUBKEY_B64: &str = "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";
 
-/// Repo hosting the release assets; must match the `--repo` default of
-/// `cargo xtask manifest` and the release workflow.
+/// Repo hosting the release assets.
 const RELEASE_REPO: &str = "zkz098/limedl";
 
-/// Permanent URLs that always resolve to the newest stable manifest assets
+/// Permanent URL prefix for release downloads of this repository.
+const RELEASE_DOWNLOAD_PREFIX: &str = "https://github.com/zkz098/limedl/releases/download/";
+
+/// Permanent URL that always resolves to the newest stable signed manifest
 /// (GitHub excludes draft/prerelease releases there, so stable users never see
 /// rc/alpha builds).
 const MANIFEST_URL: &str =
-    "https://github.com/zkz098/limedl/releases/latest/download/latest-native.json";
-const MANIFEST_SIG_URL: &str =
-    "https://github.com/zkz098/limedl/releases/latest/download/latest-native.json.sig";
-const MANIFEST_PQC_SIG_URL: &str =
-    "https://github.com/zkz098/limedl/releases/latest/download/latest-native.json.pqc.sig";
+    "https://github.com/zkz098/limedl/releases/latest/download/latest.hsig.json";
 
-/// Upper bound for an update download. Installers and portable archives are
-/// tens of megabytes; anything beyond this is a broken or hostile manifest.
+/// Upper bound for an update download (512 MiB).
 const MAX_UPDATE_BYTES: u64 = 512 * 1024 * 1024;
 
 /// Subdirectory (under the app state dir) used for update downloads/staging.
@@ -88,70 +78,10 @@ pub enum InstallKind {
     /// Packaged MSIX installed via the Microsoft Store (or sideloaded).
     Store,
     /// Per-user NSIS installer (registry Uninstall entry present).
+    #[cfg_attr(not(windows), allow(dead_code))]
     Installer,
     /// Portable single-executable distribution.
     Portable,
-}
-
-/// One platform entry of `latest-native.json`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct PlatformAsset {
-    /// `"installer"` or `"portable"`.
-    pub kind: String,
-    /// Direct download URL (browser_download_url — no API quota consumed).
-    pub url: String,
-    /// base64(minisign signature text) over the exact artifact bytes.
-    pub signature: String,
-    /// base64(ML-DSA-65 post-quantum signature bytes) over the exact artifact bytes.
-    #[serde(default, rename = "pqcSignature")]
-    pub pqc_signature: Option<String>,
-    /// Optional secondary integrity check (lowercase hex sha256).
-    #[serde(default)]
-    pub sha256: Option<String>,
-}
-
-/// Parsed `latest-native.json`.
-#[derive(Debug, Deserialize)]
-pub struct UpdateManifest {
-    pub version: String,
-    #[serde(default)]
-    pub notes: String,
-    #[serde(default)]
-    pub platforms: HashMap<String, PlatformAsset>,
-}
-
-impl UpdateManifest {
-    /// True when the release carries any asset for this OS/arch (any install
-    /// kind). Used to tell "this release simply does not serve your platform"
-    /// apart from "your distribution channel is missing from it".
-    fn has_assets_for(&self, platform_base: &str) -> bool {
-        let prefixed = format!("{platform_base}-");
-        self.platforms
-            .keys()
-            .any(|key| key == platform_base || key.starts_with(&prefixed))
-    }
-}
-
-/// Release artifacts must be this repo's GitHub release downloads for exactly
-/// the advertised version.
-///
-/// The manifest is signed, so this is defence in depth: it keeps a manifest bug
-/// (or a future mirror/fork) from pointing the updater at an arbitrary URL and
-/// making clients download unrelated bytes before the signature check fails.
-fn validate_asset_url(url: &str, version: &str) -> Result<()> {
-    let prefix = format!("https://github.com/{RELEASE_REPO}/releases/download/v{version}/");
-    let Some(file_name) = url.strip_prefix(&prefix) else {
-        bail!("artifact URL '{url}' is not under '{prefix}'");
-    };
-    let sane = !file_name.is_empty()
-        && file_name.len() <= 128
-        && file_name
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'+'));
-    if !sane {
-        bail!("artifact URL '{url}' does not end in a plain file name");
-    }
-    Ok(())
 }
 
 /// A newer release usable for this install kind.
@@ -159,7 +89,7 @@ fn validate_asset_url(url: &str, version: &str) -> Result<()> {
 pub struct AvailableUpdate {
     pub version: String,
     pub notes: String,
-    pub asset: PlatformAsset,
+    pub inner: sigilup::AvailableUpdate,
 }
 
 /// Result of installing a verified update.
@@ -215,161 +145,148 @@ fn installer_registry_entry_exists() -> bool {
     windows_registry::CURRENT_USER.open(UNINSTALL_KEY).is_ok()
 }
 
-/// The OS/arch half of a manifest key (`windows-x86_64`, `linux-aarch64`, …).
-fn platform_base() -> String {
-    let os = match std::env::consts::OS {
-        "windows" => "windows",
-        "macos" => "darwin",
-        _ => "linux",
-    };
-    format!("{}-{}", os, std::env::consts::ARCH)
+/// Expected `(channel, expected_kind)` pair for [`UpdateEvaluator`].
+fn evaluator_channel_and_kind(kind: InstallKind) -> (Option<&'static str>, &'static str) {
+    match kind {
+        InstallKind::Installer => (None, "installer"),
+        InstallKind::Portable | InstallKind::Store => (Some("portable"), "portable"),
+    }
 }
 
-/// The manifest key for this platform + install kind.
+/// Release artifacts must be this repo's GitHub release downloads for exactly
+/// the advertised version.
 ///
-/// `windows-x86_64` → installer; `windows-x86_64-portable` → portable zip;
-/// `linux-x86_64-portable` / `darwin-aarch64-portable` → tar.gz.
-fn manifest_key(kind: InstallKind) -> String {
-    let base = platform_base();
-    match kind {
-        InstallKind::Installer => base,
-        InstallKind::Portable | InstallKind::Store => format!("{base}-portable"),
+/// Defence in depth on top of `sigilup`'s `UrlPolicy::with_prefixes`: keeps a
+/// manifest bug from pointing at a different tag's asset directory.
+fn validate_asset_url(url: &str, version: &str) -> Result<()> {
+    let prefix = format!("https://github.com/{RELEASE_REPO}/releases/download/v{version}/");
+    let Some(file_name) = url.strip_prefix(&prefix) else {
+        bail!("artifact URL '{url}' is not under '{prefix}'");
+    };
+    let sane = !file_name.is_empty()
+        && file_name.len() <= 128
+        && file_name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'+'));
+    if !sane {
+        bail!("artifact URL '{url}' does not end in a plain file name");
     }
+    Ok(())
+}
+
+// ── Trust store & evaluator ──────────────────────────────────────────────────
+
+fn load_pin_file() -> Result<KeyPinFile> {
+    let json = {
+        #[cfg(test)]
+        if let Some(override_json) = TEST_PINS_JSON.get() {
+            override_json.as_str()
+        } else {
+            EMBEDDED_PINS_JSON
+        }
+        #[cfg(not(test))]
+        EMBEDDED_PINS_JSON
+    };
+    KeyPinFile::from_json_str(json).context("parse embedded sigilup-pins.json")
+}
+
+#[cfg(test)]
+static TEST_PINS_JSON: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+fn build_evaluator(
+    trust_store: TrustStore,
+    current_version: semver::Version,
+    kind: InstallKind,
+    url_policy: UrlPolicy,
+) -> UpdateEvaluator {
+    let (channel, expected_kind) = evaluator_channel_and_kind(kind);
+    let mut evaluator = UpdateEvaluator::new(trust_store, current_version)
+        .with_policy(VerificationPolicy::strict())
+        .with_url_policy(url_policy)
+        .with_expected_kind(expected_kind);
+    if let Some(ch) = channel {
+        evaluator = evaluator.with_channel(ch);
+    }
+    evaluator
 }
 
 // ── Check for update ─────────────────────────────────────────────────────────
 
-/// Fetch the latest manifest and return a newer update usable by this
+/// Fetch the latest signed manifest and return a newer update usable by this
 /// install kind, or `None` when already up to date / no matching asset.
-///
-/// `settings` supplies the proxy configuration for the request (see
-/// [`http_client`]): the update channel used to ignore the user's proxy
-/// entirely, which made checks fail behind a proxy that the download engine
-/// itself could reach.
-pub async fn check_for_update(settings: &AppSettings) -> Result<Option<AvailableUpdate>> {
+pub async fn check_for_update(
+    settings: &AppSettings,
+    state_dir: &Path,
+) -> Result<Option<AvailableUpdate>> {
     let kind = detect_install_kind();
     if kind == InstallKind::Store {
         bail!("store installs update via Microsoft Store; use store::check_update_available");
     }
 
-    let manifest = fetch_manifest(settings).await?;
-    let current = env!("CARGO_PKG_VERSION");
-    if !is_newer_version(&manifest.version, current) {
-        return Ok(None);
-    }
+    let pins = load_pin_file()?;
+    let current = semver::Version::parse(env!("CARGO_PKG_VERSION"))
+        .context("parse CARGO_PKG_VERSION as semver")?;
+    let mut evaluator = build_evaluator(
+        pins.to_trust_store(),
+        current,
+        kind,
+        UrlPolicy::with_prefixes([RELEASE_DOWNLOAD_PREFIX]),
+    );
+    let mut epoch_store = FileEpochStore::new(state_dir.join("sigilup-epoch"));
+    let updater =
+        ReqwestUpdater::new(http_client(settings)?).with_max_artifact_bytes(MAX_UPDATE_BYTES);
+    let mut ctx = VerifyContext::at_unix(unix_now());
+    ctx.min_security_epoch = pins.min_security_epoch;
 
-    let key = manifest_key(kind);
-    let asset = match manifest.platforms.get(&key) {
-        Some(asset) => asset.clone(),
-        None => {
-            let base = platform_base();
-            if !manifest.has_assets_for(&base) {
-                // The release carries nothing for this OS/arch at all — e.g. the
-                // desktop client is Windows-only today. That is not a failure
-                // the user can act on, so report "no update" instead.
-                tracing::debug!(
-                    "update manifest for v{} has no '{base}' assets; skipping",
-                    manifest.version
-                );
-                return Ok(None);
-            }
-            bail!(
-                "release v{} has no '{key}' asset for this distribution channel (available: {:?})",
-                manifest.version,
-                manifest.platforms.keys().collect::<Vec<_>>()
-            );
-        }
-    };
-    let expected_kind = if kind == InstallKind::Installer {
-        "installer"
-    } else {
-        "portable"
-    };
-    if asset.kind != expected_kind {
-        bail!(
-            "asset '{}' is kind '{}', expected '{expected_kind}'",
-            key,
-            asset.kind
-        );
-    }
-    validate_asset_url(&asset.url, &manifest.version).with_context(|| {
-        format!(
-            "release v{} declares an unusable artifact URL",
-            manifest.version
-        )
-    })?;
+    let decision = check_for_update_with(
+        &updater,
+        MANIFEST_URL,
+        &mut evaluator,
+        &mut epoch_store,
+        ctx,
+        true,
+    )
+    .await?;
 
-    Ok(Some(AvailableUpdate {
-        version: manifest.version,
-        notes: manifest.notes,
-        asset,
-    }))
+    Ok(decision)
 }
 
-/// Fetch the manifest, verify its signature *before* parsing it, and only then
-/// hand the bytes to serde.
-///
-/// The signature is a separate release asset (`latest-native.json.sig`, written
-/// by `cargo xtask sign`). Verifying it first means a tampered or truncated
-/// manifest is rejected without ever influencing a download URL.
-async fn fetch_manifest(settings: &AppSettings) -> Result<UpdateManifest> {
-    let client = http_client(settings)?;
-    let bytes = fetch_asset(&client, MANIFEST_URL, "update manifest").await?;
-    let sig_text = fetch_text(&client, MANIFEST_SIG_URL)
+async fn check_for_update_with<S: EpochStore>(
+    updater: &ReqwestUpdater,
+    manifest_url: &str,
+    evaluator: &mut UpdateEvaluator,
+    epoch_store: &mut S,
+    ctx: VerifyContext,
+    enforce_version_url_prefix: bool,
+) -> Result<Option<AvailableUpdate>> {
+    match updater
+        .check_for_update::<serde_json::Value, S>(manifest_url, evaluator, epoch_store, ctx)
         .await
-        .context("update manifest signature is missing — refusing an unsigned manifest")?;
-    verify_signature_text(&bytes, &sig_text)
-        .context("update manifest signature verification failed")?;
-
-    if !updater_pqc_pubkey_b64().is_empty() {
-        let pqc_sig_text = fetch_text(&client, MANIFEST_PQC_SIG_URL)
-            .await
-            .context(
-                "update manifest ML-DSA-65 post-quantum signature is missing — refusing an unsigned manifest",
-            )?;
-        verify_pqc_signature_text(&bytes, &pqc_sig_text)
-            .context("update manifest ML-DSA-65 post-quantum signature verification failed")?;
-    }
-
-    serde_json::from_slice(&bytes).context("parse update manifest")
-}
-
-async fn fetch_asset(client: &reqwest::Client, url: &str, what: &str) -> Result<Vec<u8>> {
-    let resp = client
-        .get(url)
-        .send()
-        .await
-        .with_context(|| format!("fetch {what}"))?
-        .error_for_status()
-        .with_context(|| format!("{what} request failed"))?;
-    if let Some(len) = resp.content_length()
-        && len > MAX_UPDATE_BYTES
+        .context("check for update via sigilup")?
     {
-        bail!("{what} is {len} bytes, above the {MAX_UPDATE_BYTES} byte limit");
+        UpdateDecision::UpToDate => Ok(None),
+        UpdateDecision::UpdateAvailable(inner) => {
+            let version = inner.version.to_string();
+            if enforce_version_url_prefix {
+                validate_asset_url(&inner.asset.url, &version).with_context(|| {
+                    format!("release v{version} declares an unusable artifact URL")
+                })?;
+            }
+            let notes = inner.notes.clone();
+            Ok(Some(AvailableUpdate {
+                version,
+                notes,
+                inner: *inner,
+            }))
+        }
     }
-    let bytes = resp.bytes().await.with_context(|| format!("read {what}"))?;
-    if bytes.len() as u64 > MAX_UPDATE_BYTES {
-        bail!("{what} exceeded the {MAX_UPDATE_BYTES} byte limit");
-    }
-    Ok(bytes.to_vec())
 }
 
-async fn fetch_text(client: &reqwest::Client, url: &str) -> Result<String> {
-    let bytes = fetch_asset(client, url, "text asset").await?;
-    String::from_utf8(bytes).context("asset is not UTF-8")
-}
-
-/// Build the HTTP client used for every update request (manifest, signature,
-/// artifact).
+/// Build the HTTP client used for every update request (manifest, artifact).
 ///
-/// It goes through limedl-core's [`configure_client_builder`] so the user's
-/// proxy setting applies to updates exactly as it does to downloads:
-/// `Manual` uses `proxy.manual_url`, `Disabled` clears the client's system
-/// proxy (`auto_sys_proxy`), and `System` leaves reqwest's system detection in
-/// place. The rest of the shared configuration (redirect policy, timeouts,
-/// pooling) comes along too; only the User-Agent is overridden so the update
-/// traffic identifies itself instead of posing as the browser UA the download
-/// engine uses.
+/// Goes through limedl-core's [`configure_client_builder`] so the user's proxy
+/// setting (`Manual` / `Disabled` / `System`) applies to updates just as it
+/// does to downloads.
 fn http_client(settings: &AppSettings) -> Result<reqwest::Client> {
     configure_client_builder(reqwest::Client::builder(), settings)
         .context("configure update http client")?
@@ -380,8 +297,8 @@ fn http_client(settings: &AppSettings) -> Result<reqwest::Client> {
 
 // ── Download + verify ────────────────────────────────────────────────────────
 
-/// Download the update artifact, verify integrity (sha256 when present) and
-/// authenticity (minisign, always), returning the verified file path.
+/// Stream-download the update artifact and verify `size + BLAKE3 + SHA-512` in
+/// flight against the signed manifest digest, returning the verified file path.
 ///
 /// `progress` receives `(bytes_downloaded, total_bytes_if_known)`.
 pub async fn download_and_verify(
@@ -391,79 +308,23 @@ pub async fn download_and_verify(
     progress: &(dyn Fn(u64, Option<u64>) + Send + Sync),
 ) -> Result<PathBuf> {
     let work_dir = update_work_dir(state_dir);
-    tokio::fs::create_dir_all(&work_dir)
+    let updater =
+        ReqwestUpdater::new(http_client(settings)?).with_max_artifact_bytes(MAX_UPDATE_BYTES);
+    download_and_verify_with(&updater, update, &work_dir, progress).await
+}
+
+async fn download_and_verify_with(
+    updater: &ReqwestUpdater,
+    update: &AvailableUpdate,
+    work_dir: &Path,
+    progress: &(dyn Fn(u64, Option<u64>) + Send + Sync),
+) -> Result<PathBuf> {
+    updater
+        .download_and_verify(&update.inner, work_dir, |done, total| {
+            progress(done, total);
+        })
         .await
-        .with_context(|| format!("create update work dir {}", work_dir.display()))?;
-
-    let file_name = update
-        .asset
-        .url
-        .rsplit('/')
-        .next()
-        .filter(|s| !s.is_empty())
-        .unwrap_or("limedl-update.bin");
-    let dest = work_dir.join(file_name);
-
-    let client = http_client(settings)?;
-    let mut resp = client
-        .get(&update.asset.url)
-        .send()
-        .await
-        .context("download update")?
-        .error_for_status()
-        .context("update download request failed")?;
-    let total = resp.content_length();
-    if let Some(total) = total
-        && total > MAX_UPDATE_BYTES
-    {
-        bail!(
-            "update artifact is {total} bytes, above the {MAX_UPDATE_BYTES} byte limit \
-             (refusing to download)"
-        );
-    }
-
-    let mut file = tokio::fs::File::create(&dest)
-        .await
-        .with_context(|| format!("create {}", dest.display()))?;
-    use sha2::Digest;
-    use tokio::io::AsyncWriteExt;
-    let mut hasher = sha2::Sha256::new();
-    let mut downloaded: u64 = 0;
-    while let Some(chunk) = resp.chunk().await.context("read update download stream")? {
-        file.write_all(&chunk)
-            .await
-            .context("write update download")?;
-        hasher.update(&chunk);
-        downloaded += chunk.len() as u64;
-        if downloaded > MAX_UPDATE_BYTES {
-            bail!("update download exceeded the {MAX_UPDATE_BYTES} byte limit — aborting");
-        }
-        progress(downloaded, total);
-    }
-    file.flush().await.ok();
-    drop(file);
-
-    let bytes = tokio::fs::read(&dest)
-        .await
-        .with_context(|| format!("re-read {}", dest.display()))?;
-    if let Some(expected) = update.asset.sha256.as_deref() {
-        verify_sha256(&bytes, expected).context("sha256 mismatch (update download corrupted?)")?;
-    }
-    verify_signature(&bytes, &update.asset.signature)
-        .context("minisign signature verification failed (update not authentic)")?;
-
-    if !updater_pqc_pubkey_b64().is_empty() {
-        let pqc_sig = update.asset.pqc_signature.as_deref().ok_or_else(|| {
-            anyhow!(
-                "update asset is missing ML-DSA-65 post-quantum signature (pqcSignature) — refusing downgrade"
-            )
-        })?;
-        verify_pqc_signature(&bytes, pqc_sig).context(
-            "ML-DSA-65 post-quantum signature verification failed (update not authentic)",
-        )?;
-    }
-
-    Ok(dest)
+        .context("download and verify update artifact")
 }
 
 /// Install an already-verified artifact for the current install kind.
@@ -490,169 +351,28 @@ fn install_via_installer(_file: &Path) -> Result<InstallOutcome> {
     bail!("installer channel is only supported on Windows")
 }
 
-/// Portable: extract the executable from the archive and replace in place.
+/// Portable: extract the executable from the verified archive and replace in place.
 fn install_via_self_replace(
     update: &AvailableUpdate,
     verified_file: &Path,
 ) -> Result<InstallOutcome> {
-    #[cfg(target_os = "linux")]
-    if std::env::var_os("APPIMAGE").is_some() {
-        bail!(
-            "running inside an AppImage — in-place self-update of the mounted bundle is not \
-             supported; download the new .AppImage release directly"
-        );
-    }
-
-    let Some(new_exe) = extract_executable(update, verified_file)? else {
-        bail!(
-            "portable archive from v{} contains no matching executable",
-            update.version
-        );
-    };
-    self_replace::self_replace(&new_exe).with_context(|| {
-        format!(
-            "replace running executable (in-place self-update) — the app may live in a \
-             location this user cannot write (e.g. /Applications); move it to a user-writable \
-             folder and update again. New binary: {}",
-            new_exe.display()
-        )
-    })?;
-    // macOS bundles are only launchable while their code signature covers the
-    // bytes on disk, and replacing the binary invalidates it (the process is
-    // only alive because the old image is still mapped). Re-sign before anything
-    // can launch the bundle again — a self-update that skips this leaves an app
-    // the OS refuses to start.
-    #[cfg(target_os = "macos")]
-    resign_macos_bundle_after_replace()?;
-    if let Some(parent) = new_exe.parent() {
-        // Remove leftovers (archive stays behind; safe to ignore errors).
-        let _ = std::fs::remove_dir_all(parent);
-    }
-    Ok(InstallOutcome::ReplacedRestartPending)
-}
-
-/// Ad-hoc re-sign the `.app` bundle that contains the running executable.
-///
-/// Ad-hoc (`--sign -`) is the same identity the release packaging and local
-/// `cargo build` output use, so this reproduces the signature the running build
-/// had. No-op when the executable is not inside a bundle (plain binary from a
-/// tarball).
-#[cfg(target_os = "macos")]
-fn resign_macos_bundle_after_replace() -> Result<()> {
-    let exe = std::env::current_exe().context("resolve current executable")?;
-    let Some(bundle) = exe
-        .ancestors()
-        .find(|p| p.extension().is_some_and(|ext| ext == "app"))
-    else {
-        // Plain tarball install: no signature to keep valid.
-        return Ok(());
-    };
-
-    let output = std::process::Command::new("codesign")
-        .args(["--force", "--sign", "-"])
-        .arg(bundle)
-        .output()
-        .context("run codesign (ad-hoc re-sign after self-update)")?;
-    if !output.status.success() {
-        bail!(
-            "codesign failed to re-sign {}: {}",
-            bundle.display(),
-            String::from_utf8_lossy(&output.stderr).trim()
-        );
-    }
-    tracing::info!("自更新完成：已为 {} 重新做 ad-hoc 签名", bundle.display());
-    Ok(())
-}
-
-/// Extract the executable member from the verified archive.
-///
-/// Windows portable archives are zips containing `limedl-native.exe`;
-/// linux/macOS archives are `.tar.gz` containing `limedl-native` — the bundle
-/// member when the macOS release ships an `.app` (`<name>.app/Contents/MacOS/limedl-native`)
-/// is matched by file name as well, so the plain-binary member keeps working.
-#[allow(clippy::needless_return)]
-fn extract_executable(update: &AvailableUpdate, verified_file: &Path) -> Result<Option<PathBuf>> {
     let staging = verified_file
         .parent()
-        .ok_or_else(|| anyhow!("archive has no parent dir"))?
+        .ok_or_else(|| anyhow::anyhow!("verified archive has no parent dir"))?
         .join(format!("extracted-{}", update.version));
-    std::fs::create_dir_all(&staging).context("create extraction dir")?;
+    let exe_name = format!("limedl-native{}", std::env::consts::EXE_SUFFIX);
 
-    #[cfg(windows)]
-    {
-        let archive = std::fs::File::open(verified_file).context("open downloaded archive")?;
-        let mut zip = zip::ZipArchive::new(std::io::BufReader::new(archive))
-            .context("open portable zip archive")?;
-        // Take the first *.exe member — portable zips ship exactly one.
-        let exe_index = (0..zip.len())
-            .find(|&i| {
-                zip.name_for_index(i)
-                    .and_then(|r| r.ok())
-                    .map(|n| n.ends_with(".exe"))
-                    .unwrap_or(false)
-            })
-            .context("no .exe inside portable zip")?;
-        let member_name = zip
-            .name_for_index(exe_index)
-            .and_then(|r| r.ok())
-            .map(|n| n.to_string())
-            .unwrap_or_else(|| "limedl-native.exe".to_string());
-        let out_path = staging.join(
-            Path::new(&member_name)
-                .file_name()
-                .unwrap_or(std::ffi::OsStr::new("limedl-native.exe")),
-        );
-        let src = zip.by_index(exe_index)?;
-        let mut bounded = std::io::Read::take(src, MAX_UPDATE_BYTES + 1);
-        let mut out = std::fs::File::create(&out_path)?;
-        let copied = std::io::copy(&mut bounded, &mut out)?;
-        if copied > MAX_UPDATE_BYTES {
-            drop(out);
-            let _ = std::fs::remove_file(&out_path);
-            bail!(
-                "extracted executable exceeded the {MAX_UPDATE_BYTES} byte limit (refusing to unpack)"
-            );
-        }
-        return Ok(Some(out_path));
-    }
+    let res = sigilup::replace::install_portable_update(
+        verified_file,
+        &staging,
+        &exe_name,
+        MAX_UPDATE_BYTES,
+    )
+    .context("install portable update via sigilup");
+    let _ = std::fs::remove_dir_all(&staging);
+    res?;
 
-    #[cfg(not(windows))]
-    {
-        let _ = update;
-        let archive = std::fs::File::open(verified_file).context("open downloaded archive")?;
-        let gz = flate2::read::GzDecoder::new(std::io::BufReader::new(archive));
-        let mut tar = tar::Archive::new(gz);
-        for entry in tar.entries().context("read tar entries")? {
-            let entry = entry.context("read tar entry")?;
-            let path = entry.path().context("tar entry path")?.into_owned();
-            let is_exec = path.file_name().is_some_and(|n| n == "limedl-native");
-            if !is_exec {
-                continue;
-            }
-            let out_path = staging.join("limedl-native");
-            let mut bounded = std::io::Read::take(entry, MAX_UPDATE_BYTES + 1);
-            let mut out = std::fs::File::create(&out_path)?;
-            let copied = std::io::copy(&mut bounded, &mut out)?;
-            if copied > MAX_UPDATE_BYTES {
-                drop(out);
-                let _ = std::fs::remove_file(&out_path);
-                bail!(
-                    "extracted executable exceeded the {MAX_UPDATE_BYTES} byte limit (refusing to unpack)"
-                );
-            }
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                // Owner-only: the binary lives in the per-user update work dir
-                // and is executed by this same user, so group/other access is
-                // unnecessary surface on a file that later replaces the
-                // running executable.
-                let _ = std::fs::set_permissions(&out_path, std::fs::Permissions::from_mode(0o700));
-            }
-            return Ok(Some(out_path));
-        }
-        return Ok(None);
-    }
+    Ok(InstallOutcome::ReplacedRestartPending)
 }
 
 // ── Restart ──────────────────────────────────────────────────────────────────
@@ -735,170 +455,6 @@ fn unix_now() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
-}
-
-/// The minisign public key used to authenticate update artifacts.
-///
-/// Production builds always use [`PUBKEY_B64`]. Tests that need a *valid*
-/// artifact signature generate a throwaway key pair and install its public
-/// key here; nextest gives every test its own process, so the override cannot
-/// leak into another test.
-fn updater_pubkey_b64() -> &'static str {
-    #[cfg(test)]
-    if let Some(pubkey) = TEST_MINISIGN_PUBKEY.get() {
-        return pubkey.as_str();
-    }
-    PUBKEY_B64
-}
-
-#[cfg(test)]
-static TEST_MINISIGN_PUBKEY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-
-fn updater_pqc_pubkey_b64() -> &'static str {
-    #[cfg(test)]
-    if let Some(pubkey) = TEST_PQC_PUBKEY.get() {
-        return pubkey.as_str();
-    }
-    PQC_PUBKEY_B64
-}
-
-#[cfg(test)]
-static TEST_PQC_PUBKEY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-
-// ── Crypto verification ──────────────────────────────────────────────────────
-
-fn verify_signature(data: &[u8], signature_b64: &str) -> Result<()> {
-    let sig_text = base64::engine::general_purpose::STANDARD
-        .decode(signature_b64.trim())
-        .context("decode artifact signature")?;
-    verify_signature_text(data, std::str::from_utf8(&sig_text)?)
-}
-
-/// Verify a signature given as the plain minisign `.sig` text (what
-/// `cargo xtask sign` writes next to each artifact).
-fn verify_signature_text(data: &[u8], signature_text: &str) -> Result<()> {
-    use minisign_verify::{PublicKey, Signature};
-
-    let pubkey_text = base64::engine::general_purpose::STANDARD
-        .decode(updater_pubkey_b64())
-        .context("decode embedded updater public key")?;
-    let pubkey = PublicKey::decode(std::str::from_utf8(&pubkey_text)?)
-        .context("parse embedded updater public key")?;
-
-    let sig = Signature::decode(signature_text.trim()).context("parse artifact signature")?;
-
-    pubkey
-        .verify(data, &sig, false)
-        .map_err(|e| anyhow!("minisign verification rejected artifact: {e}"))
-}
-
-fn verify_pqc_signature(data: &[u8], signature_b64: &str) -> Result<()> {
-    let raw_b64 = signature_b64
-        .lines()
-        .find(|l| !l.starts_with("untrusted comment:"))
-        .unwrap_or(signature_b64)
-        .trim();
-    let sig_bytes = base64::engine::general_purpose::STANDARD
-        .decode(raw_b64)
-        .context("decode base64 ML-DSA-65 signature")?;
-    verify_pqc_signature_bytes(data, &sig_bytes, b"limedl-artifact")
-}
-
-fn verify_pqc_signature_text(data: &[u8], signature_text: &str) -> Result<()> {
-    let raw_b64 = signature_text
-        .lines()
-        .find(|l| !l.starts_with("untrusted comment:"))
-        .unwrap_or(signature_text)
-        .trim();
-    let sig_bytes = base64::engine::general_purpose::STANDARD
-        .decode(raw_b64)
-        .context("decode base64 ML-DSA-65 signature text")?;
-    verify_pqc_signature_bytes(data, &sig_bytes, b"limedl-manifest")
-}
-
-fn verify_pqc_signature_bytes(data: &[u8], sig_bytes: &[u8], context: &[u8]) -> Result<()> {
-    use ml_dsa::{MlDsa65, Signature};
-
-    let pqc_pubkey_b64 = updater_pqc_pubkey_b64();
-    if pqc_pubkey_b64.is_empty() {
-        return Ok(());
-    }
-
-    let pubkey_bytes = base64::engine::general_purpose::STANDARD
-        .decode(pqc_pubkey_b64.trim())
-        .context("decode embedded PQC public key base64")?;
-    let pubkey = parse_pqc_public_key(&pubkey_bytes)?;
-
-    let signature = Signature::<MlDsa65>::try_from(sig_bytes).map_err(|_| {
-        anyhow!(
-            "PQC signature has invalid length (expected {} bytes)",
-            std::mem::size_of::<ml_dsa::EncodedSignature<MlDsa65>>()
-        )
-    })?;
-
-    if !pubkey.verify_with_context(data, context, &signature) {
-        bail!("ML-DSA-65 post-quantum verification rejected artifact");
-    }
-    Ok(())
-}
-
-/// Parse a raw FIPS 204 ML-DSA-65 public key (1952 bytes).
-fn parse_pqc_public_key(bytes: &[u8]) -> Result<ml_dsa::VerifyingKey<ml_dsa::MlDsa65>> {
-    use ml_dsa::{EncodedVerifyingKey, KeyInit, MlDsa65, VerifyingKey};
-
-    let encoded = EncodedVerifyingKey::<MlDsa65>::try_from(bytes).map_err(|_| {
-        anyhow!(
-            "PQC public key has invalid length (expected {} bytes)",
-            std::mem::size_of::<EncodedVerifyingKey<MlDsa65>>()
-        )
-    })?;
-    Ok(VerifyingKey::<MlDsa65>::new(&encoded))
-}
-
-fn verify_sha256(data: &[u8], expected_hex: &str) -> Result<()> {
-    use sha2::Digest;
-    let digest = sha2::Sha256::digest(data);
-    let actual: String = digest.iter().map(|b| format!("{b:02x}")).collect();
-    if !actual.eq_ignore_ascii_case(expected_hex.trim()) {
-        bail!("sha256 mismatch: expected {expected_hex}, got {actual}");
-    }
-    Ok(())
-}
-
-// ── Version comparison ───────────────────────────────────────────────────────
-
-/// Strictly-newer semver comparison tolerant of a leading `v` and pre-release
-/// suffixes (`1.2.3-rc.1 < 1.2.3`). Non-parseable candidates are never newer.
-pub fn is_newer_version(candidate: &str, current: &str) -> bool {
-    let (Some((c_nums, c_pre)), Some((cur_nums, cur_pre))) =
-        (parse_version(candidate), parse_version(current))
-    else {
-        return false;
-    };
-    match c_nums.cmp(&cur_nums) {
-        std::cmp::Ordering::Greater => true,
-        std::cmp::Ordering::Less => false,
-        std::cmp::Ordering::Equal => match (c_pre, cur_pre) {
-            // Same numeric version: a pre-release is older than the release.
-            (Some(_), None) => false,
-            (None, Some(_)) => true,
-            (Some(a), Some(b)) => a > b,
-            (None, None) => false,
-        },
-    }
-}
-
-fn parse_version(v: &str) -> Option<((u64, u64, u64), Option<String>)> {
-    let v = v.trim().trim_start_matches('v').trim_start_matches('V');
-    let (nums, pre) = match v.split_once('-') {
-        Some((n, p)) => (n, Some(p.to_string())),
-        None => (v, None),
-    };
-    let mut it = nums.split('.');
-    let major = it.next()?.parse().ok()?;
-    let minor = it.next()?.parse().ok()?;
-    let patch = it.next()?.parse().ok()?;
-    Some(((major, minor, patch), pre))
 }
 
 // ── Microsoft Store channel (MSIX) ───────────────────────────────────────────

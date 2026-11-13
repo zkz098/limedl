@@ -162,7 +162,7 @@ fn check_github(ctx: UpdateCtx, lang: Language) {
     let settings = ctx.dispatcher.get_settings_blocking().unwrap_or_default();
     tokio::spawn(async move {
         update::record_update_check(&ctx.base_dir);
-        match update::check_for_update(&settings).await {
+        match update::check_for_update(&settings, &ctx.base_dir).await {
             Ok(Some(update)) => {
                 let version = update.version.clone();
                 let notes = update.notes.clone();
@@ -299,7 +299,7 @@ fn spawn_background_check(ctx: UpdateCtx, lang: Language) {
         // Snapshot after the 45 s wait so a proxy change made at startup is
         // already in effect for the first background check.
         let settings = ctx.dispatcher.get_settings_blocking().unwrap_or_default();
-        match update::check_for_update(&settings).await {
+        match update::check_for_update(&settings, &ctx.base_dir).await {
             Ok(Some(update)) => {
                 let version = update.version.clone();
                 *ctx.available.lock() = Some(update);

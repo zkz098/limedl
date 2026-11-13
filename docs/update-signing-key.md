@@ -6,25 +6,26 @@ desktop artifact. Architecture of the updater itself is documented in
 
 ## Trust chain in one paragraph
 
-Everything is dual-signed with **Minisign** (Ed25519) and **ML-DSA-65** (NIST FIPS 204
-Post-Quantum Cryptography) by in-repo tooling (`cargo xtask`). The manifest's
-signatures (`latest-native.json.sig` and `latest-native.json.pqc.sig`) are verified
-*before* parsing; each artifact's signatures are verified over the exact downloaded
-bytes. ML-DSA-65 signatures enforce domain separation contexts (`limedl-manifest` for the
-update manifest, `limedl-artifact` for binary assets).
+The desktop client now verifies updates via **`sigilup`** (`latest.hsig.json`, DSSEv1
+hybrid **Ed25519 + ML-DSA-65** envelope, single-pass **BLAKE3 + SHA-512** streaming
+digest, anti-rollback `security_epoch`, and `sigilup-pins.json` trust store).
 
-The keys are stored as CI secrets:
-- `LIMEDL_SIGNING_KEY` (base64 of the minisign key file text, or a path locally) plus `LIMEDL_SIGNING_KEY_PASSWORD`.
-- `LIMEDL_PQC_SIGNING_KEY` (base64 of the 32-byte ML-DSA-65 private seed, or a path locally).
+During the dual-publish transition window, `release.yml` also continues to emit the
+legacy `latest-native.json` (+ `.sig` Minisign and `.pqc.sig` ML-DSA-65) via
+`cargo xtask` so pre-`sigilup` installs can still auto-upgrade.
 
-The client trusts the hardcoded public keys in `crates/limedl-native/src/update/mod.rs`:
-- `PUBKEY_B64` (Ed25519)
-- `PQC_PUBKEY_B64` (ML-DSA-65)
+The `sigilup` keys are stored as CI secrets:
+- `SIGILUP_SIGNING_KEY` (the `.sk.json` or `sigilup-sk:v2:...` key).
+- `SIGILUP_SIGNING_KEY_PASSWORD` (when using an encrypted `.sk.json`).
+And pinned in `crates/limedl-native/src/update/sigilup-pins.json`.
 
-`cargo xtask guard` derives both public keys from the CI secrets and **fails the release**
-unless they match the constants embedded in the client, then re-verifies every signature
-on all release assets and manifests — that is what makes key rotation safe. Downloads are
-capped (`MAX_UPDATE_BYTES`, 512 MiB) and missing or invalid signatures abort the update.
+Legacy transition keys (for `latest-native.json` only):
+- `LIMEDL_SIGNING_KEY` + `LIMEDL_SIGNING_KEY_PASSWORD` (`PUBKEY_B64` in `crates/limedl-native/src/update/mod.rs`).
+- `LIMEDL_PQC_SIGNING_KEY` (`PQC_PUBKEY_B64` in `crates/limedl-native/src/update/mod.rs`).
+
+`sigilup guard` (and `cargo xtask guard` for legacy assets) refuses to ship a release
+unless the CI secrets match the pinned public keys and all signatures verify cleanly.
+Downloads are capped (`MAX_UPDATE_BYTES`, 512 MiB).
 
 ## Rotating the signing keys
 

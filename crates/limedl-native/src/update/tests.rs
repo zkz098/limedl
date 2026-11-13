@@ -1,197 +1,127 @@
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use std::time::Duration;
+
+use sigilup::core::{ArtifactHasher, SecretKeyBundle};
+use sigilup::manifest::{
+    FileEpochStore, KeyPinFile, MemoryEpochStore, PlatformAsset, SignedManifest, UpdateManifest,
+    current_platform_base, semver,
+};
+use sigilup::transport::ReqwestUpdater;
+use sigilup::{UrlPolicy, VerifyContext};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+
 use super::*;
 
-#[test]
-fn version_comparison_basics() {
-    assert!(is_newer_version("0.3.0", "0.2.1"));
-    assert!(is_newer_version("v0.3.0", "0.2.1"));
-    assert!(is_newer_version("0.2.10", "0.2.9"));
-    assert!(!is_newer_version("0.2.1", "0.2.1"));
-    assert!(!is_newer_version("0.2.0", "0.2.1"));
-    assert!(!is_newer_version("garbage", "0.2.1"));
-    // Pre-release ordering.
-    assert!(is_newer_version("0.2.1", "0.2.1-rc.1"));
-    assert!(is_newer_version("0.2.1-rc.2", "0.2.1-rc.1"));
-    assert!(!is_newer_version("0.2.1-rc.1", "0.2.1"));
+async fn spawn_http_server(routes: Vec<(&'static str, Vec<u8>)>) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind test http listener");
+    let addr = listener.local_addr().expect("local addr");
+    let routes = Arc::new(routes);
+
+    tokio::spawn(async move {
+        loop {
+            let Ok((mut socket, _)) = listener.accept().await else {
+                break;
+            };
+            let routes = Arc::clone(&routes);
+            tokio::spawn(async move {
+                let mut buf = [0u8; 4096];
+                let n = socket.read(&mut buf).await.unwrap_or(0);
+                let req = String::from_utf8_lossy(&buf[..n]);
+                let path = req
+                    .lines()
+                    .next()
+                    .and_then(|line| line.split_whitespace().nth(1))
+                    .unwrap_or("/");
+
+                let body = routes
+                    .iter()
+                    .find(|(p, _)| *p == path)
+                    .map(|(_, b)| b.as_slice());
+
+                let response = match body {
+                    Some(bytes) => {
+                        let header = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            bytes.len()
+                        );
+                        [header.as_bytes(), bytes].concat()
+                    }
+                    None => {
+                        b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                            .to_vec()
+                    }
+                };
+                let _ = socket.write_all(&response).await;
+            });
+        }
+    });
+
+    format!("http://{addr}")
 }
 
-#[test]
-fn manifest_parses_release_json() {
-    let json = r#"{
-            "version": "0.3.0",
-            "notes": "hello",
-            "platforms": {
-                "windows-x86_64": {
-                    "kind": "installer",
-                    "url": "https://example.com/setup.exe",
-                    "signature": "c2ln",
-                    "pqcSignature": "cHFjX3NpZw==",
-                    "sha256": "abc"
-                },
-                "windows-x86_64-portable": {
-                    "kind": "portable",
-                    "url": "https://example.com/app.zip",
-                    "signature": "c2ln"
-                }
-            }
-        }"#;
-    let m: UpdateManifest = serde_json::from_str(json).unwrap();
-    assert_eq!(m.version, "0.3.0");
-    assert_eq!(m.platforms.len(), 2);
-    assert_eq!(m.platforms["windows-x86_64"].kind, "installer");
-    assert_eq!(
-        m.platforms["windows-x86_64"].pqc_signature.as_deref(),
-        Some("cHFjX3NpZw==")
-    );
-    assert!(
-        m.platforms["windows-x86_64-portable"]
-            .pqc_signature
-            .is_none()
-    );
-    assert!(m.platforms["windows-x86_64-portable"].sha256.is_none());
-}
-
-#[test]
-fn manifest_keys_follow_install_kind() {
-    let base = platform_base();
-    assert_eq!(manifest_key(InstallKind::Installer), base);
-    assert_eq!(
-        manifest_key(InstallKind::Portable),
-        format!("{base}-portable")
-    );
-}
-
-/// `platform_base()` derives the OS half of the key from `consts::OS`, which
-/// spells macOS as `macos`, while the manifest key (and the release asset
-/// name) uses `darwin`. The mapping only ever runs on the platform it names,
-/// so the concordance with `cargo xtask manifest` cannot be
-/// asserted by calling it here — the URL contract is covered by
-/// `asset_urls_must_point_at_this_repos_release` instead.
-#[test]
-fn platform_base_is_os_dash_arch() {
-    // Guards the mapping's shape: a non-Windows base is always `<os>-<arch>`
-    // with a single dash, which is what the generator keys are built from.
-    let base = platform_base();
-    assert_eq!(
-        base.matches('-').count(),
-        1,
-        "unexpected platform base {base}"
-    );
-    let (os, arch) = base.split_once('-').unwrap();
-    assert!(
-        ["windows", "darwin", "linux"].contains(&os),
-        "unexpected OS half in {base}"
-    );
-    assert_eq!(arch, std::env::consts::ARCH);
-}
-
-/// The macOS release ships a `.app` bundle, so the binary sits at
-/// `<name>.app/Contents/MacOS/limedl-native` inside the tarball. The updater
-/// matches the member by file name, so the nested path must still be found —
-/// a miss means `install_via_self_replace` reports "no matching executable"
-/// on every macOS update.
-#[cfg(not(windows))]
-#[test]
-fn targz_member_is_found_inside_an_app_bundle() {
-    let dir = tempfile::tempdir().unwrap();
-    let archive_path = dir
-        .path()
-        .join("limedl-native-v9.9.9-darwin-aarch64-portable.tar.gz");
-    let payload = b"fake mach-o payload";
-
-    {
-        let file = std::fs::File::create(&archive_path).unwrap();
-        let enc = flate2::write::GzEncoder::new(file, flate2::Compression::default());
-        let mut tar = tar::Builder::new(enc);
-
-        let mut header = tar::Header::new_gnu();
-        header.set_size(payload.len() as u64);
-        header.set_mode(0o755);
-        header.set_cksum();
-        tar.append_data(
-            &mut header,
-            "limedl.app/Contents/MacOS/limedl-native",
-            &payload[..],
-        )
-        .unwrap();
-        tar.into_inner().unwrap().finish().unwrap();
-    }
-
-    let update = AvailableUpdate {
-        version: "9.9.9".to_string(),
-        notes: String::new(),
-        asset: PlatformAsset {
+fn build_signed_test_manifest(
+    sk: &SecretKeyBundle,
+    version: &str,
+    security_epoch: u64,
+    asset_url: &str,
+    artifact: &[u8],
+) -> Vec<u8> {
+    let key = format!("{}-portable", current_platform_base());
+    let mut assets = BTreeMap::new();
+    assets.insert(
+        key,
+        PlatformAsset {
             kind: "portable".to_string(),
-            url: "https://example.com/x.tar.gz".to_string(),
-            signature: String::new(),
-            pqc_signature: None,
-            sha256: None,
+            url: asset_url.to_string(),
+            digest: ArtifactHasher::hash_bytes(artifact),
+            metadata: None::<serde_json::Value>,
         },
-    };
+    );
 
-    let extracted = extract_executable(&update, &archive_path)
-        .unwrap()
-        .expect("the bundle member must be extracted");
-    assert_eq!(std::fs::read(&extracted).unwrap(), payload);
-    assert_eq!(extracted.file_name().unwrap(), "limedl-native");
+    let manifest = UpdateManifest {
+        schema_version: 2,
+        version: semver::Version::parse(version).expect("valid version"),
+        security_epoch,
+        min_supported_version: None,
+        published_at: 1_760_000_000,
+        expires_at: None,
+        notes: "Release notes".to_string(),
+        assets,
+        key_rotations: Vec::new(),
+    };
+    let signed = SignedManifest::sign(&manifest, sk, 1_760_000_000).expect("sign manifest");
+    serde_json::to_vec(&signed).expect("serialize signed manifest")
 }
 
-/// A plain-binary tarball (a Linux-style archive, or a macOS build made
-/// without the bundle layout) must keep working.
-#[cfg(not(windows))]
 #[test]
-fn targz_member_is_found_at_the_archive_root() {
-    let dir = tempfile::tempdir().unwrap();
-    let archive_path = dir
-        .path()
-        .join("limedl-native-v9.9.9-linux-x86_64-portable.tar.gz");
+fn embedded_pins_json_is_valid_and_loads_trust_store() {
+    let pins = load_pin_file().expect("embedded sigilup-pins.json must parse");
+    assert_eq!(pins.version, 2);
+    assert!(
+        !pins.trusted_keys.is_empty(),
+        "sigilup-pins.json must pin at least one trusted key"
+    );
+    let _store = pins.to_trust_store();
+}
 
-    {
-        let file = std::fs::File::create(&archive_path).unwrap();
-        let enc = flate2::write::GzEncoder::new(file, flate2::Compression::default());
-        let mut tar = tar::Builder::new(enc);
-        let mut header = tar::Header::new_gnu();
-        header.set_size(4);
-        header.set_mode(0o755);
-        header.set_cksum();
-        tar.append_data(&mut header, "limedl-native", &b"body"[..])
-            .unwrap();
-        tar.into_inner().unwrap().finish().unwrap();
-    }
-
-    let update = AvailableUpdate {
-        version: "9.9.9".to_string(),
-        notes: String::new(),
-        asset: PlatformAsset {
-            kind: "portable".to_string(),
-            url: "https://example.com/x.tar.gz".to_string(),
-            signature: String::new(),
-            pqc_signature: None,
-            sha256: None,
-        },
-    };
-
-    let extracted = extract_executable(&update, &archive_path).unwrap().unwrap();
-    assert_eq!(std::fs::read(&extracted).unwrap(), b"body");
-    // The extracted copy must stay owner-only executable (0o700, see the
-    // rust:S2612 hardening on the staging write) — `self_replace` keeps the
-    // *old* file's mode, so a lost exec bit here would only show up as a
-    // launch failure after the update.
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::metadata(&extracted).unwrap().permissions().mode();
-        assert_eq!(
-            mode & 0o777,
-            0o700,
-            "extracted binary must stay owner-only executable"
-        );
-    }
+#[test]
+fn evaluator_channel_and_kind_match_install_kind() {
+    assert_eq!(
+        evaluator_channel_and_kind(InstallKind::Installer),
+        (None, "installer")
+    );
+    assert_eq!(
+        evaluator_channel_and_kind(InstallKind::Portable),
+        (Some("portable"), "portable")
+    );
 }
 
 #[test]
 fn asset_urls_must_point_at_this_repos_release() {
-    // Each release asset name the pipeline actually produces (see the upload
-    // steps in .github/workflows/release.yml) must satisfy the validator.
     for good in [
         "https://github.com/zkz098/limedl/releases/download/v0.3.0/\
              limedl-native-v0.3.0-windows-x86_64-setup.exe",
@@ -205,7 +135,6 @@ fn asset_urls_must_point_at_this_repos_release() {
         assert!(validate_asset_url(good, "0.3.0").is_ok(), "rejected {good}");
     }
 
-    // Wrong host / repo / version, or a URL that escapes the release path.
     for bad in [
         "https://evil.example/limedl-native-setup.exe",
         "https://github.com/attacker/limedl/releases/download/v0.3.0/setup.exe",
@@ -222,357 +151,197 @@ fn asset_urls_must_point_at_this_repos_release() {
     }
 }
 
-#[test]
-fn platform_support_is_distinguished_from_a_channel_gap() {
-    let json = r#"{
-            "version": "0.3.0",
-            "platforms": {
-                "windows-x86_64": {
-                    "kind": "installer",
-                    "url": "https://github.com/zkz098/limedl/releases/download/v0.3.0/a.exe",
-                    "signature": "c2ln"
-                },
-                "windows-x86_64-portable": {
-                    "kind": "portable",
-                    "url": "https://github.com/zkz098/limedl/releases/download/v0.3.0/a.zip",
-                    "signature": "c2ln"
-                }
-            }
-        }"#;
-    let m: UpdateManifest = serde_json::from_str(json).unwrap();
-    assert!(m.has_assets_for("windows-x86_64"));
-    assert!(!m.has_assets_for("linux-x86_64"));
-    assert!(!m.has_assets_for("darwin-aarch64"));
-}
-
-#[test]
-fn unsigned_manifest_bytes_are_rejected() {
-    // The embedded public key must be well-formed and garbage signatures
-    // must be refused (never fall through to parsing the manifest).
-    for bogus in ["", "not a signature", "untrusted comment: x\nAAAA\n"] {
-        let err = verify_signature_text(b"{}", bogus)
-            .expect_err("bogus signature must be rejected")
-            .to_string();
-        assert!(
-            err.contains("signature"),
-            "expected a signature error, got: {err}"
-        );
-        assert!(
-            !err.contains("public key"),
-            "the embedded PUBKEY_B64 failed to decode: {err}"
-        );
-    }
-}
-
-#[test]
-fn unsigned_pqc_manifest_bytes_are_rejected() {
-    for bogus in ["", "not a signature", "untrusted comment: x\nAAAA\n"] {
-        let err = verify_pqc_signature_text(b"{}", bogus)
-            .expect_err("bogus PQC signature must be rejected")
-            .to_string();
-        assert!(
-            err.contains("signature") || err.contains("decode") || err.contains("invalid length"),
-            "expected a signature error, got: {err}"
-        );
-    }
-}
-
-// ── HTTP client / proxy ──────────────────────────────────────────────────────
-
-/// The update client must be built from the app settings, so the user's proxy
-/// choice reaches the update channel the same way it reaches downloads.
-///
-/// A manual proxy with an empty URL is rejected while configuring the builder,
-/// so reaching that error proves `http_client` consulted `settings.proxy`; the
-/// previous bare `reqwest::Client::builder()` built successfully and silently
-/// ignored the setting.
-#[test]
-fn update_http_client_applies_proxy_settings() {
-    let with_manual_proxy = |manual_url: &str| AppSettings {
-        proxy: limedl_core::types::ProxySettings {
-            mode: limedl_core::types::ProxyMode::Manual,
-            manual_url: manual_url.to_string(),
-        },
-        ..Default::default()
-    };
-
-    assert!(http_client(&with_manual_proxy("")).is_err());
-    assert!(http_client(&with_manual_proxy("http://127.0.0.1:7890")).is_ok());
-
-    for mode in [
-        limedl_core::types::ProxyMode::Disabled,
-        limedl_core::types::ProxyMode::System,
-    ] {
-        let settings = AppSettings {
-            proxy: limedl_core::types::ProxySettings {
-                mode,
-                manual_url: String::new(),
-            },
-            ..Default::default()
-        };
-        assert!(http_client(&settings).is_ok());
-    }
-}
-
-// ── PQC wire-format compatibility ───────────────────────────────────────────
-
-/// Migration pin: the public key and signature in `testdata/` were produced by
-/// `fips204` 0.4.6, the verifier used before the switch to RustCrypto
-/// `ml-dsa`. Both implement the FIPS 204 wire format, so clients must keep
-/// accepting what the old verifier accepted. The public key also pins the
-/// seed→keypair derivation: production `PQC_PUBKEY_B64` is paired with a
-/// 32-byte seed in CI, and a derivation change would break every release.
-#[test]
-fn previous_fips204_signatures_still_verify() {
-    use ml_dsa::{KeyExport, Keypair, MlDsa65, Signature, SigningKey};
-
-    let pk_bytes = base64::engine::general_purpose::STANDARD
-        .decode(include_str!("testdata/pqc_fips204_pk.b64").trim())
-        .unwrap();
-    let sig_bytes = base64::engine::general_purpose::STANDARD
-        .decode(include_str!("testdata/pqc_fips204_sig.b64").trim())
-        .unwrap();
-
-    let seed = ml_dsa::Seed::from([0x42u8; 32]);
-    let derived = SigningKey::<MlDsa65>::from_seed(&seed).verifying_key();
-    assert_eq!(
-        derived.to_bytes().as_slice(),
-        pk_bytes.as_slice(),
-        "the same 32-byte seed must derive the same ML-DSA-65 public key"
-    );
-
-    let pk = parse_pqc_public_key(&pk_bytes).unwrap();
-    assert_eq!(pk.to_bytes().as_slice(), pk_bytes.as_slice());
-
-    let sig = Signature::<MlDsa65>::try_from(sig_bytes.as_slice()).unwrap();
-    let msg = b"limedl pqc compatibility fixture";
-    assert!(pk.verify_with_context(msg, b"limedl-manifest", &sig));
-    assert!(!pk.verify_with_context(msg, b"limedl-artifact", &sig));
-}
-
-// ── Artifact download + verification pipeline ────────────────────────────────
-
-use std::io::Write as _;
-use std::sync::{Arc, Mutex};
-
-fn b64(data: impl AsRef<[u8]>) -> String {
-    base64::engine::general_purpose::STANDARD.encode(data)
-}
-
-fn available_update(
-    url: String,
-    signature: String,
-    pqc_signature: Option<String>,
-    sha256: Option<String>,
-) -> AvailableUpdate {
-    AvailableUpdate {
-        version: "9.9.9".to_string(),
-        notes: String::new(),
-        asset: PlatformAsset {
-            kind: "portable".to_string(),
-            url,
-            signature,
-            pqc_signature,
-            sha256,
-        },
-    }
-}
-
-/// Generate a throwaway minisign key pair and sign `artifact`.
-fn sign_minisign(artifact: &[u8]) -> (String, String) {
-    use std::io::Cursor;
-    let minisign::KeyPair { pk, sk } =
-        minisign::KeyPair::generate_unencrypted_keypair().expect("generate minisign key pair");
-    let pubkey_b64 = b64(pk.to_box().expect("serialize public key").to_bytes());
-    let signature = minisign::sign(Some(&pk), &sk, Cursor::new(artifact), Some("test"), None)
-        .expect("sign artifact");
-    (pubkey_b64, b64(signature.to_string()))
-}
-
-/// Generate a throwaway ML-DSA-65 key pair and sign `artifact`.
-fn sign_pqc(artifact: &[u8]) -> (String, String) {
-    use ml_dsa::{KeyExport, Keypair, MlDsa65, SignatureEncoding, SigningKey};
-    let seed = ml_dsa::Seed::from([0x5Au8; 32]);
-    let sk = SigningKey::<MlDsa65>::from_seed(&seed);
-    let pk = sk.verifying_key();
-    let sig = sk
-        .expanded_key()
-        .sign_deterministic(artifact, b"limedl-artifact")
-        .expect("sign artifact with ML-DSA-65");
-    (b64(pk.to_bytes()), b64(sig.to_bytes()))
-}
-
 #[tokio::test]
-async fn download_and_verify_accepts_minisign_and_handles_pqc() {
-    let artifact = b"signed update artifact bytes".repeat(128);
-    let (pubkey_b64, signature) = sign_minisign(&artifact);
-    let (pqc_pubkey_b64, pqc_signature) = sign_pqc(&artifact);
-    TEST_MINISIGN_PUBKEY.set(pubkey_b64).ok();
-    TEST_PQC_PUBKEY.set(pqc_pubkey_b64).ok();
-    let server = limedl_testkit::TestServer::from_bytes(artifact.clone()).await;
-    let tmp = tempfile::tempdir().unwrap();
-    let settings = AppSettings::default();
+async fn end_to_end_check_and_download_and_verify_with_sigilup() {
+    let sk = SecretKeyBundle::generate().unwrap();
+    let pins = KeyPinFile::new(vec![sk.public_key().clone()]);
+    let artifact = b"limedl-portable-payload-bytes".to_vec();
 
-    let progress = Arc::new(Mutex::new(Vec::new()));
-    let progress_sink = progress.clone();
-    let update = available_update(
-        server.file_url(),
-        signature.clone(),
-        Some(pqc_signature),
-        Some(server.sha256_hash.clone()),
+    let artifact_server = spawn_http_server(vec![("/limedl.tar.gz", artifact.clone())]).await;
+    let manifest_bytes = build_signed_test_manifest(
+        &sk,
+        "9.9.9",
+        1,
+        &format!("{artifact_server}/limedl.tar.gz"),
+        &artifact,
     );
-    let verified = download_and_verify(&update, &settings, tmp.path(), &move |done, total| {
-        progress_sink.lock().unwrap().push((done, total))
-    })
+    let manifest_server = spawn_http_server(vec![("/latest.hsig.json", manifest_bytes)]).await;
+
+    let mut url_policy = UrlPolicy::with_prefixes([format!("{artifact_server}/")]);
+    url_policy.require_https = false;
+
+    let mut evaluator = build_evaluator(
+        pins.to_trust_store(),
+        semver::Version::new(0, 1, 0),
+        InstallKind::Portable,
+        url_policy,
+    );
+    let mut epoch_store = MemoryEpochStore::new(0);
+    let updater = ReqwestUpdater::new(reqwest::Client::new());
+    let ctx = VerifyContext::at_unix(1_760_000_000);
+
+    let update = check_for_update_with(
+        &updater,
+        &format!("{manifest_server}/latest.hsig.json"),
+        &mut evaluator,
+        &mut epoch_store,
+        ctx,
+        false,
+    )
     .await
-    .expect("a correctly signed artifact must verify");
+    .expect("check_for_update_with")
+    .expect("expected available update");
 
-    assert_eq!(std::fs::read(&verified).unwrap(), artifact);
-    assert_eq!(verified, update_work_dir(tmp.path()).join("file"));
-    {
-        let seen = progress.lock().unwrap();
-        assert!(!seen.is_empty(), "progress callback must run");
-        assert_eq!(seen.last().unwrap().0, artifact.len() as u64);
-        assert_eq!(seen.last().unwrap().1, Some(artifact.len() as u64));
-    }
+    assert_eq!(update.version, "9.9.9");
+    assert_eq!(update.notes, "Release notes");
+    assert_eq!(epoch_store.load_min_epoch().unwrap(), 1);
 
-    // A missing PQC signature must be rejected (fail-closed against downgrade).
-    let missing_pqc = available_update(
-        server.file_url(),
-        signature.clone(),
-        None,
-        Some(server.sha256_hash.clone()),
-    );
-    let error = download_and_verify(&missing_pqc, &settings, tmp.path(), &|_, _| {})
+    let temp = tempfile::tempdir().unwrap();
+    let verified_path = download_and_verify_with(&updater, &update, temp.path(), &|_, _| {})
         .await
-        .expect_err("a missing PQC signature must be rejected");
-    assert!(
-        format!("{error:#}").contains("post-quantum"),
-        "unexpected error: {error:#}"
-    );
-
-    // A present but bogus PQC signature must also be rejected.
-    let bad_pqc = available_update(
-        server.file_url(),
-        signature,
-        Some(b64(vec![0xAAu8; 64])),
-        Some(server.sha256_hash.clone()),
-    );
-    let error = download_and_verify(&bad_pqc, &settings, tmp.path(), &|_, _| {})
-        .await
-        .expect_err("a bogus PQC signature must be rejected");
-    assert!(
-        format!("{error:#}").contains("post-quantum"),
-        "unexpected error: {error:#}"
-    );
+        .expect("download_and_verify_with");
+    assert_eq!(std::fs::read(&verified_path).unwrap(), artifact);
 }
 
 #[tokio::test]
-async fn download_and_verify_rejects_sha_mismatch_and_bad_signature() {
-    let artifact = b"tampered artifact".to_vec();
-    let server = limedl_testkit::TestServer::from_bytes(artifact).await;
-    let tmp = tempfile::tempdir().unwrap();
-    let settings = AppSettings::default();
+async fn end_to_end_rejects_tampered_artifact_and_untrusted_manifest() {
+    let sk = SecretKeyBundle::generate().unwrap();
+    let untrusted_sk = SecretKeyBundle::generate().unwrap();
+    let pins = KeyPinFile::new(vec![sk.public_key().clone()]);
+    let artifact = b"authentic-artifact".to_vec();
 
-    let wrong_sha = available_update(
-        server.file_url(),
-        "unused".to_string(),
-        None,
-        Some("0".repeat(64)),
+    // 1. Untrusted signature must be rejected.
+    let bad_manifest = build_signed_test_manifest(
+        &untrusted_sk,
+        "9.9.9",
+        1,
+        "http://127.0.0.1/limedl.tar.gz",
+        &artifact,
     );
-    let error = download_and_verify(&wrong_sha, &settings, tmp.path(), &|_, _| {})
-        .await
-        .expect_err("a sha256 mismatch must abort");
+    let bad_server = spawn_http_server(vec![("/latest.hsig.json", bad_manifest)]).await;
+    let mut url_policy = UrlPolicy::with_prefixes([format!("{bad_server}/")]);
+    url_policy.require_https = false;
+    let mut evaluator = build_evaluator(
+        pins.to_trust_store(),
+        semver::Version::new(0, 1, 0),
+        InstallKind::Portable,
+        url_policy,
+    );
+    let mut epoch_store = MemoryEpochStore::new(0);
+    let updater = ReqwestUpdater::new(reqwest::Client::new());
+    let ctx = VerifyContext::at_unix(1_760_000_000);
     assert!(
-        format!("{error:#}").contains("sha256 mismatch"),
-        "unexpected error: {error:#}"
-    );
-
-    let bad_signature = available_update(
-        server.file_url(),
-        b64("not a minisign signature"),
-        None,
-        Some(server.sha256_hash.clone()),
-    );
-    let error = download_and_verify(&bad_signature, &settings, tmp.path(), &|_, _| {})
-        .await
-        .expect_err("an invalid signature must abort");
-    assert!(
-        format!("{error:#}").contains("signature"),
-        "unexpected error: {error:#}"
-    );
-}
-
-#[tokio::test]
-async fn download_and_verify_refuses_oversized_artifacts() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let addr = listener.local_addr().unwrap();
-    let advertised = MAX_UPDATE_BYTES + 1;
-    std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().unwrap();
-        let mut request = [0u8; 1024];
-        let _ = std::io::Read::read(&mut stream, &mut request);
-        write!(
-            stream,
-            "HTTP/1.1 200 OK\r\nContent-Length: {advertised}\r\nConnection: close\r\n\r\n"
+        check_for_update_with(
+            &updater,
+            &format!("{bad_server}/latest.hsig.json"),
+            &mut evaluator,
+            &mut epoch_store,
+            ctx,
+            false,
         )
-        .unwrap();
-    });
-
-    let tmp = tempfile::tempdir().unwrap();
-    let update = available_update(
-        format!("http://{addr}/artifact.bin"),
-        "unused".to_string(),
-        None,
-        None,
-    );
-    let error = download_and_verify(&update, &AppSettings::default(), tmp.path(), &|_, _| {})
         .await
-        .expect_err("oversized downloads must be refused");
-    let message = format!("{error:#}");
+        .is_err()
+    );
+
+    // 2. Valid manifest pointing at tampered artifact bytes must fail verification.
+    let good_server =
+        spawn_http_server(vec![("/limedl.tar.gz", b"tampered-bytes!!".to_vec())]).await;
+    let good_manifest = build_signed_test_manifest(
+        &sk,
+        "9.9.9",
+        2,
+        &format!("{good_server}/limedl.tar.gz"),
+        &artifact,
+    );
+    let manifest_server = spawn_http_server(vec![("/latest.hsig.json", good_manifest)]).await;
+
+    let mut url_policy = UrlPolicy::with_prefixes([format!("{good_server}/")]);
+    url_policy.require_https = false;
+    let mut evaluator = build_evaluator(
+        pins.to_trust_store(),
+        semver::Version::new(0, 1, 0),
+        InstallKind::Portable,
+        url_policy,
+    );
+    let update = check_for_update_with(
+        &updater,
+        &format!("{manifest_server}/latest.hsig.json"),
+        &mut evaluator,
+        &mut epoch_store,
+        ctx,
+        false,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+
+    let temp = tempfile::tempdir().unwrap();
     assert!(
-        message.contains(&advertised.to_string()) && message.contains("limit"),
-        "unexpected error: {message}"
+        download_and_verify_with(&updater, &update, temp.path(), &|_, _| {})
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn end_to_end_rejects_rollback_epoch() {
+    let sk = SecretKeyBundle::generate().unwrap();
+    let pins = KeyPinFile::new(vec![sk.public_key().clone()]);
+    let artifact = b"artifact".to_vec();
+    let manifest = build_signed_test_manifest(
+        &sk,
+        "9.9.9",
+        4,
+        "https://github.com/zkz098/limedl/releases/download/v9.9.9/a.tar.gz",
+        &artifact,
+    );
+    let server = spawn_http_server(vec![("/latest.hsig.json", manifest)]).await;
+
+    let temp = tempfile::tempdir().unwrap();
+    let epoch_path = temp.path().join("sigilup-epoch");
+    std::fs::write(&epoch_path, "5\n").unwrap();
+    let mut epoch_store = FileEpochStore::new(epoch_path);
+
+    let mut evaluator = build_evaluator(
+        pins.to_trust_store(),
+        semver::Version::new(0, 1, 0),
+        InstallKind::Portable,
+        UrlPolicy::with_prefixes([RELEASE_DOWNLOAD_PREFIX]),
+    );
+    let updater = ReqwestUpdater::new(reqwest::Client::new());
+    let ctx = VerifyContext::at_unix(1_760_000_000);
+
+    let err = check_for_update_with(
+        &updater,
+        &format!("{server}/latest.hsig.json"),
+        &mut evaluator,
+        &mut epoch_store,
+        ctx,
+        false,
+    )
+    .await
+    .expect_err("rollback epoch must be rejected");
+    assert!(
+        format!("{err:#}").to_lowercase().contains("rollback")
+            || format!("{err:#}").to_lowercase().contains("epoch"),
+        "unexpected error: {err:#}"
     );
 }
 
 #[test]
-fn update_work_dir_is_cleaned_and_check_throttling_persists() {
-    let tmp = tempfile::tempdir().unwrap();
-    let state = tmp.path();
-
-    assert_eq!(update_work_dir(state), state.join("update"));
-
-    let work = update_work_dir(state);
-    std::fs::create_dir_all(&work).unwrap();
-    std::fs::write(work.join("stale.part"), b"partial").unwrap();
-    clean_update_work_dir(state);
-    assert!(!work.exists(), "stale update downloads must be removed");
-    clean_update_work_dir(state); // missing directory is a no-op
-
-    assert!(
-        should_check_for_update_now(state, Duration::from_secs(60 * 60)),
-        "a fresh state dir has no stamp"
-    );
-    record_update_check(state);
-    assert!(
-        !should_check_for_update_now(state, Duration::from_secs(60 * 60)),
-        "the stamp must suppress immediate re-checks"
-    );
-    assert!(
-        should_check_for_update_now(state, Duration::ZERO),
-        "a zero interval always allows a check"
-    );
-
-    let stamp = state.join("update-check.stamp");
-    std::fs::write(&stamp, "not-a-number").unwrap();
-    assert!(
-        should_check_for_update_now(state, Duration::from_secs(60 * 60)),
-        "a malformed stamp must not suppress checks"
-    );
-    std::fs::write(&stamp, (u64::MAX / 2).to_string()).unwrap();
-    assert!(
-        !should_check_for_update_now(state, Duration::from_secs(60 * 60)),
-        "a future stamp (clock rollback) is treated as fresh"
-    );
+fn check_throttling_respects_min_interval() {
+    let temp = tempfile::tempdir().unwrap();
+    assert!(should_check_for_update_now(
+        temp.path(),
+        Duration::from_secs(3600)
+    ));
+    record_update_check(temp.path());
+    assert!(!should_check_for_update_now(
+        temp.path(),
+        Duration::from_secs(3600)
+    ));
+    assert!(should_check_for_update_now(
+        temp.path(),
+        Duration::from_secs(0)
+    ));
 }
