@@ -2,8 +2,8 @@
 id: operations/server-deployment-and-packaging
 title: Server Deployment and Packaging
 status: verified
-generated_at: 2026-11-09T11:42:32Z
-commit: e50d853ddda31dd2196341bd48fb7ca25d84e40c
+generated_at: 2026-11-13T06:38:13Z
+commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
 evidence:
 - path: .github/workflows/release.yml
   lines:
@@ -11,7 +11,6 @@ evidence:
   - 612
   blob: ff2883c5d721423674668da789dbb080908638c5
   snippet_sha1: 1c92d66b78b05d9fd11a8c34e3c70fd3020b61cf
-  note: drift-projected L600-L612@1a1b85bb -> L600-L612 (similarity 1.00)
 - path: packaging/server/systemd/limedl-server.service
   lines:
   - 7
@@ -60,7 +59,6 @@ evidence:
   - 72
   blob: 85b9d6828ab075dc9ac2e5e79e68701c2297a5a7
   snippet_sha1: 3618c1042d432ebfcdeca381e227c1a39a60a4d0
-  note: drift-projected L55-L72@90bfb55a -> L55-L72 (similarity 1.00)
 - path: crates/limedl-rpc/src/bind.rs
   lines:
   - 14
@@ -93,11 +91,10 @@ evidence:
   snippet_sha1: 0682dea6bccafdce66b840c150571f623e85a74b
 - path: .github/workflows/release.yml
   lines:
-  - 539
+  - 540
   - 543
   blob: ff2883c5d721423674668da789dbb080908638c5
-  snippet_sha1: 69cad3873aa016d173869e05e202a28154ed5ff5
-  note: drift-projected L539-L543@1a1b85bb -> L539-L543 (similarity 1.00)
+  snippet_sha1: 7f3fe0a5e5aeb53c426d3879aafa984f62e68a1d
 - path: packaging/server/Dockerfile
   lines:
   - 13
@@ -140,14 +137,12 @@ evidence:
   - 703
   blob: ff2883c5d721423674668da789dbb080908638c5
   snippet_sha1: d21924cae2de0f8292866fe12329f719e5f4e42b
-  note: drift-projected L659-L703@1a1b85bb -> L659-L703 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 548
   - 549
   blob: ff2883c5d721423674668da789dbb080908638c5
   snippet_sha1: 467637f8ea50c73dd57ec7bb565777bed3324c0b
-  note: drift-projected L548-L549@1a1b85bb -> L548-L549 (similarity 1.00)
 - path: docs/server-daemon.md
   lines:
   - 24
@@ -160,7 +155,6 @@ evidence:
   - 11
   blob: 2473e7990f774c992deaa0e842c6d58ece2f59e2
   snippet_sha1: 04753bc9c8654f60bcf6d82ff8c3f7ab15bc01c6
-  note: drift-projected L1-L11@80a56e50 -> L1-L11 (similarity 0.91)
 type: operations
 ---
 # Server Deployment and Packaging

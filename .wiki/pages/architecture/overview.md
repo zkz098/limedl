@@ -2,15 +2,16 @@
 id: architecture/overview
 title: Workspace and System Architecture
 status: verified
-generated_at: 2026-11-13T03:32:42Z
-commit: b56ef11879fd182cdb250f518a7360caf8eda9c3
+generated_at: 2026-11-13T06:38:13Z
+commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
 evidence:
 - path: Cargo.toml
   lines:
   - 1
   - 20
-  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
+  blob: d6e99b280b6758f713130a1a7201dac7463dd565
   snippet_sha1: b77ecc96168e5793151bc8fdaa32a7fc413777ff
+  note: drift-projected L1-L20@981be642 -> L1-L20 (similarity 1.00)
 - path: crates/limedl-core/Cargo.toml
   lines:
   - 1
@@ -19,22 +20,25 @@ evidence:
   snippet_sha1: c37df5948258b92b982e0547378f129a560a41e1
 - path: AGENTS.md
   lines:
-  - 47
-  - 56
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 48
+  - 57
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: b70630f33f890a236adceff69f3046ca9be6a50b
+  note: drift-projected L47-L56@33df2c49 -> L48-L57 (similarity 1.00)
 - path: crates/limedl-types/Cargo.toml
   lines:
   - 16
   - 27
-  blob: 61d1ef44fa4027b2d761769b873ade4599a211f0
+  blob: df3ac007d3405f2fb75fd8baf4c2e5cecf309dcf
   snippet_sha1: f7c56eabb10074ec5faa773a4c521d6a92d38205
+  note: drift-projected L16-L27@61d1ef44 -> L16-L27 (similarity 1.00)
 - path: crates/limedl-disk/Cargo.toml
   lines:
   - 13
   - 18
-  blob: 7c440c844b0319e36809e2b22222d01853f040b7
+  blob: e90ef8093a20239876eab4c52b0c1a1364f01c0b
   snippet_sha1: 424467b274c0aaefbcf9a484cfc5f1aa430ec1c4
+  note: drift-projected L13-L18@7c440c84 -> L13-L18 (similarity 1.00)
 - path: crates/limedl-store/Cargo.toml
   lines:
   - 13
@@ -45,20 +49,23 @@ evidence:
   lines:
   - 13
   - 18
-  blob: b2b9907253943e6706233ad2f8f384d4e4a848c5
+  blob: 09be9dd569d66d44a925ca0e23885f5ccc57d384
   snippet_sha1: 5fd66a2a4132cb777afea7cff4f70f1ae0d65a04
+  note: drift-projected L13-L18@b2b99072 -> L13-L18 (similarity 1.00)
 - path: crates/limedl-engine/Cargo.toml
   lines:
   - 13
   - 17
-  blob: 0e390bab5cb65b8597389825a21d0083c96b8f8f
+  blob: 6f7abb02bc768e90b3c557d7f793f38cb21bebd1
   snippet_sha1: e025aa7c651fe6eed920d4b1a65767414b776075
+  note: drift-projected L13-L17@0e390bab -> L13-L17 (similarity 1.00)
 - path: crates/limedl-bt/Cargo.toml
   lines:
   - 13
   - 22
-  blob: d54cfdd1783a39086ab81c7fe42a01f56ec7b4b9
+  blob: 9483bc91fb09f48e2df9feff3c36b1a66c8bb8f9
   snippet_sha1: 18572645966e669d8a08153305763b1cd46fe493
+  note: drift-projected L13-L22@d54cfdd1 -> L13-L22 (similarity 1.00)
 - path: crates/limedl-core/Cargo.toml
   lines:
   - 15
@@ -87,8 +94,9 @@ evidence:
   lines:
   - 13
   - 23
-  blob: d54cfdd1783a39086ab81c7fe42a01f56ec7b4b9
+  blob: 9483bc91fb09f48e2df9feff3c36b1a66c8bb8f9
   snippet_sha1: 5e956c01a72af11406e3022a735469e6ad3930ad
+  note: drift-projected L13-L23@d54cfdd1 -> L13-L23 (similarity 1.00)
 - path: crates/limedl-core/Cargo.toml
   lines:
   - 30
@@ -99,8 +107,9 @@ evidence:
   lines:
   - 54
   - 57
-  blob: 61d1ef44fa4027b2d761769b873ade4599a211f0
+  blob: df3ac007d3405f2fb75fd8baf4c2e5cecf309dcf
   snippet_sha1: 1b10e2c1946a7d39a34f06b341a618bc1b63cabf
+  note: drift-projected L54-L57@61d1ef44 -> L54-L57 (similarity 1.00)
 - path: crates/limedl-store/Cargo.toml
   lines:
   - 13
@@ -135,8 +144,9 @@ evidence:
   lines:
   - 38
   - 46
-  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
+  blob: d6e99b280b6758f713130a1a7201dac7463dd565
   snippet_sha1: cc776791f79928952a6ef43aaa43af1cfc232020
+  note: drift-projected L38-L46@981be642 -> L38-L46 (similarity 1.00)
 - path: crates/limedl-core/src/lib.rs
   lines:
   - 1
@@ -303,8 +313,9 @@ evidence:
   lines:
   - 59
   - 70
-  blob: 61d1ef44fa4027b2d761769b873ade4599a211f0
+  blob: df3ac007d3405f2fb75fd8baf4c2e5cecf309dcf
   snippet_sha1: f2c2fc0482ce993b24981be4203f65980fd01daa
+  note: drift-projected L59-L70@61d1ef44 -> L59-L70 (similarity 1.00)
 - path: .cargo/config.toml
   lines:
   - 1
@@ -313,16 +324,18 @@ evidence:
   snippet_sha1: 891836d4c885c961ad8bf062d69a4641073f4194
 - path: Cargo.toml
   lines:
-  - 113
-  - 126
-  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
+  - 114
+  - 127
+  blob: d6e99b280b6758f713130a1a7201dac7463dd565
   snippet_sha1: d7be4c4e09e9c14cc1d11fee42686c1f23695a8f
+  note: drift-projected L113-L126@981be642 -> L114-L127 (similarity 1.00)
 - path: warden.toml
   lines:
   - 5
   - 7
-  blob: fd77466594f79dc16848ebcea7f453ab6e578ba9
+  blob: b89c7f891cd80f161c54343b82d4e86e1ab04b15
   snippet_sha1: dda09894e2372e872cf0b98da4c385ee87b67805
+  note: drift-projected L5-L7@fd774665 -> L5-L7 (similarity 1.00)
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 41
@@ -351,7 +364,7 @@ self-update manifests, never crates.io packages. [[cite:Cargo.toml:L1-L20]]
 The engine used to be one 41.5k-line crate. It is now a stack of crates whose
 dependency edges are the layering, so the compiler enforces most of what
 `module_boundaries_tests` used to police by parsing source files (while
-`cargo warden dag` enforces intra-facade module checks): [[cite:AGENTS.md:L47-L56]]
+`cargo warden dag` enforces intra-facade module checks): [[cite:AGENTS.md:L48-L57]]
 
 | Crate | Owns | Engine-crate dependencies |
 | --- | --- | --- |
@@ -560,14 +573,14 @@ continues. [[cite:crates/limedl-native/src/event_stream/bus.rs:L329-L344]]
   [[cite:.cargo/config.toml:L1-L42]]
 - **Release profile**: the workspace release profile optimizes for size, but
   `limedl-native` is overridden to `opt-level = 3` because rendering is CPU/GPU
-  heavy rather than I/O bound. [[cite:Cargo.toml:L113-L126]]
+  heavy rather than I/O bound. [[cite:Cargo.toml:L114-L127]]
 - **Layering guard**: intra-crate dependency policing has moved from
   `module_boundaries_tests` in `limedl-core` to `cargo warden dag` configured in
   `warden.toml` (`roots = ["crates/limedl-core/src"]`, `forbid_imports = ["bootstrap"]`),
   which fails on any dependency cycle inside the facade or any import of
   `bootstrap` from below (which would invert the assembly order). Meanwhile,
   inter-layer edges across the seven split engine crates are enforced at compile
-  time by Cargo dependencies. [[cite:warden.toml:L5-L7]] [[cite:AGENTS.md:L47-L56]]
+  time by Cargo dependencies. [[cite:warden.toml:L5-L7]] [[cite:AGENTS.md:L48-L57]]
 
 ## Runtime topology
 

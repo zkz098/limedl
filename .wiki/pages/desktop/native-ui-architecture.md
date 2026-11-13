@@ -2,8 +2,8 @@
 id: desktop/native-ui-architecture
 title: Native Desktop UI (Slint)
 status: verified
-generated_at: 2026-11-13T03:32:42Z
-commit: b56ef11879fd182cdb250f518a7360caf8eda9c3
+generated_at: 2026-11-13T06:38:13Z
+commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
 evidence:
 - path: crates/limedl-native/src/ui_boot.rs
   lines:
@@ -61,10 +61,11 @@ evidence:
   snippet_sha1: c86be95047f860908cd2861e3c9da6bc1e505710
 - path: Cargo.toml
   lines:
-  - 119
-  - 119
-  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
+  - 120
+  - 120
+  blob: d6e99b280b6758f713130a1a7201dac7463dd565
   snippet_sha1: 90ee0cfb8975482cd6a48740aa919745687668a8
+  note: drift-projected L119-L119@981be642 -> L120-L120 (similarity 1.00)
 - path: crates/limedl-native/src/crash.rs
   lines:
   - 25
@@ -273,8 +274,9 @@ evidence:
   lines:
   - 42
   - 51
-  blob: fd77466594f79dc16848ebcea7f453ab6e578ba9
+  blob: b89c7f891cd80f161c54343b82d4e86e1ab04b15
   snippet_sha1: 8c1b9d28f4609c1f9d091866c89550ceffa005b6
+  note: drift-projected L42-L51@fd774665 -> L42-L51 (similarity 1.00)
 - path: crates/limedl-native/src/i18n/mod.rs
   lines:
   - 21
@@ -609,8 +611,9 @@ evidence:
   lines:
   - 15
   - 40
-  blob: fd77466594f79dc16848ebcea7f453ab6e578ba9
+  blob: b89c7f891cd80f161c54343b82d4e86e1ab04b15
   snippet_sha1: 92d7dd1a5ff5f0c3d01dbee1a8dd2902cb9f8f0b
+  note: drift-projected L15-L40@fd774665 -> L15-L40 (similarity 1.00)
 - path: crates/limedl-native/src/ui_sync.rs
   lines:
   - 392
@@ -675,7 +678,7 @@ written anywhere — the process has no console
 
 `crash.rs` is the only place that can leave evidence of a panic, because the
 release profile builds with `panic = "abort"` (the hook still runs on the way to
-`abort()`): [[cite:crates/limedl-native/src/crash.rs:L1-L11]] [[cite:Cargo.toml:L119-L119]]
+`abort()`): [[cite:crates/limedl-native/src/crash.rs:L1-L11]] [[cite:Cargo.toml:L120-L120]]
 
 - `install_panic_hook(state_dir)` registers a hook that appends timestamp,
   thread, `file:line`, payload and `Backtrace::force_capture()` to

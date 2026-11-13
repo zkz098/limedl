@@ -2,8 +2,8 @@
 id: workflows/cdn-acceleration
 title: CDN Acceleration
 status: verified
-generated_at: 2026-11-09T15:10:34Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T06:38:14Z
+commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
 evidence:
 - path: crates/limedl-engine/src/cdn/mod.rs
   lines:
@@ -19,67 +19,67 @@ evidence:
   snippet_sha1: c7b111b697966b78bdf21784d7f7800e00ac0c04
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
-  - 17
-  - 59
-  blob: 9e0e99e1803daeed27e344ac219e1c8f1de02e1d
-  snippet_sha1: 36d8fc490fa94ac6863b236aa307abe5b5a69285
-  note: drift-projected L17-L56@3aa9714f -> L17-L59 (similarity 1.00)
+  - 20
+  - 106
+  blob: 0bcd6376f5c73333755c49790dacd35d61f9b9dc
+  snippet_sha1: aadf7450298ea37c15d37e80b5d5d86212286a8d
+  note: drift-projected L17-L59@9e0e99e1 -> L20-L106 (similarity 0.81)
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
-  - 105
-  - 132
-  blob: 9e0e99e1803daeed27e344ac219e1c8f1de02e1d
+  - 150
+  - 177
+  blob: 0bcd6376f5c73333755c49790dacd35d61f9b9dc
   snippet_sha1: f2f5d1252ad65f59aac4a3b7eb71aa49948fe3e8
-  note: drift-projected L99-L124@3aa9714f -> L105-L132 (similarity 0.88)
+  note: drift-projected L105-L132@9e0e99e1 -> L150-L177 (similarity 1.00)
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
-  - 136
-  - 153
-  blob: 9e0e99e1803daeed27e344ac219e1c8f1de02e1d
-  snippet_sha1: 0e4656c7ecc46fee8d1e5fb3f05d933c165452ca
-  note: drift-projected L128-L145@3aa9714f -> L136-L153 (similarity 1.00)
+  - 181
+  - 195
+  blob: 0bcd6376f5c73333755c49790dacd35d61f9b9dc
+  snippet_sha1: b60351722cf3a9e954a441a7375093212924cf6e
+  note: drift-projected L136-L153@9e0e99e1 -> L181-L195 (similarity 0.78)
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
-  - 153
-  - 208
-  blob: 9e0e99e1803daeed27e344ac219e1c8f1de02e1d
-  snippet_sha1: d53b3ed591473f7acfaaaefdf346fe3f9774a8d4
-  note: drift-projected L145-L200@3aa9714f -> L153-L208 (similarity 1.00)
+  - 195
+  - 242
+  blob: 0bcd6376f5c73333755c49790dacd35d61f9b9dc
+  snippet_sha1: 6c5c8bc70f361b3652dd02d9ec0c8d8a2842dcb1
+  note: drift-projected L153-L208@9e0e99e1 -> L195-L242 (similarity 0.79)
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
-  - 205
-  - 229
-  blob: 9e0e99e1803daeed27e344ac219e1c8f1de02e1d
-  snippet_sha1: a556cad29e9e7146a99fe32f771ea58f4760db89
-  note: drift-projected L197-L221@3aa9714f -> L205-L229 (similarity 1.00)
+  - 239
+  - 259
+  blob: 0bcd6376f5c73333755c49790dacd35d61f9b9dc
+  snippet_sha1: 0e99c2cd1904b11ccf4ea2f0914818f3f19d3cfe
+  note: drift-projected L205-L229@9e0e99e1 -> L239-L259 (similarity 0.76)
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
-  - 234
-  - 249
-  blob: 9e0e99e1803daeed27e344ac219e1c8f1de02e1d
-  snippet_sha1: de40c0b140b46f686a2c3d9de48d75de63c61239
-  note: drift-projected L226-L241@3aa9714f -> L234-L249 (similarity 1.00)
+  - 264
+  - 277
+  blob: 0bcd6376f5c73333755c49790dacd35d61f9b9dc
+  snippet_sha1: 3e1e2380cd16aa9633fddb04ab5127378d070579
+  note: drift-projected L234-L249@9e0e99e1 -> L264-L277 (similarity 0.81)
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
-  - 251
-  - 310
-  blob: 9e0e99e1803daeed27e344ac219e1c8f1de02e1d
+  - 279
+  - 338
+  blob: 0bcd6376f5c73333755c49790dacd35d61f9b9dc
   snippet_sha1: f05b708aa34391600b152768b05309531945541f
-  note: drift-projected L243-L302@3aa9714f -> L251-L310 (similarity 1.00)
+  note: drift-projected L251-L310@9e0e99e1 -> L279-L338 (similarity 1.00)
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
-  - 288
-  - 301
-  blob: 9e0e99e1803daeed27e344ac219e1c8f1de02e1d
+  - 316
+  - 329
+  blob: 0bcd6376f5c73333755c49790dacd35d61f9b9dc
   snippet_sha1: b15ea4969885e2a6b2447dfe164103a6fd470cae
-  note: drift-projected L280-L293@3aa9714f -> L288-L301 (similarity 1.00)
+  note: drift-projected L288-L301@9e0e99e1 -> L316-L329 (similarity 1.00)
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
-  - 342
-  - 413
-  blob: 9e0e99e1803daeed27e344ac219e1c8f1de02e1d
-  snippet_sha1: 0189d6d270fda1ef56991305ff28a1fbe3e74aca
-  note: drift-projected L334-L405@3aa9714f -> L342-L413 (similarity 1.00)
+  - 368
+  - 437
+  blob: 0bcd6376f5c73333755c49790dacd35d61f9b9dc
+  snippet_sha1: ab376cd86de950d6aa0f896cf8cdaea50692eccc
+  note: drift-projected L342-L413@9e0e99e1 -> L368-L437 (similarity 0.96)
 - path: crates/limedl-engine/src/cdn/provider.rs
   lines:
   - 23
@@ -88,11 +88,11 @@ evidence:
   snippet_sha1: 37fe5250f6785f0c9f57278201c5553ebe5d9c26
 - path: crates/limedl-engine/src/cdn/accelerator.rs
   lines:
-  - 467
-  - 498
-  blob: 9e0e99e1803daeed27e344ac219e1c8f1de02e1d
+  - 490
+  - 521
+  blob: 0bcd6376f5c73333755c49790dacd35d61f9b9dc
   snippet_sha1: 3876258d2064c302076befa24b07ed85d60609e3
-  note: drift-projected L459-L490@3aa9714f -> L467-L498 (similarity 1.00)
+  note: drift-projected L467-L498@9e0e99e1 -> L490-L521 (similarity 1.00)
 - path: crates/limedl-engine/src/cdn/resolver.rs
   lines:
   - 45
@@ -114,15 +114,17 @@ evidence:
 - path: crates/limedl-engine/src/cdn/service.rs
   lines:
   - 28
-  - 136
-  blob: 8acfd9b8609a9ad583cd7fa9fb055c50412a563a
-  snippet_sha1: c974d295d7a1e80b937fc48e6a1cec5dbba83d1c
+  - 140
+  blob: 0c2330f01c2feda12a16a9148451394a7157b023
+  snippet_sha1: 80c43b3f6d262897af63557609c7b154e28b82c3
+  note: drift-projected L28-L136@8acfd9b8 -> L28-L140 (similarity 1.00)
 - path: crates/limedl-engine/src/cdn/service.rs
   lines:
-  - 146
-  - 210
-  blob: 8acfd9b8609a9ad583cd7fa9fb055c50412a563a
-  snippet_sha1: aa881fe0d9633ea3eb066c978b7c275c2b24c73c
+  - 150
+  - 213
+  blob: 0c2330f01c2feda12a16a9148451394a7157b023
+  snippet_sha1: 2f59802deccc2552db198a5e2301614b4fcd2ac8
+  note: drift-projected L146-L210@8acfd9b8 -> L150-L213 (similarity 0.97)
 - path: crates/limedl-core/src/bootstrap.rs
   lines:
   - 100
@@ -262,14 +264,14 @@ non-CDN [[cite:crates/limedl-engine/src/cdn/resolver.rs:L37-L165]].
 (`start_test`, `cancel_test`, `apply_ip`, `clear`, `init_from_settings`, `status`,
 `phase`, `phase_progress`, `candidates`, `default_node`, `get_client`,
 `ip_cache`); `from_accelerator` lets the same accelerator be shared with
-`DownloadManager` [[cite:crates/limedl-engine/src/cdn/service.rs:L28-L136]].
+`DownloadManager` [[cite:crates/limedl-engine/src/cdn/service.rs:L28-L140]].
 
 `monitor_test(event_bus)` is the shared polling loop used by the desktop and NAS
 handlers: it sleeps 500 ms and, while `Testing`, publishes `CdnProgress` with the
 phase string (`fetchingRanges`/`screening`/`measuringThroughput`) and progress;
 on `Ready`/`Error` it publishes `CdnComplete` and returns a `CdnTestOutcome`
 (state, active IP, speed, candidates, default node) for the caller to persist
-[[cite:crates/limedl-engine/src/cdn/service.rs:L146-L210]].
+[[cite:crates/limedl-engine/src/cdn/service.rs:L150-L213]].
 
 ## How DownloadManager consumes it
 

@@ -2,35 +2,37 @@
 id: operations/build-release-and-ci
 title: Build, Tooling, CI and Release Operations
 status: verified
-generated_at: 2026-11-13T04:19:02Z
-commit: cdfec67a34d035893ccbec695cb0b7e8fe640a6a
+generated_at: 2026-11-13T06:38:13Z
+commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
 evidence:
 - path: AGENTS.md
   lines:
   - 3
   - 9
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 2f06c4e4139219e602c44c52fce0592302106e28
+  note: drift-projected L3-L9@33df2c49 -> L3-L9 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 21
-  - 21
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 22
+  - 22
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 180f4c159d1291537fe5c49f3cd15c2b6e952344
+  note: drift-projected L21-L21@33df2c49 -> L22-L22 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 393
   - 395
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 95cd9f2602e7107a8c5283444f04722d70cd9eb4
-  note: drift-projected L393-L395@0cceb1cf -> L393-L395 (similarity 1.00)
+  note: drift-projected L393-L395@007573d1 -> L393-L395 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 403
   - 405
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 051a6dcbddd805b939331a1badb256d8a86ef703
-  note: drift-projected L403-L405@0cceb1cf -> L403-L405 (similarity 1.00)
+  note: drift-projected L403-L405@007573d1 -> L403-L405 (similarity 1.00)
 - path: .cargo/config.toml
   lines:
   - 1
@@ -45,22 +47,25 @@ evidence:
   snippet_sha1: 78eb8f9fffdae3efed2efb499026b9d4e00e7d4f
 - path: xtask/src/main.rs
   lines:
-  - 93
-  - 200
-  blob: 6d1a6325703baeb3c6c97fa854e9de220119fbd2
-  snippet_sha1: 090cb1ded5db5a4692d54f1faffe09a95c643b52
+  - 96
+  - 212
+  blob: 7fc4abfd076a83cfd87ac03cebadfb4c528b283a
+  snippet_sha1: 322ef53c6cdbe4d6f64ccbe6d5246dc64b51b812
+  note: drift-projected L93-L200@6d1a6325 -> L96-L212 (similarity 1.00)
 - path: AGENTS.md
   lines:
   - 15
-  - 25
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
-  snippet_sha1: 389c50e7bc0da8280514c6bc83fa706bf9c40ffe
+  - 26
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
+  snippet_sha1: 8974a33fea887f96484c0789fd2d442e1a06a5ca
+  note: drift-projected L15-L25@33df2c49 -> L15-L26 (similarity 1.00)
 - path: warden.toml
   lines:
   - 1
-  - 135
-  blob: fd77466594f79dc16848ebcea7f453ab6e578ba9
-  snippet_sha1: 4ac5f887edbadd211634fbfa787a397aa4ec2fcb
+  - 141
+  blob: b89c7f891cd80f161c54343b82d4e86e1ab04b15
+  snippet_sha1: 5a424384461accef8808c588294f536641dd221f
+  note: drift-projected L1-L135@fd774665 -> L1-L141 (similarity 1.00)
 - path: xtask/src/bump_version.rs
   lines:
   - 57
@@ -95,16 +100,16 @@ evidence:
   lines:
   - 111
   - 143
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: d0a61d2bc6fdcced838667d140adc5bcdaa65424
-  note: drift-projected L111-L143@0cceb1cf -> L111-L143 (similarity 1.00)
+  note: drift-projected L111-L143@007573d1 -> L111-L143 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 111
   - 121
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: dcc3651b53065ad077aa3e5d21fa864aeecf02f8
-  note: drift-projected L111-L121@0cceb1cf -> L111-L121 (similarity 1.00)
+  note: drift-projected L111-L121@007573d1 -> L111-L121 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 551
@@ -113,151 +118,165 @@ evidence:
   snippet_sha1: 7b3d4dd000535acdd424e8816c75b81a82e3482b
 - path: AGENTS.md
   lines:
-  - 114
-  - 117
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 115
+  - 118
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 2220fe4e7911734547f95dbe2a3f191826ee3477
+  note: drift-projected L114-L117@33df2c49 -> L115-L118 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 121
-  - 129
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 122
+  - 130
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 345f9cf644f7d07ae94fd35b2a721a1ee8dca16e
+  note: drift-projected L121-L129@33df2c49 -> L122-L130 (similarity 1.00)
 - path: warden.toml
   lines:
   - 53
   - 106
-  blob: fd77466594f79dc16848ebcea7f453ab6e578ba9
+  blob: b89c7f891cd80f161c54343b82d4e86e1ab04b15
   snippet_sha1: bacaabbf8e3f4942248e37b293669710b7d1e2fc
+  note: drift-projected L53-L106@fd774665 -> L53-L106 (similarity 1.00)
 - path: warden.toml
   lines:
   - 9
   - 14
-  blob: fd77466594f79dc16848ebcea7f453ab6e578ba9
+  blob: b89c7f891cd80f161c54343b82d4e86e1ab04b15
   snippet_sha1: aae7b378593d187c8e05b9e38f0c83fc22ca614a
+  note: drift-projected L9-L14@fd774665 -> L9-L14 (similarity 1.00)
 - path: warden.toml
   lines:
   - 77
   - 106
-  blob: fd77466594f79dc16848ebcea7f453ab6e578ba9
+  blob: b89c7f891cd80f161c54343b82d4e86e1ab04b15
   snippet_sha1: 2d7699b6f4284daee76bf6d175a19d818d025891
+  note: drift-projected L77-L106@fd774665 -> L77-L106 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 131
-  - 137
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 132
+  - 138
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: dc72c6483b94c3faa4d31a9a4ed96ef5ed362922
+  note: drift-projected L131-L137@33df2c49 -> L132-L138 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 242
   - 248
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 6455a9f3b6164b44a0888912fd33fc813a015951
-  note: drift-projected L242-L248@0cceb1cf -> L242-L248 (similarity 1.00)
+  note: drift-projected L242-L248@007573d1 -> L242-L248 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 138
-  - 140
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 139
+  - 141
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 612736f71796a439c9a092b449c535502f4876a3
+  note: drift-projected L138-L140@33df2c49 -> L139-L141 (similarity 1.00)
 - path: warden.toml
   lines:
   - 72
   - 75
-  blob: fd77466594f79dc16848ebcea7f453ab6e578ba9
+  blob: b89c7f891cd80f161c54343b82d4e86e1ab04b15
   snippet_sha1: 6f808c9a74affbedefc0bee86d4a42042262455d
+  note: drift-projected L72-L75@fd774665 -> L72-L75 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 75
   - 84
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 678eb769e65992a8cc285c26244468a197360c59
-  note: drift-projected L75-L84@0cceb1cf -> L75-L84 (similarity 1.00)
+  note: drift-projected L75-L84@007573d1 -> L75-L84 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 141
-  - 146
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 142
+  - 147
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 360098fc609a22b4ce3dca727b905ff6311e1600
+  note: drift-projected L141-L146@33df2c49 -> L142-L147 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 149
-  - 152
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 150
+  - 153
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 0407c4c110d46480df69d3030010b057f7a2542e
+  note: drift-projected L149-L152@33df2c49 -> L150-L153 (similarity 1.00)
 - path: warden.toml
   lines:
   - 107
-  - 135
-  blob: fd77466594f79dc16848ebcea7f453ab6e578ba9
-  snippet_sha1: ff146dbb76441da30cd74c98387c96834022ac97
+  - 141
+  blob: b89c7f891cd80f161c54343b82d4e86e1ab04b15
+  snippet_sha1: e717e93b62c87aa067f4d222f0ac2db8d4549a0c
+  note: drift-projected L107-L135@fd774665 -> L107-L141 (similarity 1.00)
 - path: warden.toml
   lines:
   - 3
   - 64
-  blob: fd77466594f79dc16848ebcea7f453ab6e578ba9
+  blob: b89c7f891cd80f161c54343b82d4e86e1ab04b15
   snippet_sha1: 88a2d815077c7e832cc51fa4ac0c9bbc784ccd96
+  note: drift-projected L3-L64@fd774665 -> L3-L64 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 170
-  - 172
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 171
+  - 173
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 483659af91cd813168ab44bd5966638f26083232
+  note: drift-projected L170-L172@33df2c49 -> L171-L173 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 153
-  - 155
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 154
+  - 156
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 56d4fdfadada8f2a24163169501679b9dd01edcb
+  note: drift-projected L153-L155@33df2c49 -> L154-L156 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
-  - 606
-  - 637
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  - 626
+  - 657
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 8a9af3f8661e35fbb74f1f24a91435f0565a0273
-  note: drift-projected L606-L637@0cceb1cf -> L606-L637 (similarity 1.00)
+  note: drift-projected L606-L637@007573d1 -> L626-L657 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 104
   - 106
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 48e46eb973d1b400684d27e5f291a1a1a7bf7e40
-  note: drift-projected L104-L106@0cceb1cf -> L104-L106 (similarity 1.00)
+  note: drift-projected L104-L106@007573d1 -> L104-L106 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 447
   - 477
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 4552ce877c36a63e6be91b3a633d59b99d3fe072
-  note: drift-projected L447-L477@0cceb1cf -> L447-L477 (similarity 1.00)
+  note: drift-projected L447-L477@007573d1 -> L447-L477 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 396
   - 402
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 24ff3d72650a9bc26cf518b3117fbd4f418e3510
-  note: drift-projected L396-L402@0cceb1cf -> L396-L402 (similarity 1.00)
+  note: drift-projected L396-L402@007573d1 -> L396-L402 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 452
   - 463
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 67b109cf479efd4d89ad2c53d3c8ad77c8ec11db
-  note: drift-projected L452-L463@0cceb1cf -> L452-L463 (similarity 1.00)
+  note: drift-projected L452-L463@007573d1 -> L452-L463 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 447
   - 450
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 91a2b2c6f670ded4d3057d0a5c057928bb959cc8
-  note: drift-projected L447-L450@0cceb1cf -> L447-L450 (similarity 1.00)
+  note: drift-projected L447-L450@007573d1 -> L447-L450 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 488
   - 508
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 217ad1aa7af57e5c724ca2b325b9166ad985a6f6
-  note: drift-projected L488-L508@0cceb1cf -> L488-L508 (similarity 1.00)
+  note: drift-projected L488-L508@007573d1 -> L488-L508 (similarity 1.00)
 - path: sonar-project.properties
   lines:
   - 47
@@ -272,44 +291,46 @@ evidence:
   snippet_sha1: 81290349c0b96ca692b000677a92b3bcf350b8e3
 - path: AGENTS.md
   lines:
-  - 177
-  - 184
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 178
+  - 185
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: af585f77235f62408bc977232a250997388fc042
+  note: drift-projected L177-L184@33df2c49 -> L178-L185 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 186
-  - 195
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 187
+  - 196
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 2abcc26ef41de0f6ec8943466c9645ead85538be
+  note: drift-projected L186-L195@33df2c49 -> L187-L196 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 109
-  - 782
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
-  snippet_sha1: cec51c86be357a9190dd5da2f1a68bae20693680
-  note: drift-projected L109-L782@0cceb1cf -> L109-L782 (similarity 1.00)
+  - 802
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
+  snippet_sha1: 0c312cb2cb3b8d2904ecdd173a436e4cb0f964fb
+  note: drift-projected L109-L782@007573d1 -> L109-L802 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
-  - 734
-  - 782
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  - 754
+  - 802
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: ca85f20a69250116aff4d5a27ae01562adeae060
-  note: drift-projected L734-L782@0cceb1cf -> L734-L782 (similarity 1.00)
+  note: drift-projected L734-L782@007573d1 -> L754-L802 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
-  - 741
-  - 743
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  - 761
+  - 763
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 375cf5aa427a7391f433d3f4af99a62c8a24b847
-  note: drift-projected L741-L743@0cceb1cf -> L741-L743 (similarity 1.00)
+  note: drift-projected L741-L743@007573d1 -> L761-L763 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 587
   - 594
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 901c5378cc4165c563a176b529c89789a04ea0a8
-  note: drift-projected L587-L594@0cceb1cf -> L587-L594 (similarity 1.00)
+  note: drift-projected L587-L594@007573d1 -> L587-L594 (similarity 1.00)
 - path: .github/workflows/aria2-oracle.yml
   lines:
   - 1
@@ -338,23 +359,23 @@ evidence:
   lines:
   - 145
   - 162
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: fdadd372812d4fe2dbc56b1d4158091c9aaf8f94
-  note: drift-projected L145-L162@0cceb1cf -> L145-L162 (similarity 1.00)
+  note: drift-projected L145-L162@007573d1 -> L145-L162 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 29
   - 37
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 5a1da48385641e33cba17abd2119e98914a63f6c
-  note: drift-projected L29-L37@0cceb1cf -> L29-L37 (similarity 1.00)
+  note: drift-projected L29-L37@007573d1 -> L29-L37 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 48
   - 50
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: afb8b5ce043f6cc70319e6f27b3efb6c9958fe13
-  note: drift-projected L48-L50@0cceb1cf -> L48-L50 (similarity 1.00)
+  note: drift-projected L48-L50@007573d1 -> L48-L50 (similarity 1.00)
 - path: docs/ci-operations.md
   lines:
   - 39
@@ -407,16 +428,16 @@ evidence:
   lines:
   - 75
   - 77
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: 43816a392b6faac9af9a7fd5a7694b8a2ae7f8a7
-  note: drift-projected L75-L77@0cceb1cf -> L75-L77 (similarity 1.00)
+  note: drift-projected L75-L77@007573d1 -> L75-L77 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 91
   - 96
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
   snippet_sha1: c1f77980c09282273f2b97f1741779462be3f891
-  note: drift-projected L91-L96@0cceb1cf -> L91-L96 (similarity 1.00)
+  note: drift-projected L91-L96@007573d1 -> L91-L96 (similarity 1.00)
 - path: docs/ci-operations.md
   lines:
   - 76
@@ -587,22 +608,25 @@ evidence:
   snippet_sha1: 98b6211c8aba86375cb7860f1fda1f72edbdba8f
 - path: AGENTS.md
   lines:
-  - 197
-  - 201
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 198
+  - 202
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 24c309c02c0c437472955f7998cbf48ab85c9285
+  note: drift-projected L197-L201@33df2c49 -> L198-L202 (similarity 1.00)
 - path: Cargo.toml
   lines:
   - 84
   - 85
-  blob: 981be6429042751bd4f08b26950d04a6ae29ee2d
+  blob: d6e99b280b6758f713130a1a7201dac7463dd565
   snippet_sha1: c6cdc067f82c2cfae6361b08e21671f04b0860c6
+  note: drift-projected L84-L85@981be642 -> L84-L85 (similarity 1.00)
 - path: crates/limedl-bt/Cargo.toml
   lines:
   - 13
   - 23
-  blob: d54cfdd1783a39086ab81c7fe42a01f56ec7b4b9
+  blob: 9483bc91fb09f48e2df9feff3c36b1a66c8bb8f9
   snippet_sha1: 5e956c01a72af11406e3022a735469e6ad3930ad
+  note: drift-projected L13-L23@d54cfdd1 -> L13-L23 (similarity 1.00)
 type: operations
 ---
 # Build, Tooling, CI and Release Operations
@@ -612,7 +636,7 @@ type: operations
 | Platform | Requirement |
 | --- | --- |
 | Windows | Initialize MSVC before any Rust command: `vcvarsall.bat x64` [[cite:AGENTS.md:L3-L9]] |
-| All | `cargo xtask fetch-font` once (the MiSans VF font is embedded at compile time and is not in git due to its license) [[cite:AGENTS.md:L21-L21]] |
+| All | `cargo xtask fetch-font` once (the MiSans VF font is embedded at compile time and is not in git due to its license) [[cite:AGENTS.md:L22-L22]] |
 | Linux | `libfontconfig1-dev` (Slint's font stack probes it via pkg-config) [[cite:.github/workflows/ci.yml:L393-L395]] |
 | All | `cargo-nextest` pinned to the version CI installs (`nextest@0.9.144`) [[cite:.github/workflows/ci.yml:L403-L405]] |
 
@@ -630,7 +654,7 @@ cargo-zigbuild target needs no separate entry
 
 `cargo xtask` is the repository's tooling entry point for release signing, font
 fetching, version bumps, multi-hue theme generation, and desktop icon packaging
-[[cite:xtask/src/main.rs:L93-L200]]:
+[[cite:xtask/src/main.rs:L96-L212]]:
 
 | Command | Purpose |
 | --- | --- |
@@ -646,7 +670,7 @@ fetching, version bumps, multi-hue theme generation, and desktop icon packaging
 
 Static checks and the local pre-commit quality gate are handled by
 `cargo-warden` (`cargo warden check` / `cargo warden gate`) configured in
-`warden.toml` [[cite:AGENTS.md:L15-L25]] [[cite:warden.toml:L1-L135]].
+`warden.toml` [[cite:AGENTS.md:L15-L26]] [[cite:warden.toml:L1-L141]].
 
 `bump-version` updates the workspace `Cargo.toml` (first `version = "x.y.z"`),
 every `limedl*` workspace package in `Cargo.lock` and the website, then creates
@@ -690,12 +714,12 @@ its release job does not even take the `font` job as a dependency
 
 CI fails on any test failure, warning or error regardless of whether a given
 diff caused it, so the same gate must be green locally before committing
-[[cite:AGENTS.md:L114-L117]]. The gate is driven by `cargo-warden` using
+[[cite:AGENTS.md:L115-L118]]. The gate is driven by `cargo-warden` using
 `warden.toml`: `cargo warden check` runs the fast static checks (`dag`,
 `ci-parity`, `slint-theme`, `i18n`, `complexity`, `file-length` against
 `warden-baseline.json`), and `cargo warden gate` adds `fmt`, `clippy`, `doc` and
 all test suites, mirroring the order CI runs them
-[[cite:AGENTS.md:L121-L129]] [[cite:warden.toml:L53-L106]].
+[[cite:AGENTS.md:L122-L130]] [[cite:warden.toml:L53-L106]].
 
 The design points that matter:
 
@@ -705,12 +729,12 @@ The design points that matter:
   missing [[cite:warden.toml:L9-L14]] [[cite:warden.toml:L77-L106]]. This is
   what prevents `--manifest-path crates/limedl-core/Cargo.toml` from silently
   skipping sibling suites (269 tests once vanished when `limedl-types` and
-  `limedl-disk` were split out) [[cite:AGENTS.md:L131-L137]]. In CI the engine
+  `limedl-disk` were split out) [[cite:AGENTS.md:L132-L138]]. In CI the engine
   and RPC crates are selected together on one `nextest` line with the
   `limedl-core/test-utils` feature, and `xtask`, `limedl-native` and
   `limedl-server` run as their own steps [[cite:.github/workflows/ci.yml:L242-L248]].
 - CI's environment is applied by the gate (`CARGO_BUILD_WARNINGS=deny`) and the
-  rustfmt pin (`1.99.0`) is checked [[cite:AGENTS.md:L138-L140]]
+  rustfmt pin (`1.99.0`) is checked [[cite:AGENTS.md:L139-L141]]
   [[cite:warden.toml:L72-L75]]. Warnings are fatal through
   `CARGO_BUILD_WARNINGS=deny` (cargo's own `build.warnings`, orthogonal to
   RUSTFLAGS) plus clippy's `-- -D warnings`, deliberately **not**
@@ -719,20 +743,20 @@ The design points that matter:
 - `cargo doc` runs with `RUSTDOCFLAGS=-D warnings`, because clippy never
   resolves doc links and a doc comment pointing at a module that moved to
   another crate would otherwise stay green forever
-  [[cite:AGENTS.md:L141-L146]].
+  [[cite:AGENTS.md:L142-L147]].
 - `cargo warden gate --full` is the CI-parity profile: it adds the custom
   feature-matrix steps (`hack-core`, `hack-types`), unused-deps check
   (`cargo machete`), license gate (`cargo deny`) and RustSec audit
   (`cargo audit`) — the last three live in the `supply-chain` CI job
-  [[cite:AGENTS.md:L149-L152]] [[cite:warden.toml:L107-L135]].
+  [[cite:AGENTS.md:L150-L153]] [[cite:warden.toml:L107-L141]].
 - Existing complexity (`> 25`) and physical file-length (`> 800`) violations are
   captured in `warden-baseline.json` so only regressions fail `cargo warden
-  check` [[cite:warden.toml:L3-L64]] [[cite:AGENTS.md:L170-L172]].
+  check` [[cite:warden.toml:L3-L64]] [[cite:AGENTS.md:L171-L173]].
 - CI does not call `cargo warden gate` directly. `ci.yml` is the authority; the
   `gate-contract` job (`Warden (Linux, checks & CI parity)`) downloads the pinned
   `cargo-warden` release binary (`v0.2.0`, SHA256-verified) and runs
   `cargo warden check` (including `ci-parity`) to keep `warden.toml` and `ci.yml`
-  in sync [[cite:AGENTS.md:L153-L155]] [[cite:.github/workflows/ci.yml:L606-L637]].
+  in sync [[cite:AGENTS.md:L154-L156]] [[cite:.github/workflows/ci.yml:L626-L657]].
 - `cargo nextest run` does not execute doctests; the workspace has none, and
   adding one requires a matching `cargo test --doc` step in CI
   [[cite:.github/workflows/ci.yml:L104-L106]].
@@ -760,21 +784,21 @@ On a Windows host, `cfg(not(windows))` items are never compiled, so
 `cargo clippy --workspace --all-targets` misses unused imports/types/statics
 that only macOS and Linux reach, a `build.rs` dependency or feature only
 required off Windows (`rfd`'s `xdg-portal` needs `tokio` or `async-std`), and a
-`-l<lib>` whose `-dev` package is missing [[cite:AGENTS.md:L177-L184]].
+`-l<lib>` whose `-dev` package is missing [[cite:AGENTS.md:L178-L185]].
 
 Mitigations: prefer `#[cfg]` over runtime `CARGO_CFG_TARGET_OS` checks in
 `build.rs` and `platform_*.rs` so dead code is not compiled everywhere; treat a
 tagged release as the first real platform check and publish only after
 `check-macos` / `check-rust` are green on that commit; when adding a
 platform-gated module, re-read it asking "what does this file look like with
-`cfg(windows)` false?" [[cite:AGENTS.md:L186-L195]]. The `sign-check` workflow
+`cfg(windows)` false?" [[cite:AGENTS.md:L187-L196]]. The `sign-check` workflow
 and the macOS linker-warning exemption are covered below and in the release
 page.
 
 ## CI job graph
 
 `.github/workflows/ci.yml` runs these jobs
-[[cite:.github/workflows/ci.yml:L109-L782]]:
+[[cite:.github/workflows/ci.yml:L109-L802]]:
 
 | Job | Platform | What it runs |
 | --- | --- | --- |
@@ -793,9 +817,9 @@ page.
 `test-windows-native`, `check-macos` and `check-rust` (with `always()`, so a
 failed writer still leaves the previous generation as the newest per prefix) and
 deletes every cache entry older than the newest for its key prefix
-[[cite:.github/workflows/ci.yml:L734-L782]]. It is the only job that asks for
+[[cite:.github/workflows/ci.yml:L754-L802]]. It is the only job that asks for
 `actions: write`, scoped to the job rather than the workflow
-[[cite:.github/workflows/ci.yml:L741-L743]].
+[[cite:.github/workflows/ci.yml:L761-L763]].
 
 `limedl-server` is exercised **only** on the Linux leg. Its end-to-end test
 binds a real port and bootstraps the engine, so running it on the Windows/macOS
@@ -989,7 +1013,7 @@ cannot silently raise the floor again
 
 After `cargo update` / `cargo add` / `cargo remove`, commit the changed
 `Cargo.lock`. Uncommitted lockfile changes cause CI cache misses and stale
-dependency resolution [[cite:AGENTS.md:L197-L201]].
+dependency resolution [[cite:AGENTS.md:L198-L202]].
 
 The BitTorrent engine is a workspace dependency (`librqbit 9.1`, default features
 off, `rust-tls` on), and `limedl-bt` is the only crate that names it — the

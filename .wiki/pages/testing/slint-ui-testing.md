@@ -2,21 +2,23 @@
 id: testing/slint-ui-testing
 title: Slint UI Testing
 status: verified
-generated_at: 2026-11-13T03:32:42Z
-commit: b56ef11879fd182cdb250f518a7360caf8eda9c3
+generated_at: 2026-11-13T06:38:14Z
+commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
 evidence:
 - path: AGENTS.md
   lines:
   - 15
   - 16
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 55de907211d7b11b72c863ba91f10b8797185014
+  note: drift-projected L15-L16@33df2c49 -> L15-L16 (similarity 1.00)
 - path: AGENTS.md
   lines:
-  - 121
-  - 126
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 122
+  - 127
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: 8c38b69fad4040cdeff4a3c1f6abaf3b10a85051
+  note: drift-projected L121-L126@33df2c49 -> L122-L127 (similarity 1.00)
 - path: crates/limedl-native/src/ui_tests/mod.rs
   lines:
   - 1
@@ -307,10 +309,11 @@ evidence:
   snippet_sha1: 6e389a41a561e865131a4bb2575b65dc1a50a665
 - path: AGENTS.md
   lines:
-  - 22
-  - 22
-  blob: 33df2c497d630dbb6e2a54c88a17e002d3af085d
+  - 23
+  - 23
+  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
   snippet_sha1: fda0d89a6ecf2c09cfba7ff8ebaff183170ff13e
+  note: drift-projected L22-L22@33df2c49 -> L23-L23 (similarity 1.00)
 - path: docs/manual-smoke-testing.md
   lines:
   - 32
@@ -336,7 +339,7 @@ type: testing
 The desktop UI is tested at two layers, chosen by what regression you want to
 catch: **L1** in-process tests that run in the normal `cargo nextest` gate (which
 `cargo warden gate` mirrors), and **L2** the MCP server for interactive inspection
-of a running app. [[cite:AGENTS.md:L15-L16]] [[cite:AGENTS.md:L121-L126]]
+of a running app. [[cite:AGENTS.md:L15-L16]] [[cite:AGENTS.md:L122-L127]]
 
 ## L1: in-process tests
 
@@ -614,7 +617,7 @@ prerequisites:
   `SLINT_MCP_PORT=8080` (the command is `cargo run -p limedl-native --features
   slint/mcp`). `build.rs` already embeds the metadata for debug builds, so only
   a release-driven session needs the env var.
-  [[cite:docs/manual-smoke-testing.md:L13-L31]] [[cite:AGENTS.md:L22-L22]]
+  [[cite:docs/manual-smoke-testing.md:L13-L31]] [[cite:AGENTS.md:L23-L23]]
 - Quit any running limedl first: the single-instance guard makes a second process
   notify the primary and exit immediately, so the port never opens.
   [[cite:docs/manual-smoke-testing.md:L32-L35]]

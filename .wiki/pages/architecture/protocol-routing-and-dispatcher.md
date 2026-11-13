@@ -2,8 +2,8 @@
 id: architecture/protocol-routing-and-dispatcher
 title: Protocol Routing and the Dispatcher Facade
 status: verified
-generated_at: 2026-11-09T15:10:34Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T06:38:13Z
+commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
 evidence:
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
@@ -11,7 +11,6 @@ evidence:
   - 20
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
   snippet_sha1: c7d7baca7ff3621bda1a0fe117e77b0a89f69dac
-  note: drift-projected L13-L20@0cc22fba -> L13-L20 (similarity 1.00)
 - path: crates/limedl-types/src/protocol.rs
   lines:
   - 8
@@ -24,7 +23,6 @@ evidence:
   - 28
   blob: c4e7c542d12b8a8da94a335fc916fb0ecd514c59
   snippet_sha1: 87b311405f59282e42abfc0eaf8ac30fbba35e4a
-  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-core/src/backend_registry/mod.rs
   lines:
   - 9
@@ -61,42 +59,36 @@ evidence:
   - 106
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
   snippet_sha1: 2840d852130fc1fd165e442ff35c6f5a63d8713b
-  note: drift-projected L43-L106@0cc22fba -> L43-L106 (similarity 1.00)
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 261
   - 281
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
   snippet_sha1: 8a0d5ac5fd9ec2ae9775790f5854a9c602f47be1
-  note: drift-projected L261-L281@0cc22fba -> L261-L281 (similarity 1.00)
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 148
   - 170
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
   snippet_sha1: 35e6a0a39292b4455eb4bbb0663b8d28833fbde5
-  note: drift-projected L148-L170@0cc22fba -> L148-L170 (similarity 1.00)
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 172
   - 210
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
   snippet_sha1: e75b849a772d1a7f6b3cad093bd35cd74b5b7055
-  note: drift-projected L172-L210@0cc22fba -> L172-L210 (similarity 1.00)
 - path: crates/limedl-rpc/src/context.rs
   lines:
-  - 148
-  - 152
+  - 145
+  - 149
   blob: b1ae86f5e587929b4f7cd8e86433e4def5748666
-  snippet_sha1: 700c4ef497c921cbf4eea45401d4380278ec7e84
-  note: drift-projected L145-L149@90629ec9 -> L148-L152 (similarity 1.00)
+  snippet_sha1: bcd316fe3f98369068f6967c17ae1b8908d7fc9a
 - path: crates/limedl-engine/src/task_lifecycle/mod.rs
   lines:
-  - 511
-  - 538
+  - 508
+  - 520
   blob: 06fa226e016db7406aab96ecc589b08052421836
-  snippet_sha1: f39e5c5f33e24bb8d9e29c3295317623ad8eab57
-  note: drift-projected L465-L477@f7912345 -> L511-L538 (similarity 0.69)
+  snippet_sha1: e552b7137c8726e098f5e5a288b087b8527c7c28
 - path: crates/limedl-bt/src/alerts.rs
   lines:
   - 70
@@ -109,63 +101,54 @@ evidence:
   - 220
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
   snippet_sha1: e848fb21f886a81e7ee8b2d6c4dd7c393f795b0c
-  note: drift-projected L212-L220@0cc22fba -> L212-L220 (similarity 1.00)
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 222
   - 244
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
   snippet_sha1: 06801961b510f8c9b1c6b092212e0c67bc93fddb
-  note: drift-projected L222-L244@0cc22fba -> L222-L244 (similarity 1.00)
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 246
   - 257
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
   snippet_sha1: 1449484a81b3d4c28845cd2ace70f8c016d2c3d6
-  note: drift-projected L246-L257@0cc22fba -> L246-L257 (similarity 1.00)
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 259
-  - 504
+  - 475
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
-  snippet_sha1: 97781555fcf22969cda2947787408cab8fcdc32c
-  note: drift-projected L259-L475@0cc22fba -> L259-L504 (similarity 0.97)
+  snippet_sha1: 8e6af142e0811de5a5ceda5e53c2b82ae088a2a7
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
-  - 388
-  - 434
+  - 379
+  - 405
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
-  snippet_sha1: 9bf1286aca2efbafbd06180088b4d54cbe58f83c
-  note: drift-projected L379-L405@0cc22fba -> L388-L434 (similarity 0.81)
+  snippet_sha1: 258ff7268055dbe2e6a89a6013ac607b43bd6f90
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
-  - 602
-  - 625
+  - 573
+  - 596
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
-  snippet_sha1: 80eb18e5c0ffe47ca919212b4e2465471e676dc1
-  note: drift-projected L573-L596@0cc22fba -> L602-L625 (similarity 1.00)
+  snippet_sha1: aabd8af0125703e47e349ccbd0ad439a73271666
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
-  - 508
-  - 600
+  - 479
+  - 571
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
-  snippet_sha1: b3cd92e8752bb1911bb206b5827a6a3f6706141d
-  note: drift-projected L479-L571@0cc22fba -> L508-L600 (similarity 1.00)
+  snippet_sha1: b47d6294d3b2a58bf8c8d3adffcf77a5fe168113
 - path: crates/limedl-rpc/src/context.rs
   lines:
-  - 74
-  - 89
+  - 71
+  - 86
   blob: b1ae86f5e587929b4f7cd8e86433e4def5748666
-  snippet_sha1: 6c0349557dc6568f1877016b653c47fe3ead24ce
-  note: drift-projected L71-L86@90629ec9 -> L74-L89 (similarity 1.00)
+  snippet_sha1: b685bf5a608ea030dbe17a9a1da3286da10ecbec
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
   - 16
   - 20
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
   snippet_sha1: ed5b7229d33ee78ba9e5ef7ef683a46b82e75cf6
-  note: drift-projected L16-L20@0cc22fba -> L16-L20 (similarity 1.00)
 - path: crates/limedl-core/src/backend_registry/mod.rs
   lines:
   - 41
@@ -178,7 +161,6 @@ evidence:
   - 15
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
   snippet_sha1: 2d25d550d4727765d73450614701e1e3c6b79f9d
-  note: drift-projected L13-L15@0cc22fba -> L13-L15 (similarity 1.00)
 type: architecture
 ---
 # Protocol Routing and the Dispatcher Facade

@@ -2,16 +2,15 @@
 id: workflows/scheduler-and-concurrency
 title: Scheduler, AIMD and Concurrency Control
 status: verified
-generated_at: 2026-11-09T15:10:34Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T06:38:14Z
+commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
 evidence:
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 101
-  - 149
+  - 105
+  - 151
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: d368050658b3c3476242b7dbf1e5c00a11fb2c49
-  note: drift-projected L105-L151@2159ecd2 -> L101-L149 (similarity 0.98)
+  snippet_sha1: 735d1504158bec11c7648bcb73ea611a120d63d1
 - path: crates/limedl-engine/src/download/shared.rs
   lines:
   - 16
@@ -32,179 +31,154 @@ evidence:
   snippet_sha1: 67f027bdca9ab1976af8e639861f36b85edc1e2a
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 389
-  - 461
+  - 391
+  - 463
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 2d71eadb9120ef82dd13f5d379c8ca70348c4f29
-  note: drift-projected L391-L463@2159ecd2 -> L389-L461 (similarity 1.00)
+  snippet_sha1: 60053da6d7ff7d10d9a34db763fe900f981ce924
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 151
-  - 184
-  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 0230980ac61b5103487aec5136655108d1d94bb2
-  note: drift-projected L153-L186@2159ecd2 -> L151-L184 (similarity 0.97)
-- path: crates/limedl-engine/src/scheduler/mod.rs
-  lines:
-  - 481
-  - 531
-  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 30482bd9575af34cacf82dcc0e50446e04ab8f6b
-  note: drift-projected L484-L534@2159ecd2 -> L481-L531 (similarity 1.00)
-- path: crates/limedl-engine/src/scheduler/mod.rs
-  lines:
-  - 640
-  - 681
-  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: df75b0a657b79355ad607dc0dffcd876b99fa617
-  note: drift-projected L649-L690@2159ecd2 -> L640-L681 (similarity 1.00)
-- path: crates/limedl-engine/src/scheduler/mod.rs
-  lines:
-  - 533
-  - 574
-  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 5f561df8d9464f2448536ece79677d5ab645fde2
-  note: drift-projected L536-L579@2159ecd2 -> L533-L574 (similarity 0.95)
-- path: crates/limedl-engine/src/scheduler/mod.rs
-  lines:
-  - 576
-  - 616
-  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: fac7e88f90cc605d985865e552b5b93e2bc6e9e6
-  note: drift-projected L581-L624@2159ecd2 -> L576-L616 (similarity 0.93)
-- path: crates/limedl-engine/src/scheduler/mod.rs
-  lines:
-  - 731
-  - 800
-  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 329a9edef4dd1c2efe42bda1e8f9ce8b7af642d5
-  note: drift-projected L740-L809@2159ecd2 -> L731-L800 (similarity 1.00)
-- path: crates/limedl-engine/src/scheduler/mod.rs
-  lines:
-  - 614
-  - 637
-  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: aa55a3af7f81cedbfd8d758d2c5e0f965945675c
-  note: drift-projected L620-L646@2159ecd2 -> L614-L637 (similarity 0.85)
-- path: crates/limedl-engine/src/scheduler/mod.rs
-  lines:
-  - 780
-  - 797
-  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 70f49b9f5c4793e9049b12bfae02ed0a51b54fb7
-  note: drift-projected L789-L806@2159ecd2 -> L780-L797 (similarity 1.00)
-- path: crates/limedl-engine/src/scheduler/mod.rs
-  lines:
-  - 341
-  - 384
-  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: d3c31e20ca2a249b608952662b9013516ab06c95
-  note: drift-projected L343-L386@2159ecd2 -> L341-L384 (similarity 1.00)
-- path: crates/limedl-engine/src/scheduler/mod.rs
-  lines:
+  - 153
   - 186
-  - 256
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 700e714b66b47700f6fb04b552e96a2624419431
-  note: drift-projected L188-L258@2159ecd2 -> L186-L256 (similarity 0.99)
+  snippet_sha1: 9853964d6a5c92da0c880681f3fd1afe7579ff89
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 1323
-  - 1346
+  - 484
+  - 534
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 273489d1f74b16d332b56dc8aad96987f507dade
-  note: drift-projected L1335-L1358@2159ecd2 -> L1323-L1346 (similarity 1.00)
+  snippet_sha1: 3bb9f50ddfc9c425c2da872ebba3c4123cbb45e3
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 877
-  - 932
+  - 649
+  - 690
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 463ecc7c341da0f711416ea8496d3b3a29667821
-  note: drift-projected L886-L943@2159ecd2 -> L877-L932 (similarity 0.97)
+  snippet_sha1: 240b51161aeaff9c6d4c8518c6feb8df814c783a
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 991
-  - 1046
+  - 536
+  - 579
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 5bfbafbe5175a7bb87a74cf1d612d1008e1eb14c
-  note: drift-projected L1003-L1058@2159ecd2 -> L991-L1046 (similarity 1.00)
+  snippet_sha1: c6114a4b9df38fb97912ce3ae4e9670e775302b6
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 1048
-  - 1071
+  - 581
+  - 624
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 30a495f772e1a615b3fdd94785d1a7289719a501
-  note: drift-projected L1060-L1083@2159ecd2 -> L1048-L1071 (similarity 1.00)
+  snippet_sha1: 250be67df95c5821d7142d0043b30a26621c3ce6
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 1237
-  - 1321
+  - 740
+  - 809
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: e7fea1bf68600ec9aea52a8113d3e3d8b889da6e
-  note: drift-projected L1249-L1333@2159ecd2 -> L1237-L1321 (similarity 1.00)
+  snippet_sha1: 4461a3b3a8f24d0aa4787aef553fd846e5e90a7f
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 971
-  - 988
+  - 620
+  - 646
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: e72c57e47e0e31bdc00f9a9394499be6610dcc81
-  note: drift-projected L982-L1000@2159ecd2 -> L971-L988 (similarity 0.95)
+  snippet_sha1: 9011a3a2b4753dccaddd8f88233b26daedce753b
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 42
-  - 45
+  - 789
+  - 806
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 14cb8dc3f818cee9da16ff709dd8e78c7bbee538
-  note: drift-projected L44-L47@2159ecd2 -> L42-L45 (similarity 1.00)
+  snippet_sha1: 88ee6959be6ab6752035e6589eca1acacf382f66
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 830
-  - 875
+  - 343
+  - 386
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 9eac1eab49810218986a7717d0a927de86e2387a
-  note: drift-projected L839-L884@2159ecd2 -> L830-L875 (similarity 1.00)
+  snippet_sha1: ed5038fb4ebe438b40688607953f430c2b5865c8
+- path: crates/limedl-engine/src/scheduler/mod.rs
+  lines:
+  - 188
+  - 258
+  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
+  snippet_sha1: 067e75ea27d50c5f99e5dd83c815da34ca726658
+- path: crates/limedl-engine/src/scheduler/mod.rs
+  lines:
+  - 1335
+  - 1358
+  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
+  snippet_sha1: 0d41de7ab7343213eab8be7432c3a79e9260d54a
+- path: crates/limedl-engine/src/scheduler/mod.rs
+  lines:
+  - 886
+  - 943
+  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
+  snippet_sha1: 8804b7c2b07b7e0b68f9c068b3388c2761b69206
+- path: crates/limedl-engine/src/scheduler/mod.rs
+  lines:
+  - 1003
+  - 1058
+  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
+  snippet_sha1: 80b737bbbda6cc2ca4640c9a4591f8f66da52087
+- path: crates/limedl-engine/src/scheduler/mod.rs
+  lines:
+  - 1060
+  - 1083
+  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
+  snippet_sha1: a8d474c6183550606f3f01997ddd984d646b830f
+- path: crates/limedl-engine/src/scheduler/mod.rs
+  lines:
+  - 1249
+  - 1333
+  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
+  snippet_sha1: 914f75a15211fca391ecbfcf1ef415578b797e76
+- path: crates/limedl-engine/src/scheduler/mod.rs
+  lines:
+  - 982
+  - 1000
+  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
+  snippet_sha1: dcfb3fbb954a0b291b3694f25112653a898a4c7f
+- path: crates/limedl-engine/src/scheduler/mod.rs
+  lines:
+  - 44
+  - 47
+  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
+  snippet_sha1: 1b5f0f96818f90fbd971b9a28cfe2f27796d3ea5
+- path: crates/limedl-engine/src/scheduler/mod.rs
+  lines:
+  - 839
+  - 884
+  blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
+  snippet_sha1: 495b2658bd61b1e8aab8d6b82938ab05addd7452
 - path: crates/limedl-disk/src/services/concurrency.rs
   lines:
   - 59
   - 94
-  blob: bb145d2ddf019912e6213e47df15b4be5656dacc
-  snippet_sha1: fb53244d6833ced92cd4d5b2356ba18d7d61e669
-  note: content lost at HEAD; re-pinned at recorded range (draft)
+  blob: f847cee78c143c31348accac0b9891d808ececa2
+  snippet_sha1: 2c13dc034d317dc9f7dfc38e2008708d780991b8
 - path: crates/limedl-types/src/slot_guard.rs
   lines:
-  - 10
-  - 46
-  blob: f5e14f83880cd91e937ea5b85b44af7af538e362
-  snippet_sha1: 9ff3991e7ee0a95dff5e0a30aef5a6ffaeb0442c
-  note: drift-projected L8-L24@788daafd -> L10-L46 (similarity 1.00)
+  - 8
+  - 24
+  blob: 1f3d029a9bba5aaa7fea5c72273d284a0f3483dd
+  snippet_sha1: 615d81ca02b19a11dc86c8d16fde3b277a8faa26
 - path: crates/limedl-core/src/dispatcher.rs
   lines:
-  - 338
-  - 342
+  - 328
+  - 332
   blob: 2f774d1c7b11e7af6fb302a7063501181b4f8a0b
-  snippet_sha1: 9f509af798c4cc3e819e12461de8ce22e3d8351b
-  note: drift-projected L328-L332@0cc22fba -> L338-L342 (similarity 1.00)
+  snippet_sha1: 1e5e36759cd8d805ac860709ad2804550606b9d7
 - path: crates/limedl-engine/src/scheduler/mod.rs
   lines:
-  - 238
-  - 244
+  - 240
+  - 246
   blob: c44ff5d6f8a044959dfc3b61b1faae6408b3af55
-  snippet_sha1: 2178501b22668c25dfe043fc422856804eddb0b1
-  note: drift-projected L240-L246@2159ecd2 -> L238-L244 (similarity 1.00)
+  snippet_sha1: 3e305b1885ff68840a0ebd1da4c3070c596dd68d
 - path: crates/limedl-core/src/bootstrap.rs
   lines:
-  - 70
-  - 78
+  - 67
+  - 75
   blob: 50795894cd09930a7c13f6e67352c4a0e4648894
-  snippet_sha1: 6e424828b0db299ae82300163b370baeb24041b8
-  note: drift-projected L67-L75@e7734589 -> L70-L78 (similarity 1.00)
+  snippet_sha1: 3d10b42629f34222716feee9ce314093a2cb8f1c
 - path: crates/limedl-bt/src/lifecycle.rs
   lines:
   - 42
   - 58
-  blob: a59f3869c649c0d6b1d159cb89aa567e254cbc62
-  snippet_sha1: 852690e4a18c79bb7e12e062b7148e1f779aa96d
-  note: content lost at HEAD; re-pinned at recorded range (draft)
+  blob: 23e02d1a5f118ba05f750ebb8c2d535723fcd3b0
+  snippet_sha1: 3dde36f82d7a5b395b4566a5fa1768e4ce510fa0
 - path: crates/limedl-engine/src/speed_tracker.rs
   lines:
   - 12
@@ -213,18 +187,16 @@ evidence:
   snippet_sha1: 3c001a0fc2aa7ba4f9bd2ff55251ba80ebc5e6fb
 - path: crates/limedl-engine/src/task_lifecycle/mod.rs
   lines:
-  - 458
-  - 498
+  - 445
+  - 499
   blob: 06fa226e016db7406aab96ecc589b08052421836
-  snippet_sha1: a54f824018c0f3625f624f90a84d761320787248
-  note: drift-projected L416-L456@f7912345 -> L458-L498 (similarity 1.00)
+  snippet_sha1: 89f9c5963c4247b3e2c8086258ddf9093f54ff80
 - path: crates/limedl-engine/src/task_lifecycle/mod.rs
   lines:
+  - 368
   - 379
-  - 388
   blob: 06fa226e016db7406aab96ecc589b08052421836
-  snippet_sha1: 7d677ccba27fa5ec326650224a54e7bb53c3e5f6
-  note: drift-projected L348-L357@f7912345 -> L379-L388 (similarity 1.00)
+  snippet_sha1: 283686dd091e2febb91bf437a303f8891c21cad4
 type: workflow
 ---
 # Scheduler, AIMD and Concurrency Control

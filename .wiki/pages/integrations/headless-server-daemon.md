@@ -2,8 +2,8 @@
 id: integrations/headless-server-daemon
 title: Headless Server Daemon (limedl-server)
 status: verified
-generated_at: 2026-11-13T04:19:02Z
-commit: cdfec67a34d035893ccbec695cb0b7e8fe640a6a
+generated_at: 2026-11-13T06:38:13Z
+commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
 evidence:
 - path: crates/limedl-server/src/lib.rs
   lines:
@@ -11,7 +11,6 @@ evidence:
   - 10
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
   snippet_sha1: 99d2fbb5961f9b1cee1fe9fe4ca89864276fb395
-  note: drift-projected L1-L10@db33f43e -> L1-L10 (similarity 1.00)
 - path: crates/limedl-server/Cargo.toml
   lines:
   - 20
@@ -30,7 +29,6 @@ evidence:
   - 38
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
   snippet_sha1: 2d6c7600bf2ceda15f450ecd82e5fad3d2877889
-  note: drift-projected L28-L38@db33f43e -> L28-L38 (similarity 1.00)
 - path: crates/limedl-server/src/main.rs
   lines:
   - 4
@@ -43,21 +41,18 @@ evidence:
   - 32
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
   snippet_sha1: 38622b691cb656872f7f953ea8c8a6e1efa6b32e
-  note: drift-projected L28-L32@db33f43e -> L28-L32 (similarity 1.00)
 - path: crates/limedl-server/src/lib.rs
   lines:
   - 34
   - 38
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
   snippet_sha1: 63f9ee03f19d149e3eda400215af06fad8311d21
-  note: drift-projected L34-L38@db33f43e -> L34-L38 (similarity 1.00)
 - path: crates/limedl-server/src/lib.rs
   lines:
   - 38
-  - 157
+  - 142
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: 741ed5c4c5d128d777818b177baf47c452c79ea4
-  note: drift-projected L38-L142@db33f43e -> L38-L157 (similarity 0.96)
+  snippet_sha1: 10b8bbc571e4a058294304eec51a893f338ffb91
 - path: crates/limedl-server/src/cli.rs
   lines:
   - 26
@@ -138,53 +133,46 @@ evidence:
   snippet_sha1: 78f72c2308760a24b3fd8c90aa94d2a4a9fffe39
 - path: crates/limedl-server/src/lib.rs
   lines:
-  - 87
-  - 106
+  - 85
+  - 104
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: 15aa03d72f6ce5f41691a34e8aa3eeda25cc5c82
-  note: drift-projected L85-L104@db33f43e -> L87-L106 (similarity 1.00)
+  snippet_sha1: 370a8ac35f699eb0c570292f73feda68a112c9e7
+- path: crates/limedl-server/src/lib.rs
+  lines:
+  - 86
+  - 87
+  blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
+  snippet_sha1: b134d13b6e1d75cda4a8c9a84684d279f6365f5f
 - path: crates/limedl-server/src/lib.rs
   lines:
   - 88
-  - 89
-  blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: c429feb2fd1e1c6360eaa912fd9667cf28b35f91
-  note: drift-projected L86-L87@db33f43e -> L88-L89 (similarity 1.00)
-- path: crates/limedl-server/src/lib.rs
-  lines:
   - 90
-  - 92
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: 6293fe43264a5d39e3abc505f170c64cd30da9ae
-  note: drift-projected L88-L90@db33f43e -> L90-L92 (similarity 1.00)
+  snippet_sha1: 6f1368395b2bf6bee50c22ff7527ec27387053b0
 - path: crates/limedl-server/src/lib.rs
   lines:
-  - 93
-  - 104
+  - 91
+  - 102
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: 684071d20ddc2207e14dc7057f6585d2bc7a7996
-  note: drift-projected L91-L102@db33f43e -> L93-L104 (similarity 1.00)
+  snippet_sha1: 2a0376b300fe6156973ca4327a64a668958c7c64
 - path: crates/limedl-rpc/src/server.rs
   lines:
-  - 179
-  - 185
+  - 177
+  - 183
   blob: 85b9d6828ab075dc9ac2e5e79e68701c2297a5a7
-  snippet_sha1: 2765f67ff074bb8551a9432b14a2ab554aff590f
-  note: drift-projected L177-L183@90bfb55a -> L179-L185 (similarity 1.00)
+  snippet_sha1: 46984772cbdbdb25232d8c8e46f48b39258ff8d9
 - path: crates/limedl-rpc/src/server.rs
   lines:
   - 56
   - 73
   blob: 85b9d6828ab075dc9ac2e5e79e68701c2297a5a7
   snippet_sha1: 93d640b4768c368f3e0d8ef688abab86cb88afea
-  note: drift-projected L56-L73@90bfb55a -> L56-L73 (similarity 1.00)
 - path: crates/limedl-server/src/lib.rs
   lines:
-  - 106
-  - 107
+  - 104
+  - 105
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: 093e10a26910e438144b3b4e18db423ecf469e35
-  note: drift-projected L104-L105@db33f43e -> L106-L107 (similarity 1.00)
+  snippet_sha1: 4a61ee5ff2d4edd9bb9910739eee788ac9ee86b9
 - path: crates/limedl-server/Cargo.toml
   lines:
   - 20
@@ -211,25 +199,22 @@ evidence:
   snippet_sha1: 5ac9cd1fec060415f78c206f7142fd2fb8bc0b8e
 - path: crates/limedl-server/src/lib.rs
   lines:
-  - 159
-  - 181
+  - 144
+  - 166
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: 561b8e6bb2d9bc750f21ab9462a838a0fe7f3596
-  note: drift-projected L144-L166@db33f43e -> L159-L181 (similarity 1.00)
+  snippet_sha1: cd8f7fa48dd9c985901760283f4c013348fb817a
 - path: crates/limedl-server/src/lib.rs
   lines:
+  - 58
   - 60
-  - 62
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: 816b7b8e1718042d377680a9d6e6eed1bc593c28
-  note: drift-projected L58-L60@db33f43e -> L60-L62 (similarity 1.00)
+  snippet_sha1: 534b63ab72ea97063aa82520a40cc8577058c616
 - path: crates/limedl-server/src/lib.rs
   lines:
+  - 198
   - 213
-  - 228
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: 0dae9a33cc81248ca08968a754f5197b9633d96a
-  note: drift-projected L198-L213@db33f43e -> L213-L228 (similarity 1.00)
+  snippet_sha1: 6db5e42945596e9c6ad365fd3907c9c5c6967b7c
 - path: docs/server-daemon.md
   lines:
   - 213
@@ -238,60 +223,52 @@ evidence:
   snippet_sha1: 3a61a46948e237fd418b6c42699de318fb077572
 - path: crates/limedl-server/src/lib.rs
   lines:
-  - 112
-  - 128
+  - 110
+  - 126
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: 31ae2ea00ee39d3bfc2d02ee8eb70b7e2861734b
-  note: drift-projected L110-L126@db33f43e -> L112-L128 (similarity 1.00)
+  snippet_sha1: 1c47b0c3c0421b1ba13ea0807c7c4a16cb81f3e8
 - path: crates/limedl-server/src/lib.rs
   lines:
-  - 129
-  - 156
+  - 127
+  - 141
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: e5fd97e4d2f120d6cd66434c54c7d47bc7a64bfc
-  note: drift-projected L127-L141@db33f43e -> L129-L156 (similarity 0.73)
+  snippet_sha1: a49738494a224e08f60804d6bce3dd6a5774bf64
 - path: crates/limedl-server/src/lib.rs
   lines:
-  - 183
-  - 207
+  - 168
+  - 192
   blob: 1ad9a05546db8ebc2625bf165a1fbec487eb6375
-  snippet_sha1: 843e63f358cf33928e2b537fc4a765f4df45da9b
-  note: drift-projected L168-L192@db33f43e -> L183-L207 (similarity 1.00)
+  snippet_sha1: 9848f0a1ba18f673fcf6699e4670cd2dc9c384fa
 - path: .github/workflows/release.yml
   lines:
-  - 532
-  - 537
-  blob: ff2883c5d721423674668da789dbb080908638c5
-  snippet_sha1: f3562acc529c693835b6157840ff6709fff7f66c
-  note: drift-projected L532-L537@1a1b85bb -> L532-L537 (similarity 1.00)
-- path: .github/workflows/release.yml
-  lines:
+  - 533
   - 538
+  blob: ff2883c5d721423674668da789dbb080908638c5
+  snippet_sha1: 469861321f04e3ac37441cb13efda4a5bb6cd30b
+- path: .github/workflows/release.yml
+  lines:
+  - 539
   - 546
   blob: ff2883c5d721423674668da789dbb080908638c5
-  snippet_sha1: ebaa465246bf874f34ae6fd8dd496276ca46d6b8
-  note: drift-projected L538-L546@1a1b85bb -> L538-L546 (similarity 1.00)
+  snippet_sha1: ebf344024374b6f6e3c3e32d77a58a6d3f430aeb
 - path: .github/workflows/release.yml
   lines:
   - 559
   - 564
   blob: ff2883c5d721423674668da789dbb080908638c5
   snippet_sha1: 2a15bf42188ff1d64a377acb2ecd2a6bb83551a4
-  note: drift-projected L559-L564@1a1b85bb -> L559-L564 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 597
   - 612
   blob: ff2883c5d721423674668da789dbb080908638c5
   snippet_sha1: c4875b94e3940160ac4ec99395d308c677dbe87b
-  note: drift-projected L597-L612@1a1b85bb -> L597-L612 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 543
   - 544
   blob: ff2883c5d721423674668da789dbb080908638c5
   snippet_sha1: 4890528cdf973d719ac9830ef714acfb00ab857b
-  note: drift-projected L543-L544@1a1b85bb -> L543-L544 (similarity 1.00)
 - path: .cargo/config.toml
   lines:
   - 36
@@ -304,7 +281,6 @@ evidence:
   - 647
   blob: ff2883c5d721423674668da789dbb080908638c5
   snippet_sha1: 93e2a034af796fa610079e419c8d955b4999967b
-  note: drift-projected L631-L647@1a1b85bb -> L631-L647 (similarity 1.00)
 - path: crates/limedl-server/src/cli.rs
   lines:
   - 91
@@ -331,11 +307,10 @@ evidence:
   snippet_sha1: edae7660da3b82e9654ef2354667659cef244c0a
 - path: .github/workflows/ci.yml
   lines:
-  - 587
-  - 594
-  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
-  snippet_sha1: 901c5378cc4165c563a176b529c89789a04ea0a8
-  note: drift-projected L587-L594@0cceb1cf -> L587-L594 (similarity 1.00)
+  - 596
+  - 603
+  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
+  snippet_sha1: 3b311ac8cdb99f188b6f6a040e5b8118a70b229f
 type: integration
 ---
 # Headless Server Daemon (`limedl-server`)
