@@ -11,13 +11,22 @@
 //! the double-buffer machinery.
 
 pub mod download_buffer;
+pub(crate) mod pingpong_sync;
 pub mod worker;
 
 #[cfg(test)]
 mod tests;
 
+#[cfg(limedl_loom)]
+use loom::sync::{
+    Mutex,
+    atomic::{AtomicU32, AtomicU64, Ordering},
+};
+#[cfg(not(limedl_loom))]
+use parking_lot::Mutex;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+#[cfg(not(limedl_loom))]
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 pub use download_buffer::{DownloadBuffer, FlushObserver};
@@ -47,6 +56,57 @@ impl SlotGuard {
 // BufferPool — global slot-based pool
 // ---------------------------------------------------------------------------
 
+/// Synchronized memory-budget and parallelism configuration for [`BufferPool`].
+///
+/// Bundling these fields behind one short-lived mutex eliminates multi-atomic
+/// torn reads (e.g., `half_size()` seeing `game_mode` toggled mid-read) while
+/// keeping hot-path `current_usage` and `active_count` counters lock-free.
+struct BufferPoolConfig {
+    total_limit_mb: u64,
+    game_mode: bool,
+    game_mode_limit_mb: u64,
+    max_parallel: u32,
+    game_mode_max_parallel: u32,
+}
+
+impl BufferPoolConfig {
+    fn effective_limit(&self) -> u64 {
+        if self.game_mode {
+            self.game_mode_limit_mb * 1024 * 1024
+        } else {
+            self.total_limit_mb * 1024 * 1024
+        }
+    }
+
+    fn effective_max_parallel(&self) -> u32 {
+        if self.game_mode {
+            self.game_mode_max_parallel
+        } else {
+            self.max_parallel
+        }
+    }
+
+    fn half_size(&self) -> u64 {
+        let limit = self.effective_limit();
+        let slots = self.effective_max_parallel() as u64;
+        if limit == 0 || slots == 0 {
+            return 64 * 1024;
+        }
+        let per_slot = limit / slots;
+        (per_slot / 2).max(64 * 1024)
+    }
+}
+
+#[cfg(not(limedl_loom))]
+fn lock_config(config: &Mutex<BufferPoolConfig>) -> parking_lot::MutexGuard<'_, BufferPoolConfig> {
+    config.lock()
+}
+
+#[cfg(limedl_loom)]
+fn lock_config(config: &Mutex<BufferPoolConfig>) -> loom::sync::MutexGuard<'_, BufferPoolConfig> {
+    config.lock().unwrap()
+}
+
 /// Global pool that governs memory and concurrency for HDD download buffers.
 ///
 /// Each HDD download acquires a slot (semaphore permit) before creating its
@@ -54,11 +114,7 @@ impl SlotGuard {
 /// / `game_mode_limit_mb`) and a maximum number of concurrent HDD downloads
 /// (`max_parallel` / `game_mode_max_parallel`).
 pub struct BufferPool {
-    total_limit_mb: AtomicU64,
-    game_mode: AtomicBool,
-    game_mode_limit_mb: AtomicU64,
-    max_parallel: AtomicU32,
-    game_mode_max_parallel: AtomicU32,
+    config: Mutex<BufferPoolConfig>,
     slot_semaphore: Arc<Semaphore>,
     current_usage: AtomicU64,
     active_count: AtomicU32,
@@ -78,11 +134,13 @@ impl BufferPool {
         game_mode_max_parallel: u32,
     ) -> Self {
         Self {
-            total_limit_mb: AtomicU64::new(total_limit_mb),
-            game_mode: AtomicBool::new(false),
-            game_mode_limit_mb: AtomicU64::new(game_mode_limit_mb),
-            max_parallel: AtomicU32::new(max_parallel),
-            game_mode_max_parallel: AtomicU32::new(game_mode_max_parallel),
+            config: Mutex::new(BufferPoolConfig {
+                total_limit_mb,
+                game_mode: false,
+                game_mode_limit_mb,
+                max_parallel,
+                game_mode_max_parallel,
+            }),
             slot_semaphore: Arc::new(Semaphore::new(max_parallel as usize)),
             current_usage: AtomicU64::new(0),
             active_count: AtomicU32::new(0),
@@ -94,13 +152,7 @@ impl BufferPool {
     /// Derivation: `effective_limit / effective_max_parallel / 2`, floored to
     /// a minimum of 64 KiB so that even tiny configurations remain functional.
     pub fn half_size(&self) -> u64 {
-        let limit = self.effective_limit();
-        let slots = self.effective_max_parallel() as u64;
-        if limit == 0 || slots == 0 {
-            return 64 * 1024;
-        }
-        let per_slot = limit / slots;
-        (per_slot / 2).max(64 * 1024)
+        lock_config(&self.config).half_size()
     }
 
     /// Acquire a slot permit, blocking (async) until one is available.
@@ -134,20 +186,12 @@ impl BufferPool {
 
     /// Effective pool limit in bytes, accounting for game mode.
     pub fn effective_limit(&self) -> u64 {
-        if self.game_mode.load(Ordering::Relaxed) {
-            self.game_mode_limit_mb.load(Ordering::Relaxed) * 1024 * 1024
-        } else {
-            self.total_limit_mb.load(Ordering::Relaxed) * 1024 * 1024
-        }
+        lock_config(&self.config).effective_limit()
     }
 
     /// Effective maximum parallel HDD downloads, accounting for game mode.
     pub fn effective_max_parallel(&self) -> u32 {
-        if self.game_mode.load(Ordering::Relaxed) {
-            self.game_mode_max_parallel.load(Ordering::Relaxed)
-        } else {
-            self.max_parallel.load(Ordering::Relaxed)
-        }
+        lock_config(&self.config).effective_max_parallel()
     }
 
     /// Total bytes currently buffered across all downloads.
@@ -157,14 +201,14 @@ impl BufferPool {
 
     /// Whether game mode is currently active.
     pub fn game_mode(&self) -> bool {
-        self.game_mode.load(Ordering::Relaxed)
+        lock_config(&self.config).game_mode
     }
 
     /// Toggle game mode. This updates effective limit and max-parallel for
     /// the next `half_size()` calculation. Active semaphore permits are NOT
     /// revoked; new acquisitions will see the new limit.
     pub fn set_game_mode(&self, enabled: bool) {
-        self.game_mode.store(enabled, Ordering::Relaxed);
+        lock_config(&self.config).game_mode = enabled;
     }
 
     /// Update all limit and parallelism parameters from settings.
@@ -181,14 +225,13 @@ impl BufferPool {
         max_parallel: u32,
         game_mode_max_parallel: u32,
     ) {
-        let old_max = self.effective_max_parallel();
-        self.total_limit_mb.store(total_limit_mb, Ordering::Relaxed);
-        self.game_mode_limit_mb
-            .store(game_mode_limit_mb, Ordering::Relaxed);
-        self.max_parallel.store(max_parallel, Ordering::Relaxed);
-        self.game_mode_max_parallel
-            .store(game_mode_max_parallel, Ordering::Relaxed);
-        let new_max = self.effective_max_parallel();
+        let mut cfg = lock_config(&self.config);
+        let old_max = cfg.effective_max_parallel();
+        cfg.total_limit_mb = total_limit_mb;
+        cfg.game_mode_limit_mb = game_mode_limit_mb;
+        cfg.max_parallel = max_parallel;
+        cfg.game_mode_max_parallel = game_mode_max_parallel;
+        let new_max = cfg.effective_max_parallel();
         if new_max > old_max {
             self.slot_semaphore
                 .add_permits((new_max - old_max) as usize);
@@ -217,5 +260,64 @@ impl BufferPool {
     /// because the new design never degrades (it backpressures instead).
     pub fn degradation_count(&self) -> usize {
         0
+    }
+}
+
+#[cfg(all(test, limedl_loom))]
+mod loom_tests {
+    use super::*;
+
+    #[test]
+    fn loom_game_mode_toggle_vs_half_size_no_torn_read() {
+        loom::model(|| {
+            // Normal: 1024 MiB / 4 / 2 = 128 MiB; Game mode: 256 MiB / 2 / 2 = 64 MiB.
+            // A torn read across effective_limit() and effective_max_parallel() yields
+            // 1024 / 2 / 2 = 256 MiB or 256 / 4 / 2 = 32 MiB.
+            let pool = loom::sync::Arc::new(BufferPool::new(1024, 256, 4, 2));
+
+            let p1 = loom::sync::Arc::clone(&pool);
+            let t1 = loom::thread::spawn(move || {
+                p1.set_game_mode(true);
+            });
+
+            let p2 = loom::sync::Arc::clone(&pool);
+            let t2 = loom::thread::spawn(move || p2.half_size());
+
+            t1.join().unwrap();
+            let observed = t2.join().unwrap();
+            let normal_half = 128 * 1024 * 1024;
+            let game_half = 64 * 1024 * 1024;
+            assert!(
+                observed == normal_half || observed == game_half,
+                "torn read in BufferPool::half_size(): observed {observed} bytes, expected {normal_half} or {game_half}"
+            );
+        });
+    }
+
+    #[test]
+    fn loom_update_limits_vs_half_size_no_torn_read() {
+        loom::model(|| {
+            // Initial normal: 1024 MiB / 4 / 2 = 128 MiB.
+            // Updated normal: 2048 MiB / 2 / 2 = 512 MiB.
+            // Torn read yields 1024 / 2 / 2 = 256 MiB or 2048 / 4 / 2 = 256 MiB.
+            let pool = loom::sync::Arc::new(BufferPool::new(1024, 256, 4, 2));
+
+            let p1 = loom::sync::Arc::clone(&pool);
+            let t1 = loom::thread::spawn(move || {
+                p1.update_limits(2048, 256, 2, 2);
+            });
+
+            let p2 = loom::sync::Arc::clone(&pool);
+            let t2 = loom::thread::spawn(move || p2.half_size());
+
+            t1.join().unwrap();
+            let observed = t2.join().unwrap();
+            let old_half = 128 * 1024 * 1024;
+            let new_half = 512 * 1024 * 1024;
+            assert!(
+                observed == old_half || observed == new_half,
+                "torn read during update_limits(): observed {observed} bytes, expected {old_half} or {new_half}"
+            );
+        });
     }
 }

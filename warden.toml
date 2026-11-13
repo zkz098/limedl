@@ -105,6 +105,12 @@ packages = ["xtask"]
 features = []
 
 [[gate.custom_steps]]
+name = "loom"
+program = "cargo"
+args = ["xtask", "loom"]
+full_only = false
+
+[[gate.custom_steps]]
 name = "hack-core"
 program = "cargo"
 args = [

@@ -14,6 +14,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Gate (all)      | `cargo warden gate` · `cargo warden gate --full` · `cargo warden check` (see "Pre-commit verification gate")                                                       |
 | Test (Rust)     | `cargo nextest run -p limedl-types -p limedl-disk -p limedl-store -p limedl-http -p limedl-engine -p limedl-bt -p limedl-rpc -p limedl-testkit -p limedl-core --features "limedl-core/test-utils"` (engine), then `xtask`, `limedl-native`, `limedl-server` (see the gate below)                                                                |
+| Loom concurrency| `cargo xtask loom` (merges `.cargo/config.toml` host rustflags with `--cfg limedl_loom` into `target/loom`; runs clippy + `loom_tests`)                          |
 | Feature matrix  | `cargo hack check --feature-powerset --all-targets --keep-going --manifest-path crates/limedl-core/Cargo.toml`                                                      |
 | Unused deps     | `cargo machete --with-metadata`                                                                                                                                     |
 | Version bump    | `cargo xtask bump-version patch`                                                                                                                                   |

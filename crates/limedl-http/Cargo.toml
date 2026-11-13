@@ -33,6 +33,12 @@ futures-util = { workspace = true }
 # `http::tests` builds `reqwest`-shaped responses out of `axum::http`.
 axum = { workspace = true }
 
+[target.'cfg(limedl_loom)'.dependencies]
+loom = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(limedl_loom)'] }
+
 # The bench drives the token bucket the way the engine does (`set_tokens`,
 # `capacity`, `consume_blocking`), and those live behind `test-utils` — they are
 # the seam the scheduler tests use, not production API. Hence the feature and

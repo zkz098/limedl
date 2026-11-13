@@ -73,3 +73,9 @@ bt = []
 tempfile = { workspace = true }
 axum = { workspace = true }
 proptest = { workspace = true }
+
+[target.'cfg(limedl_loom)'.dependencies]
+loom = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(limedl_loom)'] }

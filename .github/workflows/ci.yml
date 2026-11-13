@@ -603,6 +603,26 @@ jobs:
             crates/*/lcov.info
           if-no-files-found: warn
 
+  # Loom permutation tests for concurrency primitives (`--cfg limedl_loom`).
+  # Runs in its own job with `cache: false` so `target/loom` neither pollutes
+  # `ci-debug` nor consumes the 10 GB repo cache budget, while compiling only the
+  # low-level crates that carry `loom_tests`.
+  test-loom:
+    name: Tests (Linux, loom)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CARGO_BUILD_WARNINGS: deny
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+        with:
+          toolchain: stable
+          components: clippy
+          cache: false
+          rustflags: ""
+      - run: cargo xtask loom
+
   # Quality checks & CI parity are handled by `cargo-warden` (`warden.toml`).
   # `cargo warden check` runs all static checks (module DAG, CI parity — which
   # re-reads *this file* so no workspace member's tests or coverage fan-out

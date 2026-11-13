@@ -38,29 +38,32 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow, bail};
 use base64::Engine as _;
 use clap::{Parser, Subcommand};
-use minisign::{KeyPair, PublicKey, SecretKey, SecretKeyBox, SignatureBox};
+use minisign::{PublicKey, SecretKey, SecretKeyBox, SignatureBox};
 use ml_dsa::{
     EncodedSignature, EncodedVerifyingKey, KeyExport, KeyInit, Keypair, MlDsa65, Seed, Signature,
     SignatureEncoding, SigningKey, VerifyingKey,
 };
-use rand::Rng as _;
 
 mod bump_version;
 mod fetch_font;
 mod icons;
+mod keygen;
+mod loom;
 mod manifest;
 mod theme;
 
+use keygen::generate_key;
+
 /// base64 of the key file text — the form stored in CI secrets and embedded in
 /// `update.rs`.
-const BASE64: base64::engine::general_purpose::GeneralPurpose =
+pub(crate) const BASE64: base64::engine::general_purpose::GeneralPurpose =
     base64::engine::general_purpose::STANDARD;
 
-const KEY_ENV: &str = "LIMEDL_SIGNING_KEY";
-const KEY_PASSWORD_ENV: &str = "LIMEDL_SIGNING_KEY_PASSWORD";
+pub(crate) const KEY_ENV: &str = "LIMEDL_SIGNING_KEY";
+pub(crate) const KEY_PASSWORD_ENV: &str = "LIMEDL_SIGNING_KEY_PASSWORD";
 const PUBKEY_ENV: &str = "LIMEDL_SIGNING_PUBKEY";
 
-const PQC_KEY_ENV: &str = "LIMEDL_PQC_SIGNING_KEY";
+pub(crate) const PQC_KEY_ENV: &str = "LIMEDL_PQC_SIGNING_KEY";
 const PQC_PUBKEY_ENV: &str = "LIMEDL_PQC_SIGNING_PUBKEY";
 
 const PQC_MANIFEST_CTX: &[u8] = b"limedl-manifest";
@@ -77,7 +80,7 @@ type PqcVerifyingKey = VerifyingKey<MlDsa65>;
 /// `default_update_path_declares_the_embedded_pubkey` fails at test time when
 /// the file moves again, instead of failing the `Update manifest` job after the
 /// platform artifacts are already uploaded.
-const DEFAULT_UPDATE_RS: &str = "crates/limedl-native/src/update/mod.rs";
+pub(crate) const DEFAULT_UPDATE_RS: &str = "crates/limedl-native/src/update/mod.rs";
 
 #[derive(Parser)]
 #[command(
@@ -197,6 +200,15 @@ enum Command {
     /// Generate desktop packaging icons (MSIX, Linux hicolor, macOS iconset).
     #[command(subcommand)]
     GenIcons(icons::IconsCommand),
+    /// Run `clippy` and Loom permutation tests under `--cfg limedl_loom`.
+    Loom {
+        /// Run `cargo clippy` under `--cfg limedl_loom` without executing tests.
+        #[arg(long)]
+        clippy_only: bool,
+        /// Extra arguments forwarded to `cargo test -- ...` (e.g. `--nocapture`).
+        #[arg(last = true)]
+        test_args: Vec<String>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -289,6 +301,10 @@ fn main() -> Result<()> {
         ),
         Command::Theme(cmd) => theme::run(cmd),
         Command::GenIcons(cmd) => icons::run(cmd),
+        Command::Loom {
+            clippy_only,
+            test_args,
+        } => loom::run(&repo_root()?, clippy_only, &test_args),
     }
 }
 
@@ -387,7 +403,7 @@ fn parse_public_key(value: &str) -> Result<PublicKey> {
 }
 
 /// base64 of the key file text — the exact string that belongs in `PUBKEY_B64`.
-fn pubkey_b64(pk: &PublicKey) -> Result<String> {
+pub(crate) fn pubkey_b64(pk: &PublicKey) -> Result<String> {
     let box_text = pk.to_box().context("serialize public key")?;
     Ok(BASE64.encode(box_text.to_bytes()))
 }
@@ -724,149 +740,6 @@ fn extract_pqc_pubkey_b64(source: &str) -> Result<String> {
         bail!("PQC_PUBKEY_B64 is empty");
     }
     Ok(value)
-}
-
-// ── Key generation ───────────────────────────────────────────────────────────
-
-fn generate_key(
-    out_dir: &Path,
-    name: &str,
-    password: Option<String>,
-    force: bool,
-    pqc_only: bool,
-) -> Result<()> {
-    let sk_path = out_dir.join(format!("{name}.key"));
-    let pk_path = out_dir.join(format!("{name}.key.pub"));
-    let sk_b64_path = out_dir.join(format!("{name}.key.b64"));
-    let password_path = out_dir.join(format!("{name}.password"));
-
-    let pqc_sk_b64_path = out_dir.join(format!("{name}.pqc.key.b64"));
-    let pqc_pk_path = out_dir.join(format!("{name}.pqc.pub"));
-
-    let check_paths: &[&PathBuf] = if pqc_only {
-        &[&pqc_sk_b64_path, &pqc_pk_path]
-    } else {
-        &[
-            &sk_path,
-            &pk_path,
-            &sk_b64_path,
-            &password_path,
-            &pqc_sk_b64_path,
-            &pqc_pk_path,
-        ]
-    };
-
-    if !force && check_paths.iter().any(|p| p.exists()) {
-        bail!(
-            "Key files already exist in {} — pass --force to overwrite",
-            out_dir.display(),
-        );
-    }
-    fs::create_dir_all(out_dir).with_context(|| format!("create {}", out_dir.display()))?;
-
-    let embedded_minisign = if !pqc_only {
-        let password = password.unwrap_or_else(random_password);
-        let keypair = KeyPair::generate_and_write_encrypted_keypair(
-            &mut fs::File::create(&pk_path).context("create public key file")?,
-            &mut fs::File::create(&sk_path).context("create secret key file")?,
-            None,
-            Some(password.clone()),
-        )
-        .context("generate minisign keypair")?;
-
-        restrict_permissions(&sk_path)?;
-
-        let embedded_minisign = pubkey_b64(&keypair.pk)?;
-        fs::write(&sk_b64_path, BASE64.encode(fs::read(&sk_path)?))
-            .context("write secret key payload")?;
-        restrict_permissions(&sk_b64_path)?;
-        fs::write(&password_path, &password).context("write password file")?;
-        restrict_permissions(&password_path)?;
-        Some(embedded_minisign)
-    } else {
-        None
-    };
-
-    // Generate ML-DSA-65 post-quantum keypair from 32-byte secure seed
-    let mut pqc_seed = [0u8; 32];
-    rand::rng().fill_bytes(&mut pqc_seed);
-    let pqc_pk = SigningKey::<MlDsa65>::from_seed(&Seed::from(pqc_seed)).verifying_key();
-    let pqc_seed_b64 = BASE64.encode(pqc_seed);
-    let embedded_pqc = BASE64.encode(pqc_pk.to_bytes());
-
-    fs::write(&pqc_sk_b64_path, &pqc_seed_b64).context("write PQC secret key seed payload")?;
-    restrict_permissions(&pqc_sk_b64_path)?;
-    fs::write(&pqc_pk_path, &embedded_pqc).context("write PQC public key file")?;
-
-    if let Some(embedded_minisign) = embedded_minisign {
-        println!(
-            "wrote {name}.{{key,key.pub,key.b64,password,pqc.key.b64,pqc.pub}} in {}",
-            out_dir.display()
-        );
-        println!();
-        println!("1. Put these in {DEFAULT_UPDATE_RS}:");
-        println!();
-        println!("const PUBKEY_B64: &str =\n    \"{embedded_minisign}\";");
-        println!("const PQC_PUBKEY_B64: &str =\n    \"{embedded_pqc}\";");
-        println!();
-        println!("2. Store the secrets from the files (values never need to be printed):");
-        println!();
-        println!(
-            "   Get-Content {} | gh secret set {KEY_ENV}",
-            sk_b64_path.display()
-        );
-        println!(
-            "   Get-Content {} | gh secret set {KEY_PASSWORD_ENV}",
-            password_path.display()
-        );
-        println!(
-            "   Get-Content {} | gh secret set {PQC_KEY_ENV}",
-            pqc_sk_b64_path.display()
-        );
-    } else {
-        println!(
-            "wrote {name}.{{pqc.key.b64,pqc.pub}} in {}",
-            out_dir.display()
-        );
-        println!();
-        println!("1. Put this in {DEFAULT_UPDATE_RS}:");
-        println!();
-        println!("const PQC_PUBKEY_B64: &str =\n    \"{embedded_pqc}\";");
-        println!();
-        println!("2. Store the PQC secret from the file (values never need to be printed):");
-        println!();
-        println!(
-            "   Get-Content {} | gh secret set {PQC_KEY_ENV}",
-            pqc_sk_b64_path.display()
-        );
-    }
-    println!();
-    println!("3. Prove the round-trip without publishing anything:");
-    println!();
-    println!("   gh workflow run sign-check");
-    println!();
-    println!(
-        "4. Delete {} once the check is green and never commit it.",
-        out_dir.display()
-    );
-    Ok(())
-}
-
-/// 32 hex chars from a v4 UUID: 122 bits of entropy, no extra dependency.
-fn random_password() -> String {
-    uuid::Uuid::new_v4().simple().to_string()
-}
-
-#[cfg(unix)]
-fn restrict_permissions(path: &Path) -> Result<()> {
-    use std::os::unix::fs::PermissionsExt as _;
-    fs::set_permissions(path, fs::Permissions::from_mode(0o600))
-        .with_context(|| format!("chmod 600 {}", path.display()))
-}
-
-#[cfg(not(unix))]
-fn restrict_permissions(_path: &Path) -> Result<()> {
-    Ok(())
 }
 
 #[cfg(test)]

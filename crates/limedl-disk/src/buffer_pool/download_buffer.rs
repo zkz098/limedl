@@ -2,32 +2,20 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 
 use bytes::Bytes;
 use parking_lot::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
+pub use super::pingpong_sync::FlipTokenGuard;
+use super::pingpong_sync::{check_bg_error, clear_bg_error, set_bg_error, try_acquire_flip_token};
 use super::worker::IoWorker;
 use super::{BufferPool, SlotGuard};
 use crate::error::DownloadError;
 use crate::file_ops::SyncMode;
 use crate::file_ops::write_all_at;
-
-/// RAII guard that releases the flip token and notifies waiters on drop.
-/// Prevents deadlock if the flip section panics.
-pub struct FlipTokenGuard<'a> {
-    pub(crate) token: &'a AtomicBool,
-    pub(crate) notify: &'a Notify,
-}
-
-impl<'a> Drop for FlipTokenGuard<'a> {
-    fn drop(&mut self) {
-        self.token.store(false, Ordering::SeqCst);
-        self.notify.notify_waiters();
-    }
-}
 
 /// Notified once a flush has actually written its byte ranges to the file.
 ///
@@ -365,7 +353,7 @@ impl DownloadBuffer {
             // flip, bail out immediately so the caller can fall back to direct
             // I/O. Without this check, the chunk worker would keep downloading
             // data that will ultimately fail checksum — wasted bandwidth.
-            if halves.error_flag.load(Ordering::Acquire) {
+            if check_bg_error(halves.error_flag) {
                 return Err(DownloadError::Internal(
                     "background buffer flush failed".into(),
                 ));
@@ -390,7 +378,7 @@ impl DownloadBuffer {
             notified.as_mut().enable();
 
             // Acquire the flip token to serialise flips.
-            if halves.flip_token.swap(true, Ordering::SeqCst) {
+            if !try_acquire_flip_token(halves.flip_token) {
                 // Someone else is flipping — wait for room.
                 notified.await;
                 continue;
@@ -417,7 +405,7 @@ impl DownloadBuffer {
             let prev_handle = halves.flush_handle.lock().take();
             if let Some(h) = prev_handle {
                 let _ = h.await;
-                if halves.error_flag.load(Ordering::Acquire) {
+                if check_bg_error(halves.error_flag) {
                     return Err(DownloadError::Internal(
                         "background buffer flush failed".into(),
                     ));
@@ -551,7 +539,7 @@ impl DownloadBuffer {
         let handle = flush_handle.lock().take();
         if let Some(h) = handle {
             let _ = h.await;
-            if error_flag.load(Ordering::Acquire) {
+            if check_bg_error(error_flag) {
                 return Err(DownloadError::Internal(
                     "background buffer flush failed".into(),
                 ));
@@ -585,7 +573,7 @@ impl DownloadBuffer {
         }
 
         // 3. Check error flag one more time.
-        if error_flag.load(Ordering::Acquire) {
+        if check_bg_error(error_flag) {
             return Err(DownloadError::Internal(
                 "background buffer flush failed".into(),
             ));
@@ -624,13 +612,13 @@ impl DownloadBuffer {
                 ..
             } => {
                 state.lock().clear(Some(pool));
-                error_flag.store(false, Ordering::Release);
+                clear_bg_error(error_flag);
             }
             BufferMode::LocalPingPong {
                 state, error_flag, ..
             } => {
                 state.lock().clear(None);
-                error_flag.store(false, Ordering::Release);
+                clear_bg_error(error_flag);
             }
         }
     }
@@ -656,7 +644,7 @@ impl DownloadBuffer {
     pub fn has_degraded(&self) -> bool {
         match &self.mode {
             BufferMode::Double { error_flag, .. }
-            | BufferMode::LocalPingPong { error_flag, .. } => error_flag.load(Ordering::Relaxed),
+            | BufferMode::LocalPingPong { error_flag, .. } => check_bg_error(error_flag),
         }
     }
 }
@@ -738,7 +726,7 @@ fn spawn_background_flush(
             {
                 Ok(()) => notify_flushed(bg_observer.as_ref(), &ranges),
                 Err(e) => {
-                    bg_error.store(true, Ordering::Release);
+                    set_bg_error(&bg_error);
                     tracing::error!("background {label} buffer flush failed (device queue): {e}");
                 }
             }
@@ -758,7 +746,7 @@ fn spawn_background_flush(
             match result {
                 Ok(Ok(())) => {
                     if bg_fsync && let Err(e) = bg_file.sync_data() {
-                        bg_error.store(true, Ordering::Release);
+                        set_bg_error(&bg_error);
                         tracing::error!("background {label} buffer flush fsync failed: {e}");
                     }
                     // `sync_data` failing still means the bytes are in the file
@@ -767,11 +755,11 @@ fn spawn_background_flush(
                     notify_flushed(bg_observer.as_ref(), &ranges);
                 }
                 Ok(Err(e)) => {
-                    bg_error.store(true, Ordering::Release);
+                    set_bg_error(&bg_error);
                     tracing::error!("background {label} buffer flush failed: {e}");
                 }
                 Err(payload) => {
-                    bg_error.store(true, Ordering::Release);
+                    set_bg_error(&bg_error);
                     let msg = panic_payload_message(payload.as_ref());
                     tracing::error!("background {label} flush task panicked: {msg}");
                 }
@@ -813,7 +801,7 @@ impl Drop for DownloadBuffer {
                         "HDD DownloadBuffer dropped with {total} buffered bytes — data lost (possible panic unwind or unexpected cancel)"
                     );
                 }
-                error_flag.store(false, Ordering::Release);
+                clear_bg_error(error_flag);
                 pool.release_slot();
             }
             BufferMode::LocalPingPong {
@@ -825,7 +813,7 @@ impl Drop for DownloadBuffer {
                         "SSD PingPong DownloadBuffer dropped with {total} buffered bytes — data lost (possible panic unwind or unexpected cancel)"
                     );
                 }
-                error_flag.store(false, Ordering::Release);
+                clear_bg_error(error_flag);
             }
         }
     }

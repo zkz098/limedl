@@ -1,4 +1,5 @@
 use super::*;
+use minisign::KeyPair;
 use minisign_verify::{PublicKey as VerifyKey, Signature as VerifySignature};
 
 /// The client side of the contract: `update.rs::verify_signature` decodes
