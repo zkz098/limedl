@@ -68,26 +68,18 @@ pub fn calculate_mirror_score(
 fn are_regions_close(loc_a: &str, loc_b: &str) -> bool {
     let a = loc_a.to_ascii_lowercase();
     let b = loc_b.to_ascii_lowercase();
-
-    // East Asia cluster
-    let east_asia = ["cn", "hk", "mo", "tw", "jp", "kr", "sg"];
-    if east_asia.contains(&a.as_str()) && east_asia.contains(&b.as_str()) {
-        return true;
-    }
-
-    // Europe cluster
-    let europe = [
-        "de", "fr", "nl", "gb", "uk", "ch", "at", "se", "no", "fi", "pl", "it", "es",
+    let clusters: &[&[&str]] = &[
+        // East Asia cluster
+        &["cn", "hk", "mo", "tw", "jp", "kr", "sg"],
+        // Europe cluster
+        &[
+            "de", "fr", "nl", "gb", "uk", "ch", "at", "se", "no", "fi", "pl", "it", "es",
+        ],
+        // North America cluster
+        &["us", "ca", "mx"],
     ];
-    if europe.contains(&a.as_str()) && europe.contains(&b.as_str()) {
-        return true;
-    }
 
-    // North America cluster
-    let na = ["us", "ca", "mx"];
-    if na.contains(&a.as_str()) && na.contains(&b.as_str()) {
-        return true;
-    }
-
-    false
+    clusters
+        .iter()
+        .any(|c| c.contains(&a.as_str()) && c.contains(&b.as_str()))
 }
