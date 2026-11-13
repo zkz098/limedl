@@ -2,8 +2,8 @@
 id: workflows/metalink-and-mirror-selection
 title: Metalink Parsing and Mirror Selection
 status: verified
-generated_at: 2026-11-09T15:10:34Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T04:19:17Z
+commit: cdfec67a34d035893ccbec695cb0b7e8fe640a6a
 evidence:
 - path: crates/limedl-engine/src/metalink/mod.rs
   lines:
@@ -93,20 +93,22 @@ evidence:
   lines:
   - 21
   - 66
-  blob: 4b7367d657475e07f79e8dd74013f177bc32ea9a
+  blob: 40d5fb7987c57af3f9426ab49af972ad6ec8f924
   snippet_sha1: 1de14d56d5ffabb4a80c75ba827f98d3f2cb55f8
+  note: drift-projected L21-L66@4b7367d6 -> L21-L66 (similarity 1.00)
 - path: crates/limedl-engine/src/metalink/scorer.rs
   lines:
   - 1
   - 19
-  blob: 4b7367d657475e07f79e8dd74013f177bc32ea9a
+  blob: 40d5fb7987c57af3f9426ab49af972ad6ec8f924
   snippet_sha1: 95334fbc7d4ad6116f58d6bfc88b8aebb88635a4
+  note: drift-projected L1-L19@4b7367d6 -> L1-L19 (similarity 1.00)
 - path: crates/limedl-engine/src/metalink/scorer.rs
   lines:
   - 68
-  - 93
-  blob: 4b7367d657475e07f79e8dd74013f177bc32ea9a
-  snippet_sha1: 0ec7f48b368e3b4b25e1d1d08119849d364bd62e
+  - 85
+  blob: 40d5fb7987c57af3f9426ab49af972ad6ec8f924
+  snippet_sha1: 544cf2bfb8184b345cf23562c6d122f8a6328e1e
 - path: crates/limedl-engine/src/metalink/pool.rs
   lines:
   - 10
@@ -387,7 +389,7 @@ higher-is-better composite [[cite:crates/limedl-engine/src/metalink/scorer.rs:L2
 `preferred_protocol` (default `https`). `are_regions_close` groups East Asia,
 Europe and North America so a same-region mirror beats a distant one even
 without an exact country match [[cite:crates/limedl-engine/src/metalink/scorer.rs:L1-L19]],
-[[cite:crates/limedl-engine/src/metalink/scorer.rs:L68-L93]].
+[[cite:crates/limedl-engine/src/metalink/scorer.rs:L68-L85]].
 
 ## MirrorPool: leasing, health and cooldown
 

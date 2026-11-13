@@ -2,8 +2,8 @@
 id: operations/build-release-and-ci
 title: Build, Tooling, CI and Release Operations
 status: verified
-generated_at: 2026-11-13T03:32:42Z
-commit: b56ef11879fd182cdb250f518a7360caf8eda9c3
+generated_at: 2026-11-13T04:19:02Z
+commit: cdfec67a34d035893ccbec695cb0b7e8fe640a6a
 evidence:
 - path: AGENTS.md
   lines:
@@ -21,14 +21,16 @@ evidence:
   lines:
   - 393
   - 395
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 95cd9f2602e7107a8c5283444f04722d70cd9eb4
+  note: drift-projected L393-L395@0cceb1cf -> L393-L395 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 403
   - 405
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 051a6dcbddd805b939331a1badb256d8a86ef703
+  note: drift-projected L403-L405@0cceb1cf -> L403-L405 (similarity 1.00)
 - path: .cargo/config.toml
   lines:
   - 1
@@ -93,14 +95,16 @@ evidence:
   lines:
   - 111
   - 143
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: d0a61d2bc6fdcced838667d140adc5bcdaa65424
+  note: drift-projected L111-L143@0cceb1cf -> L111-L143 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 111
   - 121
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: dcc3651b53065ad077aa3e5d21fa864aeecf02f8
+  note: drift-projected L111-L121@0cceb1cf -> L111-L121 (similarity 1.00)
 - path: .github/workflows/release.yml
   lines:
   - 551
@@ -147,8 +151,9 @@ evidence:
   lines:
   - 242
   - 248
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 6455a9f3b6164b44a0888912fd33fc813a015951
+  note: drift-projected L242-L248@0cceb1cf -> L242-L248 (similarity 1.00)
 - path: AGENTS.md
   lines:
   - 138
@@ -165,8 +170,9 @@ evidence:
   lines:
   - 75
   - 84
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 678eb769e65992a8cc285c26244468a197360c59
+  note: drift-projected L75-L84@0cceb1cf -> L75-L84 (similarity 1.00)
 - path: AGENTS.md
   lines:
   - 141
@@ -207,44 +213,51 @@ evidence:
   lines:
   - 606
   - 637
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 8a9af3f8661e35fbb74f1f24a91435f0565a0273
+  note: drift-projected L606-L637@0cceb1cf -> L606-L637 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 104
   - 106
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 48e46eb973d1b400684d27e5f291a1a1a7bf7e40
+  note: drift-projected L104-L106@0cceb1cf -> L104-L106 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 447
   - 477
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 4552ce877c36a63e6be91b3a633d59b99d3fe072
+  note: drift-projected L447-L477@0cceb1cf -> L447-L477 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 396
   - 402
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 24ff3d72650a9bc26cf518b3117fbd4f418e3510
+  note: drift-projected L396-L402@0cceb1cf -> L396-L402 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 452
   - 463
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 67b109cf479efd4d89ad2c53d3c8ad77c8ec11db
+  note: drift-projected L452-L463@0cceb1cf -> L452-L463 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 447
   - 450
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 91a2b2c6f670ded4d3057d0a5c057928bb959cc8
+  note: drift-projected L447-L450@0cceb1cf -> L447-L450 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 488
   - 508
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 217ad1aa7af57e5c724ca2b325b9166ad985a6f6
+  note: drift-projected L488-L508@0cceb1cf -> L488-L508 (similarity 1.00)
 - path: sonar-project.properties
   lines:
   - 47
@@ -273,26 +286,30 @@ evidence:
   lines:
   - 109
   - 782
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
-  snippet_sha1: 6f4a02bb7cfd54f8b5e4310bcbbab443f6a66aea
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
+  snippet_sha1: cec51c86be357a9190dd5da2f1a68bae20693680
+  note: drift-projected L109-L782@0cceb1cf -> L109-L782 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 734
   - 782
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: ca85f20a69250116aff4d5a27ae01562adeae060
+  note: drift-projected L734-L782@0cceb1cf -> L734-L782 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 741
   - 743
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 375cf5aa427a7391f433d3f4af99a62c8a24b847
+  note: drift-projected L741-L743@0cceb1cf -> L741-L743 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 587
   - 594
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 901c5378cc4165c563a176b529c89789a04ea0a8
+  note: drift-projected L587-L594@0cceb1cf -> L587-L594 (similarity 1.00)
 - path: .github/workflows/aria2-oracle.yml
   lines:
   - 1
@@ -321,20 +338,23 @@ evidence:
   lines:
   - 145
   - 162
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: fdadd372812d4fe2dbc56b1d4158091c9aaf8f94
+  note: drift-projected L145-L162@0cceb1cf -> L145-L162 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 29
   - 37
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 5a1da48385641e33cba17abd2119e98914a63f6c
+  note: drift-projected L29-L37@0cceb1cf -> L29-L37 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 48
   - 50
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: afb8b5ce043f6cc70319e6f27b3efb6c9958fe13
+  note: drift-projected L48-L50@0cceb1cf -> L48-L50 (similarity 1.00)
 - path: docs/ci-operations.md
   lines:
   - 39
@@ -387,14 +407,16 @@ evidence:
   lines:
   - 75
   - 77
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: 43816a392b6faac9af9a7fd5a7694b8a2ae7f8a7
+  note: drift-projected L75-L77@0cceb1cf -> L75-L77 (similarity 1.00)
 - path: .github/workflows/ci.yml
   lines:
   - 91
   - 96
-  blob: 0cceb1cf0dc94262fdce52db5d95f74f2bbae0bf
+  blob: 007573d185f3f74b162601cdac88ebd4048f7d71
   snippet_sha1: c1f77980c09282273f2b97f1741779462be3f891
+  note: drift-projected L91-L96@0cceb1cf -> L91-L96 (similarity 1.00)
 - path: docs/ci-operations.md
   lines:
   - 76
