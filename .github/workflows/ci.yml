@@ -310,7 +310,7 @@ jobs:
 
   check-macos:
     name: Clippy & tests (macOS)
-    runs-on: macos-14
+    runs-on: macos-latest
     needs: font
     env:
       CARGO_BUILD_WARNINGS: deny
