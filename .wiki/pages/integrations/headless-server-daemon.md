@@ -2,8 +2,8 @@
 id: integrations/headless-server-daemon
 title: Headless Server Daemon (limedl-server)
 status: verified
-generated_at: 2026-11-13T06:38:13Z
-commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
+generated_at: 2026-11-13T10:12:27Z
+commit: 6febc9bfbb09bad587f195385ec91f537f1ad6ac
 evidence:
 - path: crates/limedl-server/src/lib.rs
   lines:
@@ -309,8 +309,9 @@ evidence:
   lines:
   - 596
   - 603
-  blob: bb41ab2889f0a71f2c71d0aefeb9863cf029d49b
+  blob: d8f65e89681aaec2dc2c55619bf7a5de8349f687
   snippet_sha1: 3b311ac8cdb99f188b6f6a040e5b8118a70b229f
+  note: drift-projected L596-L603@bb41ab28 -> L596-L603 (similarity 1.00)
 type: integration
 ---
 # Headless Server Daemon (`limedl-server`)

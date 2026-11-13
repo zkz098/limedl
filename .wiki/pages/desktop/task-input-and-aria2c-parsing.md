@@ -2,8 +2,8 @@
 id: desktop/task-input-and-aria2c-parsing
 title: Task Input Surfaces and aria2c Command Parsing
 status: verified
-generated_at: 2026-11-09T15:14:11Z
-commit: 34c8c3474524c0405e2bbfcf13e1ef9919eb8f89
+generated_at: 2026-11-13T10:12:27Z
+commit: 6febc9bfbb09bad587f195385ec91f537f1ad6ac
 evidence:
 - path: crates/limedl-native/src/handlers/new_task/payload.rs
   lines:
@@ -279,20 +279,23 @@ evidence:
   lines:
   - 33
   - 55
-  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  blob: e24f4ddedb085f5d33ad2fbe2a0defa116ad2202
   snippet_sha1: 5c7eb8f762aaa271f926502eaa1f7095bbf87a81
+  note: drift-projected L33-L55@4989fa80 -> L33-L55 (similarity 1.00)
 - path: crates/limedl-types/src/url_utils.rs
   lines:
   - 57
   - 95
-  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  blob: e24f4ddedb085f5d33ad2fbe2a0defa116ad2202
   snippet_sha1: a040655fce0b704bec496b5090f83410daa31384
+  note: drift-projected L57-L95@4989fa80 -> L57-L95 (similarity 1.00)
 - path: crates/limedl-types/src/url_utils.rs
   lines:
   - 57
   - 83
-  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  blob: e24f4ddedb085f5d33ad2fbe2a0defa116ad2202
   snippet_sha1: 1b50b5c2dd96fa37e87bd5a33257f56c13464478
+  note: drift-projected L57-L83@4989fa80 -> L57-L83 (similarity 1.00)
 - path: crates/limedl-native/src/handlers/new_task/submit.rs
   lines:
   - 327
@@ -303,14 +306,16 @@ evidence:
   lines:
   - 141
   - 158
-  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  blob: e24f4ddedb085f5d33ad2fbe2a0defa116ad2202
   snippet_sha1: c89321c87b11cb6a94fa02b5748b215140b28e40
+  note: drift-projected L141-L158@4989fa80 -> L141-L158 (similarity 1.00)
 - path: crates/limedl-types/src/url_utils.rs
   lines:
   - 97
   - 139
-  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  blob: e24f4ddedb085f5d33ad2fbe2a0defa116ad2202
   snippet_sha1: 242bf78a3d7e1c8622f901c0193d62b639b6cc06
+  note: drift-projected L97-L139@4989fa80 -> L97-L139 (similarity 1.00)
 - path: crates/limedl-native/ui/components/common.slint
   lines:
   - 406
@@ -337,10 +342,11 @@ evidence:
   snippet_sha1: f35e1210b93248a5ae595b66ea809db3cab16ee0
 - path: crates/limedl-types/src/url_utils.rs
   lines:
-  - 181
-  - 296
-  blob: 4989fa805969ec05c817de8c1a61911c08f4187c
+  - 190
+  - 305
+  blob: e24f4ddedb085f5d33ad2fbe2a0defa116ad2202
   snippet_sha1: aadecea119b1f18d8956eb1a4a3b90560e8262ec
+  note: drift-projected L181-L296@4989fa80 -> L190-L305 (similarity 1.00)
 - path: crates/limedl-native/src/ui_tests/new_task.rs
   lines:
   - 16
