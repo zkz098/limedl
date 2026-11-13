@@ -165,9 +165,9 @@ pub fn percent_decode(input: &str) -> String {
     while i < bytes.len() {
         if bytes[i] == b'%'
             && i + 3 <= bytes.len()
-            && let Ok(value) = u8::from_str_radix(&input[i + 1..i + 3], 16)
+            && let (Some(hi), Some(lo)) = (hex_nibble(bytes[i + 1]), hex_nibble(bytes[i + 2]))
         {
-            out.push(value);
+            out.push((hi << 4) | lo);
             i += 3;
         } else {
             out.push(bytes[i]);
@@ -175,6 +175,15 @@ pub fn percent_decode(input: &str) -> String {
         }
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+fn hex_nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -319,5 +328,10 @@ aria2c \"https://host/b.zip\" --out \"b.zip\" --header \"Cookie: a=1\" --dir /ou
         assert_eq!(percent_decode("plain"), "plain");
         assert_eq!(percent_decode("bad%zz"), "bad%zz");
         assert_eq!(percent_decode("trunc%2"), "trunc%2");
+        assert_eq!(percent_decode("%+1"), "%+1");
+        assert_eq!(percent_decode("%2f%2F"), "//");
+        // Regression from fuzz-aria2_cli_and_batch: '%' followed by ASCII + multibyte UTF-8
+        assert_eq!(percent_decode("%%ݙn."), "%%ݙn.");
+        assert_eq!(percent_decode("%中"), "%中");
     }
 }
