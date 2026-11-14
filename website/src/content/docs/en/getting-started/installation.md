@@ -5,7 +5,7 @@ description: How to acquire, install, and verify the limedl native desktop clien
 
 # Installation Guide
 
-limedl provides natively compiled release artifacts for all major desktop platforms. Every release artifact is hybrid-signed with **`sigilup` (Ed25519 + ML-DSA-65)**. File names below use `v0.6.5` as an example — substitute the version you actually downloaded.
+limedl provides natively compiled release artifacts for all major desktop platforms. Every release artifact is hybrid-signed with **`sigilup` (Ed25519 + ML-DSA-65)**. File names below use `v0.6.6` as an example — substitute the version you actually downloaded.
 
 :::tip[Quick Download]
 You can always head over to the official [Download Page](/en/download/), which automatically highlights the recommended package format for your current operating system.
@@ -31,7 +31,7 @@ Windows users can choose from three distribution formats based on their deployme
 - **Features**: Guided setup wizard that creates Start Menu and Desktop shortcuts, registers the `magnet:` and `limedl://` protocol handlers in the registry, and enables background in-app updates.
 - **Silent Installation Switches**: Ideal for enterprise provisioning or scripting:
   ```cmd
-  limedl-native-v0.6.5-windows-x86_64-setup.exe /P /R
+  limedl-native-v0.6.6-windows-x86_64-setup.exe /P /R
   ```
   *(Where `/P` runs silently and `/R` suppresses unexpected system reboots)*
 
@@ -51,7 +51,7 @@ Windows users can choose from three distribution formats based on their deployme
 A tailored, natively compiled aarch64 binary is provided for Apple Silicon (M-series processors).
 
 ### Step-by-Step
-1. Download `limedl-native-v0.6.5-darwin-aarch64-portable.tar.gz` from the download page;
+1. Download `limedl-native-v0.6.6-darwin-aarch64-portable.tar.gz` from the download page;
 2. Extract the archive to obtain `limedl.app`;
 3. Drag and drop `limedl.app` into your **Applications** folder.
 
@@ -79,21 +79,21 @@ Targeted at Linux distributions running glibc ≥ 2.17 (Debian 10+, Ubuntu 18.04
 Self-contained and distribution-agnostic:
 ```bash
 # Grant execution permissions
-chmod +x limedl-native-v0.6.5-linux-x86_64.AppImage
+chmod +x limedl-native-v0.6.6-linux-x86_64.AppImage
 
 # Launch the client
-./limedl-native-v0.6.5-linux-x86_64.AppImage
+./limedl-native-v0.6.6-linux-x86_64.AppImage
 ```
 
 ### 2. Debian / Ubuntu Package (.deb)
 Integrates with desktop menus, mime associations, and icons:
 ```bash
-sudo apt install ./limedl-native-v0.6.5-linux-x86_64.deb
+sudo apt install ./limedl-native-v0.6.6-linux-x86_64.deb
 ```
 
 ### 3. Portable Tarball (.tar.gz)
 ```bash
-tar -xzf limedl-native-v0.6.5-linux-x86_64-portable.tar.gz
+tar -xzf limedl-native-v0.6.6-linux-x86_64-portable.tar.gz
 cd limedl-native
 ./limedl-native
 ```
@@ -112,17 +112,17 @@ GitHub Releases shows a SHA-256 digest for every asset; compute the digest local
 
 **Windows (PowerShell)**:
 ```powershell
-Get-FileHash -Algorithm SHA256 .\limedl-native-v0.6.5-windows-x86_64-setup.exe
+Get-FileHash -Algorithm SHA256 .\limedl-native-v0.6.6-windows-x86_64-setup.exe
 ```
 
 **macOS (Terminal)**:
 ```bash
-shasum -a 256 limedl-native-v0.6.5-darwin-aarch64-portable.tar.gz
+shasum -a 256 limedl-native-v0.6.6-darwin-aarch64-portable.tar.gz
 ```
 
 **Linux (Terminal)**:
 ```bash
-sha256sum limedl-native-v0.6.5-linux-x86_64.AppImage
+sha256sum limedl-native-v0.6.6-linux-x86_64.AppImage
 ```
 
 ### 2. `sigilup` Hybrid Verification
@@ -131,7 +131,7 @@ The release pipeline hybrid-signs all release artifacts with **`sigilup` (Ed2551
 
 ```bash
 cargo install sigilup-cli --locked
-sigilup verify --pins sigilup-pins.json limedl-native-v0.6.5-windows-x86_64-setup.exe
+sigilup verify --pins sigilup-pins.json limedl-native-v0.6.6-windows-x86_64-setup.exe
 ```
 
 The limedl client performs this check automatically during in-app updates, so regular users do not need to verify it manually.

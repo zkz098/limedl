@@ -5,7 +5,7 @@ description: 如何在 Windows、macOS 与 Linux 系统上获取、安装与校�
 
 # 安装指南
 
-limedl 为主流桌面操作系统提供了原生编译的发布版本。所有发布文件均经过 **`sigilup` (Ed25519 + ML-DSA-65) 混合签名**。文中的文件名以 `v0.6.5` 为示例，请以实际下载到的版本号为准。
+limedl 为主流桌面操作系统提供了原生编译的发布版本。所有发布文件均经过 **`sigilup` (Ed25519 + ML-DSA-65) 混合签名**。文中的文件名以 `v0.6.6` 为示例，请以实际下载到的版本号为准。
 
 :::tip[快捷下载通道]
 你随时可以访问官方 [下载页面](/download/)，页面会自动根据你的浏览器环境推荐最适合你当前系统的安装包格式。
@@ -32,7 +32,7 @@ Windows 平台提供三种分发格式，满足不同场景的使用偏好：
 - **自动更新**：支持软件内检测到新版本时一键静默热更新。
 - **静默安装参数**：适用于系统管理员或自动化脚本：
   ```cmd
-  limedl-native-v0.6.5-windows-x86_64-setup.exe /P /R
+  limedl-native-v0.6.6-windows-x86_64-setup.exe /P /R
   ```
   *(其中 `/P` 为静默模式，`/R` 抑制不必要的系统重启)*
 
@@ -52,7 +52,7 @@ Windows 平台提供三种分发格式，满足不同场景的使用偏好：
 针对 Apple Silicon 芯片（M 系列）提供了深度优化的 原生 aarch64 架构二进制。
 
 ### 安装步骤
-1. 前往下载页面获取 `limedl-native-v0.6.5-darwin-aarch64-portable.tar.gz`；
+1. 前往下载页面获取 `limedl-native-v0.6.6-darwin-aarch64-portable.tar.gz`；
 2. 解压下载的压缩包，得到 `limedl.app`；
 3. 将 `limedl.app` 拖入系统的 **应用程序 (Applications)** 文件夹中。
 
@@ -80,22 +80,22 @@ Windows 平台提供三种分发格式，满足不同场景的使用偏好：
 免除跨发行版依赖冲突，包含完整的运行时组件：
 ```bash
 # 赋予可执行权限
-chmod +x limedl-native-v0.6.5-linux-x86_64.AppImage
+chmod +x limedl-native-v0.6.6-linux-x86_64.AppImage
 
 # 运行客户端
-./limedl-native-v0.6.5-linux-x86_64.AppImage
+./limedl-native-v0.6.6-linux-x86_64.AppImage
 ```
 
 ### 2. Debian / Ubuntu 软件包 (.deb)
 深度集成桌面环境，自动安装图标、注册 MIME 类型以及协议映射：
 ```bash
-sudo apt install ./limedl-native-v0.6.5-linux-x86_64.deb
+sudo apt install ./limedl-native-v0.6.6-linux-x86_64.deb
 ```
 
 ### 3. 便携归档包 (.tar.gz)
 适合喜欢手动放置可执行文件的极客用户：
 ```bash
-tar -xzf limedl-native-v0.6.5-linux-x86_64-portable.tar.gz
+tar -xzf limedl-native-v0.6.6-linux-x86_64-portable.tar.gz
 cd limedl-native
 ./limedl-native
 ```
@@ -116,17 +116,17 @@ GitHub Release 会为每个资产显示 SHA-256 摘要；本地计算后与页�
 
 **Windows (PowerShell)**:
 ```powershell
-Get-FileHash -Algorithm SHA256 .\limedl-native-v0.6.5-windows-x86_64-setup.exe
+Get-FileHash -Algorithm SHA256 .\limedl-native-v0.6.6-windows-x86_64-setup.exe
 ```
 
 **macOS (终端)**:
 ```bash
-shasum -a 256 limedl-native-v0.6.5-darwin-aarch64-portable.tar.gz
+shasum -a 256 limedl-native-v0.6.6-darwin-aarch64-portable.tar.gz
 ```
 
 **Linux (终端)**:
 ```bash
-sha256sum limedl-native-v0.6.5-linux-x86_64.AppImage
+sha256sum limedl-native-v0.6.6-linux-x86_64.AppImage
 ```
 
 ### 2. `sigilup` 混合密码学防篡改验签
@@ -135,7 +135,7 @@ limedl 发布流水线对构建工件实施 **`sigilup` (Ed25519 + ML-DSA-65 / N
 
 ```bash
 cargo install sigilup-cli --locked
-sigilup verify --pins sigilup-pins.json limedl-native-v0.6.5-windows-x86_64-setup.exe
+sigilup verify --pins sigilup-pins.json limedl-native-v0.6.6-windows-x86_64-setup.exe
 ```
 
 limedl 客户端在应用内更新时会自动执行这一校验，普通用户无需手动操作。
