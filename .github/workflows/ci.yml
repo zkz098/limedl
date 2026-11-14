@@ -129,13 +129,13 @@ jobs:
       # `fetch-font` is part of xtask now, so the one job that talks to Xiaomi's
       # CDN needs the Rust toolchain. No rust-cache here on purpose: it would
       # only cache the registry for the single xtask binary this job builds.
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30
         with:
           toolchain: stable
           cache: false
           rustflags: ""
       - uses: ./.github/actions/fetch-misans
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: misans-vf
           path: crates/limedl-native/assets/fonts/MiSansVF.ttf
@@ -181,20 +181,20 @@ jobs:
           if ($status = Get-MpComputerStatus -ErrorAction SilentlyContinue) {
             Write-Host "Defender real-time protection enabled: $($status.RealTimeProtectionEnabled)"
           }
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30
         with:
           toolchain: stable
           components: clippy
           cache: false
           rustflags: ""
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
         with:
           # Shares one Windows debug entry with test-windows-core and
           # test-windows-native (writer contract at the top).
           shared-key: ci-debug
           save-if: false
       - name: Restore bundled MiSans VF font
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: misans-vf
           path: crates/limedl-native/assets/fonts/
@@ -221,18 +221,18 @@ jobs:
           if ($status = Get-MpComputerStatus -ErrorAction SilentlyContinue) {
             Write-Host "Defender real-time protection enabled: $($status.RealTimeProtectionEnabled)"
           }
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30
         with:
           toolchain: stable
           cache: false
           rustflags: ""
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
         with:
           # Restore-only reader of test-windows-native's shared Windows entry
           # (writer contract at the top).
           shared-key: ci-debug
           save-if: false
-      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39
         with:
           tool: nextest@0.9.144
       # The Windows branches of `limedl-types` (platform.rs) and `limedl-disk`
@@ -267,12 +267,12 @@ jobs:
           if ($status = Get-MpComputerStatus -ErrorAction SilentlyContinue) {
             Write-Host "Defender real-time protection enabled: $($status.RealTimeProtectionEnabled)"
           }
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30
         with:
           toolchain: stable
           cache: false
           rustflags: ""
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
         with:
           # The single writer of the Windows `ci-debug` entry: this job compiles
           # the largest dependency superset (limedl-core's graph plus Slint), so
@@ -284,11 +284,11 @@ jobs:
           # Dependency artifacts survive a test failure, so a red run still
           # refreshes the entry instead of making the fixing run redo the save.
           cache-on-failure: true
-      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39
         with:
           tool: nextest@0.9.144
       - name: Restore bundled MiSans VF font
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: misans-vf
           path: crates/limedl-native/assets/fonts/
@@ -313,13 +313,13 @@ jobs:
       CARGO_BUILD_WARNINGS: deny
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30
         with:
           toolchain: stable
           components: clippy
           cache: false
           rustflags: ""
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
         with:
           # The only macOS Rust job, so it is its own writer. `shared-key` keeps
           # the name aligned with the other OSes' entries (rust-cache appends
@@ -328,12 +328,12 @@ jobs:
           shared-key: ci-debug
           save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
-      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39
         with:
           tool: nextest@0.9.144
       # macOS ships WebKit natively — no apt install needed.
       - name: Restore bundled MiSans VF font
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: misans-vf
           path: crates/limedl-native/assets/fonts/
@@ -373,13 +373,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30
         with:
           toolchain: stable
           components: clippy
           cache: false
           rustflags: ""
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
         with:
           # The Linux `ci-debug` entry (writer contract at the top). check-rust
           # is the only Linux Rust job that builds the workspace, so it is its
@@ -394,16 +394,16 @@ jobs:
       # default ignore regex (test files dropped from the report), which silently
       # re-baselined the `--fail-under-lines` metric and turned the gate red
       # without a code change. Pin `nextest` for the same reason.
-      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39
         with:
           tool: cargo-llvm-cov@0.9.0
-      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39
         with:
           tool: nextest@0.9.144
       # limedl-native embeds MiSans VF at compile time; the font arrives as an
       # artifact from the `font` job (see its comment).
       - name: Restore bundled MiSans VF font
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: misans-vf
           path: crates/limedl-native/assets/fonts/
@@ -544,7 +544,7 @@ jobs:
       #
       # `--keep-going` reports every broken combination instead of stopping at
       # the first, the same reason the nextest steps pass `--no-fail-fast`.
-      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39
         with:
           tool: cargo-hack@0.6.45
       - run: cargo hack check --feature-powerset --all-targets --keep-going --manifest-path crates/limedl-core/Cargo.toml
@@ -571,7 +571,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           CARGO_BUILD_WARNINGS: warn
-        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
+        uses: SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4 # v8.5.0
       # limedl-native runs here as well: its suite is platform-agnostic logic
       # plus the in-process UI tests (Slint's testing backend needs no display),
       # and this is the only leg that *executes* the `cfg(target_os = "linux")`
@@ -591,7 +591,7 @@ jobs:
       - run: cargo nextest run --manifest-path crates/limedl-server/Cargo.toml
       - name: Upload coverage reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: rust-coverage-lcov
           # Recursive: the report is written next to the crate it covers.
@@ -612,7 +612,7 @@ jobs:
       CARGO_BUILD_WARNINGS: deny
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30
         with:
           toolchain: stable
           components: clippy
@@ -637,7 +637,7 @@ jobs:
       WARDEN_VERSION: "0.2.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30
         with:
           cache: false
           rustflags: ""
@@ -689,12 +689,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30
         with:
           toolchain: stable
           cache: false
           rustflags: ""
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
         with:
           # These tools never compile the workspace — the registry is all they need.
           cache-targets: false
@@ -703,12 +703,12 @@ jobs:
           # still main-only.
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39
         with:
           tool: cargo-deny
       - run: cargo deny check -W rejected bans licenses sources
 
-      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39
         with:
           tool: cargo-audit
       - run: cargo audit
@@ -724,7 +724,7 @@ jobs:
       #
       # Static analysis, no workspace build, ~0.1 s; this job already runs with
       # `cache-targets: false`, so the step adds nothing to the cache budget.
-      - uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39
         with:
           tool: cargo-machete@0.9.2
       - run: cargo machete --with-metadata
