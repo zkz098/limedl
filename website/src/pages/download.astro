@@ -1,10 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { APP_TAG, RELEASE_BASE_URL } from '../lib/version';
+import { APP_TAG, MIRROR_RELEASE_BASE_URL, RELEASE_BASE_URL } from '../lib/version';
 import { softwareApplicationJsonLd } from '../lib/seo';
 
 const version = APP_TAG;
 const baseReleaseUrl = RELEASE_BASE_URL;
+const mirrorReleaseUrl = MIRROR_RELEASE_BASE_URL;
 
 const downloads = [
   {
@@ -107,6 +108,17 @@ const downloads = [
       </p>
     </div>
 
+    <!-- Unofficial Mirror Warning -->
+    <div class="max-w-4xl mx-auto mb-10 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5 flex items-start gap-3">
+      <span class="i-ri-alert-line w-5 h-5 text-amber-400 shrink-0 mt-0.5"></span>
+      <div class="text-xs sm:text-sm text-amber-100/90 leading-relaxed space-y-1">
+        <div class="font-semibold text-amber-300">关于“加速下载”镜像的非官方与安全校验提示</div>
+        <p>
+          下方“加速下载”链接通过第三方公共代理 <code class="text-amber-200">gh-proxy.com</code> 中转 GitHub Releases 资源，<strong>并非 limedl 官方维护节点</strong>。网络允许时建议优先使用官方 GitHub 直连；若使用加速镜像下载，请务必在安装或运行前核对 <a href="#security-checksums" class="text-amber-300 hover:text-amber-200 underline">SHA-256 哈希或 sigilup 签名（.hsig）</a>，确认文件未被篡改。
+        </p>
+      </div>
+    </div>
+
     <!-- Download Platforms Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
       {
@@ -141,7 +153,15 @@ const downloads = [
                       class="mt-2 w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-black text-xs font-bold transition-all shadow-sm active:scale-95"
                     >
                       <span class="i-ri-download-2-line w-4 h-4"></span>
-                      <span>下载文件</span>
+                      <span>下载文件 (GitHub 官方)</span>
+                    </a>
+                    <a
+                      href={`${mirrorReleaseUrl}/${pkg.file}`}
+                      rel="noopener noreferrer"
+                      class="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[11px] font-medium transition-all"
+                    >
+                      <span class="i-ri-flashlight-line w-3.5 h-3.5"></span>
+                      <span>加速下载（非官方镜像 · 请校验）</span>
                     </a>
                   </div>
                 ))}
@@ -184,13 +204,23 @@ const downloads = [
             <div class="text-sm font-semibold text-slate-200">Linux x86_64 静态二进制包</div>
             <p class="text-xs text-slate-400 mt-1">musl 全静态编译，适用于 Alpine、OpenWrt、CentOS、Debian 及各类 NAS。</p>
           </div>
-          <a
-            href={`${baseReleaseUrl}/limedl-server-${version}-x86_64-linux-musl.tar.gz`}
-            class="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-black text-xs font-bold transition-all shadow-sm active:scale-95"
-          >
-            <span class="i-ri-download-2-line w-4 h-4"></span>
-            <span>下载 (.tar.gz)</span>
-          </a>
+          <div class="space-y-2">
+            <a
+              href={`${baseReleaseUrl}/limedl-server-${version}-x86_64-linux-musl.tar.gz`}
+              class="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-black text-xs font-bold transition-all shadow-sm active:scale-95"
+            >
+              <span class="i-ri-download-2-line w-4 h-4"></span>
+              <span>下载 (.tar.gz)</span>
+            </a>
+            <a
+              href={`${mirrorReleaseUrl}/limedl-server-${version}-x86_64-linux-musl.tar.gz`}
+              rel="noopener noreferrer"
+              class="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[11px] font-medium transition-all"
+            >
+              <span class="i-ri-flashlight-line w-3.5 h-3.5"></span>
+              <span>加速下载（非官方镜像 · 请校验）</span>
+            </a>
+          </div>
         </div>
 
         <div class="p-4 rounded-xl bg-brand-surface border border-brand-border flex flex-col justify-between space-y-3">
@@ -198,13 +228,23 @@ const downloads = [
             <div class="text-sm font-semibold text-slate-200">Linux aarch64 静态二进制包</div>
             <p class="text-xs text-slate-400 mt-1">ARM64 架构专用，支持各类 ARM NAS、软路由、树莓派等嵌入式设备。</p>
           </div>
-          <a
-            href={`${baseReleaseUrl}/limedl-server-${version}-aarch64-linux-musl.tar.gz`}
-            class="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-black text-xs font-bold transition-all shadow-sm active:scale-95"
-          >
-            <span class="i-ri-download-2-line w-4 h-4"></span>
-            <span>下载 (.tar.gz)</span>
-          </a>
+          <div class="space-y-2">
+            <a
+              href={`${baseReleaseUrl}/limedl-server-${version}-aarch64-linux-musl.tar.gz`}
+              class="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-black text-xs font-bold transition-all shadow-sm active:scale-95"
+            >
+              <span class="i-ri-download-2-line w-4 h-4"></span>
+              <span>下载 (.tar.gz)</span>
+            </a>
+            <a
+              href={`${mirrorReleaseUrl}/limedl-server-${version}-aarch64-linux-musl.tar.gz`}
+              rel="noopener noreferrer"
+              class="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[11px] font-medium transition-all"
+            >
+              <span class="i-ri-flashlight-line w-3.5 h-3.5"></span>
+              <span>加速下载（非官方镜像 · 请校验）</span>
+            </a>
+          </div>
         </div>
 
         <div class="p-4 rounded-xl bg-brand-surface border border-brand-border flex flex-col justify-between space-y-3">
@@ -220,7 +260,7 @@ const downloads = [
     </div>
 
     <!-- Security & Checksums Guide -->
-    <div class="max-w-4xl mx-auto rounded-2xl bg-brand-surface border border-brand-border p-6 sm:p-8 space-y-6">
+    <div id="security-checksums" class="max-w-4xl mx-auto rounded-2xl bg-brand-surface border border-brand-border p-6 sm:p-8 space-y-6">
       <div class="flex items-center gap-3">
         <span class="i-ri-shield-check-line w-6 h-6 text-lime-400"></span>
         <h3 class="text-lg font-bold text-white">安全与哈希校验指南</h3>

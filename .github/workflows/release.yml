@@ -755,7 +755,7 @@ jobs:
 
       - name: Install sigilup CLI
         shell: bash
-        run: cargo install sigilup-cli --version 0.1.0 --locked
+        run: cargo install sigilup-cli --version 0.1.3 --locked
 
       - name: Download Windows desktop artifacts
         if: needs.build-native.result == 'success'
@@ -850,12 +850,14 @@ jobs:
           }
           $sigilupAssets = [ordered]@{}
           $releaseUrlBase = "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.VERSION }}"
+          $mirrorUrlBase = "https://gh-proxy.com/$releaseUrlBase"
           foreach ($kv in $assets.GetEnumerator()) {
             $fileName = Split-Path -Leaf $kv.Value.path
             $sigilupAssets[$kv.Key] = [ordered]@{
               kind = $kv.Value.kind
               path = $kv.Value.path
               url = "$releaseUrlBase/$fileName"
+              fallbackUrls = @("$mirrorUrlBase/$fileName")
             }
           }
           $sigilupAssets | ConvertTo-Json -Depth 4 | Set-Content dist/sigilup-assets.json -Encoding utf8

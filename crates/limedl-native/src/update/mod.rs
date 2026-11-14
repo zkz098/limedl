@@ -44,14 +44,24 @@ const EMBEDDED_PINS_JSON: &str = include_str!("sigilup-pins.json");
 /// Repo hosting the release assets.
 const RELEASE_REPO: &str = "zkz098/limedl";
 
-/// Permanent URL prefix for release downloads of this repository.
-const RELEASE_DOWNLOAD_PREFIX: &str = "https://github.com/zkz098/limedl/releases/download/";
+/// GitHub mirror prefix used as a fallback when `github.com` is slow or unreachable.
+const GH_PROXY_PREFIX: &str = "https://gh-proxy.com/";
 
-/// Permanent URL that always resolves to the newest stable signed manifest
+/// Permanent URL prefixes allowed for release downloads of this repository
+/// (official GitHub Releases first, `gh-proxy.com` mirror as fallback).
+const ALLOWED_DOWNLOAD_PREFIXES: &[&str] = &[
+    "https://github.com/zkz098/limedl/releases/download/",
+    "https://gh-proxy.com/https://github.com/zkz098/limedl/releases/download/",
+];
+
+/// Permanent URLs that always resolve to the newest stable signed manifest
 /// (GitHub excludes draft/prerelease releases there, so stable users never see
-/// rc/alpha builds).
-const MANIFEST_URL: &str =
-    "https://github.com/zkz098/limedl/releases/latest/download/latest.hsig.json";
+/// rc/alpha builds). Tried in order: official GitHub first, `gh-proxy.com`
+/// mirror as fallback.
+const MANIFEST_URLS: &[&str] = &[
+    "https://github.com/zkz098/limedl/releases/latest/download/latest.hsig.json",
+    "https://gh-proxy.com/https://github.com/zkz098/limedl/releases/latest/download/latest.hsig.json",
+];
 
 /// Upper bound for an update download (512 MiB).
 const MAX_UPDATE_BYTES: u64 = 512 * 1024 * 1024;
@@ -148,10 +158,16 @@ fn evaluator_channel_and_kind(kind: InstallKind) -> (Option<&'static str>, &'sta
 /// Defence in depth on top of `sigilup`'s `UrlPolicy::with_prefixes`: keeps a
 /// manifest bug from pointing at a different tag's asset directory.
 fn validate_asset_url(url: &str, version: &str) -> Result<()> {
-    let prefix = format!("https://github.com/{RELEASE_REPO}/releases/download/v{version}/");
-    let Some(file_name) = url.strip_prefix(&prefix) else {
-        bail!("artifact URL '{url}' is not under '{prefix}'");
-    };
+    let github_prefix = format!("https://github.com/{RELEASE_REPO}/releases/download/v{version}/");
+    let mirror_prefix = format!("{GH_PROXY_PREFIX}{github_prefix}");
+    let file_name = url
+        .strip_prefix(&github_prefix)
+        .or_else(|| url.strip_prefix(&mirror_prefix))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "artifact URL '{url}' is not under '{github_prefix}' or '{mirror_prefix}'"
+            )
+        })?;
     let sane = !file_name.is_empty()
         && file_name.len() <= 128
         && file_name
@@ -219,7 +235,7 @@ pub async fn check_for_update(
         pins.to_trust_store(),
         current,
         kind,
-        UrlPolicy::with_prefixes([RELEASE_DOWNLOAD_PREFIX]),
+        UrlPolicy::with_prefixes(ALLOWED_DOWNLOAD_PREFIXES.iter().copied()),
     );
     let mut epoch_store = FileEpochStore::new(state_dir.join("sigilup-epoch"));
     let updater =
@@ -229,7 +245,7 @@ pub async fn check_for_update(
 
     let decision = check_for_update_with(
         &updater,
-        MANIFEST_URL,
+        MANIFEST_URLS,
         &mut evaluator,
         &mut epoch_store,
         ctx,
@@ -242,14 +258,14 @@ pub async fn check_for_update(
 
 async fn check_for_update_with<S: EpochStore>(
     updater: &ReqwestUpdater,
-    manifest_url: &str,
+    manifest_urls: &[&str],
     evaluator: &mut UpdateEvaluator,
     epoch_store: &mut S,
     ctx: VerifyContext,
     enforce_version_url_prefix: bool,
 ) -> Result<Option<AvailableUpdate>> {
     match updater
-        .check_for_update::<serde_json::Value, S>(manifest_url, evaluator, epoch_store, ctx)
+        .check_for_update_any::<serde_json::Value, S>(manifest_urls, evaluator, epoch_store, ctx)
         .await
         .context("check for update via sigilup")?
     {
@@ -257,9 +273,11 @@ async fn check_for_update_with<S: EpochStore>(
         UpdateDecision::UpdateAvailable(inner) => {
             let version = inner.version.to_string();
             if enforce_version_url_prefix {
-                validate_asset_url(&inner.asset.url, &version).with_context(|| {
-                    format!("release v{version} declares an unusable artifact URL")
-                })?;
+                for url in inner.asset.all_urls() {
+                    validate_asset_url(url, &version).with_context(|| {
+                        format!("release v{version} declares an unusable artifact URL")
+                    })?;
+                }
             }
             let notes = inner.notes.clone();
             Ok(Some(AvailableUpdate {

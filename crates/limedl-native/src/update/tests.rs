@@ -68,6 +68,7 @@ fn build_signed_test_manifest(
     version: &str,
     security_epoch: u64,
     asset_url: &str,
+    fallback_urls: Vec<String>,
     artifact: &[u8],
 ) -> Vec<u8> {
     let key = format!("{}-portable", current_platform_base());
@@ -77,6 +78,7 @@ fn build_signed_test_manifest(
         PlatformAsset {
             kind: "portable".to_string(),
             url: asset_url.to_string(),
+            fallback_urls,
             digest: ArtifactHasher::hash_bytes(artifact),
             metadata: None::<serde_json::Value>,
         },
@@ -131,14 +133,21 @@ fn asset_urls_must_point_at_this_repos_release() {
              limedl-native-v0.3.0-windows-x86_64.msix",
         "https://github.com/zkz098/limedl/releases/download/v0.3.0/\
              limedl-native-v0.3.0-darwin-aarch64-portable.tar.gz",
+        "https://gh-proxy.com/https://github.com/zkz098/limedl/releases/download/v0.3.0/\
+             limedl-native-v0.3.0-windows-x86_64-setup.exe",
+        "https://gh-proxy.com/https://github.com/zkz098/limedl/releases/download/v0.3.0/\
+             limedl-native-v0.3.0-darwin-aarch64-portable.tar.gz",
     ] {
         assert!(validate_asset_url(good, "0.3.0").is_ok(), "rejected {good}");
     }
 
     for bad in [
         "https://evil.example/limedl-native-setup.exe",
+        "https://evil.example/https://github.com/zkz098/limedl/releases/download/v0.3.0/setup.exe",
         "https://github.com/attacker/limedl/releases/download/v0.3.0/setup.exe",
+        "https://gh-proxy.com/https://github.com/attacker/limedl/releases/download/v0.3.0/setup.exe",
         "https://github.com/zkz098/limedl/releases/download/v0.2.9/setup.exe",
+        "https://gh-proxy.com/https://github.com/zkz098/limedl/releases/download/v0.2.9/setup.exe",
         "http://github.com/zkz098/limedl/releases/download/v0.3.0/setup.exe",
         "https://github.com/zkz098/limedl/releases/download/v0.3.0/../../other",
         "https://github.com/zkz098/limedl/releases/download/v0.3.0/",
@@ -163,6 +172,7 @@ async fn end_to_end_check_and_download_and_verify_with_sigilup() {
         "9.9.9",
         1,
         &format!("{artifact_server}/limedl.tar.gz"),
+        Vec::new(),
         &artifact,
     );
     let manifest_server = spawn_http_server(vec![("/latest.hsig.json", manifest_bytes)]).await;
@@ -180,9 +190,10 @@ async fn end_to_end_check_and_download_and_verify_with_sigilup() {
     let updater = ReqwestUpdater::new(reqwest::Client::new());
     let ctx = VerifyContext::at_unix(1_760_000_000);
 
+    let manifest_url = format!("{manifest_server}/latest.hsig.json");
     let update = check_for_update_with(
         &updater,
-        &format!("{manifest_server}/latest.hsig.json"),
+        &[manifest_url.as_str()],
         &mut evaluator,
         &mut epoch_store,
         ctx,
@@ -216,6 +227,7 @@ async fn end_to_end_rejects_tampered_artifact_and_untrusted_manifest() {
         "9.9.9",
         1,
         "http://127.0.0.1/limedl.tar.gz",
+        Vec::new(),
         &artifact,
     );
     let bad_server = spawn_http_server(vec![("/latest.hsig.json", bad_manifest)]).await;
@@ -230,10 +242,11 @@ async fn end_to_end_rejects_tampered_artifact_and_untrusted_manifest() {
     let mut epoch_store = MemoryEpochStore::new(0);
     let updater = ReqwestUpdater::new(reqwest::Client::new());
     let ctx = VerifyContext::at_unix(1_760_000_000);
+    let bad_manifest_url = format!("{bad_server}/latest.hsig.json");
     assert!(
         check_for_update_with(
             &updater,
-            &format!("{bad_server}/latest.hsig.json"),
+            &[bad_manifest_url.as_str()],
             &mut evaluator,
             &mut epoch_store,
             ctx,
@@ -251,6 +264,7 @@ async fn end_to_end_rejects_tampered_artifact_and_untrusted_manifest() {
         "9.9.9",
         2,
         &format!("{good_server}/limedl.tar.gz"),
+        Vec::new(),
         &artifact,
     );
     let manifest_server = spawn_http_server(vec![("/latest.hsig.json", good_manifest)]).await;
@@ -263,9 +277,10 @@ async fn end_to_end_rejects_tampered_artifact_and_untrusted_manifest() {
         InstallKind::Portable,
         url_policy,
     );
+    let good_manifest_url = format!("{manifest_server}/latest.hsig.json");
     let update = check_for_update_with(
         &updater,
-        &format!("{manifest_server}/latest.hsig.json"),
+        &[good_manifest_url.as_str()],
         &mut evaluator,
         &mut epoch_store,
         ctx,
@@ -293,6 +308,7 @@ async fn end_to_end_rejects_rollback_epoch() {
         "9.9.9",
         4,
         "https://github.com/zkz098/limedl/releases/download/v9.9.9/a.tar.gz",
+        Vec::new(),
         &artifact,
     );
     let server = spawn_http_server(vec![("/latest.hsig.json", manifest)]).await;
@@ -306,14 +322,15 @@ async fn end_to_end_rejects_rollback_epoch() {
         pins.to_trust_store(),
         semver::Version::new(0, 1, 0),
         InstallKind::Portable,
-        UrlPolicy::with_prefixes([RELEASE_DOWNLOAD_PREFIX]),
+        UrlPolicy::with_prefixes(ALLOWED_DOWNLOAD_PREFIXES.iter().copied()),
     );
     let updater = ReqwestUpdater::new(reqwest::Client::new());
     let ctx = VerifyContext::at_unix(1_760_000_000);
 
+    let manifest_url = format!("{server}/latest.hsig.json");
     let err = check_for_update_with(
         &updater,
-        &format!("{server}/latest.hsig.json"),
+        &[manifest_url.as_str()],
         &mut evaluator,
         &mut epoch_store,
         ctx,
@@ -344,4 +361,58 @@ fn check_throttling_respects_min_interval() {
         temp.path(),
         Duration::from_secs(0)
     ));
+}
+
+#[tokio::test]
+async fn manifest_and_artifact_fall_back_to_mirror_when_primary_fails() {
+    let sk = SecretKeyBundle::generate().unwrap();
+    let pins = KeyPinFile::new(vec![sk.public_key().clone()]);
+    let artifact = b"limedl-mirror-payload-bytes".to_vec();
+
+    let primary_server = spawn_http_server(vec![]).await;
+    let mirror_server = spawn_http_server(vec![("/limedl.tar.gz", artifact.clone())]).await;
+    let manifest_bytes = build_signed_test_manifest(
+        &sk,
+        "9.9.9",
+        1,
+        &format!("{primary_server}/limedl.tar.gz"),
+        vec![format!("{mirror_server}/limedl.tar.gz")],
+        &artifact,
+    );
+    let mirror_manifest_server =
+        spawn_http_server(vec![("/latest.hsig.json", manifest_bytes)]).await;
+
+    let mut url_policy =
+        UrlPolicy::with_prefixes([format!("{primary_server}/"), format!("{mirror_server}/")]);
+    url_policy.require_https = false;
+
+    let mut evaluator = build_evaluator(
+        pins.to_trust_store(),
+        semver::Version::new(0, 1, 0),
+        InstallKind::Portable,
+        url_policy,
+    );
+    let mut epoch_store = MemoryEpochStore::new(0);
+    let updater = ReqwestUpdater::new(reqwest::Client::new());
+    let ctx = VerifyContext::at_unix(1_760_000_000);
+
+    let primary_manifest_url = format!("{primary_server}/latest.hsig.json");
+    let mirror_manifest_url = format!("{mirror_manifest_server}/latest.hsig.json");
+    let update = check_for_update_with(
+        &updater,
+        &[primary_manifest_url.as_str(), mirror_manifest_url.as_str()],
+        &mut evaluator,
+        &mut epoch_store,
+        ctx,
+        false,
+    )
+    .await
+    .expect("fallback manifest check should succeed")
+    .expect("expected available update");
+
+    let temp = tempfile::tempdir().unwrap();
+    let verified_path = download_and_verify_with(&updater, &update, temp.path(), &|_, _| {})
+        .await
+        .expect("fallback artifact download should succeed");
+    assert_eq!(std::fs::read(&verified_path).unwrap(), artifact);
 }

@@ -117,7 +117,7 @@ arboard = "3.7"
 png = "0.18"
 sys-locale = "0.3"
 reqwest = { workspace = true }
-sigilup = { version = "0.1", features = ["reqwest", "self-replace"] }
+sigilup = { version = "0.1.3", features = ["reqwest", "self-replace"] }
 percent-encoding = { workspace = true }
 
 [target.'cfg(windows)'.build-dependencies]
@@ -184,7 +184,7 @@ slint-build = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-sigilup = { version = "0.1", features = ["sign"] }
+sigilup = { version = "0.1.3", features = ["sign"] }
 # In-process UI testing: drives the real `MainWindow` (element queries, simulated
 # clicks and keystrokes, accessibility actions) with no window and no event loop.
 #

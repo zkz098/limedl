@@ -34,3 +34,5 @@ export const APP_VERSION = match[1];
 export const APP_TAG = `v${APP_VERSION}`;
 export const RELEASE_BASE_URL =
   'https://github.com/zkz098/limedl/releases/latest/download';
+export const GH_PROXY_PREFIX = 'https://gh-proxy.com/';
+export const MIRROR_RELEASE_BASE_URL = `${GH_PROXY_PREFIX}${RELEASE_BASE_URL}`;
