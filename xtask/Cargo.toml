@@ -4,7 +4,7 @@ version = "0.0.0"
 edition = "2024"
 publish = false
 license.workspace = true
-description = "Repository tooling: signing/guards, update manifest, MiSans font fetch, version bump"
+description = "Repository tooling: MiSans font fetch, version bump, theme/icon generation, Loom"
 
 [[bin]]
 name = "xtask"
@@ -12,7 +12,6 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-base64 = { workspace = true }
 clap = { workspace = true }
 # Raw deflate decode for the MiSans zip entry; same version limedl-native uses,
 # so the shared build graph does not gain a second compression backend. The
@@ -21,17 +20,9 @@ clap = { workspace = true }
 flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 # Pure-Rust image decoder/resizer for cross-platform icon generation
 image = { version = "0.25", default-features = false, features = ["png"] }
-ml-dsa = { workspace = true }
-minisign = "0.10"
-rand = { workspace = true }
 # Version bumping edits Cargo.toml/Cargo.lock/website with the same anchored
 # patterns the retired scripts used; regex keeps that contract legible.
 regex = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-# SHA-256 for the update manifest (and the pinned font hash check).
+# SHA-256 for the pinned font hash check.
 sha2 = { workspace = true }
 uuid = { workspace = true }
-
-[dev-dependencies]
-minisign-verify = { workspace = true }

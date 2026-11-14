@@ -25,7 +25,7 @@ cmd.exe /k "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\B
 | Format          | `cargo fmt --all` · `cargo fmt --all -- --check` (CI pins rustfmt to 1.99.0; `newline_style = "Unix"` + `.gitattributes eol=lf`)                                  |
 | Translations    | `cargo warden i18n generate` · `cargo warden i18n check` (see `docs/i18n.md`)                                                                                     |
 | Generate icons  | `cargo xtask gen-icons [msix\|hicolor\|macos-iconset] --out-dir <dir>`                                                                                             |
-| Sign / keys     | `cargo xtask sign <files>` · `cargo xtask guard <files>` (release gate) · `cargo xtask generate-key --out-dir <dir>` (see `docs/update-signing-key.md`)             |
+| Sign / keys     | `sigilup sign <files>` · `sigilup guard --pins crates/limedl-native/src/update/sigilup-pins.json --manifest ...` · `sigilup keygen` (see `docs/update-signing-key.md`) |
 
 ## Architecture
 
@@ -42,7 +42,7 @@ limedl/
 ├── crates/limedl-core/   # Engine + orchestration (lib: limedl_core): HTTP executor, scheduler, CDN, BT, Aria2 RPC
 ├── crates/limedl-native/ # Lightweight native desktop UI based on Slint
 ├── crates/limedl-server/ # Headless daemon: Aria2 JSON-RPC over the engine (NAS/server)
-└── xtask/                # Repo tooling: minisign keygen/sign/guard, font fetch, version bump, theme, icons
+└── xtask/                # Repo tooling: font fetch, version bump, theme, icons, loom
 ```
 
 The engine is split: `limedl-types`, `limedl-disk`, `limedl-store`,
@@ -67,7 +67,7 @@ All Rust crates use edition 2024.
 A `v*` tag triggers `.github/workflows/release.yml`. The release body is generated
 by **git-cliff** from Conventional Commits, so keep commit subjects Conventional
 with a meaningful `scope:`. `native-manifest` is the sole writer of
-`latest-native.json` (the signed self-update manifest). `build-server` additionally
+`latest.hsig.json` (the `sigilup` signed self-update manifest). `build-server` additionally
 ships static musl binaries of `limedl-server` for `x86_64` and `aarch64` only, built
 with `cargo zigbuild`; they are plain release assets and are not part of the update
 manifest. `server-image` assembles those binaries into a multi-arch

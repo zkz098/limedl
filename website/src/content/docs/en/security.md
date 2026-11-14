@@ -1,11 +1,11 @@
 ---
 title: Security & Verification
-description: Minisign and ML-DSA-65 signatures on limedl releases, the update trust chain, manual verification, and security boundaries
+description: sigilup (Ed25519 + ML-DSA-65) hybrid signatures on limedl releases, the update trust chain, manual verification, and security boundaries
 ---
 
 # Security & Verification
 
-Desktop limedl releases are dual-signed with **Minisign (Ed25519)** and **ML-DSA-65 (NIST FIPS 204 post-quantum cryptography)**. The in-app updater verifies the `latest-native.json` signature, parses the manifest only after that check passes, downloads the selected artifact, and then verifies the artifact's own signature.
+limedl releases are protected with **`sigilup`** (DSSEv1 **Ed25519 + ML-DSA-65** NIST FIPS 204 post-quantum hybrid signatures). The in-app updater verifies the `latest.hsig.json` hybrid signature and anti-rollback `security_epoch`, parses the manifest only after that check passes, downloads the selected artifact, and verifies its **BLAKE3 + SHA-512** digest in a single streaming pass.
 
 This page covers what is signed, how to verify it manually, and what the scheme does **not** protect against.
 
@@ -15,36 +15,30 @@ This page covers what is signed, how to verify it manually, and what the scheme 
 
 ```text
 GitHub Release
-├── latest-native.json            # Update manifest
-├── latest-native.json.sig        # Minisign (Ed25519), always enforced
-├── latest-native.json.pqc.sig    # ML-DSA-65
-└── Desktop assets + .sig / .pqc.sig  # installers, portable archives, MSIX, deb, AppImage
+├── latest.hsig.json              # DSSEv1 hybrid-signed update manifest
+├── Desktop assets + .hsig        # installers, portable archives, MSIX, deb, AppImage
+└── limedl-server + .hsig         # headless server tar.gz archives
 
-Public keys embedded in the client
-├── PUBKEY_B64       # Minisign / Ed25519, always enforced
-└── PQC_PUBKEY_B64   # ML-DSA-65, enforced once configured
+Trust root embedded in the client
+└── sigilup-pins.json             # Pinned Ed25519 + ML-DSA-65 hybrid key (keyId: 7F5912C5F0B5971D)
 ```
 
-- **Verify before parse**: a manifest with an invalid signature never influences a download URL.
-- **Artifact signatures are embedded in the manifest**: `latest-native.json` stores a `signature` and optional `pqcSignature` per asset; the client re-verifies the downloaded bytes.
+- **Verify before parse**: a manifest with an invalid signature or rolled-back `security_epoch` never influences a download URL.
+- **Single-pass streaming digests**: `latest.hsig.json` stores **BLAKE3 + SHA-512** digests per self-update asset; the client verifies the downloaded bytes as they stream.
+- **Detached `.hsig` envelopes**: every release asset ships with a `.hsig` DSSEv1 hybrid signature envelope for standalone offline verification.
 - **Download cap**: updates are limited to 512 MiB.
-- **Domain separation**: ML-DSA-65 uses the `limedl-manifest` context for the manifest and `limedl-artifact` for binaries, preventing cross-purpose replay.
 
 ### What is signed
 
 | Asset | Signatures | Notes |
 | :--- | :--- | :--- |
-| Windows Setup.exe / portable zip | `.sig` + `.pqc.sig`, embedded in the manifest | Self-update asset |
-| macOS `.app` `.tar.gz` | `.sig` + `.pqc.sig`, embedded in the manifest | Self-update asset |
-| Linux portable `.tar.gz` | `.sig` + `.pqc.sig`, embedded in the manifest | Self-update asset |
-| Windows MSIX | `.sig` + `.pqc.sig` | Standalone asset, not in the self-update manifest |
-| Linux `.deb` / `.AppImage` | `.sig` + `.pqc.sig` | Standalone asset, not in the self-update manifest |
-| `latest-native.json` | `.sig` + `.pqc.sig` | The manifest itself |
-| `limedl-server` binaries / Docker images | **Unsigned** | Not part of the desktop self-update chain |
-
-:::note[Older releases]
-A few assets in older releases may not have separate `.sig` / `.pqc.sig` files; their signatures are still embedded in `latest-native.json`, so client verification is unaffected. For manual checks, use the assets actually published with that release.
-:::
+| Windows Setup.exe / portable zip | `.hsig` + BLAKE3/SHA-512 in manifest | Self-update asset |
+| macOS `.app` `.tar.gz` | `.hsig` + BLAKE3/SHA-512 in manifest | Self-update asset |
+| Linux portable `.tar.gz` | `.hsig` + BLAKE3/SHA-512 in manifest | Self-update asset |
+| Windows MSIX | `.hsig` | Standalone asset, not in the self-update manifest |
+| Linux `.deb` / `.AppImage` | `.hsig` | Standalone asset, not in the self-update manifest |
+| `limedl-server` `.tar.gz` | `.hsig` | Standalone asset, not in the self-update manifest |
+| `latest.hsig.json` | Embedded DSSEv1 hybrid signature | The manifest itself |
 
 ---
 
@@ -71,40 +65,20 @@ sha256sum limedl-native-v0.6.1-linux-x86_64.AppImage
 
 The project does not publish a separate `SHA256SUMS` file.
 
-### 2. Minisign (Ed25519)
+### 2. Verify with `sigilup` (Ed25519 + ML-DSA-65)
 
-Official Minisign public key:
-
-```text
-RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7
-```
-
-Pass the `.sig` file with `-x`:
+Install `sigilup-cli` and verify any asset against [`sigilup-pins.json`](https://github.com/zkz098/limedl/blob/main/crates/limedl-native/src/update/sigilup-pins.json) to check both Ed25519 and ML-DSA-65 signatures together:
 
 ```bash
-minisign -Vm limedl-native-v0.6.1-windows-x86_64-setup.exe \
-  -x limedl-native-v0.6.1-windows-x86_64-setup.exe.sig \
-  -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
+cargo install sigilup-cli --locked
+sigilup verify --pins sigilup-pins.json limedl-native-v0.6.1-windows-x86_64-setup.exe
 ```
-
-`Signature and comment signature verified` means the file came from the official pipeline and was not modified.
 
 The update manifest works the same way:
 
 ```bash
-minisign -Vm latest-native.json -x latest-native.json.sig \
-  -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
+sigilup verify --pins sigilup-pins.json latest.hsig.json
 ```
-
-### 3. ML-DSA-65 (post-quantum)
-
-The official ML-DSA-65 public key is published in standard base64 at [`/limedl-pqc-pubkey.b64`](/limedl-pqc-pubkey.b64); it decodes to a 1952-byte raw public key.
-
-A `.pqc.sig` file contains one `untrusted comment: ml-dsa-65 signature` line followed by one base64 signature line. To verify independently:
-
-- run a FIPS 204 ML-DSA-65 verification over the **exact artifact bytes**;
-- use the `limedl-artifact` context for assets;
-- use the `limedl-manifest` context for `latest-native.json`.
 
 The client performs this check during updates; regular users do not need to do it manually.
 
@@ -113,11 +87,10 @@ The client performs this check during updates; regular users do not need to do i
 ## Security boundaries and known limits
 
 - **Signing does not protect against a compromised GitHub account or signing key.** It proves that the bytes match what the official pipeline signed, not that the upstream release process is infallible.
-- **There is no key-rollover chain.** Public keys are compiled into the client; rotating them requires shipping a client that trusts the new key first. Old clients will not accept updates signed by a new key.
-- **How strictly ML-DSA-65 is enforced**: the client **always enforces Ed25519** on `latest-native.json`, and the ML-DSA-65 key is embedded and used when the PQC signature is present. If a manifest lacks `.pqc.sig`, the client logs a warning and continues with Ed25519 only rather than refusing the update.
-- **This is not Windows Authenticode or Apple notarization.** Minisign + ML-DSA-65 is not a commercial code-signing certificate. Windows SmartScreen and macOS Gatekeeper may still warn; see the [installation guide](/en/getting-started/installation/) for the manual allow steps.
-- **Server assets are unsigned.** `limedl-server` tarballs and container images are not part of the self-update trust chain; verify them against the SHA-256 digest on the GitHub Release page.
-- **No telemetry.** The client contains no analytics or telemetry reporting; update checks only contact GitHub Releases for `latest-native.json` and its signatures.
+- **Public keys are pinned in the client.** `sigilup-pins.json` is compiled into the client; rotating keys requires shipping a client that trusts the new key first.
+- **Hybrid verification is mandatory**: `sigilup` enforces both Ed25519 and ML-DSA-65 together.
+- **This is not Windows Authenticode or Apple notarization.** `sigilup` (Ed25519 + ML-DSA-65) is not a commercial code-signing certificate. Windows SmartScreen and macOS Gatekeeper may still warn; see the [installation guide](/en/getting-started/installation/) for the manual allow steps.
+- **No telemetry.** The client contains no analytics or telemetry reporting; update checks only contact GitHub Releases for `latest.hsig.json`.
 
 ---
 
@@ -129,7 +102,5 @@ Please use the repository's **Security → Report a vulnerability** private advi
 
 ## Related documentation
 
-- [Installation](/en/getting-started/installation/): per-platform setup and manual verification commands.
-- [Platform Support](/en/getting-started/platform-support/): platforms and update channels covered by signing.
-- [System Architecture](/en/advanced/architecture/): implementation of the updater and signing.
-- [Changelog](/en/changelog): security-related fixes.
+- [Installation](/en/getting-started/installation/)
+- [Self-Update Channels](/en/advanced/self-update-channels/)

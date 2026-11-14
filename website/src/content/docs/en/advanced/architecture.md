@@ -113,25 +113,25 @@ limedl replaces polling with a global `tokio::sync::broadcast` channel:
 
 ---
 
-## Post-Quantum Hybrid Dual-Signing Update Architecture (Minisign + ML-DSA-65)
+## Post-Quantum Hybrid-Signing Update Architecture (`sigilup`: Ed25519 + ML-DSA-65)
 
-To protect against classical and quantum computing MITM threats and supply-chain tampering, limedl employs an end-to-end **Ed25519 (Minisign) + Post-Quantum Cryptography (ML-DSA-65 / NIST FIPS 204)** hybrid dual-signing pipeline:
+To protect against classical and quantum computing MITM threats and supply-chain tampering, limedl employs **`sigilup`**, an end-to-end **Ed25519 + Post-Quantum Cryptography (ML-DSA-65 / NIST FIPS 204)** DSSEv1 hybrid-signing pipeline:
 
 ```
 1. GitHub Actions generates artifacts for Windows, macOS, and Linux
-2. xtask generates dual signatures: .sig (Minisign) and .pqc.sig (ML-DSA-65)
-3. Manifest latest-native.json is assembled and dual-signed
+2. sigilup sign writes a .hsig DSSEv1 hybrid-signature envelope for each artifact
+3. sigilup manifest builds latest.hsig.json (with BLAKE3 + SHA-512 digests and security_epoch)
                      │
                      ▼ Verified HTTPS Fetch
-4. Client fetches latest-native.json and both signature files
-5. Verifies both Ed25519 and ML-DSA-65 signatures against embedded public keys before JSON parsing
+4. Client fetches latest.hsig.json
+5. Verifies both Ed25519 and ML-DSA-65 signatures and security_epoch against sigilup-pins.json before parsing
 6. Downloads matching platform binary
-7. Validates SHA-256 hash and independent dual signatures of the downloaded binary
-8. Invokes self_replace to swap the executable in-place and relaunch
+7. Validates BLAKE3 + SHA-512 digests in a single streaming pass
+8. Invokes sigilup::replace to swap the executable in-place and relaunch
 ```
 
-- **Domain Separation Contexts**: ML-DSA-65 signatures enforce strict domain separation (`limedl-manifest` for manifests, `limedl-artifact` for binary payloads), preventing cross-context signature replay attacks.
-- **Fail-Closed Release Gates (`cargo xtask guard`)**: The release pipeline derives public keys from CI secrets and strictly compares them against embedded client constants (`PUBKEY_B64`, `PQC_PUBKEY_B64`), failing the release if anything drifts.
+- **Anti-Rollback & Streaming Digests**: `latest.hsig.json` enforces `security_epoch` against rollback attacks and verifies BLAKE3 + SHA-512 digests in a single streaming pass.
+- **Fail-Closed Release Gates (`sigilup guard`)**: The release pipeline verifies all signatures and the manifest against `sigilup-pins.json`, failing the release if anything drifts.
 - **Channel Specific Handlers**:
   - Windows Setup: Downloads `setup.exe` and spawns `/P /R` silent updater.
   - Windows Portable: Atomically swaps `limedl-native.exe` in-place.

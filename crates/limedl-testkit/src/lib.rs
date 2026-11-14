@@ -1113,7 +1113,7 @@ async fn serve_file_range_bitflip(
 ///
 /// This is the exact behavior that requires the self-update download to send the
 /// `Accept: application/octet-stream` header, otherwise the "installer" is the
-/// metadata JSON and minisign verification fails.
+/// metadata JSON and signature verification fails.
 async fn serve_github_asset(
     State(_state): State<Arc<ServerState>>,
     req_headers: HeaderMap,

@@ -34,17 +34,15 @@ limedl 的桌面端内置自更新，但不同安装方式走不同的更新路�
 客户端从 GitHub Releases 的固定地址读取：
 
 ```text
-latest-native.json
-latest-native.json.sig
-latest-native.json.pqc.sig
+latest.hsig.json
 ```
 
 流程：
 
-1. **先验证清单签名，再解析 JSON**；签名失败会中止。
+1. **先验证清单签名与 `security_epoch`，再解析清单**；签名失败或版本回退会中止。
 2. 比较清单版本与当前 `CARGO_PKG_VERSION`，不新则视为无更新。
 3. 按 `{os}-{arch}` 键选择资产（macOS 写作 `darwin`，便携/Store 追加 `-portable`）。
-4. 下载资产后，用清单内嵌的 `signature` / `pqcSignature` 再次校验原始字节。
+4. 下载资产时，用清单内嵌的 **BLAKE3 + SHA-512** 摘要进行单遍流式校验。
 5. 下载上限为 **512 MiB**。
 
 细节与已知边界见[安全与验签](/security/)。GitHub 的 `releases/latest` 不包含预发布版本，因此稳定版用户不会收到 rc/alpha。

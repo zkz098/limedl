@@ -247,10 +247,7 @@ jobs:
       # Deliberately no MiSans font step: none of these packages build the UI.
       - run: cargo nextest run -p limedl-types -p limedl-disk -p limedl-store -p limedl-http -p limedl-engine -p limedl-bt -p limedl-rpc -p limedl-testkit -p limedl-core --features "limedl-core/test-utils"
       # xtask rides along: it needs neither the font nor the UI crate, and its
-      # tests are the only coverage of the release guard's default `--update-rs`
-      # path. `release.yml` calls `cargo xtask guard <files>` with no flag, so a
-      # module split that moves that file used to break the release instead of a
-      # test (v0.3.15: the manifest job failed after the platform builds).
+      # tests cover font fetching and version bumping.
       - run: cargo nextest run --manifest-path xtask/Cargo.toml
 
   test-windows-native:

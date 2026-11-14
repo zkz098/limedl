@@ -19,13 +19,13 @@ It is not a one-to-one clone of every Aria2 option: unrouted methods return meth
 
 ## Does limedl collect telemetry or require an account?
 
-No. The client contains no analytics, tracking, or telemetry reporting, and needs no account. The only network request unrelated to downloads is the update check against `latest-native.json` and its signatures on GitHub Releases; it follows the proxy configured in settings.
+No. The client contains no analytics, tracking, or telemetry reporting, and needs no account. The only network request unrelated to downloads is the update check against `latest.hsig.json` on GitHub Releases; it follows the proxy configured in settings.
 
 ## Why does Windows show a SmartScreen or antivirus warning?
 
-limedl signs releases with Minisign + ML-DSA-65 but does **not** use a commercial Windows Authenticode certificate, so SmartScreen may still say “unknown publisher”. That is not evidence of tampering, nor proof that any download is safe.
+limedl signs releases with `sigilup` (Ed25519 + ML-DSA-65) but does **not** use a commercial Windows Authenticode certificate, so SmartScreen may still say “unknown publisher”. That is not evidence of tampering, nor proof that any download is safe.
 
-Compare the SHA-256 digest shown on the GitHub Release page and verify the `.sig` / `.pqc.sig` files as described in [Security & Verification](/en/security/). If that is not acceptable, build from source.
+Compare the SHA-256 digest shown on the GitHub Release page and verify the `.hsig` signature envelope as described in [Security & Verification](/en/security/). If that is not acceptable, build from source.
 
 ## macOS says “cannot verify the developer” or “the file is damaged”
 

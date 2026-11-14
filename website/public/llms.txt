@@ -17,7 +17,7 @@
 - [Browser Integration](https://limedl.zkz098.cn/en/ecosystem/browser/): Aria2 Explorer, Camtd, and userscripts.
 - [Aria2 RPC](https://limedl.zkz098.cn/en/ecosystem/aria2-rpc/): supported methods, auth, CORS, and client examples.
 - [Headless Server](https://limedl.zkz098.cn/en/ecosystem/server-daemon/): NAS, Docker, systemd, and reverse proxy.
-- [Security & Verification](https://limedl.zkz098.cn/en/security/): Minisign + ML-DSA-65 signatures and trust boundaries.
+- [Security & Verification](https://limedl.zkz098.cn/en/security/): sigilup (Ed25519 + ML-DSA-65) signatures and trust boundaries.
 - [FAQ](https://limedl.zkz098.cn/en/faq/): compatibility, telemetry, SmartScreen, RPC safety, and backups.
 - [Metalink & Mirrors](https://limedl.zkz098.cn/en/advanced/metalink-and-mirrors/): parsing, scoring, leases, and verification.
 - [Self-Update Channels](https://limedl.zkz098.cn/en/advanced/self-update-channels/): per-install update paths and rollback.

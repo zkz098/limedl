@@ -88,14 +88,6 @@ rand = "0.10"
 librqbit = { version = "9.1", default-features = false, features = ["rust-tls"] }
 libc = "0.2"
 open = "5"
-minisign-verify = "0.3"
-# ML-DSA-65 post-quantum signatures for the self-update channel (RustCrypto).
-# `default-features = false` drops the `pkcs8`/`der`/`spki` pull-in — the 32-byte
-# seed is our key format; `getrandom` enables `Generate`/`rand_core` (hedged
-# signing) and `zeroize` scrubs secret intermediates. Wire format and
-# seed→keypair derivation are byte-compatible with the `fips204` crate this
-# replaced (pinned by `previous_fips204_signatures_still_verify`).
-ml-dsa = { version = "0.1.1", default-features = false, features = ["alloc", "getrandom", "zeroize"] }
 mimalloc = "0.1"
 clap = { version = "4", features = ["derive"] }
 tempfile = "3"

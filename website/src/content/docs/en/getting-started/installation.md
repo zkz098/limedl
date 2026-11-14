@@ -5,7 +5,7 @@ description: How to acquire, install, and verify the limedl native desktop clien
 
 # Installation Guide
 
-limedl provides natively compiled release artifacts for all major desktop platforms. Every desktop artifact is dual-signed with **Minisign + ML-DSA-65**; the headless server binaries are not part of the self-update signing chain. File names below use `v0.6.5` as an example — substitute the version you actually downloaded.
+limedl provides natively compiled release artifacts for all major desktop platforms. Every release artifact is hybrid-signed with **`sigilup` (Ed25519 + ML-DSA-65)**. File names below use `v0.6.5` as an example — substitute the version you actually downloaded.
 
 :::tip[Quick Download]
 You can always head over to the official [Download Page](/en/download/), which automatically highlights the recommended package format for your current operating system.
@@ -104,7 +104,7 @@ cd limedl-native
 
 ---
 
-## Integrity & Minisign Verification
+## Integrity & `sigilup` Verification
 
 ### 1. Check SHA-256 Hashes
 
@@ -125,28 +125,16 @@ shasum -a 256 limedl-native-v0.6.5-darwin-aarch64-portable.tar.gz
 sha256sum limedl-native-v0.6.5-linux-x86_64.AppImage
 ```
 
-### 2. Minisign Verification
+### 2. `sigilup` Hybrid Verification
 
-The release pipeline dual-signs all desktop artifacts with **Minisign (Ed25519) + ML-DSA-65 (NIST FIPS 204 Post-Quantum Cryptography)**, publishing a `.sig` and `.pqc.sig` next to each desktop asset. You can verify the Ed25519 signature using the standard `minisign` CLI:
+The release pipeline hybrid-signs all release artifacts with **`sigilup` (Ed25519 + ML-DSA-65 / NIST FIPS 204 Post-Quantum Cryptography)**, publishing a `.hsig` envelope next to each asset. You can verify both signatures using `sigilup-cli` and [`sigilup-pins.json`](https://github.com/zkz098/limedl/blob/main/crates/limedl-native/src/update/sigilup-pins.json):
 
-Official Release Public Key:
-```text
-RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7
-```
-
-Verify signature (`-x` points at the `.sig` sidecar):
 ```bash
-minisign -Vm limedl-native-v0.6.5-windows-x86_64-setup.exe \
-  -x limedl-native-v0.6.5-windows-x86_64-setup.exe.sig \
-  -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
+cargo install sigilup-cli --locked
+sigilup verify --pins sigilup-pins.json limedl-native-v0.6.5-windows-x86_64-setup.exe
 ```
-If verified, the command outputs `Signature and comment signature verified`.
 
-### 3. ML-DSA-65 Post-Quantum Signature
-
-Every artifact also ships a `.pqc.sig` file (`untrusted comment: ml-dsa-65 signature` followed by one line of base64). The official ML-DSA-65 public key is published in standard base64 at [`/limedl-pqc-pubkey.b64`](/limedl-pqc-pubkey.b64) (1952 raw bytes after decoding).
-
-To verify independently, run a FIPS 204 ML-DSA-65 verification over the exact artifact bytes with the context `limedl-artifact`; `latest-native.json` uses the context `limedl-manifest`. The limedl client performs this check automatically during in-app updates, so regular users do not need to verify it manually.
+The limedl client performs this check automatically during in-app updates, so regular users do not need to verify it manually.
 
 ---
 

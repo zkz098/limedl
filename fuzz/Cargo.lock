@@ -2017,7 +2017,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-bt"
-version = "0.6.3"
+version = "0.6.5"
 dependencies = [
  "async-trait",
  "librqbit",
@@ -2034,7 +2034,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-core"
-version = "0.6.3"
+version = "0.6.5"
 dependencies = [
  "anyhow",
  "limedl-bt",
@@ -2053,7 +2053,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-disk"
-version = "0.6.3"
+version = "0.6.5"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2070,7 +2070,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-engine"
-version = "0.6.3"
+version = "0.6.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2112,7 +2112,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-http"
-version = "0.6.3"
+version = "0.6.5"
 dependencies = [
  "limedl-types",
  "loom",
@@ -2125,7 +2125,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-rpc"
-version = "0.6.3"
+version = "0.6.5"
 dependencies = [
  "anyhow",
  "argon2",
@@ -2147,7 +2147,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-store"
-version = "0.6.3"
+version = "0.6.5"
 dependencies = [
  "anyhow",
  "foldhash",
@@ -2164,7 +2164,7 @@ dependencies = [
 
 [[package]]
 name = "limedl-types"
-version = "0.6.3"
+version = "0.6.5"
 dependencies = [
  "anyhow",
  "async-trait",

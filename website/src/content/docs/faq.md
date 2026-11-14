@@ -19,13 +19,13 @@ limedl 不是 Aria2 的图形外壳，也不是 Electron 封装：它用 Rust �
 
 ## limedl 会收集遥测或要求登录账号吗？
 
-不会。客户端不包含分析、埋点或遥测上报，也不需要账号。唯一的网络请求是更新检查：访问 GitHub Releases 上的 `latest-native.json` 及其签名；更新请求会遵循你在设置中配置的代理。
+不会。客户端不包含分析、埋点或遥测上报，也不需要账号。唯一的网络请求是更新检查：访问 GitHub Releases 上的 `latest.hsig.json`；更新请求会遵循你在设置中配置的代理。
 
 ## 为什么 Windows 会弹出 SmartScreen 或杀毒软件警告？
 
-limedl 使用 Minisign + ML-DSA-65 对发布资产签名，但**没有购买 Windows Authenticode 商业代码签名证书**，因此 SmartScreen 仍可能提示“未知发布者”。这不是文件被篡改的证据，也不代表安装包一定安全。
+limedl 使用 `sigilup`（Ed25519 + ML-DSA-65）对发布资产签名，但**没有购买 Windows Authenticode 商业代码签名证书**，因此 SmartScreen 仍可能提示“未知发布者”。这不是文件被篡改的证据，也不代表安装包一定安全。
 
-建议先核对 GitHub Release 显示的 SHA-256 摘要，再按[安全与验签](/security/)手动验证 `.sig` / `.pqc.sig`。如果你不能接受这个风险，可以从源码自行构建。
+建议先核对 GitHub Release 显示的 SHA-256 摘要，再按[安全与验签](/security/)手动验证 `.hsig` 签名信封。如果你不能接受这个风险，可以从源码自行构建。
 
 ## macOS 提示“无法验证开发者”或“文件已损坏”怎么办？
 

@@ -34,17 +34,15 @@ At startup the client checks, in order:
 The client reads fixed assets from GitHub Releases:
 
 ```text
-latest-native.json
-latest-native.json.sig
-latest-native.json.pqc.sig
+latest.hsig.json
 ```
 
 Flow:
 
-1. **Verify the manifest signature before parsing JSON**; a failure aborts the check.
+1. **Verify the manifest signature and `security_epoch` before parsing**; any failure aborts the check.
 2. Compare the manifest version with the running `CARGO_PKG_VERSION`; an equal or older version means no update.
 3. Select an asset by `{os}-{arch}` (macOS uses `darwin`, and portable/Store channels append `-portable`).
-4. After downloading, verify the artifact bytes against the manifest's embedded `signature` / `pqcSignature`.
+4. While downloading, verify the artifact bytes in a single streaming pass against the manifest's **BLAKE3 + SHA-512** digests.
 5. Downloads are capped at **512 MiB**.
 
 See [Security & Verification](/en/security/) for details and known limits. GitHub's `releases/latest` excludes pre-releases, so stable users never receive rc/alpha builds.

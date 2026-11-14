@@ -1,13 +1,11 @@
 name: Signing check
 
-# Proves the update-channel signing secrets work end to end without publishing
-# anything: `sign` decrypts LIMEDL_SIGNING_KEY and derives LIMEDL_PQC_SIGNING_KEY,
-# and `guard` checks the derived public keys against PUBKEY_B64 and PQC_PUBKEY_B64
-# in the client plus verifies the produced signatures. Run it after rotating keys
-# (`cargo xtask generate-key` prints the commands) or any time releases start failing
+# Proves the update-channel `sigilup` signing secrets work end to end without
+# publishing anything: `sigilup sign` signs a throwaway file with
+# `SIGILUP_SIGNING_KEY` (and `SIGILUP_SIGNING_KEY_PASSWORD`), and `sigilup guard`
+# verifies the signature against `crates/limedl-native/src/update/sigilup-pins.json`.
+# Run it after rotating keys (`sigilup keygen`) or any time releases start failing
 # at the "Sign artifacts" step.
-#
-# Nothing secret is printed: xtask reports only the key source and key info.
 
 on:
   workflow_dispatch:
@@ -20,9 +18,6 @@ jobs:
     name: Sign & guard (throwaway file)
     runs-on: ubuntu-latest
     env:
-      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY }}
-      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD }}
-      LIMEDL_PQC_SIGNING_KEY: ${{ secrets.LIMEDL_PQC_SIGNING_KEY }}
       SIGILUP_SIGNING_KEY: ${{ secrets.SIGILUP_SIGNING_KEY }}
       SIGILUP_SIGNING_KEY_PASSWORD: ${{ secrets.SIGILUP_SIGNING_KEY_PASSWORD }}
     steps:
@@ -41,16 +36,9 @@ jobs:
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           key: sign-check
-          # Only xtask is built here — the registry cache is all that helps.
           cache-targets: false
 
-      - name: Sign and verify a throwaway file (legacy xtask)
-        run: |
-          cargo xtask sign README.md
-          cargo xtask guard README.md
-
       - name: Sign and verify a throwaway file (sigilup)
-        if: env.SIGILUP_SIGNING_KEY != ''
         run: |
           cargo install sigilup-cli --version 0.1.0 --locked
           if [[ "${SIGILUP_SIGNING_KEY}" =~ ^[[:space:]]*\{ ]]; then

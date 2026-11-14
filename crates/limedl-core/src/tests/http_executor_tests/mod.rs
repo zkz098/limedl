@@ -86,7 +86,7 @@ fn generate_test_content(size: u64) -> Vec<u8> {
 // `https://api.github.com/.../releases/assets/<id>` only redirects to the real
 // artifact when the request carries `Accept: application/octet-stream`; without
 // it GitHub returns the asset's JSON metadata, which the updater would save as
-// the "installer" and then reject at minisign verification.
+// the "installer" and then reject at signature verification.
 // ==========================================================================
 
 mod chunk_workers;

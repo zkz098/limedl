@@ -85,7 +85,7 @@ const downloads = [
 
 <Layout
   title="Download limedl - Cross-Platform Native Client"
-  description="Download official pre-built native binaries of limedl for Windows, macOS (Apple Silicon), and Linux with Minisign + ML-DSA-65 dual-signature verification."
+  description="Download official pre-built native binaries of limedl for Windows, macOS (Apple Silicon), and Linux with sigilup (Ed25519 + ML-DSA-65) hybrid signature verification."
   lang="en"
   jsonLd={[softwareApplicationJsonLd(version)]}
 >
@@ -99,7 +99,7 @@ const downloads = [
         Download limedl Desktop Client
       </h1>
       <p class="text-slate-400 text-base">
-        All release packages are built with GitHub Actions CI and dual-signed with Minisign (Ed25519) and ML-DSA-65.
+        All release packages are built with GitHub Actions CI and hybrid-signed with sigilup (Ed25519 + ML-DSA-65).
       </p>
       <p class="text-xs text-slate-500">
         Available for Windows x86_64, macOS Apple Silicon, and Linux x86_64 only; there is no Intel Mac, Windows ARM64, or Linux ARM64 desktop build.
@@ -226,7 +226,7 @@ const downloads = [
         <h3 class="text-lg font-bold text-white">Security & Checksum Verification</h3>
       </div>
       <p class="text-sm text-slate-400 leading-relaxed">
-        To guarantee authenticity, desktop releases are dual-signed with <code class="text-lime-300">Minisign Ed25519</code> and <code class="text-lime-300">ML-DSA-65</code> post-quantum cryptography; GitHub Releases provides a SHA-256 digest for each asset. Signature files and independent verification steps are in <a href="/en/security/" class="text-lime-400 hover:text-lime-300 underline">Security &amp; Verification</a>.
+        To guarantee authenticity, releases are hybrid-signed with <code class="text-lime-300">sigilup</code> (<code class="text-lime-300">Ed25519</code> + <code class="text-lime-300">ML-DSA-65</code> post-quantum cryptography); GitHub Releases provides a SHA-256 digest for each asset. Signature files and independent verification steps are in <a href="/en/security/" class="text-lime-400 hover:text-lime-300 underline">Security &amp; Verification</a>.
       </p>
 
       <div class="space-y-3">

@@ -85,7 +85,7 @@ const downloads = [
 
 <Layout
   title="下载 limedl - 全平台桌面客户端"
-  description="获取适用于 Windows、macOS (Apple Silicon) 与 Linux 系统的 limedl 官方安全安装包与便携绿色版，支持 Minisign + ML-DSA-65 混合双签名验签。"
+  description="获取适用于 Windows、macOS (Apple Silicon) 与 Linux 系统的 limedl 官方安全安装包与便携绿色版，支持 sigilup (Ed25519 + ML-DSA-65) 混合签名验签。"
   lang="zh-CN"
   jsonLd={[softwareApplicationJsonLd(version)]}
 >
@@ -99,7 +99,7 @@ const downloads = [
         下载 limedl 桌面客户端
       </h1>
       <p class="text-slate-400 text-base">
-        所有安装包均通过 GitHub Actions 自动化构建，并由 Minisign (Ed25519) 与 ML-DSA-65 双签名，保障零篡改与绝对纯净。
+        所有安装包均通过 GitHub Actions 自动化构建，并由 sigilup (Ed25519 + ML-DSA-65) 混合签名，保障零篡改与绝对纯净。
       </p>
       <p class="text-xs text-slate-500">
         仅提供 Windows x86_64、macOS Apple Silicon 与 Linux x86_64；没有 Intel Mac、Windows ARM64 或 Linux ARM64 桌面版。
@@ -226,7 +226,7 @@ const downloads = [
         <h3 class="text-lg font-bold text-white">安全与哈希校验指南</h3>
       </div>
       <p class="text-sm text-slate-400 leading-relaxed">
-        为确保你下载的文件未经第三方篡改，桌面发行版均通过 <code class="text-lime-300">Minisign Ed25519</code> 与 <code class="text-lime-300">ML-DSA-65</code> 后量子密码学双签名；SHA-256 摘要由 GitHub Release 为每个资产提供。签名文件与独立验签方法见<a href="/security/" class="text-lime-400 hover:text-lime-300 underline">安全与验签</a>。
+        为确保你下载的文件未经第三方篡改，发行版均通过 <code class="text-lime-300">sigilup</code>（<code class="text-lime-300">Ed25519</code> + <code class="text-lime-300">ML-DSA-65</code> 后量子密码学）混合签名；SHA-256 摘要由 GitHub Release 为每个资产提供。签名文件与独立验签方法见<a href="/security/" class="text-lime-400 hover:text-lime-300 underline">安全与验签</a>。
       </p>
 
       <div class="space-y-3">

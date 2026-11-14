@@ -5,7 +5,7 @@ description: 如何在 Windows、macOS 与 Linux 系统上获取、安装与校�
 
 # 安装指南
 
-limedl 为主流桌面操作系统提供了原生编译的发布版本。所有桌面发布文件均经过 **Minisign + ML-DSA-65 双签名**；服务端二进制不参与自更新签名。文中的文件名以 `v0.6.5` 为示例，请以实际下载到的版本号为准。
+limedl 为主流桌面操作系统提供了原生编译的发布版本。所有发布文件均经过 **`sigilup` (Ed25519 + ML-DSA-65) 混合签名**。文中的文件名以 `v0.6.5` 为示例，请以实际下载到的版本号为准。
 
 :::tip[快捷下载通道]
 你随时可以访问官方 [下载页面](/download/)，页面会自动根据你的浏览器环境推荐最适合你当前系统的安装包格式。
@@ -129,28 +129,16 @@ shasum -a 256 limedl-native-v0.6.5-darwin-aarch64-portable.tar.gz
 sha256sum limedl-native-v0.6.5-linux-x86_64.AppImage
 ```
 
-### 2. Minisign 密码学防篡改验签
+### 2. `sigilup` 混合密码学防篡改验签
 
-limedl 发布流水线对桌面构建工件实施 **Minisign (Ed25519) + ML-DSA-65 (NIST FIPS 204 后量子密码学)** 混合双签名，每个桌面资产都有对应的 `.sig` 与 `.pqc.sig` 文件。你可以使用标准 `minisign` 工具核对 Ed25519 签名：
+limedl 发布流水线对构建工件实施 **`sigilup` (Ed25519 + ML-DSA-65 / NIST FIPS 204 后量子密码学)** 混合签名，每个资产旁都有对应的 `.hsig` 签名信封。你可以使用 `sigilup-cli` 与仓库中的 [`sigilup-pins.json`](https://github.com/zkz098/limedl/blob/main/crates/limedl-native/src/update/sigilup-pins.json) 核对混合签名：
 
-官方发布公钥：
-```text
-RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7
-```
-
-执行验签命令（`-x` 指定 `.sig` 签名文件）：
 ```bash
-minisign -Vm limedl-native-v0.6.5-windows-x86_64-setup.exe \
-  -x limedl-native-v0.6.5-windows-x86_64-setup.exe.sig \
-  -P "RWSe1Ow8aYLL4Iy0eRFN+40umqxd2kxlPoyg1AqJdPBblBMSMDOhKw+7"
+cargo install sigilup-cli --locked
+sigilup verify --pins sigilup-pins.json limedl-native-v0.6.5-windows-x86_64-setup.exe
 ```
-若终端输出 `Signature and comment signature verified`，说明文件未受任何篡改且确实由官方流水线签名产出。
 
-### 3. ML-DSA-65 后量子签名
-
-每个工件同时带有 `.pqc.sig`（内容为 `untrusted comment: ml-dsa-65 signature` 加一行 base64 签名）。官方 ML-DSA-65 公钥以标准 base64 发布在 [`/limedl-pqc-pubkey.b64`](/limedl-pqc-pubkey.b64)（解码后为 1952 字节原始公钥）。
-
-独立复核时，对下载文件的原始字节使用 FIPS 204 ML-DSA-65 验证，上下文（context）为 `limedl-artifact`；`latest-native.json` 的上下文为 `limedl-manifest`。limedl 客户端在应用内更新时会自动执行这一校验，普通用户无需手动操作。
+limedl 客户端在应用内更新时会自动执行这一校验，普通用户无需手动操作。
 
 ---
 

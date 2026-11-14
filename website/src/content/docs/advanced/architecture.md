@@ -113,25 +113,25 @@ limedl 摒弃了传统的轮询检查机制，在系统核心维护了一个 `to
 
 ---
 
-## 后量子混合双签名自更新架构 (Minisign + ML-DSA-65)
+## 后量子混合签名自更新架构 (`sigilup`: Ed25519 + ML-DSA-65)
 
-为了防范当前及未来量子计算环境下的中间人攻击（MITM）与软件供应链投毒，limedl 引入了 **经典密码学 (Ed25519) + 后量子密码学 (ML-DSA-65 / NIST FIPS 204)** 的端到端混合双签名防御体系：
+为了防范当前及未来量子计算环境下的中间人攻击（MITM）与软件供应链投毒，limedl 采用 **`sigilup`** 端到端 **经典密码学 (Ed25519) + 后量子密码学 (ML-DSA-65 / NIST FIPS 204)** DSSEv1 混合签名体系：
 
 ```
 1. GitHub Actions 流水线构建跨平台 Release 资产
-2. xtask 工具执行双签名：生成 .sig (Minisign) 与 .pqc.sig (ML-DSA-65)
-3. 生成全局更新元清单 latest-native.json 并分别生成两种签名
+2. sigilup sign 为每个发布资产生成 .hsig DSSEv1 混合签名信封
+3. sigilup manifest 生成全局更新清单 latest.hsig.json（内含 BLAKE3 + SHA-512 摘要与 security_epoch）
                      │
                      ▼ HTTPS 安全拉取
-4. 客户端向官方最新 Release 获取 latest-native.json 及对应的双签名
-5. 在反序列化 JSON 之前，同时使用固化公钥完成 Minisign 与 ML-DSA-65 双验签
+4. 客户端向官方最新 Release 获取 latest.hsig.json
+5. 在反序列化清单之前，使用 sigilup-pins.json 验证 Ed25519 + ML-DSA-65 混合签名与 security_epoch
 6. 下载匹配当前平台的二进制安装包 / 归档
-7. 校验下载文件的 SHA-256 哈希以及工件本身的独立双签名
-8. 调用 self_replace 库在进程原地原子替换旧版文件并安全重启
+7. 在单遍流式下载中完成 BLAKE3 + SHA-512 校验
+8. 调用 sigilup::replace 在进程原地原子替换旧版文件并安全重启
 ```
 
-- **域隔离保护 (Domain Separation)**：ML-DSA-65 签名强制注入了域上下文字符串（清单使用 `limedl-manifest`，安装包工件使用 `limedl-artifact`），彻底阻断跨上下文签名重放攻击。
-- **发布门禁严格约束 (`cargo xtask guard`)**：CI 发布流水线会在打包后从密钥派生公钥，强制与客户端内固化的 `PUBKEY_B64` 和 `PQC_PUBKEY_B64` 比对；若有任何不匹配立即阻断发布。
+- **防回滚与单遍流式摘要**：`latest.hsig.json` 强制校验 `security_epoch` 防止降级攻击，并在流式下载的同时完成 BLAKE3 + SHA-512 校验。
+- **发布门禁严格约束 (`sigilup guard`)**：CI 发布流水线会在打包后校验所有签名与清单，确保签名密钥与客户端内固化的 `sigilup-pins.json` 一致；若有任何不匹配立即阻断发布。
 - **通道适配覆盖**：
   - Windows 安装版：拉取 `setup.exe` 并调用 `/P /R` 静默升级；
   - Windows 便携版：通过 `self_replace` 原地无缝替换 `limedl-native.exe`；

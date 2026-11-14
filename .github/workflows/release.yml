@@ -10,7 +10,7 @@ name: Release
 # (ad-hoc-signed, un-notarized `.app` in a tar.gz) and Linux (binary in a tar.gz).
 # They are handled by `build-native` / `build-native-macos` / `build-native-linux`,
 # which upload their artifacts, and then `native-manifest` merges them into the
-# single signed `latest-native.json` the clients poll. The merge is a separate job
+# single signed `latest.hsig.json` the clients poll. The merge is a separate job
 # because the manifest is one file: letting each platform job generate it would
 # make the last job to finish overwrite the other platforms' entries.
 #
@@ -122,8 +122,8 @@ jobs:
 
   # ═══════════════════════════════════════════════════════════════════════
   # Desktop (Slint) — Windows: portable zip + NSIS installer + MSIX package.
-  # All artifacts are minisign-signed by the `native-manifest` job with the
-  # shared updater key, so the self-updater (latest-native.json) can verify
+  # All artifacts are signed by the `native-manifest` job with `sigilup`
+  # (Ed25519 + ML-DSA-65), so the self-updater (`latest.hsig.json`) can verify
   # downloads.
   # ═══════════════════════════════════════════════════════════════════════
   build-native:
@@ -132,12 +132,6 @@ jobs:
     needs: [changelog, font]
     permissions:
       contents: write
-    env:
-      # minisign keypair for the self-update channel (verified by
-      # crates/limedl-native/src/update/mod.rs). `cargo xtask generate-key` prints
-      # the `gh secret set` commands.
-      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY }}
-      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
@@ -278,12 +272,11 @@ jobs:
           MSIX_IDENTITY_NAME: Zkz20.limedl-native
           MSIX_PUBLISHER: "CN=zkz098"
 
-      # ── Sign + verify (minisign, in-repo tooling) ──────────────────────
       # ── Hand the binaries to `native-manifest` ──────────────────────────
       # The manifest job can only advertise an artifact it can see, so the
-      # binaries travel between jobs as artifacts (unsigned; the minisign
-      # signatures stay a sidecar produced in the manifest job, where the
-      # signing secret lives).
+      # binaries travel between jobs as artifacts (unsigned; the sigilup
+      # `.hsig` envelopes stay a sidecar produced in the manifest job, where
+      # the signing secret lives).
       - name: Upload desktop artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -294,7 +287,7 @@ jobs:
             dist/limedl-native-v*-windows-x86_64.msix
           if-no-files-found: error
 
-      # Minisign signing, the self-update manifest and the release guard all run
+      # sigilup signing, the self-update manifest and the release guard all run
       # in the `native-manifest` job below — the manifest is a single file that
       # must carry every platform's entries, so no per-platform job may write it.
 
@@ -719,18 +712,18 @@ jobs:
             "${REGISTRY}:${VERSION}-arm64"
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Native update channel — sign every desktop artifact, build the single
-  # `latest-native.json` covering all platforms, sign it, run the guard, and
-  # publish.
+  # Native update channel — sign every desktop/server artifact with `sigilup`,
+  # build the single `latest.hsig.json` covering all platforms, run `sigilup guard`,
+  # and publish.
   #
   # This is the only job that writes the manifest, for the reason in the header:
   # one file cannot be produced independently by two platform jobs without one
-  # overwriting the other (and desynchronizing it from its .sig).
+  # overwriting the other.
   #
   # It runs even when a platform leg failed: a missing platform key is handled
-  # gracefully by the client (`UpdateManifest::has_assets_for` reports "no update"
-  # instead of an error), whereas skipping the manifest would break updates for
-  # the platforms that DID build. A failed leg surfaces as a red check here.
+  # gracefully by the client (`sigilup` reports "no update" instead of an error),
+  # whereas skipping the manifest would break updates for the platforms that DID
+  # build. A failed leg surfaces as a red check here.
   #
   # `build-server` is in `needs` only to sequence the release page: this job
   # flips `prerelease` to false last, and a server leg still running after it
@@ -744,9 +737,6 @@ jobs:
     permissions:
       contents: write
     env:
-      LIMEDL_SIGNING_KEY: ${{ secrets.LIMEDL_SIGNING_KEY }}
-      LIMEDL_SIGNING_KEY_PASSWORD: ${{ secrets.LIMEDL_SIGNING_KEY_PASSWORD }}
-      LIMEDL_PQC_SIGNING_KEY: ${{ secrets.LIMEDL_PQC_SIGNING_KEY }}
       SIGILUP_SIGNING_KEY: ${{ secrets.SIGILUP_SIGNING_KEY }}
       SIGILUP_SIGNING_KEY_PASSWORD: ${{ secrets.SIGILUP_SIGNING_KEY_PASSWORD }}
     steps:
@@ -796,12 +786,10 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # ── Minisign & PQC: the update trust chain ─────────────────────────
-      # `sign` writes <file>.sig and <file>.pqc.sig for each artifact; `cargo xtask manifest`
-      # inlines those signatures into the manifest; `guard` then re-verifies
-      # everything AND refuses to continue unless LIMEDL_SIGNING_KEY / LIMEDL_PQC_SIGNING_KEY
-      # match the PUBKEY_B64 / PQC_PUBKEY_B64 embedded in the client (a rotated secret with a
-      # stale constant would otherwise ship an app that rejects all future updates).
+      # ── sigilup: DSSEv1 hybrid-signed manifest + .hsig envelopes ─────────
+      # `sigilup sign` writes `<file>.hsig` for each artifact; `sigilup manifest`
+      # builds `latest.hsig.json`; `sigilup guard` verifies every signature and
+      # asserts the signing key matches `crates/limedl-native/src/update/sigilup-pins.json`.
       - name: Sign artifacts
         shell: pwsh
         run: |
@@ -823,66 +811,29 @@ jobs:
           if ($assets.Count -eq 0) { throw "no desktop artifacts were downloaded — nothing to sign" }
 
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          $assets | ConvertTo-Json -Depth 4 | Set-Content dist/native-assets.json -Encoding utf8
-          Get-Content dist/native-assets.json
 
-          $files = @($assets.Values | ForEach-Object { $_.path })
-          cargo xtask sign @files
-          if ($LASTEXITCODE -ne 0) { throw "signing failed" }
-
-          cargo xtask manifest `
-            --version "${{ steps.version.outputs.VERSION }}" `
-            --assets-json dist/native-assets.json `
-            --notes @'
-          ${{ needs.changelog.outputs.body }}
-          '@ `
-            --out-file dist/latest-native.json
-
-          cargo xtask sign dist/latest-native.json
-          if ($LASTEXITCODE -ne 0) { throw "signing the manifest failed" }
-
-          # MSIX, DEB and AppImage are standalone release assets (not self-update assets in
-          # latest-native.json), so they are signed and guarded here.
-          $guarded = @() + @($files) + @("dist/latest-native.json")
+          # MSIX, DEB, AppImage and server archives are standalone release assets
+          # (not self-update assets in latest.hsig.json), so they are signed and guarded here.
+          $sigilupFiles = @($assets.Values | ForEach-Object { $_.path })
           if ($env:HAS_WINDOWS -eq 'true') {
             $msix = "dist/limedl-native-v${{ steps.version.outputs.VERSION }}-windows-x86_64.msix"
-            cargo xtask sign $msix
-            if ($LASTEXITCODE -ne 0) { throw "signing the MSIX failed" }
-            $guarded += $msix
+            if (Test-Path $msix) { $sigilupFiles += $msix }
           }
           if ($env:HAS_LINUX -eq 'true') {
             $deb = "dist/limedl-native-v${{ steps.version.outputs.VERSION }}-linux-x86_64.deb"
-            if (Test-Path $deb) {
-              cargo xtask sign $deb
-              if ($LASTEXITCODE -ne 0) { throw "signing the DEB failed" }
-              $guarded += $deb
-            }
+            if (Test-Path $deb) { $sigilupFiles += $deb }
             $appimage = "dist/limedl-native-v${{ steps.version.outputs.VERSION }}-linux-x86_64.AppImage"
-            if (Test-Path $appimage) {
-              cargo xtask sign $appimage
-              if ($LASTEXITCODE -ne 0) { throw "signing the AppImage failed" }
-              $guarded += $appimage
-            }
+            if (Test-Path $appimage) { $sigilupFiles += $appimage }
           }
           if ($env:HAS_SERVER -eq 'true') {
             foreach ($serverArchive in @(
               "dist/limedl-server-v${{ steps.version.outputs.VERSION }}-x86_64-linux-musl.tar.gz",
               "dist/limedl-server-v${{ steps.version.outputs.VERSION }}-aarch64-linux-musl.tar.gz"
             )) {
-              if (Test-Path $serverArchive) {
-                cargo xtask sign $serverArchive
-                if ($LASTEXITCODE -ne 0) { throw "signing $serverArchive failed" }
-                $guarded += $serverArchive
-              }
+              if (Test-Path $serverArchive) { $sigilupFiles += $serverArchive }
             }
           }
 
-          cargo xtask guard @guarded
-          if ($LASTEXITCODE -ne 0) { throw "release guard failed" }
-
-          # ── sigilup: DSSEv1 hybrid-signed manifest + .hsig envelopes ─────
-          # Dual-published alongside `latest-native.json` during the transition
-          # so pre-sigilup clients can upgrade seamlessly.
           if ($env:SIGILUP_SIGNING_KEY.TrimStart().StartsWith('{')) {
             $sigilupKeyPath = Join-Path $env:RUNNER_TEMP "sigilup.sk.json"
             [System.IO.File]::WriteAllText($sigilupKeyPath, $env:SIGILUP_SIGNING_KEY)
@@ -908,8 +859,8 @@ jobs:
             }
           }
           $sigilupAssets | ConvertTo-Json -Depth 4 | Set-Content dist/sigilup-assets.json -Encoding utf8
+          Get-Content dist/sigilup-assets.json
 
-          $sigilupFiles = @($guarded | Where-Object { $_ -ne "dist/latest-native.json" })
           sigilup sign @sigilupFiles
           if ($LASTEXITCODE -ne 0) { throw "sigilup signing failed" }
 
@@ -945,28 +896,7 @@ jobs:
           preserve_order: true
           files: |
             dist/latest.hsig.json
-            dist/latest-native.json
-            dist/latest-native.json.sig
-            dist/latest-native.json.pqc.sig
             dist/*.hsig
-            dist/limedl-native-v*-windows-x86_64-setup.exe.sig
-            dist/limedl-native-v*-windows-x86_64-setup.exe.pqc.sig
-            dist/limedl-native-v*-windows-x86_64-portable.zip.sig
-            dist/limedl-native-v*-windows-x86_64-portable.zip.pqc.sig
-            dist/limedl-native-v*-darwin-aarch64-portable.tar.gz.sig
-            dist/limedl-native-v*-darwin-aarch64-portable.tar.gz.pqc.sig
-            dist/limedl-native-v*-linux-x86_64-portable.tar.gz.sig
-            dist/limedl-native-v*-linux-x86_64-portable.tar.gz.pqc.sig
-            dist/limedl-native-v*-windows-x86_64.msix.sig
-            dist/limedl-native-v*-windows-x86_64.msix.pqc.sig
-            dist/limedl-native-v*-linux-x86_64.deb.sig
-            dist/limedl-native-v*-linux-x86_64.deb.pqc.sig
-            dist/limedl-native-v*-linux-x86_64.AppImage.sig
-            dist/limedl-native-v*-linux-x86_64.AppImage.pqc.sig
-            dist/limedl-server-v*-x86_64-linux-musl.tar.gz.sig
-            dist/limedl-server-v*-x86_64-linux-musl.tar.gz.pqc.sig
-            dist/limedl-server-v*-aarch64-linux-musl.tar.gz.sig
-            dist/limedl-server-v*-aarch64-linux-musl.tar.gz.pqc.sig
           body: ${{ needs.changelog.outputs.body }}
           prerelease: ${{ !(needs.build-native.result == 'success' && needs.build-native-macos.result == 'success' && needs.build-native-linux.result == 'success' && needs.build-server.result == 'success') || contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
         env:
