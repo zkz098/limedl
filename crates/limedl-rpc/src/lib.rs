@@ -48,10 +48,12 @@ pub use token::{generate_token, hash_token};
 /// drive them without pulling the JSON-RPC server or the engine into the test.
 #[doc(hidden)]
 pub mod fuzz_api {
+    pub use crate::jsonrpc::JsonRpcRequest;
     pub use crate::options::{
-        collect_request_headers, extract_option_headers, find_header_value, parse_checksum_option,
-        parse_select_file, split_aria2_tail,
+        collect_request_headers, extract_option_headers, find_header_value, parse_aria2_limit,
+        parse_checksum_option, parse_select_file, split_aria2_tail,
     };
+    pub use crate::query::{parse_int_param, parse_keys};
 }
 
 #[cfg(test)]

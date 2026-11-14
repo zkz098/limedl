@@ -15,11 +15,14 @@ cargo-fuzz = true
 # RUSTFLAGS, which overrides the root `.cargo/config.toml`; reqwest's `http3`
 # feature (enabled by the workspace dependency) hard-requires that cfg.
 [dependencies]
+arbitrary = { version = "1", features = ["derive"] }
 libfuzzer-sys = "0.4"
 serde_json = "1"
 http = "1"
 limedl-types = { path = "../crates/limedl-types", default-features = false }
+limedl-http = { path = "../crates/limedl-http" }
 limedl-engine = { path = "../crates/limedl-engine", default-features = false }
+limedl-bt = { path = "../crates/limedl-bt" }
 limedl-rpc = { path = "../crates/limedl-rpc" }
 
 [[bin]]
@@ -67,6 +70,27 @@ bench = false
 [[bin]]
 name = "aria2_cli_and_batch"
 path = "fuzz_targets/aria2_cli_and_batch.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "http_headers"
+path = "fuzz_targets/http_headers.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rpc_envelope"
+path = "fuzz_targets/rpc_envelope.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "bt_inputs"
+path = "fuzz_targets/bt_inputs.rs"
 test = false
 doc = false
 bench = false

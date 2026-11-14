@@ -178,7 +178,7 @@ fn is_terminal(state: DownloadState) -> bool {
 }
 
 /// aria2's optional `keys` parameter: a list of field names to keep.
-fn parse_keys(params: &[Value], index: usize) -> Option<Vec<String>> {
+pub fn parse_keys(params: &[Value], index: usize) -> Option<Vec<String>> {
     params.get(index).and_then(|v| v.as_array()).map(|keys| {
         keys.iter()
             .filter_map(|key| key.as_str().map(String::from))

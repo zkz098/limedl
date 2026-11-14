@@ -377,7 +377,7 @@ pub fn parse_select_file(value: &Value) -> std::result::Result<Vec<usize>, JsonR
 }
 
 /// Parse an aria2 byte-rate limit. `""` and `"0"` mean "unlimited".
-fn parse_aria2_limit(value: &Value) -> std::result::Result<Option<u64>, JsonRpcError> {
+pub fn parse_aria2_limit(value: &Value) -> std::result::Result<Option<u64>, JsonRpcError> {
     let raw = match value {
         Value::String(s) => s.trim().to_string(),
         Value::Number(n) => n.to_string(),

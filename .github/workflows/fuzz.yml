@@ -25,20 +25,35 @@ env:
   RUSTFLAGS: "--cfg reqwest_unstable"
 
 jobs:
+  discover:
+    name: Discover fuzz targets
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.list.outputs.targets }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30
+        with:
+          toolchain: stable
+          cache: false
+          rustflags: ""
+      - id: list
+        run: |
+          targets=$(cargo metadata --manifest-path fuzz/Cargo.toml --no-deps --format-version 1 \
+            | jq -c '[.packages[] | select(.name == "limedl-fuzz") | .targets[] | select(.kind | index("bin")) | .name]')
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "discovered fuzz targets: $targets"
+
   fuzz:
     name: fuzz-${{ matrix.target }}
+    needs: discover
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - sha256_manifest
-          - metalink_xml
-          - settings_json
-          - rpc_options
-          - metalink_headers
-          - url_rewrite_and_name
-          - aria2_cli_and_batch
+        target: ${{ fromJson(needs.discover.outputs.targets) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

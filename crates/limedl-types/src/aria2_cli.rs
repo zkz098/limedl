@@ -322,9 +322,10 @@ fn split_option(token: &str) -> (String, Option<String>) {
         }
         return (token.to_string(), None);
     }
-    if token.starts_with('-') && token.len() > 2 {
-        let (flag, rest) = token.split_at(2);
-        if matches!(flag, "-o" | "-d" | "-U" | "-H") {
+    for flag in ["-o", "-d", "-U", "-H"] {
+        if let Some(rest) = token.strip_prefix(flag)
+            && !rest.is_empty()
+        {
             return (flag.to_string(), Some(rest.to_string()));
         }
     }
