@@ -2,16 +2,16 @@
 id: workflows/bit-torrent-backend
 title: BitTorrent Backend
 status: verified
-generated_at: 2026-11-13T10:44:49Z
-commit: ef4bed786d602c1598991bc6d8ce0eb0856786ce
+generated_at: 2026-11-16T11:34:08Z
+commit: 465309d2cf599a52c3eaaec4a825663a4ef34cca
 evidence:
 - path: Cargo.toml
   lines:
   - 84
   - 85
-  blob: 4432791995601330a33bc1b6d774c6fa31036526
+  blob: 772c1ea7282a1d52f85fd9a375b9318a9558fd7a
   snippet_sha1: c6cdc067f82c2cfae6361b08e21671f04b0860c6
-  note: drift-projected L84-L85@d6e99b28 -> L84-L85 (similarity 1.00)
+  note: drift-projected L84-L85@44327919 -> L84-L85 (similarity 1.00)
 - path: crates/limedl-bt/src/lib.rs
   lines:
   - 1

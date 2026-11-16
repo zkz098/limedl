@@ -1,9 +1,9 @@
 ---
 id: systems/disk-io-and-storage
 title: Disk I/O, Buffer Pool and Storage Detection
-status: verified
-generated_at: 2026-11-13T10:44:49Z
-commit: ef4bed786d602c1598991bc6d8ce0eb0856786ce
+status: draft
+generated_at: 2026-11-16T11:34:08Z
+commit: 465309d2cf599a52c3eaaec4a825663a4ef34cca
 evidence:
 - path: crates/limedl-disk/src/buffer_pool/mod.rs
   lines:
@@ -172,11 +172,11 @@ evidence:
   blob: f1711aeb3badc5423223acaf6e2dd1b0ecfc7751
 - path: Cargo.toml
   lines:
-  - 113
-  - 119
-  blob: 4432791995601330a33bc1b6d774c6fa31036526
+  - 105
+  - 111
+  blob: 772c1ea7282a1d52f85fd9a375b9318a9558fd7a
   snippet_sha1: 35744ee7c901b9cab8b0e3971c7bca00fce35bdc
-  note: drift-projected L113-L119@d6e99b28 -> L113-L119 (similarity 1.00)
+  note: drift-projected L113-L119@44327919 -> L105-L111 (similarity 1.00)
 - path: crates/limedl-core/src/crash.rs
   lines:
   - 18
@@ -409,26 +409,28 @@ evidence:
   lines:
   - 578
   - 646
-  blob: b81bed4e871719ca834a78d5fa058d62c97e8ea8
-  snippet_sha1: 62ac0a2e311e8abec66e638618cf5476badafd48
+  blob: 6cc445fcb6466a211123f46c4cb1b40e1de8e6dc
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/update/mod.rs
   lines:
-  - 664
-  - 673
-  blob: b81bed4e871719ca834a78d5fa058d62c97e8ea8
+  - 391
+  - 400
+  blob: 6cc445fcb6466a211123f46c4cb1b40e1de8e6dc
   snippet_sha1: 54ebd78ef86737dc1184afa9a6ae88ee291cb4a4
+  note: drift-projected L664-L673@b81bed4e -> L391-L400 (similarity 1.00)
 - path: crates/limedl-native/src/update/mod.rs
   lines:
   - 633
   - 638
-  blob: b81bed4e871719ca834a78d5fa058d62c97e8ea8
-  snippet_sha1: 3f6752d48759f0228d2341ff6d63cbba552f0189
+  blob: 6cc445fcb6466a211123f46c4cb1b40e1de8e6dc
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 - path: crates/limedl-native/src/update/tests.rs
   lines:
   - 175
   - 186
-  blob: c5bcfcf00bfa2de653775ba70c8cf7bdda7a104b
-  snippet_sha1: 9bd34f7c0e8e2e65218dce5237f433aca79c4ab7
+  blob: 6afdf5140620a25c3da6ef3f55a61948ed6e7984
+  snippet_sha1: e6cf0f4e336a8cde981900fde6892c9dbac36d47
+  note: content lost at HEAD; re-pinned at recorded range (draft)
 type: system
 ---
 # Disk I/O, Buffer Pool and Storage Detection

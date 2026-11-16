@@ -2,8 +2,8 @@
 id: architecture/bootstrap-and-services
 title: Bootstrap, SystemContext and Shared Services
 status: verified
-generated_at: 2026-11-13T06:38:13Z
-commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
+generated_at: 2026-11-16T11:34:08Z
+commit: 465309d2cf599a52c3eaaec4a825663a4ef34cca
 evidence:
 - path: crates/limedl-core/src/bootstrap.rs
   lines:
@@ -111,8 +111,9 @@ evidence:
   lines:
   - 14
   - 18
-  blob: 42e51e93cbcb31a1aed11f971714e6d7eb6c1b2d
+  blob: 89b56904845a893918c855171da6a3840dcc5fef
   snippet_sha1: d4f9efb33d7a8ba231fced8fc4fc8dbe2ae6d013
+  note: drift-projected L14-L18@42e51e93 -> L14-L18 (similarity 1.00)
 - path: crates/limedl-core/src/lib.rs
   lines:
   - 85

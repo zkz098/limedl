@@ -2,16 +2,16 @@
 id: architecture/overview
 title: Workspace and System Architecture
 status: verified
-generated_at: 2026-11-13T10:44:49Z
-commit: ef4bed786d602c1598991bc6d8ce0eb0856786ce
+generated_at: 2026-11-16T11:34:08Z
+commit: 465309d2cf599a52c3eaaec4a825663a4ef34cca
 evidence:
 - path: Cargo.toml
   lines:
   - 1
   - 20
-  blob: 4432791995601330a33bc1b6d774c6fa31036526
+  blob: 772c1ea7282a1d52f85fd9a375b9318a9558fd7a
   snippet_sha1: b77ecc96168e5793151bc8fdaa32a7fc413777ff
-  note: drift-projected L1-L20@d6e99b28 -> L1-L20 (similarity 1.00)
+  note: drift-projected L1-L20@44327919 -> L1-L20 (similarity 1.00)
 - path: crates/limedl-core/Cargo.toml
   lines:
   - 1
@@ -22,9 +22,9 @@ evidence:
   lines:
   - 48
   - 57
-  blob: de7291e025ebc517d2dfb40d0671e889625ecb32
+  blob: 71d34c664938cabee532a180abccdcdb114ea976
   snippet_sha1: b70630f33f890a236adceff69f3046ca9be6a50b
-  note: drift-projected L47-L56@33df2c49 -> L48-L57 (similarity 1.00)
+  note: drift-projected L48-L57@de7291e0 -> L48-L57 (similarity 1.00)
 - path: crates/limedl-types/Cargo.toml
   lines:
   - 16
@@ -49,9 +49,9 @@ evidence:
   lines:
   - 13
   - 18
-  blob: 09be9dd569d66d44a925ca0e23885f5ccc57d384
+  blob: 67acaf76c7bb726a06c079a20df6a99feabb3dcd
   snippet_sha1: 5fd66a2a4132cb777afea7cff4f70f1ae0d65a04
-  note: drift-projected L13-L18@b2b99072 -> L13-L18 (similarity 1.00)
+  note: drift-projected L13-L18@09be9dd5 -> L13-L18 (similarity 1.00)
 - path: crates/limedl-engine/Cargo.toml
   lines:
   - 13
@@ -76,8 +76,9 @@ evidence:
   lines:
   - 13
   - 18
-  blob: 42e51e93cbcb31a1aed11f971714e6d7eb6c1b2d
+  blob: 89b56904845a893918c855171da6a3840dcc5fef
   snippet_sha1: e50c38518fbef08d669a5fc639187eab4c1477d2
+  note: drift-projected L13-L18@42e51e93 -> L13-L18 (similarity 1.00)
 - path: crates/limedl-testkit/Cargo.toml
   lines:
   - 14
@@ -88,8 +89,9 @@ evidence:
   lines:
   - 14
   - 18
-  blob: 42e51e93cbcb31a1aed11f971714e6d7eb6c1b2d
+  blob: 89b56904845a893918c855171da6a3840dcc5fef
   snippet_sha1: d4f9efb33d7a8ba231fced8fc4fc8dbe2ae6d013
+  note: drift-projected L14-L18@42e51e93 -> L14-L18 (similarity 1.00)
 - path: crates/limedl-bt/Cargo.toml
   lines:
   - 13
@@ -120,8 +122,9 @@ evidence:
   lines:
   - 14
   - 22
-  blob: 42e51e93cbcb31a1aed11f971714e6d7eb6c1b2d
+  blob: 89b56904845a893918c855171da6a3840dcc5fef
   snippet_sha1: 2e3505c00ca1d37d697d74abbf39396101bcf949
+  note: drift-projected L14-L22@42e51e93 -> L14-L22 (similarity 1.00)
 - path: crates/limedl-testkit/Cargo.toml
   lines:
   - 22
@@ -144,9 +147,9 @@ evidence:
   lines:
   - 38
   - 46
-  blob: 4432791995601330a33bc1b6d774c6fa31036526
+  blob: 772c1ea7282a1d52f85fd9a375b9318a9558fd7a
   snippet_sha1: cc776791f79928952a6ef43aaa43af1cfc232020
-  note: drift-projected L38-L46@d6e99b28 -> L38-L46 (similarity 1.00)
+  note: drift-projected L38-L46@44327919 -> L38-L46 (similarity 1.00)
 - path: crates/limedl-core/src/lib.rs
   lines:
   - 1
@@ -187,8 +190,9 @@ evidence:
   lines:
   - 16
   - 42
-  blob: 22145a24a678bb40d82d9a1e894710e74c1de8aa
+  blob: ca412613c3e79366ef7014ee4b6616391003116e
   snippet_sha1: 937d8cad82c4de9d8b8155ccdbf6b8fe17b0ef51
+  note: drift-projected L16-L42@22145a24 -> L16-L42 (similarity 1.00)
 - path: crates/limedl-server/Cargo.toml
   lines:
   - 20
@@ -324,11 +328,11 @@ evidence:
   snippet_sha1: 891836d4c885c961ad8bf062d69a4641073f4194
 - path: Cargo.toml
   lines:
-  - 114
-  - 127
-  blob: 4432791995601330a33bc1b6d774c6fa31036526
+  - 106
+  - 119
+  blob: 772c1ea7282a1d52f85fd9a375b9318a9558fd7a
   snippet_sha1: d7be4c4e09e9c14cc1d11fee42686c1f23695a8f
-  note: drift-projected L114-L127@d6e99b28 -> L114-L127 (similarity 1.00)
+  note: drift-projected L114-L127@44327919 -> L106-L119 (similarity 1.00)
 - path: warden.toml
   lines:
   - 5

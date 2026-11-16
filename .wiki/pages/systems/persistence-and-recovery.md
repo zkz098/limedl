@@ -2,8 +2,8 @@
 id: systems/persistence-and-recovery
 title: SQLite Persistence, Durable Progress and Crash Recovery
 status: verified
-generated_at: 2026-11-13T06:38:14Z
-commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
+generated_at: 2026-11-16T11:34:08Z
+commit: 465309d2cf599a52c3eaaec4a825663a4ef34cca
 evidence:
 - path: crates/limedl-engine/src/context.rs
   lines:
@@ -261,8 +261,9 @@ evidence:
   lines:
   - 431
   - 463
-  blob: 3bf801ef8406717e6ada43b881f3036601097eb8
+  blob: d33509d4423034c4dc21202d6caf1d01dd37640b
   snippet_sha1: 58b30ed4cabc78f1be742edee9e8a6d8b3fe8fa9
+  note: drift-projected L431-L463@3bf801ef -> L431-L463 (similarity 1.00)
 - path: crates/limedl-native/src/bridge/forms/enums.rs
   lines:
   - 73
@@ -459,8 +460,9 @@ evidence:
   lines:
   - 205
   - 224
-  blob: ff7837757c40c7d02f0b354839dd6f16e7a5703b
+  blob: b9cf04751bd1e12cf17ddd3644636351be5c5860
   snippet_sha1: cc6c0859c311ef1d9ca25571ec4922009ed6b51b
+  note: drift-projected L205-L224@ff783775 -> L205-L224 (similarity 1.00)
 - path: crates/limedl-rpc/src/download.rs
   lines:
   - 468

@@ -2,15 +2,16 @@
 id: operations/server-deployment-and-packaging
 title: Server Deployment and Packaging
 status: verified
-generated_at: 2026-11-13T06:38:13Z
-commit: c28b25a7355ded0aa81f07dfee7c66c53537eaf3
+generated_at: 2026-11-16T11:34:08Z
+commit: 465309d2cf599a52c3eaaec4a825663a4ef34cca
 evidence:
 - path: .github/workflows/release.yml
   lines:
-  - 600
-  - 612
-  blob: ff2883c5d721423674668da789dbb080908638c5
+  - 593
+  - 605
+  blob: e6caf52917af8af0438238518c2bdd566a63001e
   snippet_sha1: 1c92d66b78b05d9fd11a8c34e3c70fd3020b61cf
+  note: drift-projected L600-L612@ff2883c5 -> L593-L605 (similarity 1.00)
 - path: packaging/server/systemd/limedl-server.service
   lines:
   - 7
@@ -91,10 +92,11 @@ evidence:
   snippet_sha1: 0682dea6bccafdce66b840c150571f623e85a74b
 - path: .github/workflows/release.yml
   lines:
-  - 540
-  - 543
-  blob: ff2883c5d721423674668da789dbb080908638c5
+  - 533
+  - 536
+  blob: e6caf52917af8af0438238518c2bdd566a63001e
   snippet_sha1: 7f3fe0a5e5aeb53c426d3879aafa984f62e68a1d
+  note: drift-projected L540-L543@ff2883c5 -> L533-L536 (similarity 1.00)
 - path: packaging/server/Dockerfile
   lines:
   - 13
@@ -133,16 +135,18 @@ evidence:
   snippet_sha1: 1c51386f54a9ecec20ba26251b68ec1bccf66264
 - path: .github/workflows/release.yml
   lines:
-  - 659
-  - 703
-  blob: ff2883c5d721423674668da789dbb080908638c5
-  snippet_sha1: d21924cae2de0f8292866fe12329f719e5f4e42b
+  - 652
+  - 696
+  blob: e6caf52917af8af0438238518c2bdd566a63001e
+  snippet_sha1: e050740c708e1ed193a7bfa727a3348132822dde
+  note: drift-projected L659-L703@ff2883c5 -> L652-L696 (similarity 0.98)
 - path: .github/workflows/release.yml
   lines:
-  - 548
-  - 549
-  blob: ff2883c5d721423674668da789dbb080908638c5
+  - 541
+  - 542
+  blob: e6caf52917af8af0438238518c2bdd566a63001e
   snippet_sha1: 467637f8ea50c73dd57ec7bb565777bed3324c0b
+  note: drift-projected L548-L549@ff2883c5 -> L541-L542 (similarity 1.00)
 - path: docs/server-daemon.md
   lines:
   - 24

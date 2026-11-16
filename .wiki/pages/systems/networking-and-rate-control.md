@@ -2,8 +2,8 @@
 id: systems/networking-and-rate-control
 title: Networking, HTTP Clients and Rate Control
 status: verified
-generated_at: 2026-11-13T10:44:49Z
-commit: ef4bed786d602c1598991bc6d8ce0eb0856786ce
+generated_at: 2026-11-16T11:34:08Z
+commit: 465309d2cf599a52c3eaaec4a825663a4ef34cca
 evidence:
 - path: crates/limedl-http/src/lib.rs
   lines:
@@ -25,10 +25,11 @@ evidence:
   snippet_sha1: b46a0f674b7685e617493d3da8e82486f21d6d96
 - path: crates/limedl-native/src/update/mod.rs
   lines:
-  - 370
-  - 384
-  blob: b81bed4e871719ca834a78d5fa058d62c97e8ea8
-  snippet_sha1: 00ef9c62018942231e729f2006a3e350eb582e32
+  - 293
+  - 306
+  blob: 6cc445fcb6466a211123f46c4cb1b40e1de8e6dc
+  snippet_sha1: 0a30e29e240cb220d7b1dea0e1a2ee98fe69a254
+  note: drift-projected L370-L384@b81bed4e -> L293-L306 (similarity 0.60)
 - path: crates/limedl-http/src/http_client_factory/mod.rs
   lines:
   - 25
@@ -81,9 +82,9 @@ evidence:
   lines:
   - 25
   - 47
-  blob: 4432791995601330a33bc1b6d774c6fa31036526
+  blob: 772c1ea7282a1d52f85fd9a375b9318a9558fd7a
   snippet_sha1: eab3a7e3d7c27a4441373ca0acd2e1222a70c0e6
-  note: drift-projected L25-L47@d6e99b28 -> L25-L47 (similarity 1.00)
+  note: drift-projected L25-L47@44327919 -> L25-L47 (similarity 1.00)
 - path: crates/limedl-types/src/settings/mod.rs
   lines:
   - 21
@@ -106,9 +107,9 @@ evidence:
   lines:
   - 31
   - 38
-  blob: 4432791995601330a33bc1b6d774c6fa31036526
+  blob: 772c1ea7282a1d52f85fd9a375b9318a9558fd7a
   snippet_sha1: 588f30824e32d93d4e1ce5c11b2d37cd209102da
-  note: drift-projected L31-L38@d6e99b28 -> L31-L38 (similarity 1.00)
+  note: drift-projected L31-L38@44327919 -> L31-L38 (similarity 1.00)
 - path: .cargo/config.toml
   lines:
   - 1
@@ -179,9 +180,9 @@ evidence:
   lines:
   - 39
   - 46
-  blob: 4432791995601330a33bc1b6d774c6fa31036526
+  blob: 772c1ea7282a1d52f85fd9a375b9318a9558fd7a
   snippet_sha1: df765856bd896e5d5a56394c1b51a3a6f819fd06
-  note: drift-projected L39-L46@d6e99b28 -> L39-L46 (similarity 1.00)
+  note: drift-projected L39-L46@44327919 -> L39-L46 (similarity 1.00)
 - path: crates/limedl-http/src/http/mod.rs
   lines:
   - 205
