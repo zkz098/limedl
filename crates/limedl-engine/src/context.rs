@@ -55,7 +55,7 @@ impl SystemContext {
         let settings_service = Arc::new(SettingsService::new(settings_path)?);
         let initial_settings = settings_service.get_blocking();
 
-        let db_path = state_dir.join("downloads.db");
+        let db_path = state_dir.join("downloads.redb");
         let db = Arc::new(Database::open(&db_path)?);
 
         let io = &initial_settings.io_baseline;

@@ -36,7 +36,7 @@ pub struct CoreSystems {
     /// The desktop client turns this into a one-time notice: those tasks cannot
     /// be restored, but the downloaded files are left untouched.
     pub legacy_bt_resume_files: usize,
-    /// Path where a corrupted `downloads.db` was backed up during startup, if any.
+    /// Path where a corrupted `downloads.redb` was backed up during startup, if any.
     pub quarantined_db_path: Option<PathBuf>,
 }
 

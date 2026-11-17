@@ -1,193 +1,117 @@
-//! Schema helpers and migration compatibility.
-
+use super::super::chunk_repo::{decode_chunks, encode_chunks};
+use super::super::schema::{ACTIVE_DOWNLOADS, TERMINAL_DOWNLOADS};
 use super::*;
+use crate::alt_svc::AltSvcRecord;
 
 #[test]
-fn table_has_column_detects_existing_column() {
+fn active_and_terminal_tables_are_isolated() {
     let db = Database::open_in_memory().unwrap();
-    let conn = db.lock_read();
 
-    let mut stmt = conn.prepare("PRAGMA table_info(downloads)").unwrap();
-    let columns: Vec<String> = stmt
-        .query_map([], |row| row.get::<_, String>(1))
-        .unwrap()
-        .filter_map(|r| r.ok())
-        .collect();
+    let mut active = new_test_manifest("task-1", "https://example.com/1", "1.bin");
+    active.state = DownloadState::Downloading;
+    db.insert_download(&active).unwrap();
 
-    assert!(
-        columns.contains(&"chunk_size".to_string()),
-        "chunk_size column should exist"
-    );
-    assert!(
-        columns.contains(&"mirror_urls".to_string()),
-        "mirror_urls column should exist"
-    );
-    assert!(
-        columns.contains(&"mirror_url".to_string()),
-        "mirror_url column should exist"
-    );
-    assert!(
-        columns.contains(&"current_mirror_index".to_string()),
-        "current_mirror_index column should exist"
-    );
-    assert!(
-        columns.contains(&"expected_checksum".to_string()),
-        "expected_checksum column should exist"
-    );
+    {
+        let tx = db.begin_read().unwrap();
+        let a_tbl = tx.open_table(ACTIVE_DOWNLOADS).unwrap();
+        let t_tbl = tx.open_table(TERMINAL_DOWNLOADS).unwrap();
+        assert!(a_tbl.get("task-1").unwrap().is_some());
+        assert!(t_tbl.get("task-1").unwrap().is_none());
+    }
+    assert_eq!(db.count_terminal_downloads().unwrap(), 0);
+
+    // Transition to terminal moves the record out of ACTIVE_DOWNLOADS into TERMINAL_DOWNLOADS.
+    active.state = DownloadState::Completed;
+    active.downloaded_bytes = 1024;
+    db.insert_download(&active).unwrap();
+
+    {
+        let tx = db.begin_read().unwrap();
+        let a_tbl = tx.open_table(ACTIVE_DOWNLOADS).unwrap();
+        let t_tbl = tx.open_table(TERMINAL_DOWNLOADS).unwrap();
+        assert!(a_tbl.get("task-1").unwrap().is_none());
+        assert!(t_tbl.get("task-1").unwrap().is_some());
+    }
+    assert_eq!(db.count_terminal_downloads().unwrap(), 1);
 }
 
 #[test]
-fn migration_compat_v1_with_mirror_columns_backfilled() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("test.db");
-
-    {
-        let conn = Connection::open(&path).unwrap();
-        create_v1_schema(&conn);
-        apply_v2(&conn);
-        apply_v3(&conn);
-        conn.pragma_update(None, "user_version", 1).unwrap();
-        assert_eq!(read_user_version(&conn), 1);
-    }
-
-    let db = Database::open(&path).unwrap();
-
-    {
-        let conn = db.lock_write();
-        assert_eq!(
-            read_user_version(&conn),
-            11,
-            "expected user_version = 11 after migration"
-        );
-    }
-
-    let mut m = new_test_manifest("compat-v1-b", "https://example.com/b", "b.bin");
-    m.chunk_size = 4194304;
-    m.mirror_urls = vec!["https://mirror.example.com/b".into()];
-    m.current_mirror_index = 0;
-    db.insert_download(&m).unwrap();
-    let loaded = db
-        .get_download("compat-v1-b")
-        .unwrap()
-        .expect("should exist");
-    assert_eq!(loaded.chunk_size, 4194304);
-    assert_eq!(loaded.mirror_urls.len(), 1);
-    assert_eq!(db.count_downloads().unwrap(), 1);
-}
-
-#[test]
-fn migration_compat_v0_fully_backfilled() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("test.db");
-
-    {
-        let conn = Connection::open(&path).unwrap();
-        create_v1_schema(&conn);
-        apply_v2(&conn);
-        apply_v3(&conn);
-        assert_eq!(read_user_version(&conn), 0);
-    }
-
-    let db = Database::open(&path).unwrap();
-
-    {
-        let conn = db.lock_write();
-        assert_eq!(
-            read_user_version(&conn),
-            11,
-            "expected user_version = 11 after migration"
-        );
-    }
-
-    let mut m = new_test_manifest("compat-v0-c", "https://example.com/c", "c.bin");
-    m.chunk_size = 2097152;
-    m.mirror_url = Some("https://mirror.example.com/c".into());
-    m.mirror_urls = vec![
-        "https://mirror1.example.com/c".into(),
-        "https://mirror2.example.com/c".into(),
+fn compact_chunk_codec_roundtrip() {
+    let chunks = vec![
+        ChunkManifest {
+            index: 0,
+            start: 0,
+            end: 4095,
+            downloaded: 4096,
+            durable_downloaded: 4096,
+            completed: true,
+            claimed_by: None,
+            dirty: true,
+        },
+        ChunkManifest {
+            index: 1,
+            start: 4096,
+            end: 8191,
+            downloaded: 2048,
+            durable_downloaded: 1024,
+            completed: false,
+            claimed_by: Some(3),
+            dirty: true,
+        },
     ];
-    m.current_mirror_index = 1;
-    db.insert_download(&m).unwrap();
-    let loaded = db
-        .get_download("compat-v0-c")
-        .unwrap()
-        .expect("should exist");
-    assert_eq!(loaded.chunk_size, 2097152);
-    assert_eq!(
-        loaded.mirror_url.as_deref(),
-        Some("https://mirror.example.com/c")
-    );
-    assert_eq!(loaded.mirror_urls.len(), 2);
-    assert_eq!(loaded.current_mirror_index, 1);
-    assert_eq!(db.count_downloads().unwrap(), 1);
+
+    let encoded = encode_chunks(&chunks);
+    let decoded = decode_chunks(&encoded).unwrap();
+    assert_eq!(decoded.len(), 2);
+    assert_eq!(decoded[0].downloaded, 4096);
+    assert!(decoded[0].completed);
+    assert_eq!(decoded[0].claimed_by, None);
+    assert!(!decoded[0].dirty);
+
+    // Durable progress (1024) is what survives persistence, not in-flight (2048).
+    assert_eq!(decoded[1].downloaded, 1024);
+    assert_eq!(decoded[1].durable_downloaded, 1024);
+    assert!(!decoded[1].completed);
+    assert_eq!(decoded[1].claimed_by, Some(3));
 }
 
 #[test]
-fn add_column_if_missing_is_idempotent() {
-    let conn = Connection::open_in_memory().unwrap();
-    conn.execute_batch(CREATE_TABLES_SQL).unwrap();
-
-    add_column_if_missing(&conn, "downloads", "priority", "INTEGER NOT NULL DEFAULT 1").unwrap();
-    // A second call must be a no-op instead of "duplicate column name".
-    add_column_if_missing(&conn, "downloads", "priority", "INTEGER NOT NULL DEFAULT 1").unwrap();
-
-    assert!(table_has_column(&conn, "downloads", "priority").unwrap());
-}
-
-/// A database whose schema is ahead of its `user_version` — the state a crash in
-/// the middle of a migration body used to leave behind — must still open, because
-/// every migration body is idempotent and each migration commits atomically.
-#[test]
-fn partially_applied_migration_is_recovered_on_open() {
+fn corrupt_ephemeral_caches_reset_without_quarantining_core_db() {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("test.db");
+    let core_path = dir.path().join("downloads.redb");
 
     {
-        let conn = Connection::open(&path).unwrap();
-        create_v1_schema(&conn);
-        apply_v2(&conn);
-        apply_v3(&conn);
-        // Migration 6's DDL is present while `user_version` still says 3, which is
-        // exactly what a half-committed migration used to look like.
-        conn.execute(
-            "ALTER TABLE downloads ADD COLUMN priority INTEGER NOT NULL DEFAULT 1",
-            [],
-        )
+        let db = Database::open(&core_path).unwrap();
+        db.insert_download(&new_test_manifest(
+            "keep-me",
+            "https://example.com/keep",
+            "keep.bin",
+        ))
         .unwrap();
-        conn.pragma_update(None, "user_version", 3).unwrap();
+        db.upsert_alt_svc(&AltSvcRecord {
+            origin_host: "example.com".to_string(),
+            origin_port: 443,
+            protocol: "h3".to_string(),
+            alt_host: "cdn.example.com".to_string(),
+            alt_port: 443,
+            expires_at_ms: 999_999_999,
+            persist: true,
+            fail_count: 0,
+            broken_until_ms: 0,
+        })
+        .unwrap();
     }
 
-    let db = Database::open(&path).expect("a half-migrated database must still open");
-    {
-        let conn = db.lock_write();
-        assert_eq!(read_user_version(&conn), 11);
-    }
+    // Corrupt both ephemeral caches on disk; core downloads.redb remains intact.
+    std::fs::write(dir.path().join("bt_tasks.redb"), b"corrupt bt cache").unwrap();
+    std::fs::write(dir.path().join("alt_svc.redb"), b"corrupt alt_svc cache").unwrap();
 
-    let mut m = new_test_manifest("recovered", "https://example.com/r", "r.bin");
-    m.priority = Priority::High;
-    db.insert_download(&m).unwrap();
-    let loaded = db.get_download("recovered").unwrap().expect("should exist");
-    assert_eq!(loaded.priority, Priority::High);
-}
-
-#[test]
-fn empty_migrations_returns_err() {
-    let empty: &[Migration] = &[];
-    let result = empty
-        .last()
-        .map(|m| m.version)
-        .ok_or_else(|| DownloadError::DatabaseInit("no migrations defined".into()));
-    assert!(result.is_err(), "expected Err for empty migrations slice");
-    let err = result.unwrap_err();
-    assert_eq!(
-        err.kind(),
-        "database_init",
-        "unexpected error kind: {}",
-        err.kind()
-    );
+    let db = Database::open(&core_path).unwrap();
     assert!(
-        err.to_string().contains("database initialization error"),
-        "unexpected error message: {}",
-        err
+        db.quarantined_path().is_none(),
+        "ephemeral cache corruption must not quarantine core downloads.redb"
     );
+    assert_eq!(db.count_downloads().unwrap(), 1);
+    assert!(db.get_download("keep-me").unwrap().is_some());
+    assert!(db.load_all_alt_svc().unwrap().is_empty());
 }

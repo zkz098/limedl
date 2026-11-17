@@ -1,21 +1,15 @@
-#[cfg(test)]
-use foldhash::HashMap;
+use std::cmp::Reverse;
 
 use anyhow::{Context, Result};
-use rusqlite::{Connection, named_params, params};
+use redb::{Durability, ReadableTable, ReadableTableMetadata};
 
-use super::chunk_repo::chunk_to_params;
-#[cfg(test)]
-use super::chunk_repo::row_to_chunk;
+use super::chunk_repo::{decode_chunks, encode_chunks, merge_dirty_chunks};
 use super::connection::Database;
+use super::schema::{ACTIVE_DOWNLOADS, CHUNK_PROGRESS, TERMINAL_DOWNLOADS, is_terminal_state};
 use crate::manifest::{ChunkManifest, Manifest};
-use crate::types::{AdaptiveProfile, ChecksumMode, DownloadState, ThreadMode};
+use crate::types::DownloadState;
 
-type RusqliteResult<T> = std::result::Result<T, rusqlite::Error>;
-
-// ── Enum ↔ TEXT conversions (serde snake_case representation) ────
-
-fn state_to_text(state: DownloadState) -> &'static str {
+pub fn download_state_to_text(state: &DownloadState) -> &'static str {
     match state {
         DownloadState::Queued => "queued",
         DownloadState::Downloading => "downloading",
@@ -28,464 +22,197 @@ fn state_to_text(state: DownloadState) -> &'static str {
     }
 }
 
-pub fn download_state_to_text(state: &DownloadState) -> &'static str {
-    state_to_text(*state)
-}
-
-pub(crate) fn text_to_state(s: &str) -> RusqliteResult<DownloadState> {
+pub(crate) fn text_to_download_state(s: &str) -> DownloadState {
     match s {
-        "queued" => Ok(DownloadState::Queued),
-        "downloading" => Ok(DownloadState::Downloading),
-        "paused" => Ok(DownloadState::Paused),
-        "retrying" => Ok(DownloadState::Retrying),
-        "verifying" => Ok(DownloadState::Verifying),
-        "completed" => Ok(DownloadState::Completed),
-        "failed" => Ok(DownloadState::Failed),
-        "canceled" => Ok(DownloadState::Canceled),
-        other => Err(rusqlite::Error::InvalidParameterName(format!(
-            "unknown download state: {other}"
-        ))),
+        "queued" => DownloadState::Queued,
+        "downloading" => DownloadState::Downloading,
+        "paused" => DownloadState::Paused,
+        "retrying" => DownloadState::Retrying,
+        "verifying" => DownloadState::Verifying,
+        "completed" => DownloadState::Completed,
+        "failed" => DownloadState::Failed,
+        "canceled" => DownloadState::Canceled,
+        _ => DownloadState::Queued,
     }
 }
 
-pub(crate) fn thread_mode_to_text(mode: ThreadMode) -> &'static str {
-    match mode {
-        ThreadMode::Fixed => "fixed",
-        ThreadMode::Adaptive => "adaptive",
-    }
+fn serialize_header(manifest: &Manifest) -> Result<Vec<u8>> {
+    let mut header = manifest.clone();
+    header.chunks.clear();
+    serde_json::to_vec(&header)
+        .with_context(|| format!("failed to serialize manifest {}", manifest.id))
 }
 
-pub(crate) fn text_to_thread_mode(s: &str) -> RusqliteResult<ThreadMode> {
-    match s {
-        "fixed" => Ok(ThreadMode::Fixed),
-        "adaptive" => Ok(ThreadMode::Adaptive),
-        other => Err(rusqlite::Error::InvalidParameterName(format!(
-            "unknown thread mode: {other}"
-        ))),
-    }
+fn deserialize_manifest(id: &str, bytes: &[u8]) -> Result<Manifest> {
+    let mut manifest: Manifest = serde_json::from_slice(bytes)
+        .with_context(|| format!("failed to deserialize manifest {id}"))?;
+    manifest.chunks.clear();
+    Ok(manifest)
 }
 
-pub(crate) fn checksum_mode_to_text(mode: ChecksumMode) -> &'static str {
-    match mode {
-        ChecksumMode::None => "none",
-        ChecksumMode::Blake3 => "blake3",
-        ChecksumMode::Sha256 => "sha256",
-        ChecksumMode::Sha512 => "sha512",
-    }
-}
-
-pub(crate) fn text_to_checksum_mode(s: &str) -> RusqliteResult<ChecksumMode> {
-    match s {
-        "none" => Ok(ChecksumMode::None),
-        "blake3" => Ok(ChecksumMode::Blake3),
-        "sha256" => Ok(ChecksumMode::Sha256),
-        "sha512" => Ok(ChecksumMode::Sha512),
-        // Rows written before the algorithm set narrowed to
-        // blake3/sha256/sha512 keep a digest produced by a dropped algorithm,
-        // so there is nothing to compare against any more. Loading them as
-        // "verification disabled" is the only non-destructive option: mapping
-        // them onto a live algorithm would compare a SHA-1 digest against a
-        // SHA-256 one and fail every re-check for the life of the row.
-        "sha1" | "xxh3_128" => {
-            tracing::warn!(
-                stored = s,
-                "legacy checksum mode is no longer supported; checksum verification disabled for this task"
-            );
-            Ok(ChecksumMode::None)
-        }
-        other => Err(rusqlite::Error::InvalidParameterName(format!(
-            "unknown checksum mode: {other}"
-        ))),
-    }
-}
-
-pub(crate) fn adaptive_profile_to_text(profile: AdaptiveProfile) -> &'static str {
-    match profile {
-        AdaptiveProfile::Conservative => "conservative",
-        AdaptiveProfile::Balanced => "balanced",
-        AdaptiveProfile::Aggressive => "aggressive",
-    }
-}
-
-pub(crate) fn text_to_adaptive_profile(s: &str) -> RusqliteResult<AdaptiveProfile> {
-    match s {
-        "conservative" => Ok(AdaptiveProfile::Conservative),
-        "balanced" => Ok(AdaptiveProfile::Balanced),
-        "aggressive" => Ok(AdaptiveProfile::Aggressive),
-        other => Err(rusqlite::Error::InvalidParameterName(format!(
-            "unknown adaptive profile: {other}"
-        ))),
-    }
-}
-
-pub(crate) fn i64_to_bool(v: i64) -> bool {
-    v != 0
-}
-
-/// INSERT a full manifest row using named parameters.
-pub(crate) fn insert_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
-    let mirror_urls_json =
-        serde_json::to_string(&manifest.mirror_urls).unwrap_or_else(|_| "[]".into());
-
-    let mut stmt = conn
-        .prepare_cached(
-            "INSERT INTO downloads (
-                id, url, final_url, user_agent, destination_dir, file_name,
-                file_name_locked, destination_path, temp_path, total_bytes,
-                downloaded_bytes, supports_ranges, connection_count, thread_mode,
-                requested_thread_count, desired_thread_count, allocated_thread_count,
-                adaptive_profile_snapshot, thread_note, etag, last_modified,
-                state, checksum_mode, checksum, error, created_at_ms, updated_at_ms,
-                chunk_size, mirror_url, mirror_urls, current_mirror_index, priority, cdn_accelerated, cdn_node_ip,
-                expected_checksum
-            ) VALUES (
-                :id, :url, :final_url, :user_agent, :destination_dir, :file_name,
-                :file_name_locked, :destination_path, :temp_path, :total_bytes,
-                :downloaded_bytes, :supports_ranges, :connection_count, :thread_mode,
-                :requested_thread_count, :desired_thread_count, :allocated_thread_count,
-                :adaptive_profile_snapshot, :thread_note, :etag, :last_modified,
-                :state, :checksum_mode, :checksum, :error, :created_at_ms, :updated_at_ms,
-                :chunk_size, :mirror_url, :mirror_urls, :current_mirror_index, :priority, :cdn_accelerated, :cdn_node_ip,
-                :expected_checksum
-            )",
-        )
-        .context("failed to prepare insert manifest")?;
-
-    stmt.execute(named_params! {
-        ":id": manifest.id.as_str(),
-        ":url": manifest.url.as_str(),
-        ":final_url": manifest.final_url.as_str(),
-        ":user_agent": manifest.user_agent.as_str(),
-        ":destination_dir": manifest.destination_dir.as_str(),
-        ":file_name": manifest.file_name.as_str(),
-        ":file_name_locked": manifest.file_name_locked,
-        ":destination_path": manifest.destination_path.as_str(),
-        ":temp_path": manifest.temp_path.as_str(),
-        ":total_bytes": manifest.total_bytes.map(|v| v as i64),
-        ":downloaded_bytes": manifest.downloaded_bytes as i64,
-        ":supports_ranges": manifest.supports_ranges,
-        ":connection_count": manifest.connection_count as i64,
-        ":thread_mode": thread_mode_to_text(manifest.thread_mode),
-        ":requested_thread_count": manifest.requested_thread_count.map(|v| v as i64),
-        ":desired_thread_count": manifest.desired_thread_count.map(|v| v as i64),
-        ":allocated_thread_count": manifest.allocated_thread_count.map(|v| v as i64),
-        ":adaptive_profile_snapshot": manifest.adaptive_profile_snapshot.map(adaptive_profile_to_text),
-        ":thread_note": manifest.thread_note.as_deref(),
-        ":etag": manifest.etag.as_deref(),
-        ":last_modified": manifest.last_modified.as_deref(),
-        ":state": state_to_text(manifest.state),
-        ":checksum_mode": checksum_mode_to_text(manifest.checksum_mode),
-        ":checksum": manifest.checksum.as_deref(),
-        ":error": manifest.error.as_deref(),
-        ":created_at_ms": manifest.created_at_ms as i64,
-        ":updated_at_ms": manifest.updated_at_ms as i64,
-        ":chunk_size": manifest.chunk_size as i64,
-        ":mirror_url": manifest.mirror_url.as_deref(),
-        ":mirror_urls": mirror_urls_json.as_str(),
-        ":current_mirror_index": manifest.current_mirror_index as i64,
-        ":priority": manifest.priority as u8,
-        ":cdn_accelerated": manifest.cdn_accelerated,
-        ":cdn_node_ip": manifest.cdn_node_ip.as_deref(),
-        ":expected_checksum": manifest.expected_checksum.as_deref(),
-    })
-    .with_context(|| format!("failed to insert download {}", manifest.id))?;
-
-    Ok(())
-}
-
-/// UPDATE a full manifest row using named parameters.
-pub(crate) fn update_manifest_row(conn: &Connection, manifest: &Manifest) -> Result<()> {
-    let mirror_urls_json =
-        serde_json::to_string(&manifest.mirror_urls).unwrap_or_else(|_| "[]".into());
-
-    let mut stmt = conn
-        .prepare_cached(
-            "UPDATE downloads SET
-                url = :url, final_url = :final_url, user_agent = :user_agent,
-                destination_dir = :destination_dir, file_name = :file_name,
-                file_name_locked = :file_name_locked,
-                destination_path = :destination_path, temp_path = :temp_path,
-                total_bytes = :total_bytes,
-                downloaded_bytes = :downloaded_bytes,
-                supports_ranges = :supports_ranges,
-                connection_count = :connection_count, thread_mode = :thread_mode,
-                requested_thread_count = :requested_thread_count,
-                desired_thread_count = :desired_thread_count,
-                allocated_thread_count = :allocated_thread_count,
-                adaptive_profile_snapshot = :adaptive_profile_snapshot,
-                thread_note = :thread_note, etag = :etag,
-                last_modified = :last_modified,
-                state = :state, checksum_mode = :checksum_mode,
-                checksum = :checksum, error = :error,
-                created_at_ms = :created_at_ms,
-                updated_at_ms = :updated_at_ms, chunk_size = :chunk_size,
-                mirror_url = :mirror_url, mirror_urls = :mirror_urls,
-                current_mirror_index = :current_mirror_index,
-                priority = :priority,
-                cdn_accelerated = :cdn_accelerated,
-                cdn_node_ip = :cdn_node_ip,
-                expected_checksum = :expected_checksum
-             WHERE id = :id",
-        )
-        .context("failed to prepare update manifest")?;
-
-    stmt.execute(named_params! {
-        ":id": manifest.id.as_str(),
-        ":url": manifest.url.as_str(),
-        ":final_url": manifest.final_url.as_str(),
-        ":user_agent": manifest.user_agent.as_str(),
-        ":destination_dir": manifest.destination_dir.as_str(),
-        ":file_name": manifest.file_name.as_str(),
-        ":file_name_locked": manifest.file_name_locked,
-        ":destination_path": manifest.destination_path.as_str(),
-        ":temp_path": manifest.temp_path.as_str(),
-        ":total_bytes": manifest.total_bytes.map(|v| v as i64),
-        ":downloaded_bytes": manifest.downloaded_bytes as i64,
-        ":supports_ranges": manifest.supports_ranges,
-        ":connection_count": manifest.connection_count as i64,
-        ":thread_mode": thread_mode_to_text(manifest.thread_mode),
-        ":requested_thread_count": manifest.requested_thread_count.map(|v| v as i64),
-        ":desired_thread_count": manifest.desired_thread_count.map(|v| v as i64),
-        ":allocated_thread_count": manifest.allocated_thread_count.map(|v| v as i64),
-        ":adaptive_profile_snapshot": manifest.adaptive_profile_snapshot.map(adaptive_profile_to_text),
-        ":thread_note": manifest.thread_note.as_deref(),
-        ":etag": manifest.etag.as_deref(),
-        ":last_modified": manifest.last_modified.as_deref(),
-        ":state": state_to_text(manifest.state),
-        ":checksum_mode": checksum_mode_to_text(manifest.checksum_mode),
-        ":checksum": manifest.checksum.as_deref(),
-        ":error": manifest.error.as_deref(),
-        ":created_at_ms": manifest.created_at_ms as i64,
-        ":updated_at_ms": manifest.updated_at_ms as i64,
-        ":chunk_size": manifest.chunk_size as i64,
-        ":mirror_url": manifest.mirror_url.as_deref(),
-        ":mirror_urls": mirror_urls_json.as_str(),
-        ":current_mirror_index": manifest.current_mirror_index as i64,
-        ":priority": manifest.priority as u8,
-        ":cdn_accelerated": manifest.cdn_accelerated,
-        ":cdn_node_ip": manifest.cdn_node_ip.as_deref(),
-        ":expected_checksum": manifest.expected_checksum.as_deref(),
-    })
-    .with_context(|| format!("failed to update download {}", manifest.id))?;
-
-    Ok(())
-}
-
-pub(crate) fn row_to_manifest(row: &rusqlite::Row) -> RusqliteResult<Manifest> {
-    let thread_mode_str: String = row.get(13)?;
-    let state_str: String = row.get(21)?;
-    let checksum_mode_str: String = row.get(22)?;
-
-    let adaptive_snapshot: Option<String> = row.get(17)?;
-    let adaptive_profile_snapshot = adaptive_snapshot
-        .as_deref()
-        .map(text_to_adaptive_profile)
-        .transpose()?;
-
-    Ok(Manifest {
-        id: row.get(0)?,
-        url: row.get(1)?,
-        final_url: row.get(2)?,
-        user_agent: row.get(3)?,
-        extra_headers: vec![],
-        destination_dir: row.get(4)?,
-        file_name: row.get(5)?,
-        file_name_locked: i64_to_bool(row.get::<_, i64>(6)?),
-        destination_path: row.get(7)?,
-        temp_path: row.get(8)?,
-        total_bytes: row.get::<_, Option<i64>>(9)?.map(|v| v as u64),
-        downloaded_bytes: row.get::<_, i64>(10)? as u64,
-        supports_ranges: i64_to_bool(row.get::<_, i64>(11)?),
-        connection_count: row.get::<_, i64>(12)? as usize,
-        thread_mode: text_to_thread_mode(&thread_mode_str)?,
-        requested_thread_count: row.get::<_, Option<i64>>(14)?.map(|v| v as usize),
-        desired_thread_count: row.get::<_, Option<i64>>(15)?.map(|v| v as usize),
-        allocated_thread_count: row.get::<_, Option<i64>>(16)?.map(|v| v as usize),
-        adaptive_profile_snapshot,
-        thread_note: row.get(18)?,
-        etag: row.get(19)?,
-        last_modified: row.get(20)?,
-        state: text_to_state(&state_str)?,
-        checksum_mode: text_to_checksum_mode(&checksum_mode_str)?,
-        checksum: row.get(23)?,
-        expected_checksum: row.get::<_, Option<String>>(34).unwrap_or(None),
-        error: row.get(24)?,
-        created_at_ms: row.get::<_, i64>(25)? as u64,
-        updated_at_ms: row.get::<_, i64>(26)? as u64,
-        chunks: Vec::new(),
-        cdn_accelerated: i64_to_bool(row.get::<_, i64>(32)?),
-        cdn_node_ip: row.get::<_, Option<String>>(33)?,
-        chunk_size: row.get::<_, i64>(27)? as u64,
-        mirror_url: row.get(28)?,
-        mirror_urls: row
-            .get::<_, String>(29)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default(),
-        current_mirror_index: row.get::<_, i64>(30).unwrap_or(0) as usize,
-        priority: row.get::<_, u8>(31).unwrap_or(1).into(),
-    })
+fn sort_manifests_newest_first(manifests: &mut [Manifest]) {
+    manifests.sort_by_key(|m| Reverse(m.created_at_ms));
 }
 
 impl Database {
     /// Insert a new download (or update if the id already exists).
     pub fn insert_download(&self, manifest: &Manifest) -> Result<()> {
-        let conn = self.lock_write();
+        let header_bytes = serialize_header(manifest)?;
+        let terminal = is_terminal_state(&manifest.state);
 
-        let is_new: bool = conn
-            .query_row(
-                "SELECT COUNT(*) FROM downloads WHERE id = ?1",
-                params![manifest.id],
-                |row| row.get::<_, i64>(0),
-            )
-            .map(|count| count == 0)
-            .unwrap_or(true);
+        let mut tx = self.begin_write()?;
+        tx.set_durability(Durability::Immediate)?;
 
-        if is_new {
-            conn.execute_batch("BEGIN IMMEDIATE")
-                .context("failed to begin transaction")?;
+        {
+            let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
+            let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
+            let mut chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
 
-            let result = (|| -> Result<()> {
-                insert_manifest_row(&conn, manifest)?;
+            let existed = active.get(manifest.id.as_str())?.is_some()
+                || term.get(manifest.id.as_str())?.is_some();
 
-                if !manifest.chunks.is_empty() {
-                    self.replace_chunks_inner(&conn, &manifest.id, &manifest.chunks)?;
-                }
-                Ok(())
-            })();
-
-            match result {
-                Ok(()) => {
-                    conn.execute_batch("COMMIT")
-                        .context("failed to commit transaction")?;
-                }
-                Err(e) => {
-                    let _ = conn.execute_batch("ROLLBACK");
-                    return Err(e);
-                }
+            if terminal {
+                let _ = active.remove(manifest.id.as_str())?;
+                term.insert(manifest.id.as_str(), header_bytes.as_slice())
+                    .context("failed to insert terminal download")?;
+            } else {
+                let _ = term.remove(manifest.id.as_str())?;
+                active
+                    .insert(manifest.id.as_str(), header_bytes.as_slice())
+                    .context("failed to insert active download")?;
             }
-        } else {
-            conn.execute_batch("BEGIN IMMEDIATE")
-                .context("failed to begin transaction")?;
 
-            let result = (|| -> Result<()> {
-                update_manifest_row(&conn, manifest)?;
-
-                if manifest.chunks.is_empty() {
-                    conn.execute(
-                        "DELETE FROM chunks WHERE download_id = ?1",
-                        params![manifest.id],
-                    )
-                    .context("failed to clear stale chunks")?;
-                } else {
-                    let dirty_chunks: Vec<&ChunkManifest> =
-                        manifest.chunks.iter().filter(|c| c.dirty).collect();
-                    if !dirty_chunks.is_empty() {
-                        let mut stmt = conn
-                            .prepare_cached(
-                                "INSERT OR REPLACE INTO chunks (download_id, chunk_index, start_byte, end_byte,
-                                         downloaded, completed, claimed_by)
-                                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                            )
-                            .context("failed to prepare chunk upsert")?;
-                        for chunk in dirty_chunks {
-                            stmt.execute(rusqlite::params_from_iter(chunk_to_params(
-                                &manifest.id,
-                                chunk,
-                            )))
-                            .context("failed to upsert chunk")?;
-                        }
-                    }
-                }
-
-                Ok(())
-            })();
-
-            match result {
-                Ok(()) => {
-                    conn.execute_batch("COMMIT")
-                        .context("failed to commit transaction")?;
-                }
-                Err(e) => {
-                    let _ = conn.execute_batch("ROLLBACK");
-                    return Err(e);
+            if manifest.chunks.is_empty() {
+                let _ = chunks_tbl.remove(manifest.id.as_str())?;
+            } else if !existed {
+                let encoded = encode_chunks(&manifest.chunks);
+                chunks_tbl
+                    .insert(manifest.id.as_str(), encoded.as_slice())
+                    .context("failed to write chunks")?;
+            } else {
+                let dirty_chunks: Vec<ChunkManifest> = manifest
+                    .chunks
+                    .iter()
+                    .filter(|c| c.dirty)
+                    .cloned()
+                    .collect();
+                if !dirty_chunks.is_empty() {
+                    let existing = match chunks_tbl.get(manifest.id.as_str())? {
+                        Some(guard) => decode_chunks(guard.value())?,
+                        None => Vec::new(),
+                    };
+                    let merged = merge_dirty_chunks(existing, &dirty_chunks);
+                    let encoded = encode_chunks(&merged);
+                    chunks_tbl
+                        .insert(manifest.id.as_str(), encoded.as_slice())
+                        .context("failed to upsert dirty chunks")?;
                 }
             }
         }
 
+        tx.commit().context("failed to commit insert_download")?;
         Ok(())
     }
 
     /// Full persist escape hatch — writes all fields and replaces all chunks.
     #[cfg(test)]
     pub fn update_download(&self, manifest: &Manifest) -> Result<()> {
-        let conn = self.lock_write();
-        update_manifest_row(&conn, manifest)?;
-        self.replace_chunks_inner(&conn, &manifest.id, &manifest.chunks)?;
+        let header_bytes = serialize_header(manifest)?;
+        let terminal = is_terminal_state(&manifest.state);
+
+        let mut tx = self.begin_write()?;
+        tx.set_durability(Durability::Immediate)?;
+
+        {
+            let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
+            let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
+            let mut chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
+
+            if terminal {
+                let _ = active.remove(manifest.id.as_str())?;
+                term.insert(manifest.id.as_str(), header_bytes.as_slice())
+                    .context("failed to update terminal download")?;
+            } else {
+                let _ = term.remove(manifest.id.as_str())?;
+                active
+                    .insert(manifest.id.as_str(), header_bytes.as_slice())
+                    .context("failed to update active download")?;
+            }
+
+            if manifest.chunks.is_empty() {
+                let _ = chunks_tbl.remove(manifest.id.as_str())?;
+            } else {
+                let encoded = encode_chunks(&manifest.chunks);
+                chunks_tbl
+                    .insert(manifest.id.as_str(), encoded.as_slice())
+                    .context("failed to replace chunks")?;
+            }
+        }
+
+        tx.commit().context("failed to commit update_download")?;
         Ok(())
     }
 
-    /// Delete a download and all its chunks (cascaded via FK).
+    /// Delete a download and its chunk progress.
     pub fn delete_download(&self, id: &str) -> Result<()> {
-        let conn = self.lock_write();
-        conn.prepare_cached("DELETE FROM downloads WHERE id = ?1")
-            .context("failed to prepare delete download query")?
-            .execute(params![id])
-            .with_context(|| format!("failed to delete download {id}"))?;
-        self.vacuum_if_needed(&conn, 100)?;
+        let mut tx = self.begin_write()?;
+        tx.set_durability(Durability::Immediate)?;
+        {
+            let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
+            let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
+            let mut chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
+            let _ = active.remove(id)?;
+            let _ = term.remove(id)?;
+            let _ = chunks_tbl.remove(id)?;
+        }
+        tx.commit().context("failed to commit delete_download")?;
         Ok(())
     }
 
     /// Fetch a single download's metadata row without its chunks.
-    ///
-    /// The aria2 RPC layer needs this for terminal downloads that were evicted
-    /// from the in-memory map by `max_in_memory_downloads`: they still exist in
-    /// the database and must stay queryable.
     pub fn get_download_header(&self, id: &str) -> Result<Option<Manifest>> {
-        let conn = self.lock_read();
-
-        let mut stmt = conn
-            .prepare_cached("SELECT * FROM downloads WHERE id = ?1")
-            .context("failed to prepare get download header query")?;
-
-        match stmt.query_row(params![id], row_to_manifest) {
-            Ok(manifest) => Ok(Some(manifest)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(error) => Err(error).context("failed to query download header"),
+        let tx = self.begin_read()?;
+        let active = tx.open_table(ACTIVE_DOWNLOADS)?;
+        if let Some(guard) = active.get(id)? {
+            return Ok(Some(deserialize_manifest(id, guard.value())?));
         }
+        let term = tx.open_table(TERMINAL_DOWNLOADS)?;
+        if let Some(guard) = term.get(id)? {
+            return Ok(Some(deserialize_manifest(id, guard.value())?));
+        }
+        Ok(None)
     }
 
     /// Number of downloads in a terminal state (completed / failed / canceled).
+    ///
+    /// $O(1)$ metadata read via `redb::Table::len()`.
     pub fn count_terminal_downloads(&self) -> Result<usize> {
-        let conn = self.lock_read();
-        let count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM downloads WHERE state IN ('completed', 'failed', 'canceled')",
-                [],
-                |row| row.get(0),
-            )
-            .context("failed to count terminal downloads")?;
-        Ok(count as usize)
+        let tx = self.begin_read()?;
+        let term = tx.open_table(TERMINAL_DOWNLOADS)?;
+        Ok(term.len().context("failed to count terminal downloads")? as usize)
     }
 
     /// Fetch a single download with its chunks.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn get_download(&self, id: &str) -> Result<Option<Manifest>> {
-        let conn = self.lock_read();
-
-        let mut stmt = conn
-            .prepare_cached("SELECT * FROM downloads WHERE id = ?1")
-            .context("failed to prepare get_download query")?;
-
-        let opt = match stmt.query_row(params![id], row_to_manifest) {
-            Ok(manifest) => Some(manifest),
-            Err(rusqlite::Error::QueryReturnedNoRows) => None,
-            Err(error) => return Err(error).context("failed to query download"),
+        let tx = self.begin_read()?;
+        let active = tx.open_table(ACTIVE_DOWNLOADS)?;
+        let header = if let Some(guard) = active.get(id)? {
+            Some(deserialize_manifest(id, guard.value())?)
+        } else {
+            let term = tx.open_table(TERMINAL_DOWNLOADS)?;
+            match term.get(id)? {
+                Some(guard) => Some(deserialize_manifest(id, guard.value())?),
+                None => None,
+            }
         };
 
-        match opt {
+        match header {
             Some(mut manifest) => {
-                manifest.chunks = self.fetch_chunks_inner(&conn, id)?;
+                let chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
+                if let Some(guard) = chunks_tbl.get(id)? {
+                    manifest.chunks = decode_chunks(guard.value())?;
+                }
                 Ok(Some(manifest))
             }
             None => Ok(None),
@@ -495,83 +222,95 @@ impl Database {
     /// Return every download in the database, each with its chunks populated.
     #[cfg(test)]
     pub fn list_downloads(&self) -> Result<Vec<Manifest>> {
-        let conn = self.lock_read();
+        let tx = self.begin_read()?;
+        let active = tx.open_table(ACTIVE_DOWNLOADS)?;
+        let term = tx.open_table(TERMINAL_DOWNLOADS)?;
+        let chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
 
-        let mut stmt = conn
-            .prepare_cached("SELECT * FROM downloads ORDER BY created_at_ms DESC")
-            .context("failed to prepare list_downloads query")?;
-
-        let mut manifests: Vec<Manifest> = stmt
-            .query_map([], row_to_manifest)
-            .context("failed to map download rows")?
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .context("failed to collect downloads")?;
-
-        let mut chunk_stmt = conn
-            .prepare_cached("SELECT * FROM chunks ORDER BY download_id, chunk_index")
-            .context("failed to prepare list_chunks query")?;
-
-        let all_chunks: Vec<(String, ChunkManifest)> = chunk_stmt
-            .query_map([], |row| {
-                let download_id: String = row.get(0)?;
-                let chunk = row_to_chunk(row)?;
-                Ok((download_id, chunk))
-            })
-            .context("failed to map chunk rows")?
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .context("failed to collect chunks")?;
-
-        let mut chunk_map: HashMap<String, Vec<ChunkManifest>> = HashMap::default();
-        for (download_id, chunk) in all_chunks {
-            chunk_map.entry(download_id).or_default().push(chunk);
-        }
-
-        for manifest in &mut manifests {
-            if let Some(chunks) = chunk_map.remove(&manifest.id) {
-                manifest.chunks = chunks;
+        let mut manifests = Vec::new();
+        for entry in active.iter()? {
+            let (k, v) = entry?;
+            let mut m = deserialize_manifest(k.value(), v.value())?;
+            if let Some(c) = chunks_tbl.get(k.value())? {
+                m.chunks = decode_chunks(c.value())?;
             }
+            manifests.push(m);
         }
-
+        for entry in term.iter()? {
+            let (k, v) = entry?;
+            let mut m = deserialize_manifest(k.value(), v.value())?;
+            if let Some(c) = chunks_tbl.get(k.value())? {
+                m.chunks = decode_chunks(c.value())?;
+            }
+            manifests.push(m);
+        }
+        sort_manifests_newest_first(&mut manifests);
         Ok(manifests)
     }
 
-    /// Return all download manifests WITHOUT chunks populated.
+    /// Return all download manifests WITHOUT chunks populated, newest first.
     pub fn list_download_headers(&self) -> Result<Vec<Manifest>> {
-        let conn = self.lock_read();
+        let tx = self.begin_read()?;
+        let active = tx.open_table(ACTIVE_DOWNLOADS)?;
+        let term = tx.open_table(TERMINAL_DOWNLOADS)?;
 
-        let mut stmt = conn
-            .prepare_cached("SELECT * FROM downloads ORDER BY created_at_ms DESC")
-            .context("failed to prepare list_download_headers query")?;
-
-        let manifests: Vec<Manifest> = stmt
-            .query_map([], row_to_manifest)
-            .context("failed to map download rows")?
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .context("failed to collect downloads")?;
-
+        let mut manifests = Vec::with_capacity((active.len()? + term.len()?) as usize);
+        for entry in active.iter()? {
+            let (k, v) = entry?;
+            manifests.push(deserialize_manifest(k.value(), v.value())?);
+        }
+        for entry in term.iter()? {
+            let (k, v) = entry?;
+            manifests.push(deserialize_manifest(k.value(), v.value())?);
+        }
+        sort_manifests_newest_first(&mut manifests);
         Ok(manifests)
     }
 
     /// Total number of downloads.
     #[cfg(test)]
     pub fn count_downloads(&self) -> Result<usize> {
-        let conn = self.lock_read();
-        let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM downloads", [], |row| row.get(0))
-            .context("failed to count downloads")?;
-        Ok(count as usize)
+        let tx = self.begin_read()?;
+        let active = tx.open_table(ACTIVE_DOWNLOADS)?;
+        let term = tx.open_table(TERMINAL_DOWNLOADS)?;
+        Ok((active.len()? + term.len()?) as usize)
     }
 
     /// Update the priority of a download in the database.
     pub fn set_priority(&self, download_id: &str, priority: u8) -> Result<()> {
-        let conn = self.lock_write();
-        conn.execute(
-            "UPDATE downloads SET priority = ?1 WHERE id = ?2",
-            params![priority, download_id],
-        )
-        .with_context(|| format!("failed to set priority for download {download_id}"))?;
+        let prio = match priority {
+            0 => crate::types::Priority::Low,
+            2 => crate::types::Priority::High,
+            _ => crate::types::Priority::Normal,
+        };
+
+        let mut tx = self.begin_write()?;
+        tx.set_durability(Durability::Immediate)?;
+        {
+            let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
+            let active_bytes = active.get(download_id)?.map(|g| g.value().to_vec());
+            if let Some(bytes) = active_bytes {
+                let mut m = deserialize_manifest(download_id, &bytes)?;
+                m.priority = prio;
+                let updated = serialize_header(&m)?;
+                active.insert(download_id, updated.as_slice())?;
+            } else {
+                let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
+                let term_bytes = term.get(download_id)?.map(|g| g.value().to_vec());
+                if let Some(bytes) = term_bytes {
+                    let mut m = deserialize_manifest(download_id, &bytes)?;
+                    m.priority = prio;
+                    let updated = serialize_header(&m)?;
+                    term.insert(download_id, updated.as_slice())?;
+                }
+            }
+        }
+        tx.commit()
+            .with_context(|| format!("failed to commit set_priority for download {download_id}"))?;
         Ok(())
     }
+
+    // ── Async wrappers ───────────────────────────────────────────────────────
 
     /// Async wrapper for [`Self::insert_download`] that runs on Tokio's blocking pool.
     pub async fn insert_download_async(
@@ -614,46 +353,5 @@ impl Database {
     ) -> Result<()> {
         self.run_blocking(move |db| db.set_priority(&download_id, priority))
             .await
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn checksum_mode_text_roundtrip() {
-        for mode in [
-            ChecksumMode::None,
-            ChecksumMode::Blake3,
-            ChecksumMode::Sha256,
-            ChecksumMode::Sha512,
-        ] {
-            let text = checksum_mode_to_text(mode);
-            assert_eq!(
-                text_to_checksum_mode(text).expect("known mode"),
-                mode,
-                "roundtrip through {text}"
-            );
-        }
-    }
-
-    /// Rows written before SHA-1 / XXH3-128 were dropped must still load — with
-    /// verification disabled, never with a digest compared against the wrong
-    /// algorithm.
-    #[test]
-    fn legacy_checksum_mode_text_loads_as_none() {
-        for legacy in ["sha1", "xxh3_128"] {
-            assert_eq!(
-                text_to_checksum_mode(legacy).expect("legacy mode tolerated"),
-                ChecksumMode::None,
-                "{legacy}"
-            );
-        }
-    }
-
-    #[test]
-    fn unknown_checksum_mode_text_is_an_error() {
-        assert!(text_to_checksum_mode("md5").is_err());
     }
 }

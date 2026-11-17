@@ -77,7 +77,7 @@ async fn download_survives_restart() {
 
         // Verify data was persisted before the "crash" — open a fresh DB
         // connection and assert the download exists with non-terminal progress.
-        let db_path = state_dir.join("downloads.db");
+        let db_path = state_dir.join("downloads.redb");
         let db = Database::open(&db_path).unwrap();
         let persisted = db
             .get_download(&inner.to_string())

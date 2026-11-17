@@ -132,12 +132,12 @@ fn corrupt_json_rows_are_skipped_not_fatal() {
     db.replace_bt_tasks(&[summary("good", DownloadState::Paused, 100)])
         .unwrap();
     {
-        let conn = db.lock_write();
-        conn.execute(
-            "INSERT INTO bt_tasks (id, summary_json, created_at_ms) VALUES ('bad', '{not json', 50)",
-            [],
-        )
-        .unwrap();
+        let tx = db.begin_bt_write().unwrap();
+        {
+            let mut table = tx.open_table(super::super::schema::BT_TASKS).unwrap();
+            table.insert("bad", b"{not json".as_slice()).unwrap();
+        }
+        tx.commit().unwrap();
     }
 
     let tasks = db.list_bt_tasks().unwrap();

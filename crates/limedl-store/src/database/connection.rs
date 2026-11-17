@@ -1,220 +1,133 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use parking_lot::Mutex;
-use rusqlite::Connection;
+use redb::{
+    DatabaseError, Durability, ReadTransaction, ReadableDatabase, StorageError, WriteTransaction,
+};
 
-use super::schema::{MIGRATIONS, table_has_column};
-#[cfg(any(test, feature = "test-utils"))]
-use crate::error::DownloadError;
+use super::schema::{
+    ACTIVE_DOWNLOADS, ALT_SVC_CACHE, BT_TASKS, CHUNK_PROGRESS, TERMINAL_DOWNLOADS,
+};
 
-/// Databases above this size skip the startup integrity probe: `quick_check`
-/// reads every page, so a very large history file would add seconds of startup
-/// I/O for a condition SQLite already reports per-statement when it matters.
-const MAX_INTEGRITY_CHECK_BYTES: u64 = 128 * 1024 * 1024;
-
+/// Persistent store backed by `redb`.
+///
+/// Physically separates:
+/// - `core_db` (`downloads.redb`): active/terminal task manifests and compact chunk progress.
+/// - `bt_db` (`bt_tasks.redb`): ephemeral BT task summary cache (reset on corruption).
+/// - `alt_svc_db` (`alt_svc.redb`): ephemeral HTTP/3 Alt-Svc cache (reset on corruption).
 pub struct Database {
-    pub(crate) write_conn: Arc<Mutex<Connection>>,
-    pub(crate) read_conn: Arc<Mutex<Connection>>,
-    quarantined_path: Option<std::path::PathBuf>,
+    core_db: Arc<redb::Database>,
+    bt_db: Arc<redb::Database>,
+    alt_svc_db: Arc<redb::Database>,
+    quarantined_path: Option<PathBuf>,
 }
 
 impl Database {
-    /// Open (or create) the SQLite database at `path`.
-    ///
-    /// Enables WAL mode, foreign keys, and performance PRAGMAs,
-    /// then runs schema migrations.
+    /// Open (or create) the primary `redb` store at `path` along with its
+    /// isolated ephemeral cache databases.
     pub fn open(path: &Path) -> Result<Self> {
-        // Pre-flight: a corrupt file is moved aside here, before any statement
-        // touches it. Otherwise the first real query fails with an opaque
-        // "database disk image is malformed" and the app is unusable with no way
-        // forward for the user.
-        let quarantined_path = quarantine_if_corrupt(path)?;
-
-        let mut write_conn = Connection::open(path)
-            .with_context(|| format!("failed to open database at {}", path.display()))?;
-
-        // ── PRAGMA configuration ─────────────────────────────────
-        write_conn
-            .execute_batch("PRAGMA journal_mode = WAL;")
-            .context("failed to enable WAL mode")?;
-        write_conn
-            .execute_batch("PRAGMA wal_autocheckpoint = 4096;")
-            .context("failed to set WAL auto-checkpoint")?;
-        write_conn
-            .execute_batch("PRAGMA foreign_keys = ON;")
-            .context("failed to enable foreign keys")?;
-        write_conn
-            .execute_batch("PRAGMA busy_timeout = 5000;")
-            .context("failed to set busy timeout")?;
-        // NORMAL is safe with WAL mode — the WAL itself provides crash safety.
-        // FULL would force an fsync on every checkpoint, doubling I/O overhead
-        // when combined with the buffer pool's per-batch sync_data.
-        write_conn
-            .execute_batch("PRAGMA synchronous = NORMAL;")
-            .context("failed to set synchronous mode")?;
-        // 32 MB page cache (negative = kibibytes).  This reduces disk I/O during
-        // migration and steady-state download progress persistence by keeping
-        // more of the working dataset in memory.
-        write_conn
-            .execute_batch("PRAGMA cache_size = -32000;")
-            .context("failed to set cache size")?;
-
-        // ── Schema migrations ────────────────────────────────────
-        let mut current_version: u32 = write_conn
-            .pragma_query_value(None, "user_version", |row| row.get(0))
-            .context("failed to read schema version")?;
-
-        // Compatibility: detect columns already backfilled by the old code that
-        // added columns without setting `user_version`, so existing databases
-        // don't fail migrations.
-        //
-        // The detected version only ever moves forward: a database whose
-        // `user_version` is already correct must not be rewound by the probe.
-        if current_version < 4 {
-            let mut detected = current_version;
-            if table_has_column(&write_conn, "downloads", "chunk_size")? {
-                detected = detected.max(2);
-            }
-            if table_has_column(&write_conn, "downloads", "mirror_urls")? {
-                detected = detected.max(3);
-            }
-            if detected > current_version {
-                tracing::info!(
-                    "legacy database without user_version detected; assuming schema v{detected}"
-                );
-                write_conn.pragma_update(None, "user_version", detected)?;
-                current_version = detected;
-            }
-        }
-
-        let mut migrations_ran = false;
-        for migration in MIGRATIONS.iter().filter(|m| m.version > current_version) {
-            tracing::info!(
-                "Running migration v{}: {}",
-                migration.version,
-                migration.name
-            );
-            // The whole migration — every DDL statement *and* the `user_version`
-            // bump — commits as one transaction. Without it a failure midway
-            // (disk full, I/O error, kill) leaves the schema half-migrated while
-            // `user_version` still names the old version; the next start would
-            // replay the same migration and hit "duplicate column name", which
-            // permanently bricks the database. Idempotent migration bodies
-            // (`add_column_if_missing`) make an already-applied body a no-op as
-            // well, which covers databases written by the pre-transaction code.
-            let tx = write_conn
-                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-                .with_context(|| {
-                    format!(
-                        "failed to begin transaction for migration v{} ({})",
-                        migration.version, migration.name
-                    )
-                })?;
-            (migration.up)(&tx).with_context(|| {
-                format!(
-                    "migration v{} ({}) failed",
-                    migration.version, migration.name
-                )
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("failed to create database directory {}", parent.display())
             })?;
-            tx.pragma_update(None, "user_version", migration.version)
-                .with_context(|| {
-                    format!("failed to update schema version to {}", migration.version)
-                })?;
-            tx.commit().with_context(|| {
-                format!(
-                    "failed to commit migration v{} ({})",
-                    migration.version, migration.name
-                )
-            })?;
-            migrations_ran = true;
         }
 
-        // ── Update query planner statistics after schema changes ─────
-        if migrations_ran {
-            write_conn
-                .execute_batch("ANALYZE;")
-                .context("failed to run ANALYZE")?;
-        }
+        let (core_db, quarantined_path) = open_or_quarantine_core(path)?;
+        init_core_tables(&core_db)?;
 
-        // ── Read connection (WAL-enabled, read-only) ────────────
-        let read_conn = Connection::open(path)
-            .with_context(|| format!("failed to open read database at {}", path.display()))?;
-        read_conn
-            .execute_batch("PRAGMA query_only = 1;")
-            .context("failed to set query_only on read connection")?;
-        read_conn
-            .execute_batch("PRAGMA busy_timeout = 5000;")
-            .context("failed to set busy timeout on read connection")?;
+        let (bt_path, alt_svc_path) = cache_paths_for(path);
+        let bt_db = open_or_reset_cache(&bt_path)?;
+        init_bt_tables(&bt_db)?;
 
-        write_conn.set_prepared_statement_cache_capacity(64);
-        read_conn.set_prepared_statement_cache_capacity(64);
+        let alt_svc_db = open_or_reset_cache(&alt_svc_path)?;
+        init_alt_svc_tables(&alt_svc_db)?;
 
         Ok(Self {
-            write_conn: Arc::new(Mutex::new(write_conn)),
-            read_conn: Arc::new(Mutex::new(read_conn)),
+            core_db: Arc::new(core_db),
+            bt_db: Arc::new(bt_db),
+            alt_svc_db: Arc::new(alt_svc_db),
             quarantined_path,
         })
     }
 
-    /// Create an in-memory SQLite database for testing.
-    ///
-    /// Enables foreign keys and busy timeout, then runs all migrations.
-    /// Does NOT enable WAL mode (unnecessary for in-memory single-connection tests
-    /// and can cause "database is locked" errors).
+    /// Create an in-memory `redb` database for testing.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn open_in_memory() -> Result<Self> {
-        let conn = Connection::open_in_memory().context("failed to open in-memory database")?;
-        conn.set_prepared_statement_cache_capacity(64);
-        conn.execute_batch("PRAGMA foreign_keys = ON;")
-            .context("failed to enable foreign keys")?;
-        conn.execute_batch("PRAGMA busy_timeout = 5000;")
-            .context("failed to set busy timeout")?;
-        // Run all migrations (no WAL for in-memory — causes "database is locked" errors)
-        for migration in MIGRATIONS {
-            (migration.up)(&conn)
-                .with_context(|| format!("test migration v{} failed", migration.version))?;
-        }
-        let current_version = MIGRATIONS
-            .last()
-            .map(|m| m.version)
-            .ok_or_else(|| DownloadError::DatabaseInit("no migrations defined".into()))?;
-        conn.pragma_update(None, "user_version", current_version)
-            .context("failed to set schema version")?;
-        let conn = Arc::new(Mutex::new(conn));
+        let core_db = redb::Database::builder()
+            .create_with_backend(redb::backends::InMemoryBackend::new())
+            .context("failed to create in-memory core database")?;
+        init_core_tables(&core_db)?;
+
+        let bt_db = redb::Database::builder()
+            .create_with_backend(redb::backends::InMemoryBackend::new())
+            .context("failed to create in-memory bt cache database")?;
+        init_bt_tables(&bt_db)?;
+
+        let alt_svc_db = redb::Database::builder()
+            .create_with_backend(redb::backends::InMemoryBackend::new())
+            .context("failed to create in-memory alt-svc cache database")?;
+        init_alt_svc_tables(&alt_svc_db)?;
+
         Ok(Self {
-            write_conn: conn.clone(),
-            read_conn: conn,
+            core_db: Arc::new(core_db),
+            bt_db: Arc::new(bt_db),
+            alt_svc_db: Arc::new(alt_svc_db),
             quarantined_path: None,
         })
     }
 
-    /// If a corrupt database file was moved aside when opening this instance,
-    /// returns the path where the corrupt copy was preserved.
+    /// If a corrupt core database file was moved aside when opening this
+    /// instance, returns the path where the corrupt copy was preserved.
     pub fn quarantined_path(&self) -> Option<&Path> {
         self.quarantined_path.as_deref()
     }
 
-    pub fn lock_write(&self) -> parking_lot::MutexGuard<'_, Connection> {
-        self.write_conn.lock()
+    pub(crate) fn begin_read(&self) -> Result<ReadTransaction> {
+        self.core_db
+            .begin_read()
+            .context("failed to begin read transaction")
     }
 
-    pub fn lock_read(&self) -> parking_lot::MutexGuard<'_, Connection> {
-        self.read_conn.lock()
+    pub(crate) fn begin_write(&self) -> Result<WriteTransaction> {
+        self.core_db
+            .begin_write()
+            .context("failed to begin write transaction")
     }
 
-    /// Shrink SQLite heap memory by flushing unused page cache and statement cache.
-    pub fn shrink_memory(&self) {
-        if let Some(conn) = self.write_conn.try_lock() {
-            let _ = conn.execute_batch("PRAGMA shrink_memory;");
-        }
-        if let Some(conn) = self.read_conn.try_lock() {
-            let _ = conn.execute_batch("PRAGMA shrink_memory;");
-        }
+    pub(crate) fn begin_bt_read(&self) -> Result<ReadTransaction> {
+        self.bt_db
+            .begin_read()
+            .context("failed to begin bt cache read transaction")
     }
 
-    /// Execute a blocking SQLite operation on Tokio's blocking thread pool.
+    pub(crate) fn begin_bt_write(&self) -> Result<WriteTransaction> {
+        self.bt_db
+            .begin_write()
+            .context("failed to begin bt cache write transaction")
+    }
+
+    pub(crate) fn begin_alt_svc_read(&self) -> Result<ReadTransaction> {
+        self.alt_svc_db
+            .begin_read()
+            .context("failed to begin alt-svc cache read transaction")
+    }
+
+    pub(crate) fn begin_alt_svc_write(&self) -> Result<WriteTransaction> {
+        self.alt_svc_db
+            .begin_write()
+            .context("failed to begin alt-svc cache write transaction")
+    }
+
+    /// Hint to release unused memory when idle.
+    ///
+    /// `redb` does not retain an unbounded SQLite-style page/statement cache,
+    /// so this is a lightweight no-op kept for lifecycle parity.
+    pub fn shrink_memory(&self) {}
+
+    /// Execute a blocking database operation on Tokio's blocking thread pool.
     pub async fn run_blocking<F, T>(self: &Arc<Self>, f: F) -> Result<T>
     where
         F: FnOnce(&Database) -> Result<T> + Send + 'static,
@@ -226,12 +139,13 @@ impl Database {
             .context("database blocking task panicked")?
     }
 
-    /// Perform a WAL checkpoint to truncate the WAL file on clean shutdown.
-    /// Should be called after all downloads have stopped and before the process exits.
+    /// Flush a durable commit on clean shutdown so any prior `Durability::None`
+    /// 300 ms progress writes are persisted to disk before exit.
     pub fn shutdown(&self) -> Result<()> {
-        let conn = self.lock_write();
-        conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
-            .context("failed to checkpoint WAL on shutdown")?;
+        let mut tx = self.begin_write()?;
+        tx.set_durability(Durability::Immediate)?;
+        tx.commit()
+            .context("failed to flush database on shutdown")?;
         Ok(())
     }
 
@@ -239,36 +153,60 @@ impl Database {
     pub async fn shutdown_async(self: &Arc<Self>) -> Result<()> {
         self.run_blocking(Database::shutdown).await
     }
-
-    /// Run incremental vacuum if the freelist page count exceeds `threshold`.
-    pub(crate) fn vacuum_if_needed(&self, conn: &Connection, threshold: u32) -> Result<()> {
-        let freelist: u32 = conn
-            .pragma_query_value(None, "freelist_count", |row| row.get(0))
-            .context("failed to query freelist_count")?;
-
-        if freelist > threshold {
-            tracing::debug!(
-                "Freelist has {freelist} pages (> {threshold}), running incremental vacuum"
-            );
-            conn.execute_batch(&format!("PRAGMA incremental_vacuum({freelist});"))
-                .context("failed to run incremental vacuum")?;
-        }
-        Ok(())
-    }
 }
 
-/// Append `suffix` to a path's file name without touching its extension.
-///
-/// SQLite's sidecars are named by appending `-wal` / `-shm` to the *whole* path,
-/// not by replacing the extension, so `Path::with_extension` cannot be used.
-fn with_suffix(path: &Path, suffix: &str) -> std::path::PathBuf {
+fn init_core_tables(db: &redb::Database) -> Result<()> {
+    let tx = db
+        .begin_write()
+        .context("failed to begin core table init")?;
+    {
+        let _ = tx.open_table(ACTIVE_DOWNLOADS)?;
+        let _ = tx.open_table(TERMINAL_DOWNLOADS)?;
+        let _ = tx.open_table(CHUNK_PROGRESS)?;
+    }
+    tx.commit().context("failed to commit core table init")?;
+    Ok(())
+}
+
+fn init_bt_tables(db: &redb::Database) -> Result<()> {
+    let tx = db.begin_write().context("failed to begin bt table init")?;
+    {
+        let _ = tx.open_table(BT_TASKS)?;
+    }
+    tx.commit().context("failed to commit bt table init")?;
+    Ok(())
+}
+
+fn init_alt_svc_tables(db: &redb::Database) -> Result<()> {
+    let tx = db
+        .begin_write()
+        .context("failed to begin alt-svc table init")?;
+    {
+        let _ = tx.open_table(ALT_SVC_CACHE)?;
+    }
+    tx.commit().context("failed to commit alt-svc table init")?;
+    Ok(())
+}
+
+fn cache_paths_for(core_path: &Path) -> (PathBuf, PathBuf) {
+    if core_path.file_name().and_then(|n| n.to_str()) == Some("downloads.redb")
+        && let Some(parent) = core_path.parent()
+    {
+        return (parent.join("bt_tasks.redb"), parent.join("alt_svc.redb"));
+    }
+    (
+        with_suffix(core_path, ".bt.redb"),
+        with_suffix(core_path, ".alt_svc.redb"),
+    )
+}
+
+fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
     let mut name = path.as_os_str().to_os_string();
     name.push(suffix);
-    std::path::PathBuf::from(name)
+    PathBuf::from(name)
 }
 
-/// Where a corrupt database is preserved.
-fn quarantine_path(path: &Path) -> std::path::PathBuf {
+fn quarantine_path(path: &Path) -> PathBuf {
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|elapsed| elapsed.as_millis())
@@ -276,133 +214,119 @@ fn quarantine_path(path: &Path) -> std::path::PathBuf {
     with_suffix(path, &format!(".corrupt-{stamp}"))
 }
 
-/// Move a database and its WAL sidecars out of the way.
-///
-/// The sidecars have to travel with it: leaving a stale `-wal` next to the freshly
-/// created database would replay the old (possibly corrupt) frames into it.
-fn quarantine_database(path: &Path) -> Result<std::path::PathBuf> {
-    let destination = quarantine_path(path);
-    std::fs::rename(path, &destination).with_context(|| {
-        format!(
-            "failed to move the corrupt database {} to {}",
-            path.display(),
-            destination.display()
-        )
-    })?;
-    for suffix in ["-wal", "-shm"] {
-        let from = with_suffix(path, suffix);
-        if from.exists() {
-            let _ = std::fs::rename(&from, with_suffix(&destination, suffix));
-        }
-    }
-    Ok(destination)
+fn is_lock_contention(error: &DatabaseError) -> bool {
+    matches!(error, DatabaseError::DatabaseAlreadyOpen)
+        || error.to_string().to_ascii_lowercase().contains("locked")
 }
 
-/// `true` when an error message means "someone else is using it" rather than "it
-/// is broken". Contention must never be treated as corruption.
-pub fn is_lock_contention(message: &str) -> bool {
-    let lowered = message.to_ascii_lowercase();
-    lowered.contains("locked") || lowered.contains("busy")
-}
-
-/// `true` when SQLite itself says the bytes are not a database, or that its
-/// pages are damaged — as opposed to a transient or environmental failure.
-pub fn is_unusable_database(error: &rusqlite::Error) -> bool {
-    matches!(
-        error,
-        rusqlite::Error::SqliteFailure(code, _)
-            if matches!(
-                code.code,
-                rusqlite::ErrorCode::NotADatabase | rusqlite::ErrorCode::DatabaseCorrupt
-            )
-    )
-}
-
-/// Run `PRAGMA quick_check`, returning the first problem SQLite reports.
-///
-/// `None` also covers "no verdict": a locked database (another writer, or a lock
-/// a crash left behind) must not be read as corruption, and an unreadable file is
-/// reported by the normal open path anyway.
-fn quick_check(conn: &Connection) -> Option<String> {
-    match conn.pragma_query_value(None, "quick_check", |row| row.get::<_, String>(0)) {
-        Ok(result) if result.eq_ignore_ascii_case("ok") => None,
-        Ok(result) => Some(result),
-        Err(error) if is_unusable_database(&error) => Some(error.to_string()),
-        Err(error) => {
-            tracing::warn!("skipping the database integrity check: {error}");
-            None
-        }
+fn is_corruption_error(error: &DatabaseError) -> bool {
+    match error {
+        DatabaseError::RepairAborted | DatabaseError::UpgradeRequired(_) => true,
+        DatabaseError::Storage(StorageError::Corrupted(_)) => true,
+        DatabaseError::Storage(StorageError::Io(io_err)) => matches!(
+            io_err.kind(),
+            std::io::ErrorKind::UnexpectedEof | std::io::ErrorKind::InvalidData
+        ),
+        _ => false,
     }
 }
 
-/// Quarantine `path` when it is not a usable SQLite database.
-///
-/// Called before anything else opens it. A locked or busy database is *not*
-/// corruption (another process or an interrupted shutdown) and is left alone —
-/// only a file SQLite cannot read, or one that fails `quick_check`, is moved
-/// aside so a fresh database can be created and the app stays usable. The
-/// download files themselves are never touched.
-fn quarantine_if_corrupt(path: &Path) -> Result<Option<std::path::PathBuf>> {
-    let size = match std::fs::metadata(path) {
-        Ok(metadata) => metadata.len(),
-        // Missing (first run) or unreadable: let the normal open path report it.
-        Err(_) => return Ok(None),
-    };
-    if size == 0 {
-        return Ok(None);
-    }
-    if size > MAX_INTEGRITY_CHECK_BYTES {
-        tracing::info!(
-            "skipping the database integrity check: {} is {} bytes (limit {})",
-            path.display(),
-            size,
-            MAX_INTEGRITY_CHECK_BYTES
-        );
-        return Ok(None);
-    }
+fn open_redb_with_lock_retry(path: &Path) -> std::result::Result<redb::Database, DatabaseError> {
+    const MAX_ATTEMPTS: usize = 20;
+    const RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(10);
 
-    let probe = match Connection::open(path) {
-        Ok(probe) => probe,
-        Err(error) => {
-            let message = error.to_string();
-            if is_lock_contention(&message) {
-                // Another instance (or a crash left the lock behind): a real
-                // error, but not something to quarantine.
-                return Err(error)
-                    .with_context(|| format!("failed to open database at {}", path.display()));
+    for attempt in 0..MAX_ATTEMPTS {
+        match redb::Database::open(path) {
+            Ok(db) => return Ok(db),
+            Err(err) if is_lock_contention(&err) && attempt + 1 < MAX_ATTEMPTS => {
+                std::thread::sleep(RETRY_DELAY);
             }
+            Err(err) => return Err(err),
+        }
+    }
+    unreachable!()
+}
+
+fn open_or_quarantine_core(path: &Path) -> Result<(redb::Database, Option<PathBuf>)> {
+    let exists_non_empty = std::fs::metadata(path)
+        .map(|m| m.len() > 0)
+        .unwrap_or(false);
+    if !exists_non_empty {
+        let db = redb::Database::create(path)
+            .with_context(|| format!("failed to create database at {}", path.display()))?;
+        return Ok((db, None));
+    }
+
+    match open_redb_with_lock_retry(path) {
+        Ok(db) => Ok((db, None)),
+        Err(err) if is_lock_contention(&err) => {
+            Err(err).with_context(|| format!("failed to open database at {}", path.display()))
+        }
+        Err(err) if is_corruption_error(&err) => {
             tracing::error!(
-                "database at {} cannot be opened ({message}); moving it aside",
+                "database at {} cannot be opened ({err}); moving it aside",
                 path.display()
             );
-            let destination = quarantine_database(path)?;
+            let destination = quarantine_path(path);
+            std::fs::rename(path, &destination).with_context(|| {
+                format!(
+                    "failed to move the corrupt database {} to {}",
+                    path.display(),
+                    destination.display()
+                )
+            })?;
             tracing::error!(
-                "the unreadable database was preserved at {}",
+                "the corrupt database was preserved at {} — download task history was reset, \
+                 files on disk are untouched",
                 destination.display()
             );
-            return Ok(Some(destination));
+            let db = redb::Database::create(path)
+                .with_context(|| format!("failed to recreate database at {}", path.display()))?;
+            Ok((db, Some(destination)))
         }
-    };
-    // Match the writer's patience so a transient lock is waited out rather than
-    // reported as an unreadable file.
-    let _ = probe.execute_batch("PRAGMA busy_timeout = 5000;");
+        Err(err) => {
+            // Other unreadable/invalid file format errors also warrant quarantine.
+            tracing::error!(
+                "database at {} failed to open ({err}); moving it aside",
+                path.display()
+            );
+            let destination = quarantine_path(path);
+            std::fs::rename(path, &destination).with_context(|| {
+                format!(
+                    "failed to move the corrupt database {} to {}",
+                    path.display(),
+                    destination.display()
+                )
+            })?;
+            let db = redb::Database::create(path)
+                .with_context(|| format!("failed to recreate database at {}", path.display()))?;
+            Ok((db, Some(destination)))
+        }
+    }
+}
 
-    let problem = quick_check(&probe);
-    drop(probe);
+fn open_or_reset_cache(path: &Path) -> Result<redb::Database> {
+    let exists_non_empty = std::fs::metadata(path)
+        .map(|m| m.len() > 0)
+        .unwrap_or(false);
+    if !exists_non_empty {
+        return redb::Database::create(path)
+            .with_context(|| format!("failed to create cache database at {}", path.display()));
+    }
 
-    let Some(problem) = problem else {
-        return Ok(None);
-    };
-
-    tracing::error!(
-        "database at {} failed its integrity check ({problem}); moving it aside",
-        path.display()
-    );
-    let destination = quarantine_database(path)?;
-    tracing::error!(
-        "the corrupt database was preserved at {} — download task history was reset, \
-         files on disk are untouched",
-        destination.display()
-    );
-    Ok(Some(destination))
+    match open_redb_with_lock_retry(path) {
+        Ok(db) => Ok(db),
+        Err(err) if is_lock_contention(&err) => {
+            Err(err).with_context(|| format!("failed to open cache database at {}", path.display()))
+        }
+        Err(err) => {
+            tracing::warn!(
+                "ephemeral cache database at {} is unreadable ({err}); resetting it",
+                path.display()
+            );
+            let _ = std::fs::remove_file(path);
+            redb::Database::create(path)
+                .with_context(|| format!("failed to recreate cache database at {}", path.display()))
+        }
+    }
 }

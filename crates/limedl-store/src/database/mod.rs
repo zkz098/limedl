@@ -1,11 +1,5 @@
-//! SQLite-based persistence for download manifests and chunk progress.
-//!
-//! Maintains two tables:
-//! - `downloads`: core metadata (URLs, paths, state, checksums, priorities)
-//! - `chunks`: per-chunk byte ranges, progress, and worker claim tracking
-//!
-//! Uses a dual-connection architecture (dedicated write connection with WAL,
-//! read-only connection for queries).
+//! `redb`-based persistence for download manifests, compact chunk progress,
+//! and isolated ephemeral caches (`bt_tasks`, `alt_svc_cache`).
 
 pub mod bt_task_repo;
 pub mod chunk_repo;

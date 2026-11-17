@@ -1,7 +1,7 @@
 [package]
 name = "limedl-store"
 version.workspace = true
-description = "Persistence for limedl — the SQLite task/chunk/manifest store and the Alt-Svc cache"
+description = "Persistence for limedl — the redb task/chunk store and isolated Alt-Svc/BT caches"
 license.workspace = true
 edition = "2024"
 # Workspace-internal, like every other limedl crate.
@@ -13,7 +13,7 @@ name = "limedl_store"
 [dependencies]
 # Only the foundation layer: no engine, no disk, no BT.
 limedl-types = { path = "../limedl-types", default-features = false }
-rusqlite = { workspace = true }
+redb = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

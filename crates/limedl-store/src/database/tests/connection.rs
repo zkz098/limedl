@@ -204,31 +204,18 @@ fn an_unreadable_database_is_quarantined_and_recreated() {
 }
 
 #[test]
-fn sqlite_reports_a_non_database_file_as_unusable() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("garbage.db");
-    std::fs::write(&path, b"not a sqlite file at all").unwrap();
-
-    let conn = Connection::open(&path).unwrap();
-    let error = conn
-        .pragma_query_value(None, "quick_check", |row| row.get::<_, String>(0))
-        .expect_err("reading a non-database must fail");
-
-    assert!(
-        is_unusable_database(&error),
-        "a non-database must be classified as unusable: {error}"
-    );
-}
-
-#[test]
 fn lock_contention_is_never_mistaken_for_corruption() {
-    // A second writer holding the file is contention, not corruption: treating
-    // it as corruption would silently destroy the user's task history.
-    assert!(is_lock_contention("database is locked"));
-    assert!(is_lock_contention("SQLITE_BUSY: database is busy"));
-    assert!(is_lock_contention("Database Is Locked"));
-    assert!(!is_lock_contention("database disk image is malformed"));
-    assert!(!is_lock_contention("file is not a database"));
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("downloads.redb");
+
+    let _db1 = Database::open(&path).unwrap();
+    let err = Database::open(&path)
+        .err()
+        .expect("opening the same redb file twice must fail with lock contention");
+    assert!(
+        quarantined_files(dir.path()).is_empty(),
+        "lock contention must never quarantine the database (got {err})"
+    );
 }
 
 #[test]

@@ -1,18 +1,15 @@
-use anyhow::{Context, Result};
-use rusqlite::{Connection, params, types::Value};
+use std::collections::BTreeMap;
+
+use anyhow::{Context, Result, bail};
+use redb::{Durability, ReadableTable};
 
 use super::connection::Database;
-use crate::manifest::ChunkManifest;
+use super::manifest_repo::text_to_download_state;
+use super::schema::{ACTIVE_DOWNLOADS, CHUNK_PROGRESS, is_terminal_state};
+use crate::manifest::{ChunkManifest, Manifest};
 
-type RusqliteResult<T> = std::result::Result<T, rusqlite::Error>;
-
-fn bool_to_i64(b: bool) -> i64 {
-    if b { 1 } else { 0 }
-}
-
-fn i64_to_bool(v: i64) -> bool {
-    v != 0
-}
+const CHUNK_BLOB_VERSION: u8 = 1;
+const CHUNK_RECORD_BYTES: usize = 41;
 
 /// Single progress update entry for batch persist of multiple downloads.
 #[derive(Clone)]
@@ -24,52 +21,167 @@ pub struct ProgressBatchEntry {
     pub updated_at_ms: u64,
 }
 
-pub fn chunk_to_params(download_id: &str, chunk: &ChunkManifest) -> Vec<Value> {
+fn durable_snapshot(chunk: &ChunkManifest) -> ChunkManifest {
     // Persist the *durable* progress, not the received progress: the two differ by
-    // whatever the write buffer still holds, and a chunk row is what the next
-    // start resumes from. `durable_bytes()` also clamps a stale counter to what
-    // was received, so a reset path that forgot to clear it cannot over-report.
+    // whatever the write buffer still holds, and a chunk record is what the next
+    // start resumes from.
     let durable = chunk.durable_bytes();
     let complete = durable >= chunk.byte_len();
-    vec![
-        Value::Text(download_id.to_owned()),
-        Value::Integer(chunk.index as i64),
-        Value::Integer(chunk.start as i64),
-        Value::Integer(chunk.end as i64),
-        Value::Integer(durable as i64),
-        Value::Integer(bool_to_i64(complete)),
-        match chunk.claimed_by {
-            Some(n) => Value::Integer(n as i64),
-            None => Value::Null,
-        },
-    ]
+    ChunkManifest {
+        index: chunk.index,
+        start: chunk.start,
+        end: chunk.end,
+        downloaded: durable,
+        completed: complete,
+        durable_downloaded: durable,
+        claimed_by: chunk.claimed_by,
+        dirty: false,
+    }
 }
 
-pub(crate) fn row_to_chunk(row: &rusqlite::Row) -> RusqliteResult<ChunkManifest> {
-    let downloaded = row.get::<_, i64>(4)? as u64;
-    Ok(ChunkManifest {
-        index: row.get::<_, i64>(1)? as usize,
-        start: row.get::<_, i64>(2)? as u64,
-        end: row.get::<_, i64>(3)? as u64,
-        downloaded,
-        completed: i64_to_bool(row.get::<_, i64>(5)?),
-        // At rest (a row that is not being written to) received == durable.
-        durable_downloaded: downloaded,
-        claimed_by: row.get::<_, Option<i64>>(6)?.map(|v| v as usize),
-        dirty: false,
-    })
+pub(crate) fn encode_chunks(chunks: &[ChunkManifest]) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(5 + chunks.len() * CHUNK_RECORD_BYTES);
+    buf.push(CHUNK_BLOB_VERSION);
+    buf.extend_from_slice(&(chunks.len() as u32).to_le_bytes());
+    for chunk in chunks {
+        let snap = durable_snapshot(chunk);
+        buf.extend_from_slice(&(snap.index as u64).to_le_bytes());
+        buf.extend_from_slice(&snap.start.to_le_bytes());
+        buf.extend_from_slice(&snap.end.to_le_bytes());
+        buf.extend_from_slice(&snap.durable_downloaded.to_le_bytes());
+        buf.push(u8::from(snap.completed));
+        let claimed = match snap.claimed_by {
+            Some(n) => n as i64,
+            None => -1,
+        };
+        buf.extend_from_slice(&claimed.to_le_bytes());
+    }
+    buf
+}
+
+pub(crate) fn decode_chunks(bytes: &[u8]) -> Result<Vec<ChunkManifest>> {
+    if bytes.len() < 5 {
+        bail!(
+            "corrupt chunk blob: header too short ({} bytes)",
+            bytes.len()
+        );
+    }
+    if bytes[0] != CHUNK_BLOB_VERSION {
+        bail!("unsupported chunk blob version {}", bytes[0]);
+    }
+    let count = u32::from_le_bytes(bytes[1..5].try_into().expect("4 bytes")) as usize;
+    let expected_len = 5 + count * CHUNK_RECORD_BYTES;
+    if bytes.len() != expected_len {
+        bail!(
+            "corrupt chunk blob: expected {expected_len} bytes for {count} chunks, got {}",
+            bytes.len()
+        );
+    }
+
+    let mut chunks = Vec::with_capacity(count);
+    let mut offset = 5;
+    for _ in 0..count {
+        let index = u64::from_le_bytes(bytes[offset..offset + 8].try_into().unwrap()) as usize;
+        let start = u64::from_le_bytes(bytes[offset + 8..offset + 16].try_into().unwrap());
+        let end = u64::from_le_bytes(bytes[offset + 16..offset + 24].try_into().unwrap());
+        let durable = u64::from_le_bytes(bytes[offset + 24..offset + 32].try_into().unwrap());
+        let completed = bytes[offset + 32] != 0;
+        let claimed_raw = i64::from_le_bytes(bytes[offset + 33..offset + 41].try_into().unwrap());
+        let claimed_by = if claimed_raw < 0 {
+            None
+        } else {
+            Some(claimed_raw as usize)
+        };
+        chunks.push(ChunkManifest {
+            index,
+            start,
+            end,
+            downloaded: durable,
+            completed,
+            durable_downloaded: durable,
+            claimed_by,
+            dirty: false,
+        });
+        offset += CHUNK_RECORD_BYTES;
+    }
+    Ok(chunks)
+}
+
+pub(crate) fn merge_dirty_chunks(
+    existing: Vec<ChunkManifest>,
+    dirty_chunks: &[ChunkManifest],
+) -> Vec<ChunkManifest> {
+    let mut by_index: BTreeMap<usize, ChunkManifest> =
+        existing.into_iter().map(|c| (c.index, c)).collect();
+    for chunk in dirty_chunks {
+        by_index.insert(chunk.index, durable_snapshot(chunk));
+    }
+    by_index.into_values().collect()
+}
+
+fn apply_progress_entry(
+    active_table: &mut redb::Table<&str, &[u8]>,
+    chunk_table: &mut redb::Table<&str, &[u8]>,
+    id: &str,
+    downloaded_bytes: u64,
+    dirty_chunks: &[ChunkManifest],
+    state: &str,
+    updated_at_ms: u64,
+) -> Result<()> {
+    let existing_manifest_bytes = {
+        let guard = active_table
+            .get(id)
+            .with_context(|| format!("failed to read active download {id}"))?;
+        let Some(value) = guard else {
+            // Task is already in `terminal_downloads` or deleted: never rewind it.
+            return Ok(());
+        };
+        value.value().to_vec()
+    };
+
+    let mut manifest: Manifest = serde_json::from_slice(&existing_manifest_bytes)
+        .with_context(|| format!("failed to deserialize manifest {id}"))?;
+
+    if is_terminal_state(&manifest.state) {
+        return Ok(());
+    }
+
+    manifest.downloaded_bytes = downloaded_bytes;
+    manifest.state = text_to_download_state(state);
+    manifest.updated_at_ms = updated_at_ms;
+    manifest.chunks.clear();
+
+    let updated_bytes =
+        serde_json::to_vec(&manifest).with_context(|| format!("failed to serialize {id}"))?;
+    active_table
+        .insert(id, updated_bytes.as_slice())
+        .with_context(|| format!("failed to update active download {id}"))?;
+
+    if !dirty_chunks.is_empty() {
+        let existing_chunks = match chunk_table
+            .get(id)
+            .with_context(|| format!("failed to read chunk blob for {id}"))?
+        {
+            Some(guard) => decode_chunks(guard.value())?,
+            None => Vec::new(),
+        };
+        let merged = merge_dirty_chunks(existing_chunks, dirty_chunks);
+        let encoded = encode_chunks(&merged);
+        chunk_table
+            .insert(id, encoded.as_slice())
+            .with_context(|| format!("failed to write chunk blob for {id}"))?;
+    }
+
+    Ok(())
 }
 
 impl Database {
-    /// Incremental update for the 300 ms persist cycle.
+    /// Incremental update for the 300 ms persist cycle.
     ///
-    /// The `state NOT IN (…)` guard is load-bearing: this writer runs
-    /// concurrently with finalize's full upsert, and a snapshot taken just
-    /// before the terminal transition could otherwise land after it and
-    /// rewind the row to `downloading`. The next startup would then treat a
-    /// finished download as resumable. Full upserts (`insert_download`) are
-    /// deliberately *not* guarded — they are the only writer allowed to move a
-    /// row into (or out of) a terminal state.
+    /// Because active and terminal tasks live in separate tables, a snapshot
+    /// arriving after finalize has already moved the task to
+    /// `terminal_downloads` is a clean no-op and can never rewind a terminal
+    /// state back to `downloading`.
     pub fn update_download_progress(
         &self,
         id: &str,
@@ -78,174 +190,68 @@ impl Database {
         state: &str,
         updated_at_ms: u64,
     ) -> Result<()> {
-        let conn = self.lock_write();
+        let mut tx = self.begin_write()?;
+        tx.set_durability(Durability::None)?;
 
-        conn.execute_batch("BEGIN IMMEDIATE")
-            .context("failed to begin transaction")?;
-
-        let result = (|| -> Result<()> {
-            conn.prepare_cached(
-                "UPDATE downloads SET downloaded_bytes = ?1, state = ?2, updated_at_ms = ?3 \
-                 WHERE id = ?4 AND state NOT IN ('completed', 'failed', 'canceled')",
-            )
-            .context("failed to prepare download progress update")?
-            .execute(params![
-                downloaded_bytes as i64,
+        {
+            let mut active_table = tx.open_table(ACTIVE_DOWNLOADS)?;
+            let mut chunk_table = tx.open_table(CHUNK_PROGRESS)?;
+            apply_progress_entry(
+                &mut active_table,
+                &mut chunk_table,
+                id,
+                downloaded_bytes,
+                dirty_chunks,
                 state,
-                updated_at_ms as i64,
-                id
-            ])
-            .context("failed to update download progress row")?;
-
-            if !dirty_chunks.is_empty() {
-                let mut stmt = conn
-                    .prepare_cached(
-                        "INSERT OR REPLACE INTO chunks (download_id, chunk_index, start_byte, end_byte,
-                                 downloaded, completed, claimed_by)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                    )
-                    .context("failed to prepare chunk upsert")?;
-
-                for chunk in dirty_chunks {
-                    stmt.execute(rusqlite::params_from_iter(chunk_to_params(id, chunk)))
-                        .context("failed to upsert chunk")?;
-                }
-            }
-
-            Ok(())
-        })();
-
-        match result {
-            Ok(()) => {
-                conn.execute_batch("COMMIT")
-                    .context("failed to commit transaction")?;
-                Ok(())
-            }
-            Err(e) => {
-                let _ = conn.execute_batch("ROLLBACK");
-                Err(e)
-            }
+                updated_at_ms,
+            )?;
         }
+
+        tx.commit()
+            .context("failed to commit download progress update")?;
+        Ok(())
     }
 
-    /// Incremental update for multiple downloads in a single transaction.
-    ///
-    /// Same terminal-state guard as [`Self::update_download_progress`]: the
-    /// scheduler's batch must never rewind a row finalize already completed.
+    /// Persist progress snapshots for multiple downloads in a single transaction.
     pub fn update_downloads_progress_batch(&self, entries: &[ProgressBatchEntry]) -> Result<()> {
         if entries.is_empty() {
             return Ok(());
         }
-        let conn = self.lock_write();
 
-        conn.execute_batch("BEGIN IMMEDIATE")
-            .context("failed to begin batch transaction")?;
+        let mut tx = self.begin_write()?;
+        tx.set_durability(Durability::None)?;
 
-        let result = (|| -> Result<()> {
+        {
+            let mut active_table = tx.open_table(ACTIVE_DOWNLOADS)?;
+            let mut chunk_table = tx.open_table(CHUNK_PROGRESS)?;
             for entry in entries {
-                conn.prepare_cached(
-                    "UPDATE downloads SET downloaded_bytes = ?1, state = ?2, updated_at_ms = ?3 \
-                     WHERE id = ?4 AND state NOT IN ('completed', 'failed', 'canceled')",
-                )
-                .context("failed to prepare progress update in batch")?
-                .execute(params![
-                    entry.downloaded_bytes as i64,
-                    entry.state.as_str(),
-                    entry.updated_at_ms as i64,
-                    entry.id.as_str()
-                ])
-                .with_context(|| format!("failed to update progress row for {}", entry.id))?;
-
-                if !entry.dirty_chunks.is_empty() {
-                    let mut stmt = conn
-                        .prepare_cached(
-                            "INSERT OR REPLACE INTO chunks (download_id, chunk_index, start_byte, end_byte,
-                                     downloaded, completed, claimed_by)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                        )
-                        .context("failed to prepare chunk upsert in batch")?;
-
-                    for chunk in &entry.dirty_chunks {
-                        stmt.execute(rusqlite::params_from_iter(chunk_to_params(
-                            &entry.id, chunk,
-                        )))
-                        .context("failed to upsert chunk in batch")?;
-                    }
-                }
-            }
-            Ok(())
-        })();
-
-        match result {
-            Ok(()) => {
-                conn.execute_batch("COMMIT")
-                    .context("failed to commit batch transaction")?;
-                Ok(())
-            }
-            Err(e) => {
-                let _ = conn.execute_batch("ROLLBACK");
-                Err(e)
+                apply_progress_entry(
+                    &mut active_table,
+                    &mut chunk_table,
+                    &entry.id,
+                    entry.downloaded_bytes,
+                    &entry.dirty_chunks,
+                    &entry.state,
+                    entry.updated_at_ms,
+                )?;
             }
         }
-    }
 
-    /// Load chunks for a single download on demand (lazy loading).
-    pub fn load_chunks(&self, download_id: &str) -> Result<Vec<ChunkManifest>> {
-        let conn = self.lock_read();
-        self.fetch_chunks_inner(&conn, download_id)
-    }
-
-    /// Replace all chunks for `download_id` (caller must hold the lock).
-    pub(crate) fn replace_chunks_inner(
-        &self,
-        conn: &Connection,
-        download_id: &str,
-        chunks: &[ChunkManifest],
-    ) -> Result<()> {
-        conn.prepare_cached("DELETE FROM chunks WHERE download_id = ?1")
-            .context("failed to prepare chunk clear")?
-            .execute(params![download_id])
-            .context("failed to clear old chunks")?;
-
-        if chunks.is_empty() {
-            return Ok(());
-        }
-
-        let mut stmt = conn
-            .prepare_cached(
-                "INSERT INTO chunks (download_id, chunk_index, start_byte, end_byte,
-                         downloaded, completed, claimed_by)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            )
-            .context("failed to prepare chunk insert")?;
-
-        for chunk in chunks {
-            stmt.execute(rusqlite::params_from_iter(chunk_to_params(
-                download_id,
-                chunk,
-            )))
-            .context("failed to insert chunk")?;
-        }
-
+        tx.commit()
+            .context("failed to commit batch download progress update")?;
         Ok(())
     }
 
-    /// Fetch all chunks for a download (caller must hold the lock).
-    pub(crate) fn fetch_chunks_inner(
-        &self,
-        conn: &Connection,
-        download_id: &str,
-    ) -> Result<Vec<ChunkManifest>> {
-        let mut stmt = conn
-            .prepare_cached("SELECT * FROM chunks WHERE download_id = ?1 ORDER BY chunk_index")
-            .context("failed to prepare fetch_chunks query")?;
-
-        let chunks = stmt
-            .query_map(params![download_id], row_to_chunk)
-            .context("failed to map chunk rows")?
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .context("failed to collect chunks")?;
-
-        Ok(chunks)
+    /// Load persisted chunks for a download in ascending `index` order.
+    pub fn load_chunks(&self, download_id: &str) -> Result<Vec<ChunkManifest>> {
+        let tx = self.begin_read()?;
+        let table = tx.open_table(CHUNK_PROGRESS)?;
+        match table
+            .get(download_id)
+            .with_context(|| format!("failed to load chunks for {download_id}"))?
+        {
+            Some(guard) => decode_chunks(guard.value()),
+            None => Ok(Vec::new()),
+        }
     }
 }

@@ -23,7 +23,7 @@ use limedl_core::types::LogLevel;
                   settings.json), otherwise the daemon refuses to start."
 )]
 pub struct Cli {
-    /// Data directory holding settings.json, downloads.db and torrent state.
+    /// Data directory holding settings.json, downloads.redb and torrent state.
     /// Falls back to $LIMEDL_DATA_DIR, then the platform data directory.
     #[arg(long, value_name = "PATH")]
     pub data_dir: Option<PathBuf>,

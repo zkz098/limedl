@@ -1,9 +1,8 @@
 //! Persistence for the limedl engine.
 //!
-//! `database` is the SQLite store (tasks, chunks, manifest snapshots and the
-//! schema migrations that carry them forward) and `alt_svc` is the HTTP
-//! `Alt-Svc` cache that keeps the CDN accelerator from re-discovering the same
-//! endpoint on every start.
+//! `database` is the `redb`-backed task/chunk store (with active vs terminal
+//! task separation and compact binary chunk progress) plus isolated ephemeral
+//! `redb` caches for `bt_tasks` and `alt_svc` (`Alt-Svc` HTTP/3 endpoints).
 //!
 //! `limedl-types` is imported at this crate root so the moved modules kept
 //! their `crate::types::…` / `crate::error::…` spellings, exactly like

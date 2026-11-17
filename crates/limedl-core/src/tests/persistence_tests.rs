@@ -297,7 +297,7 @@ async fn verifying_promoted_to_completed_if_dest_exists() -> TestResult {
     // Directly insert a Verifying-state manifest into the DB, with
     // destination_path pointing to the real file and temp_path to a
     // non-existent path.
-    let db_path = state_dir.join("downloads.db");
+    let db_path = state_dir.join("downloads.redb");
     let db = Database::open(&db_path)?;
     let mut manifest = make_test_manifest("verify-promote", DownloadState::Verifying);
     manifest.destination_path = dest_path.to_string_lossy().to_string();
@@ -344,7 +344,7 @@ async fn chunks_reloaded_for_non_terminal_downloads() -> TestResult {
     std::fs::create_dir_all(state_dir.join("logs")).ok();
 
     // Insert a Paused download with pre-populated chunks into the DB.
-    let db_path = state_dir.join("downloads.db");
+    let db_path = state_dir.join("downloads.redb");
     let db = Database::open(&db_path)?;
 
     let mut manifest = make_test_manifest("chunks-test", DownloadState::Paused);
@@ -423,7 +423,7 @@ async fn downloading_survives_restart_without_stale_claims() -> TestResult {
     std::fs::create_dir_all(&state_dir)?;
     std::fs::create_dir_all(state_dir.join("logs")).ok();
 
-    let db_path = state_dir.join("downloads.db");
+    let db_path = state_dir.join("downloads.redb");
     let db = Database::open(&db_path)?;
 
     let mut manifest = make_test_manifest("crash-downloading", DownloadState::Downloading);

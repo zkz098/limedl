@@ -29,7 +29,7 @@ pub struct RpcOverrides {
 pub struct Config {
     /// Holds `settings.json` and the instance lock.
     pub data_dir: PathBuf,
-    /// Holds `downloads.db`, the BT state and the log directory. Always
+    /// Holds `downloads.redb`, the BT state and the log directory. Always
     /// `data_dir/downloads`, matching `SystemContext`'s settings-path rule.
     pub state_dir: PathBuf,
     pub rpc: RpcOverrides,

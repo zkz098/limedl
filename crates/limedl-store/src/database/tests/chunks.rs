@@ -265,47 +265,6 @@ fn load_chunks_nonexistent_returns_empty() {
 }
 
 #[test]
-fn migration_compat_v0_with_chunk_size_backfilled() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("test.db");
-
-    {
-        let conn = Connection::open(&path).unwrap();
-        create_v1_schema(&conn);
-        apply_v2(&conn);
-        assert_eq!(read_user_version(&conn), 0);
-    }
-
-    let db = Database::open(&path).unwrap();
-
-    {
-        let conn = db.lock_write();
-        assert_eq!(
-            read_user_version(&conn),
-            11,
-            "expected user_version = 11 after migration"
-        );
-        let has_mirror_urls = table_has_column(&conn, "downloads", "mirror_urls").unwrap();
-        assert!(
-            has_mirror_urls,
-            "mirror_urls column should exist after migration"
-        );
-    }
-
-    let mut m = new_test_manifest("compat-v0-a", "https://example.com/a", "a.bin");
-    m.chunk_size = 4194304;
-    db.insert_download(&m).unwrap();
-    let loaded = db
-        .get_download("compat-v0-a")
-        .unwrap()
-        .expect("should exist");
-    assert_eq!(loaded.id, "compat-v0-a");
-    assert_eq!(loaded.chunk_size, 4194304);
-    assert_eq!(db.count_downloads().unwrap(), 1);
-    assert!(loaded.mirror_urls.is_empty(), "mirror_urls should be empty");
-}
-
-#[test]
 fn chunks_survive_reopen() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test.db");

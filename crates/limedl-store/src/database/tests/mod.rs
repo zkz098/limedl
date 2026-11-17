@@ -1,9 +1,6 @@
-use rusqlite::{Connection, params};
 use std::sync::Arc;
 
-use super::connection::{Database, is_lock_contention, is_unusable_database};
-use super::schema::{CREATE_TABLES_SQL, Migration, add_column_if_missing, table_has_column};
-use crate::error::DownloadError;
+use super::connection::Database;
 use crate::manifest::{CHUNK_SIZE, ChunkManifest, Manifest};
 use crate::types::{
     AdaptiveProfile, ChecksumMode, DownloadState, Priority, ThreadMode, default_http_user_agent,
@@ -52,47 +49,9 @@ fn new_test_manifest(id: &str, url: &str, file_name: &str) -> Manifest {
     }
 }
 
-/// Helper: count chunks for a download by querying the chunks table directly.
+/// Helper: count persisted chunks for a download.
 fn count_chunks(db: &Database, download_id: &str) -> usize {
-    let conn = db.lock_read();
-    conn.query_row(
-        "SELECT COUNT(*) FROM chunks WHERE download_id = ?1",
-        params![download_id],
-        |row| row.get::<_, i64>(0),
-    )
-    .unwrap_or(0) as usize
-}
-
-fn create_v1_schema(conn: &Connection) {
-    conn.execute_batch(CREATE_TABLES_SQL).unwrap();
-}
-
-fn read_user_version(conn: &Connection) -> u32 {
-    conn.pragma_query_value(None, "user_version", |row| row.get(0))
-        .unwrap()
-}
-
-fn apply_v2(conn: &Connection) {
-    conn.execute(
-        "ALTER TABLE downloads ADD COLUMN chunk_size INTEGER NOT NULL DEFAULT 4194304",
-        [],
-    )
-    .unwrap();
-}
-
-fn apply_v3(conn: &Connection) {
-    conn.execute("ALTER TABLE downloads ADD COLUMN mirror_url TEXT", [])
-        .unwrap();
-    conn.execute(
-        "ALTER TABLE downloads ADD COLUMN mirror_urls TEXT NOT NULL DEFAULT '[]'",
-        [],
-    )
-    .unwrap();
-    conn.execute(
-        "ALTER TABLE downloads ADD COLUMN current_mirror_index INTEGER NOT NULL DEFAULT 0",
-        [],
-    )
-    .unwrap();
+    db.load_chunks(download_id).map(|c| c.len()).unwrap_or(0)
 }
 
 #[cfg(feature = "bt")]

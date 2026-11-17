@@ -75,7 +75,7 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "std"] }
 axum = { version = "0.8", features = ["ws"] }
 tower-http = { version = "0.6", features = ["cors"] }
 base64 = "0.23"
-rusqlite = { version = "0.41", features = ["bundled", "cache"] }
+redb = "4.6"
 async-trait = "0.1"
 dashmap = "6"
 bytes = "1"

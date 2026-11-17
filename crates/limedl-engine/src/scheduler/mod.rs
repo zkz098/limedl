@@ -101,38 +101,38 @@ impl Scheduler {
     /// Consumes `self: Arc<Self>` to keep the scheduler alive, and
     /// `dm: Arc<DownloadManager>` for the spawned task.
     pub fn start_scheduler_loop(self: Arc<Self>, dm: Arc<DownloadManager>) {
+        let rebalance_notify = dm.controls().rebalance_notify.clone();
+        let shutdown_token = dm.controls().shutdown_token.clone();
+        let settings_service = dm.settings_service().clone();
+        let dm_weak = Arc::downgrade(&dm);
+        drop(dm);
         tokio::spawn(async move {
             let mut consecutive_rebalance_failures: u32 = 0;
             loop {
                 let tick = if self.has_active_tasks.load(Ordering::Acquire) {
-                    let settings = dm.settings_service().get().await;
-                    if settings.scheduler.expert_mode {
-                        Duration::from_millis(settings.scheduler.expert.scheduler_tick_ms)
+                    let s = settings_service.get().await;
+                    if s.scheduler.expert_mode {
+                        Duration::from_millis(s.scheduler.expert.scheduler_tick_ms)
                     } else {
                         SCHEDULER_TICK
                     }
                 } else {
                     IDLE_SCHEDULER_TICK
                 };
-
                 tokio::select! {
                     _ = tokio::time::sleep(tick) => {}
-                    _ = dm.controls().rebalance_notify.notified() => {}
-                    _ = dm.controls().shutdown_token.cancelled() => {
-                        tracing::info!("Scheduler loop shutting down");
-                        break;
-                    }
+                    _ = rebalance_notify.notified() => {}
+                    _ = shutdown_token.cancelled() => { tracing::info!("Scheduler loop shutting down"); break; }
                 }
-
+                let Some(dm) = dm_weak.upgrade() else {
+                    break;
+                };
                 self.apply_speed_limit_schedule(dm.as_ref()).await;
-
                 if let Err(error) = self.update_adaptive_targets(dm.as_ref()).await {
                     log_background_error("update adaptive targets", &error);
                 }
                 match self.rebalance_allocations(dm.as_ref()).await {
-                    Ok(()) => {
-                        consecutive_rebalance_failures = 0;
-                    }
+                    Ok(()) => consecutive_rebalance_failures = 0,
                     Err(error) => {
                         consecutive_rebalance_failures += 1;
                         if consecutive_rebalance_failures >= 3 {

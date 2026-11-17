@@ -217,12 +217,15 @@ impl LazyBtBackend {
         if slot.is_some() {
             return;
         }
-        let this = self.clone();
+        let weak = Arc::downgrade(self);
         *slot = Some(tokio::spawn(async move {
             let mut interval = tokio::time::interval(INDEX_SYNC_INTERVAL);
             interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
                 interval.tick().await;
+                let Some(this) = weak.upgrade() else {
+                    break;
+                };
                 // Self-heal eager mode: leaving lightweight mode at runtime
                 // asks for an always-on engine, and `apply_settings(&self)`
                 // cannot spawn the warm-up because it only holds `&self`.
@@ -245,12 +248,15 @@ impl LazyBtBackend {
         if slot.is_some() {
             return;
         }
-        let this = self.clone();
+        let weak = Arc::downgrade(self);
         *slot = Some(tokio::spawn(async move {
             let mut interval = tokio::time::interval(IDLE_CHECK_INTERVAL);
             interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
                 interval.tick().await;
+                let Some(this) = weak.upgrade() else {
+                    break;
+                };
                 if this.shutting_down.load(Ordering::Acquire) {
                     // Leave the task instead of aborting it: `shutdown` may be
                     // waiting on a teardown this loop is in the middle of.
