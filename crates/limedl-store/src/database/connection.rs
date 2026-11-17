@@ -2,22 +2,23 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use redb::{
-    DatabaseError, Durability, ReadTransaction, ReadableDatabase, StorageError, WriteTransaction,
-};
+use redb::{DatabaseError, ReadTransaction, ReadableDatabase, StorageError, WriteTransaction};
 
 use super::schema::{
     ACTIVE_DOWNLOADS, ALT_SVC_CACHE, BT_TASKS, CHUNK_PROGRESS, TERMINAL_DOWNLOADS,
 };
+use super::writer::WriteActorHandle;
 
 /// Persistent store backed by `redb`.
 ///
 /// Physically separates:
-/// - `core_db` (`downloads.redb`): active/terminal task manifests and compact chunk progress.
+/// - `core_db` (`downloads.redb`): active/terminal task manifests and compact chunk progress,
+///   driven by a single-writer persistence actor thread.
 /// - `bt_db` (`bt_tasks.redb`): ephemeral BT task summary cache (reset on corruption).
 /// - `alt_svc_db` (`alt_svc.redb`): ephemeral HTTP/3 Alt-Svc cache (reset on corruption).
 pub struct Database {
     core_db: Arc<redb::Database>,
+    writer: WriteActorHandle,
     bt_db: Arc<redb::Database>,
     alt_svc_db: Arc<redb::Database>,
     quarantined_path: Option<PathBuf>,
@@ -45,8 +46,12 @@ impl Database {
         let alt_svc_db = open_or_reset_cache(&alt_svc_path)?;
         init_alt_svc_tables(&alt_svc_db)?;
 
+        let core_db = Arc::new(core_db);
+        let writer = WriteActorHandle::spawn(Arc::clone(&core_db))?;
+
         Ok(Self {
-            core_db: Arc::new(core_db),
+            core_db,
+            writer,
             bt_db: Arc::new(bt_db),
             alt_svc_db: Arc::new(alt_svc_db),
             quarantined_path,
@@ -71,8 +76,12 @@ impl Database {
             .context("failed to create in-memory alt-svc cache database")?;
         init_alt_svc_tables(&alt_svc_db)?;
 
+        let core_db = Arc::new(core_db);
+        let writer = WriteActorHandle::spawn(Arc::clone(&core_db))?;
+
         Ok(Self {
-            core_db: Arc::new(core_db),
+            core_db,
+            writer,
             bt_db: Arc::new(bt_db),
             alt_svc_db: Arc::new(alt_svc_db),
             quarantined_path: None,
@@ -85,16 +94,14 @@ impl Database {
         self.quarantined_path.as_deref()
     }
 
+    pub(crate) fn writer(&self) -> &WriteActorHandle {
+        &self.writer
+    }
+
     pub(crate) fn begin_read(&self) -> Result<ReadTransaction> {
         self.core_db
             .begin_read()
             .context("failed to begin read transaction")
-    }
-
-    pub(crate) fn begin_write(&self) -> Result<WriteTransaction> {
-        self.core_db
-            .begin_write()
-            .context("failed to begin write transaction")
     }
 
     pub(crate) fn begin_bt_read(&self) -> Result<ReadTransaction> {
@@ -139,14 +146,11 @@ impl Database {
             .context("database blocking task panicked")?
     }
 
-    /// Flush a durable commit on clean shutdown so any prior `Durability::None`
-    /// 300 ms progress writes are persisted to disk before exit.
+    /// Flush all queued progress updates and commit a durable barrier on clean
+    /// shutdown so any prior `Durability::None` 300 ms progress writes are
+    /// persisted to disk before exit.
     pub fn shutdown(&self) -> Result<()> {
-        let mut tx = self.begin_write()?;
-        tx.set_durability(Durability::Immediate)?;
-        tx.commit()
-            .context("failed to flush database on shutdown")?;
-        Ok(())
+        self.writer.shutdown()
     }
 
     /// Async wrapper for [`Self::shutdown`] that runs on Tokio's blocking pool.

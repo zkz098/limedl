@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Result, bail};
-use redb::{Durability, ReadableTable};
+use redb::ReadableTable;
 
 use super::connection::Database;
 use super::manifest_repo::text_to_download_state;
-use super::schema::{ACTIVE_DOWNLOADS, CHUNK_PROGRESS, is_terminal_state};
+use super::schema::{CHUNK_PROGRESS, is_terminal_state};
+use super::writer::{WriteCommand, async_reply, sync_reply};
 use crate::manifest::{ChunkManifest, Manifest};
 
 const CHUNK_BLOB_VERSION: u8 = 1;
@@ -119,7 +120,7 @@ pub(crate) fn merge_dirty_chunks(
     by_index.into_values().collect()
 }
 
-fn apply_progress_entry(
+pub(crate) fn apply_progress_entry(
     active_table: &mut redb::Table<&str, &[u8]>,
     chunk_table: &mut redb::Table<&str, &[u8]>,
     id: &str,
@@ -176,12 +177,8 @@ fn apply_progress_entry(
 }
 
 impl Database {
-    /// Incremental update for the 300 ms persist cycle.
-    ///
-    /// Because active and terminal tasks live in separate tables, a snapshot
-    /// arriving after finalize has already moved the task to
-    /// `terminal_downloads` is a clean no-op and can never rewind a terminal
-    /// state back to `downloading`.
+    /// Incremental update for the 300 ms persist cycle, routed through the
+    /// single-writer persistence actor.
     pub fn update_download_progress(
         &self,
         id: &str,
@@ -190,56 +187,81 @@ impl Database {
         state: &str,
         updated_at_ms: u64,
     ) -> Result<()> {
-        let mut tx = self.begin_write()?;
-        tx.set_durability(Durability::None)?;
+        let (reply_tx, reply_rx) = sync_reply();
+        self.writer().send(WriteCommand::Progress {
+            entry: ProgressBatchEntry {
+                id: id.to_owned(),
+                downloaded_bytes,
+                dirty_chunks: dirty_chunks.to_vec(),
+                state: state.to_owned(),
+                updated_at_ms,
+            },
+            reply: Some(reply_tx),
+        })?;
+        reply_rx
+            .recv()
+            .context("database writer dropped before replying")?
+    }
 
-        {
-            let mut active_table = tx.open_table(ACTIVE_DOWNLOADS)?;
-            let mut chunk_table = tx.open_table(CHUNK_PROGRESS)?;
-            apply_progress_entry(
-                &mut active_table,
-                &mut chunk_table,
+    /// Async incremental progress update routed directly to the single-writer
+    /// persistence actor without `spawn_blocking`.
+    pub async fn update_download_progress_async(
+        &self,
+        id: String,
+        downloaded_bytes: u64,
+        dirty_chunks: Vec<ChunkManifest>,
+        state: String,
+        updated_at_ms: u64,
+    ) -> Result<()> {
+        let (reply_tx, reply_rx) = async_reply();
+        self.writer().send(WriteCommand::Progress {
+            entry: ProgressBatchEntry {
                 id,
                 downloaded_bytes,
                 dirty_chunks,
                 state,
                 updated_at_ms,
-            )?;
-        }
-
-        tx.commit()
-            .context("failed to commit download progress update")?;
-        Ok(())
+            },
+            reply: Some(reply_tx),
+        })?;
+        reply_rx
+            .await
+            .context("database writer dropped before replying")?
     }
 
-    /// Persist progress snapshots for multiple downloads in a single transaction.
+    /// Persist progress snapshots for multiple downloads in a single transaction,
+    /// routed through the single-writer persistence actor.
     pub fn update_downloads_progress_batch(&self, entries: &[ProgressBatchEntry]) -> Result<()> {
         if entries.is_empty() {
             return Ok(());
         }
+        let (reply_tx, reply_rx) = sync_reply();
+        self.writer().send(WriteCommand::ProgressBatch {
+            entries: entries.to_vec(),
+            reply: Some(reply_tx),
+        })?;
+        reply_rx
+            .recv()
+            .context("database writer dropped before replying")?
+    }
 
-        let mut tx = self.begin_write()?;
-        tx.set_durability(Durability::None)?;
-
-        {
-            let mut active_table = tx.open_table(ACTIVE_DOWNLOADS)?;
-            let mut chunk_table = tx.open_table(CHUNK_PROGRESS)?;
-            for entry in entries {
-                apply_progress_entry(
-                    &mut active_table,
-                    &mut chunk_table,
-                    &entry.id,
-                    entry.downloaded_bytes,
-                    &entry.dirty_chunks,
-                    &entry.state,
-                    entry.updated_at_ms,
-                )?;
-            }
+    /// Async batch progress update routed directly to the single-writer
+    /// persistence actor without `spawn_blocking`.
+    pub async fn update_downloads_progress_batch_async(
+        &self,
+        entries: Vec<ProgressBatchEntry>,
+    ) -> Result<()> {
+        if entries.is_empty() {
+            return Ok(());
         }
-
-        tx.commit()
-            .context("failed to commit batch download progress update")?;
-        Ok(())
+        let (reply_tx, reply_rx) = async_reply();
+        self.writer().send(WriteCommand::ProgressBatch {
+            entries,
+            reply: Some(reply_tx),
+        })?;
+        reply_rx
+            .await
+            .context("database writer dropped before replying")?
     }
 
     /// Load persisted chunks for a download in ascending `index` order.

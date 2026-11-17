@@ -6,6 +6,7 @@ use redb::{Durability, ReadableTable, ReadableTableMetadata};
 use super::chunk_repo::{decode_chunks, encode_chunks, merge_dirty_chunks};
 use super::connection::Database;
 use super::schema::{ACTIVE_DOWNLOADS, CHUNK_PROGRESS, TERMINAL_DOWNLOADS, is_terminal_state};
+use super::writer::{WriteCommand, async_reply, sync_reply};
 use crate::manifest::{ChunkManifest, Manifest};
 use crate::types::DownloadState;
 
@@ -54,119 +55,199 @@ fn sort_manifests_newest_first(manifests: &mut [Manifest]) {
     manifests.sort_by_key(|m| Reverse(m.created_at_ms));
 }
 
-impl Database {
-    /// Insert a new download (or update if the id already exists).
-    pub fn insert_download(&self, manifest: &Manifest) -> Result<()> {
-        let header_bytes = serialize_header(manifest)?;
-        let terminal = is_terminal_state(&manifest.state);
+pub(crate) fn apply_insert_download(core_db: &redb::Database, manifest: &Manifest) -> Result<()> {
+    let header_bytes = serialize_header(manifest)?;
+    let terminal = is_terminal_state(&manifest.state);
 
-        let mut tx = self.begin_write()?;
-        tx.set_durability(Durability::Immediate)?;
+    let mut tx = core_db
+        .begin_write()
+        .context("failed to begin insert_download transaction")?;
+    tx.set_durability(Durability::Immediate)?;
 
-        {
-            let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
-            let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
-            let mut chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
+    {
+        let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
+        let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
+        let mut chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
 
-            let existed = active.get(manifest.id.as_str())?.is_some()
-                || term.get(manifest.id.as_str())?.is_some();
+        let existed = active.get(manifest.id.as_str())?.is_some()
+            || term.get(manifest.id.as_str())?.is_some();
 
-            if terminal {
-                let _ = active.remove(manifest.id.as_str())?;
-                term.insert(manifest.id.as_str(), header_bytes.as_slice())
-                    .context("failed to insert terminal download")?;
-            } else {
-                let _ = term.remove(manifest.id.as_str())?;
-                active
-                    .insert(manifest.id.as_str(), header_bytes.as_slice())
-                    .context("failed to insert active download")?;
-            }
-
-            if manifest.chunks.is_empty() {
-                let _ = chunks_tbl.remove(manifest.id.as_str())?;
-            } else if !existed {
-                let encoded = encode_chunks(&manifest.chunks);
-                chunks_tbl
-                    .insert(manifest.id.as_str(), encoded.as_slice())
-                    .context("failed to write chunks")?;
-            } else {
-                let dirty_chunks: Vec<ChunkManifest> = manifest
-                    .chunks
-                    .iter()
-                    .filter(|c| c.dirty)
-                    .cloned()
-                    .collect();
-                if !dirty_chunks.is_empty() {
-                    let existing = match chunks_tbl.get(manifest.id.as_str())? {
-                        Some(guard) => decode_chunks(guard.value())?,
-                        None => Vec::new(),
-                    };
-                    let merged = merge_dirty_chunks(existing, &dirty_chunks);
-                    let encoded = encode_chunks(&merged);
-                    chunks_tbl
-                        .insert(manifest.id.as_str(), encoded.as_slice())
-                        .context("failed to upsert dirty chunks")?;
-                }
-            }
+        if terminal {
+            let _ = active.remove(manifest.id.as_str())?;
+            term.insert(manifest.id.as_str(), header_bytes.as_slice())
+                .context("failed to insert terminal download")?;
+        } else {
+            let _ = term.remove(manifest.id.as_str())?;
+            active
+                .insert(manifest.id.as_str(), header_bytes.as_slice())
+                .context("failed to insert active download")?;
         }
 
-        tx.commit().context("failed to commit insert_download")?;
-        Ok(())
+        if manifest.chunks.is_empty() {
+            let _ = chunks_tbl.remove(manifest.id.as_str())?;
+        } else if !existed {
+            let encoded = encode_chunks(&manifest.chunks);
+            chunks_tbl
+                .insert(manifest.id.as_str(), encoded.as_slice())
+                .context("failed to write chunks")?;
+        } else {
+            let dirty_chunks: Vec<ChunkManifest> = manifest
+                .chunks
+                .iter()
+                .filter(|c| c.dirty)
+                .cloned()
+                .collect();
+            if !dirty_chunks.is_empty() {
+                let existing = match chunks_tbl.get(manifest.id.as_str())? {
+                    Some(guard) => decode_chunks(guard.value())?,
+                    None => Vec::new(),
+                };
+                let merged = merge_dirty_chunks(existing, &dirty_chunks);
+                let encoded = encode_chunks(&merged);
+                chunks_tbl
+                    .insert(manifest.id.as_str(), encoded.as_slice())
+                    .context("failed to upsert dirty chunks")?;
+            }
+        }
+    }
+
+    tx.commit().context("failed to commit insert_download")?;
+    Ok(())
+}
+
+#[cfg(test)]
+pub(crate) fn apply_update_download(core_db: &redb::Database, manifest: &Manifest) -> Result<()> {
+    let header_bytes = serialize_header(manifest)?;
+    let terminal = is_terminal_state(&manifest.state);
+
+    let mut tx = core_db
+        .begin_write()
+        .context("failed to begin update_download transaction")?;
+    tx.set_durability(Durability::Immediate)?;
+
+    {
+        let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
+        let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
+        let mut chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
+
+        if terminal {
+            let _ = active.remove(manifest.id.as_str())?;
+            term.insert(manifest.id.as_str(), header_bytes.as_slice())
+                .context("failed to update terminal download")?;
+        } else {
+            let _ = term.remove(manifest.id.as_str())?;
+            active
+                .insert(manifest.id.as_str(), header_bytes.as_slice())
+                .context("failed to update active download")?;
+        }
+
+        if manifest.chunks.is_empty() {
+            let _ = chunks_tbl.remove(manifest.id.as_str())?;
+        } else {
+            let encoded = encode_chunks(&manifest.chunks);
+            chunks_tbl
+                .insert(manifest.id.as_str(), encoded.as_slice())
+                .context("failed to replace chunks")?;
+        }
+    }
+
+    tx.commit().context("failed to commit update_download")?;
+    Ok(())
+}
+
+pub(crate) fn apply_delete_download(core_db: &redb::Database, id: &str) -> Result<()> {
+    let mut tx = core_db
+        .begin_write()
+        .context("failed to begin delete_download transaction")?;
+    tx.set_durability(Durability::Immediate)?;
+    {
+        let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
+        let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
+        let mut chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
+        let _ = active.remove(id)?;
+        let _ = term.remove(id)?;
+        let _ = chunks_tbl.remove(id)?;
+    }
+    tx.commit().context("failed to commit delete_download")?;
+    Ok(())
+}
+
+pub(crate) fn apply_set_priority(
+    core_db: &redb::Database,
+    download_id: &str,
+    priority: u8,
+) -> Result<()> {
+    let prio = match priority {
+        0 => crate::types::Priority::Low,
+        2 => crate::types::Priority::High,
+        _ => crate::types::Priority::Normal,
+    };
+
+    let mut tx = core_db
+        .begin_write()
+        .context("failed to begin set_priority transaction")?;
+    tx.set_durability(Durability::Immediate)?;
+    {
+        let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
+        let active_bytes = active.get(download_id)?.map(|g| g.value().to_vec());
+        if let Some(bytes) = active_bytes {
+            let mut m = deserialize_manifest(download_id, &bytes)?;
+            m.priority = prio;
+            let updated = serialize_header(&m)?;
+            active.insert(download_id, updated.as_slice())?;
+        } else {
+            let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
+            let term_bytes = term.get(download_id)?.map(|g| g.value().to_vec());
+            if let Some(bytes) = term_bytes {
+                let mut m = deserialize_manifest(download_id, &bytes)?;
+                m.priority = prio;
+                let updated = serialize_header(&m)?;
+                term.insert(download_id, updated.as_slice())?;
+            }
+        }
+    }
+    tx.commit()
+        .with_context(|| format!("failed to commit set_priority for download {download_id}"))?;
+    Ok(())
+}
+
+impl Database {
+    /// Insert a new download (or update if the id already exists) via the
+    /// single-writer persistence actor.
+    pub fn insert_download(&self, manifest: &Manifest) -> Result<()> {
+        let (reply_tx, reply_rx) = sync_reply();
+        self.writer().send(WriteCommand::InsertDownload {
+            manifest: Box::new(manifest.clone()),
+            reply: reply_tx,
+        })?;
+        reply_rx
+            .recv()
+            .context("database writer dropped before replying")?
     }
 
     /// Full persist escape hatch — writes all fields and replaces all chunks.
     #[cfg(test)]
     pub fn update_download(&self, manifest: &Manifest) -> Result<()> {
-        let header_bytes = serialize_header(manifest)?;
-        let terminal = is_terminal_state(&manifest.state);
-
-        let mut tx = self.begin_write()?;
-        tx.set_durability(Durability::Immediate)?;
-
-        {
-            let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
-            let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
-            let mut chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
-
-            if terminal {
-                let _ = active.remove(manifest.id.as_str())?;
-                term.insert(manifest.id.as_str(), header_bytes.as_slice())
-                    .context("failed to update terminal download")?;
-            } else {
-                let _ = term.remove(manifest.id.as_str())?;
-                active
-                    .insert(manifest.id.as_str(), header_bytes.as_slice())
-                    .context("failed to update active download")?;
-            }
-
-            if manifest.chunks.is_empty() {
-                let _ = chunks_tbl.remove(manifest.id.as_str())?;
-            } else {
-                let encoded = encode_chunks(&manifest.chunks);
-                chunks_tbl
-                    .insert(manifest.id.as_str(), encoded.as_slice())
-                    .context("failed to replace chunks")?;
-            }
-        }
-
-        tx.commit().context("failed to commit update_download")?;
-        Ok(())
+        let (reply_tx, reply_rx) = sync_reply();
+        self.writer().send(WriteCommand::UpdateDownload {
+            manifest: Box::new(manifest.clone()),
+            reply: reply_tx,
+        })?;
+        reply_rx
+            .recv()
+            .context("database writer dropped before replying")?
     }
 
-    /// Delete a download and its chunk progress.
+    /// Delete a download and its chunk progress via the single-writer actor.
     pub fn delete_download(&self, id: &str) -> Result<()> {
-        let mut tx = self.begin_write()?;
-        tx.set_durability(Durability::Immediate)?;
-        {
-            let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
-            let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
-            let mut chunks_tbl = tx.open_table(CHUNK_PROGRESS)?;
-            let _ = active.remove(id)?;
-            let _ = term.remove(id)?;
-            let _ = chunks_tbl.remove(id)?;
-        }
-        tx.commit().context("failed to commit delete_download")?;
-        Ok(())
+        let (reply_tx, reply_rx) = sync_reply();
+        self.writer().send(WriteCommand::DeleteDownload {
+            id: id.to_owned(),
+            reply: reply_tx,
+        })?;
+        reply_rx
+            .recv()
+            .context("database writer dropped before replying")?
     }
 
     /// Fetch a single download's metadata row without its chunks.
@@ -276,54 +357,46 @@ impl Database {
         Ok((active.len()? + term.len()?) as usize)
     }
 
-    /// Update the priority of a download in the database.
+    /// Update the priority of a download via the single-writer actor.
     pub fn set_priority(&self, download_id: &str, priority: u8) -> Result<()> {
-        let prio = match priority {
-            0 => crate::types::Priority::Low,
-            2 => crate::types::Priority::High,
-            _ => crate::types::Priority::Normal,
-        };
-
-        let mut tx = self.begin_write()?;
-        tx.set_durability(Durability::Immediate)?;
-        {
-            let mut active = tx.open_table(ACTIVE_DOWNLOADS)?;
-            let active_bytes = active.get(download_id)?.map(|g| g.value().to_vec());
-            if let Some(bytes) = active_bytes {
-                let mut m = deserialize_manifest(download_id, &bytes)?;
-                m.priority = prio;
-                let updated = serialize_header(&m)?;
-                active.insert(download_id, updated.as_slice())?;
-            } else {
-                let mut term = tx.open_table(TERMINAL_DOWNLOADS)?;
-                let term_bytes = term.get(download_id)?.map(|g| g.value().to_vec());
-                if let Some(bytes) = term_bytes {
-                    let mut m = deserialize_manifest(download_id, &bytes)?;
-                    m.priority = prio;
-                    let updated = serialize_header(&m)?;
-                    term.insert(download_id, updated.as_slice())?;
-                }
-            }
-        }
-        tx.commit()
-            .with_context(|| format!("failed to commit set_priority for download {download_id}"))?;
-        Ok(())
+        let (reply_tx, reply_rx) = sync_reply();
+        self.writer().send(WriteCommand::SetPriority {
+            id: download_id.to_owned(),
+            priority,
+            reply: reply_tx,
+        })?;
+        reply_rx
+            .recv()
+            .context("database writer dropped before replying")?
     }
 
     // ── Async wrappers ───────────────────────────────────────────────────────
 
-    /// Async wrapper for [`Self::insert_download`] that runs on Tokio's blocking pool.
+    /// Async insert routed directly to the single-writer persistence actor.
     pub async fn insert_download_async(
         self: &std::sync::Arc<Self>,
         manifest: Manifest,
     ) -> Result<()> {
-        self.run_blocking(move |db| db.insert_download(&manifest))
+        let (reply_tx, reply_rx) = async_reply();
+        self.writer().send(WriteCommand::InsertDownload {
+            manifest: Box::new(manifest),
+            reply: reply_tx,
+        })?;
+        reply_rx
             .await
+            .context("database writer dropped before replying")?
     }
 
-    /// Async wrapper for [`Self::delete_download`] that runs on Tokio's blocking pool.
+    /// Async delete routed directly to the single-writer persistence actor.
     pub async fn delete_download_async(self: &std::sync::Arc<Self>, id: String) -> Result<()> {
-        self.run_blocking(move |db| db.delete_download(&id)).await
+        let (reply_tx, reply_rx) = async_reply();
+        self.writer().send(WriteCommand::DeleteDownload {
+            id,
+            reply: reply_tx,
+        })?;
+        reply_rx
+            .await
+            .context("database writer dropped before replying")?
     }
 
     /// Async wrapper for [`Self::get_download_header`] that runs on Tokio's blocking pool.
@@ -345,13 +418,20 @@ impl Database {
         self.run_blocking(Database::list_download_headers).await
     }
 
-    /// Async wrapper for [`Self::set_priority`] that runs on Tokio's blocking pool.
+    /// Async priority update routed directly to the single-writer persistence actor.
     pub async fn set_priority_async(
         self: &std::sync::Arc<Self>,
         download_id: String,
         priority: u8,
     ) -> Result<()> {
-        self.run_blocking(move |db| db.set_priority(&download_id, priority))
+        let (reply_tx, reply_rx) = async_reply();
+        self.writer().send(WriteCommand::SetPriority {
+            id: download_id,
+            priority,
+            reply: reply_tx,
+        })?;
+        reply_rx
             .await
+            .context("database writer dropped before replying")?
     }
 }

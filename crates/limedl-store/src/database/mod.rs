@@ -6,6 +6,7 @@ pub mod chunk_repo;
 pub mod connection;
 pub mod manifest_repo;
 pub mod schema;
+pub(crate) mod writer;
 
 #[cfg(test)]
 mod tests;
