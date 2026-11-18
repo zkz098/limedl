@@ -83,12 +83,11 @@ impl RateLimiter {
         if n == 0 || self.rate.load(Ordering::Acquire) == 0 {
             return;
         }
-        let n = n as u64;
-        loop {
-            let maybe_wait = try_consume(&self.inner, n);
-            match maybe_wait {
-                None => return,
-                Some(wait_ns) => tokio::time::sleep(Duration::from_nanos(wait_ns)).await,
+        let mut remaining = n as u64;
+        while remaining > 0 {
+            match try_consume_up_to(&self.inner, remaining) {
+                Ok(granted) => remaining = remaining.saturating_sub(granted),
+                Err(wait_ns) => tokio::time::sleep(Duration::from_nanos(wait_ns)).await,
             }
         }
     }
@@ -103,12 +102,11 @@ impl RateLimiter {
         if n == 0 || self.rate.load(Ordering::Acquire) == 0 {
             return;
         }
-        let n = n as u64;
-        loop {
-            let maybe_wait = try_consume(&self.inner, n);
-            match maybe_wait {
-                None => return,
-                Some(wait_ns) => std::thread::sleep(Duration::from_nanos(wait_ns)),
+        let mut remaining = n as u64;
+        while remaining > 0 {
+            match try_consume_up_to(&self.inner, remaining) {
+                Ok(granted) => remaining = remaining.saturating_sub(granted),
+                Err(wait_ns) => std::thread::sleep(Duration::from_nanos(wait_ns)),
             }
         }
     }
@@ -135,10 +133,37 @@ impl RateLimiter {
     }
 }
 
+/// Tries to consume up to `remaining` tokens (capped at bucket `capacity` so
+/// requests larger than `2 * rate` still make forward progress).
+///
+/// Returns `Ok(granted)` when at least 1 token (or unlimited) was consumed, or
+/// `Err(wait_nanos)` if the caller must sleep and retry.
+fn try_consume_up_to(inner: &Arc<Mutex<Inner>>, remaining: u64) -> Result<u64, u64> {
+    let mut inner = lock_inner(inner);
+    if inner.rate == 0 {
+        return Ok(remaining); // unlimited
+    }
+    let elapsed = inner.last_refill.elapsed().as_secs_f64();
+    if elapsed > 0.0 {
+        inner.tokens = (inner.tokens + elapsed * inner.rate as f64).min(inner.capacity as f64);
+        inner.last_refill = Instant::now();
+    }
+    let target = remaining.min(inner.capacity.max(1));
+    if inner.tokens >= target as f64 {
+        inner.tokens -= target as f64;
+        Ok(target)
+    } else {
+        let deficit = target as f64 - inner.tokens;
+        let wait_ns = (deficit / inner.rate as f64 * 1_000_000_000.0) as u64;
+        Err(wait_ns.max(1)) // at least 1 ns to avoid busy-spin
+    }
+}
+
 /// Tries to consume `n` tokens from the bucket.
 ///
 /// Returns `None` on success (budget granted), or `Some(wait_nanos)` if
 /// the caller must sleep and retry.
+#[cfg(test)]
 fn try_consume(inner: &Arc<Mutex<Inner>>, n: u64) -> Option<u64> {
     let mut inner = lock_inner(inner);
     if inner.rate == 0 {
@@ -153,15 +178,9 @@ fn try_consume(inner: &Arc<Mutex<Inner>>, n: u64) -> Option<u64> {
         inner.tokens -= n as f64;
         None
     } else {
-        // Preserve existing tokens — they will be refilled during the sleep
-        // so that the next attempt has accumulated enough for a successful
-        // consume.  Previously this line set `inner.tokens = 0.0`, which
-        // discarded partial progress and caused an infinite oscillation
-        // when `n > rate × (elapsed since last attempt)`.
         let deficit = n as f64 - inner.tokens;
-        // deficit bytes / rate bytes/sec  →  seconds  →  nanos
         let wait_ns = (deficit / inner.rate as f64 * 1_000_000_000.0) as u64;
-        Some(wait_ns.max(1)) // at least 1 ns to avoid busy-spin
+        Some(wait_ns.max(1))
     }
 }
 

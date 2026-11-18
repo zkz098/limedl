@@ -23,20 +23,6 @@ pub fn download_state_to_text(state: &DownloadState) -> &'static str {
     }
 }
 
-pub(crate) fn text_to_download_state(s: &str) -> DownloadState {
-    match s {
-        "queued" => DownloadState::Queued,
-        "downloading" => DownloadState::Downloading,
-        "paused" => DownloadState::Paused,
-        "retrying" => DownloadState::Retrying,
-        "verifying" => DownloadState::Verifying,
-        "completed" => DownloadState::Completed,
-        "failed" => DownloadState::Failed,
-        "canceled" => DownloadState::Canceled,
-        _ => DownloadState::Queued,
-    }
-}
-
 fn serialize_header(manifest: &Manifest) -> Result<Vec<u8>> {
     let mut header = manifest.clone();
     header.chunks.clear();

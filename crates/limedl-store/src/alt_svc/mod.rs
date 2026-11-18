@@ -12,14 +12,17 @@
 
 use std::sync::Arc;
 
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use crate::database::Database;
 use crate::error::Result;
 use crate::types::FastDashMap;
 
-/// SQLite repository: `impl Database` for the `alt_svc_cache` table.
+/// `redb` repository: `impl Database` for the `alt_svc_cache` table.
 pub mod repo;
+pub(crate) mod sync;
+
+use sync::{AltSvcWriteCmd, AltSvcWriter};
 
 #[cfg(test)]
 mod repo_tests;
@@ -206,18 +209,21 @@ fn parse_single_entry(item: &str) -> Option<ParsedAltSvcEntry> {
     })
 }
 
-/// Manages L1 in-memory Alt-Svc cache and L2 SQLite persistence.
+/// Manages L1 in-memory Alt-Svc cache and L2 `redb` persistence (`alt_svc.redb`).
 pub struct AltSvcManager {
     cache: FastDashMap<(String, u16), Vec<AltSvcRecord>>,
     db: Arc<Database>,
+    writer: AltSvcWriter,
 }
 
 impl AltSvcManager {
     /// Create a new AltSvcManager backed by the database.
     pub fn new(db: Arc<Database>) -> Self {
+        let writer = AltSvcWriter::spawn(Arc::clone(&db));
         Self {
             cache: FastDashMap::default(),
             db,
+            writer,
         }
     }
 
@@ -311,17 +317,24 @@ impl AltSvcManager {
         }
     }
 
-    /// Drop every Alt-Svc entry for one origin, in memory and in SQLite.
+    /// Drop every Alt-Svc entry for one origin, in memory and in `alt_svc.redb`.
     fn clear_origin(&self, key: &(String, u16), origin_host: &str, origin_port: u16) {
         debug!("Clearing Alt-Svc entries for {origin_host}:{origin_port}");
-        self.cache.remove(key);
-        let db = self.db.clone();
-        let host = origin_host.to_string();
-        tokio::task::spawn_blocking(move || {
-            if let Err(e) = db.clear_alt_svc_for_origin(&host, origin_port) {
-                warn!("Failed to clear Alt-Svc in db for {host}:{origin_port}: {e}");
-            }
+        let mut had_entry = false;
+        self.cache.remove_if(key, |_, _| {
+            had_entry = true;
+            self.writer.send(AltSvcWriteCmd::ClearOrigin {
+                host: origin_host.to_string(),
+                port: origin_port,
+            });
+            true
         });
+        if !had_entry {
+            self.writer.send(AltSvcWriteCmd::ClearOrigin {
+                host: origin_host.to_string(),
+                port: origin_port,
+            });
+        }
     }
 
     /// Build the records worth caching from a parsed header. HTTP/3-only, and
@@ -378,7 +391,7 @@ impl AltSvcManager {
     }
 
     /// Merge `records` into the in-memory list (replacing same protocol+port)
-    /// and persist them in the background.
+    /// and enqueue L2 persistence while holding the L1 shard lock.
     fn store_records(&self, key: (String, u16), records: Vec<AltSvcRecord>) {
         let mut list = self.cache.entry(key).or_default();
         for rec in &records {
@@ -391,26 +404,15 @@ impl AltSvcManager {
                 list.push(rec.clone());
             }
         }
-
-        let db = self.db.clone();
-        tokio::task::spawn_blocking(move || {
-            for rec in records {
-                if let Err(e) = db.upsert_alt_svc(&rec) {
-                    warn!(
-                        "Failed to persist Alt-Svc {}:{} -> {}:{}: {e}",
-                        rec.origin_host, rec.origin_port, rec.alt_host, rec.alt_port
-                    );
-                }
-            }
-        });
+        self.writer.send(AltSvcWriteCmd::Upsert(records));
     }
 
     /// Mark an alternative service as broken when an HTTP/3 connection/stream fails.
     pub fn mark_broken(&self, origin_host: &str, origin_port: u16, now_ms: u64) {
         let key = (origin_host.to_string(), origin_port);
-        let mut to_persist = Vec::new();
 
         if let Some(mut entry) = self.cache.get_mut(&key) {
+            let mut to_persist = Vec::new();
             for rec in entry.iter_mut() {
                 if rec.protocol.starts_with("h3") {
                     rec.mark_broken(now_ms);
@@ -421,24 +423,18 @@ impl AltSvcManager {
                     to_persist.push(rec.clone());
                 }
             }
-        }
-
-        if !to_persist.is_empty() {
-            let db = self.db.clone();
-            tokio::task::spawn_blocking(move || {
-                for rec in to_persist {
-                    let _ = db.upsert_alt_svc(&rec);
-                }
-            });
+            if !to_persist.is_empty() {
+                self.writer.send(AltSvcWriteCmd::Upsert(to_persist));
+            }
         }
     }
 
     /// Reset failure tracking when an HTTP/3 connection succeeds.
     pub fn mark_success(&self, origin_host: &str, origin_port: u16) {
         let key = (origin_host.to_string(), origin_port);
-        let mut to_persist = Vec::new();
 
         if let Some(mut entry) = self.cache.get_mut(&key) {
+            let mut to_persist = Vec::new();
             for rec in entry.iter_mut() {
                 if rec.protocol.starts_with("h3") && (rec.fail_count > 0 || rec.broken_until_ms > 0)
                 {
@@ -446,29 +442,20 @@ impl AltSvcManager {
                     to_persist.push(rec.clone());
                 }
             }
-        }
-
-        if !to_persist.is_empty() {
-            let db = self.db.clone();
-            tokio::task::spawn_blocking(move || {
-                for rec in to_persist {
-                    let _ = db.upsert_alt_svc(&rec);
-                }
-            });
+            if !to_persist.is_empty() {
+                self.writer.send(AltSvcWriteCmd::Upsert(to_persist));
+            }
         }
     }
 
-    /// Remove expired records from in-memory cache and SQLite.
+    /// Remove expired records from in-memory cache and `alt_svc.redb`.
     pub fn clean_expired(&self, now_ms: u64) {
         self.cache.retain(|_, list| {
             list.retain(|rec| rec.expires_at_ms > now_ms);
             !list.is_empty()
         });
 
-        let db = self.db.clone();
-        tokio::task::spawn_blocking(move || {
-            let _ = db.clean_expired_alt_svc(now_ms);
-        });
+        self.writer.send(AltSvcWriteCmd::CleanExpired { now_ms });
     }
 }
 

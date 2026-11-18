@@ -67,6 +67,9 @@ struct BufferPoolConfig {
     game_mode_limit_mb: u64,
     max_parallel: u32,
     game_mode_max_parallel: u32,
+    /// Total semaphore permits currently accounted for (available + checked-out,
+    /// minus any `permits_to_revoke` already scheduled for drop).
+    semaphore_capacity: u32,
 }
 
 impl BufferPoolConfig {
@@ -116,6 +119,7 @@ fn lock_config(config: &Mutex<BufferPoolConfig>) -> loom::sync::MutexGuard<'_, B
 pub struct BufferPool {
     config: Mutex<BufferPoolConfig>,
     slot_semaphore: Arc<Semaphore>,
+    permits_to_revoke: AtomicU32,
     current_usage: AtomicU64,
     active_count: AtomicU32,
 }
@@ -140,8 +144,10 @@ impl BufferPool {
                 game_mode_limit_mb,
                 max_parallel,
                 game_mode_max_parallel,
+                semaphore_capacity: max_parallel,
             }),
             slot_semaphore: Arc::new(Semaphore::new(max_parallel as usize)),
+            permits_to_revoke: AtomicU32::new(0),
             current_usage: AtomicU64::new(0),
             active_count: AtomicU32::new(0),
         }
@@ -161,12 +167,73 @@ impl BufferPool {
     /// FIFO, but Tokio's `Semaphore` is fair under contention.
     pub async fn acquire_slot(&self) -> SlotGuard {
         let sem = self.slot_semaphore.clone();
-        let permit = sem
-            .acquire_owned()
-            .await
-            .expect("buffer pool semaphore unexpectedly closed — this is a bug");
-        self.active_count.fetch_add(1, Ordering::Relaxed);
-        SlotGuard::new(permit)
+        loop {
+            let permit = sem
+                .clone()
+                .acquire_owned()
+                .await
+                .expect("buffer pool semaphore unexpectedly closed — this is a bug");
+            if self.try_consume_revoke() {
+                permit.forget();
+                continue;
+            }
+            self.active_count.fetch_add(1, Ordering::Relaxed);
+            return SlotGuard::new(permit);
+        }
+    }
+
+    fn try_consume_revoke(&self) -> bool {
+        let mut cur = self.permits_to_revoke.load(Ordering::Acquire);
+        while cur > 0 {
+            match self.permits_to_revoke.compare_exchange_weak(
+                cur,
+                cur - 1,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return true,
+                Err(next) => cur = next,
+            }
+        }
+        false
+    }
+
+    fn reconcile_slot_permits(&self, cfg: &mut BufferPoolConfig) {
+        let target = cfg.effective_max_parallel();
+        let current = cfg.semaphore_capacity;
+        if target > current {
+            let mut add = target - current;
+            // Cancel out any pending revocations before minting fresh permits.
+            let mut cur_revoke = self.permits_to_revoke.load(Ordering::Acquire);
+            while cur_revoke > 0 && add > 0 {
+                let absorb = cur_revoke.min(add);
+                match self.permits_to_revoke.compare_exchange_weak(
+                    cur_revoke,
+                    cur_revoke - absorb,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                ) {
+                    Ok(_) => {
+                        add -= absorb;
+                        break;
+                    }
+                    Err(next) => cur_revoke = next,
+                }
+            }
+            if add > 0 {
+                self.slot_semaphore.add_permits(add as usize);
+            }
+            cfg.semaphore_capacity = target;
+        } else if target < current {
+            let drop_needed = current - target;
+            let forgotten = self.slot_semaphore.forget_permits(drop_needed as usize) as u32;
+            let remaining = drop_needed.saturating_sub(forgotten);
+            if remaining > 0 {
+                self.permits_to_revoke
+                    .fetch_add(remaining, Ordering::Release);
+            }
+            cfg.semaphore_capacity = target;
+        }
     }
 
     /// Release a slot permit (called from `DownloadBuffer::Drop`).
@@ -204,20 +271,16 @@ impl BufferPool {
         lock_config(&self.config).game_mode
     }
 
-    /// Toggle game mode. This updates effective limit and max-parallel for
-    /// the next `half_size()` calculation. Active semaphore permits are NOT
-    /// revoked; new acquisitions will see the new limit.
+    /// Toggle game mode and reconcile semaphore permits with the new effective
+    /// concurrency limit.
     pub fn set_game_mode(&self, enabled: bool) {
-        lock_config(&self.config).game_mode = enabled;
+        let mut cfg = lock_config(&self.config);
+        cfg.game_mode = enabled;
+        self.reconcile_slot_permits(&mut cfg);
     }
 
-    /// Update all limit and parallelism parameters from settings.
-    ///
-    /// When `max_parallel` or `game_mode_max_parallel` (depending on game mode)
-    /// is increased, the semaphore is grown dynamically so that new downloads
-    /// can take advantage of the higher concurrency without a restart.
-    /// Decreasing is intentionally not supported — existing permits are safe to
-    /// keep and will naturally return to the pool on drop.
+    /// Update all limit and parallelism parameters from settings, dynamically
+    /// growing or shrinking the slot semaphore to match.
     pub fn update_limits(
         &self,
         total_limit_mb: u64,
@@ -226,16 +289,11 @@ impl BufferPool {
         game_mode_max_parallel: u32,
     ) {
         let mut cfg = lock_config(&self.config);
-        let old_max = cfg.effective_max_parallel();
         cfg.total_limit_mb = total_limit_mb;
         cfg.game_mode_limit_mb = game_mode_limit_mb;
         cfg.max_parallel = max_parallel;
         cfg.game_mode_max_parallel = game_mode_max_parallel;
-        let new_max = cfg.effective_max_parallel();
-        if new_max > old_max {
-            self.slot_semaphore
-                .add_permits((new_max - old_max) as usize);
-        }
+        self.reconcile_slot_permits(&mut cfg);
     }
 
     /// Number of slots currently acquired by active downloads.
@@ -318,6 +376,37 @@ mod loom_tests {
                 observed == old_half || observed == new_half,
                 "torn read during update_limits(): observed {observed} bytes, expected {old_half} or {new_half}"
             );
+        });
+    }
+
+    #[test]
+    fn loom_permit_revoke_and_reconcile_conserves_capacity() {
+        loom::model(|| {
+            // Start with 2 permits, both "in flight" (available = 0).
+            // Thread 1 shrinks limit to 1 (queues 1 revoke), then grows back to 2.
+            // Thread 2 tries to consume a revoke while acquiring.
+            let pool = loom::sync::Arc::new(BufferPool::new(1024, 256, 2, 1));
+            assert_eq!(pool.slot_semaphore.forget_permits(2), 2);
+
+            let p1 = loom::sync::Arc::clone(&pool);
+            let t1 = loom::thread::spawn(move || {
+                p1.set_game_mode(true);
+                p1.set_game_mode(false);
+            });
+
+            let p2 = loom::sync::Arc::clone(&pool);
+            let t2 = loom::thread::spawn(move || p2.try_consume_revoke());
+
+            t1.join().unwrap();
+            let consumed = t2.join().unwrap();
+
+            // Final target capacity is 2.
+            // Available permits in semaphore + (if consumed, 0; else 0) + in-flight (2 - consumed)
+            // minus pending revokes must equal 2.
+            let available = pool.slot_semaphore.available_permits() as u32;
+            let pending_revoke = pool.permits_to_revoke.load(Ordering::Acquire);
+            let in_flight = if consumed { 1 } else { 2 };
+            assert_eq!(available + in_flight - pending_revoke, 2);
         });
     }
 }

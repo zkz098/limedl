@@ -15,10 +15,16 @@ impl Database {
         let mut results = Vec::with_capacity(table.len()? as usize);
 
         for entry in table.iter()? {
-            let (_k, v) = entry?;
-            let record: AltSvcRecord =
-                serde_json::from_slice(v.value()).context("failed to deserialize alt_svc row")?;
-            results.push(record);
+            let (k, v) = entry?;
+            match serde_json::from_slice::<AltSvcRecord>(v.value()) {
+                Ok(record) => results.push(record),
+                Err(err) => {
+                    let (host, port, proto) = k.value();
+                    tracing::warn!(
+                        "skipping unreadable alt_svc_cache row ({host}:{port}, {proto}): {err}"
+                    );
+                }
+            }
         }
         Ok(results)
     }

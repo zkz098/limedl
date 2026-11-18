@@ -386,3 +386,13 @@ async fn massive_concurrent_contention() {
         .into_iter()
         .for_each(|r| r.expect("task panicked"));
 }
+
+#[tokio::test]
+async fn consume_larger_than_capacity_completes() {
+    // rate = 10_000 bytes/sec => capacity = 20_000.
+    // Requesting 25_000 bytes (> capacity) must chunk and complete rather than hanging.
+    let limiter = init_limiter(10_000);
+    tokio::time::timeout(Duration::from_secs(5), limiter.consume(25_000))
+        .await
+        .expect("consume(n > capacity) must not hang");
+}

@@ -184,7 +184,7 @@ fn flush_coalesced_progress(
                     &entry.id,
                     entry.downloaded_bytes,
                     &entry.dirty_chunks,
-                    &entry.state,
+                    entry.state,
                     entry.updated_at_ms,
                 )?;
             }

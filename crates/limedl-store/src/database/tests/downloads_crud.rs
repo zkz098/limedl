@@ -274,7 +274,7 @@ fn update_download_progress_incremental() {
         claimed_by: Some(0),
         dirty: true,
     }];
-    db.update_download_progress("prog", 250, &dirty_chunks, "downloading", 2000)
+    db.update_download_progress("prog", 250, &dirty_chunks, DownloadState::Downloading, 2000)
         .unwrap();
 
     let loaded = db.get_download("prog").unwrap().expect("should exist");
@@ -360,7 +360,7 @@ fn progress_update_cannot_downgrade_a_terminal_row() {
     manifest.updated_at_ms = 2000;
     db.insert_download(&manifest).unwrap();
 
-    db.update_download_progress("done-1", 512, &[], "downloading", 3000)
+    db.update_download_progress("done-1", 512, &[], DownloadState::Downloading, 3000)
         .unwrap();
 
     let loaded = db.get_download_header("done-1").unwrap().expect("row");
@@ -397,14 +397,14 @@ fn batch_progress_update_cannot_downgrade_terminal_rows() {
             id: "done-b".into(),
             downloaded_bytes: 10,
             dirty_chunks: vec![],
-            state: "downloading".into(),
+            state: DownloadState::Downloading,
             updated_at_ms: 3000,
         },
         ProgressBatchEntry {
             id: "active-b".into(),
             downloaded_bytes: 700,
             dirty_chunks: vec![],
-            state: "downloading".into(),
+            state: DownloadState::Downloading,
             updated_at_ms: 3000,
         },
     ])

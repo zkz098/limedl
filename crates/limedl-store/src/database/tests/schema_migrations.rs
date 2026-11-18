@@ -115,3 +115,42 @@ fn corrupt_ephemeral_caches_reset_without_quarantining_core_db() {
     assert!(db.get_download("keep-me").unwrap().is_some());
     assert!(db.load_all_alt_svc().unwrap().is_empty());
 }
+
+#[test]
+fn schema_version_is_persisted_and_checked() {
+    use crate::database::schema::{META, SCHEMA_VERSION};
+
+    let dir = tempfile::tempdir().unwrap();
+    let core_path = dir.path().join("downloads.redb");
+
+    {
+        let db = Database::open(&core_path).unwrap();
+        let tx = db.begin_read().unwrap();
+        let meta = tx.open_table(META).unwrap();
+        assert_eq!(
+            meta.get("schema_version").unwrap().unwrap().value(),
+            SCHEMA_VERSION
+        );
+    }
+
+    // Simulate a future incompatible schema version in META.
+    {
+        let raw = redb::Database::open(&core_path).unwrap();
+        let tx = raw.begin_write().unwrap();
+        {
+            let mut meta = tx.open_table(META).unwrap();
+            meta.insert("schema_version", SCHEMA_VERSION + 99).unwrap();
+        }
+        tx.commit().unwrap();
+    }
+
+    let err = match Database::open(&core_path) {
+        Ok(_) => panic!("opening unsupported schema version must fail"),
+        Err(err) => err,
+    };
+    assert!(
+        err.to_string()
+            .contains("unsupported downloads.redb schema version"),
+        "unexpected error: {err:#}"
+    );
+}

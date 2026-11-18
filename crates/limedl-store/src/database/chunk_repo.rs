@@ -4,10 +4,10 @@ use anyhow::{Context, Result, bail};
 use redb::ReadableTable;
 
 use super::connection::Database;
-use super::manifest_repo::text_to_download_state;
 use super::schema::{CHUNK_PROGRESS, is_terminal_state};
 use super::writer::{WriteCommand, async_reply, sync_reply};
 use crate::manifest::{ChunkManifest, Manifest};
+use crate::types::DownloadState;
 
 const CHUNK_BLOB_VERSION: u8 = 1;
 const CHUNK_RECORD_BYTES: usize = 41;
@@ -18,7 +18,7 @@ pub struct ProgressBatchEntry {
     pub id: String,
     pub downloaded_bytes: u64,
     pub dirty_chunks: Vec<ChunkManifest>,
-    pub state: String,
+    pub state: DownloadState,
     pub updated_at_ms: u64,
 }
 
@@ -126,7 +126,7 @@ pub(crate) fn apply_progress_entry(
     id: &str,
     downloaded_bytes: u64,
     dirty_chunks: &[ChunkManifest],
-    state: &str,
+    state: DownloadState,
     updated_at_ms: u64,
 ) -> Result<()> {
     let existing_manifest_bytes = {
@@ -148,7 +148,7 @@ pub(crate) fn apply_progress_entry(
     }
 
     manifest.downloaded_bytes = downloaded_bytes;
-    manifest.state = text_to_download_state(state);
+    manifest.state = state;
     manifest.updated_at_ms = updated_at_ms;
     manifest.chunks.clear();
 
@@ -184,7 +184,7 @@ impl Database {
         id: &str,
         downloaded_bytes: u64,
         dirty_chunks: &[ChunkManifest],
-        state: &str,
+        state: DownloadState,
         updated_at_ms: u64,
     ) -> Result<()> {
         let (reply_tx, reply_rx) = sync_reply();
@@ -193,7 +193,7 @@ impl Database {
                 id: id.to_owned(),
                 downloaded_bytes,
                 dirty_chunks: dirty_chunks.to_vec(),
-                state: state.to_owned(),
+                state,
                 updated_at_ms,
             },
             reply: Some(reply_tx),
@@ -210,7 +210,7 @@ impl Database {
         id: String,
         downloaded_bytes: u64,
         dirty_chunks: Vec<ChunkManifest>,
-        state: String,
+        state: DownloadState,
         updated_at_ms: u64,
     ) -> Result<()> {
         let (reply_tx, reply_rx) = async_reply();

@@ -302,16 +302,25 @@ async fn test_game_mode_affects_new_buffers_only() {
 
     let (_dir1, file1) = temp_file();
     let slot1 = pool.acquire_slot().await;
-    let _buf1 = DownloadBuffer::new(pool.clone(), slot1, file1);
+    let buf1 = DownloadBuffer::new(pool.clone(), slot1, file1);
 
     pool.set_game_mode(true);
+    assert_eq!(pool.half_size(), (128 * MB / 2).max(64 * KB));
+    assert_eq!(pool.effective_max_parallel(), 1);
 
+    // With game_mode_max_parallel == 1 and buf1 still active, a 2nd slot must wait.
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(50), pool.acquire_slot())
+            .await
+            .is_err(),
+        "second acquire_slot must block while game mode limit (1) is saturated"
+    );
+
+    // Once buf1 is dropped, the new buffer acquires the freed slot with game-mode sizing.
+    drop(buf1);
     let (_dir2, file2) = temp_file();
     let slot2 = pool.acquire_slot().await;
     let _buf2 = DownloadBuffer::new(pool.clone(), slot2, file2);
-
-    assert_eq!(pool.half_size(), (128 * MB / 2).max(64 * KB));
-    assert_eq!(pool.effective_max_parallel(), 1);
 }
 
 #[tokio::test]

@@ -16,6 +16,7 @@ use anyhow::{Context, Result, bail};
 const LOOM_PACKAGES: &[&str] = &[
     "limedl-types",
     "limedl-disk",
+    "limedl-store",
     "limedl-http",
     "limedl-engine",
     "limedl-bt",

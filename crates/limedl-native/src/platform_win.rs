@@ -23,7 +23,6 @@ static VISIBILITY_TX: LazyLock<watch::Sender<bool>> = LazyLock::new(|| {
     let (tx, _) = watch::channel(true);
     tx
 });
-static TRIM_CALLBACK: Mutex<Option<Box<dyn Fn() + Send + Sync>>> = Mutex::new(None);
 
 /// Track whether the primary window is actively visible and not minimized.
 /// Used to suppress expensive background UI model rebuilds and periodic status polling.
@@ -44,21 +43,10 @@ pub fn subscribe_window_visibility() -> watch::Receiver<bool> {
     VISIBILITY_TX.subscribe()
 }
 
-/// Register a callback invoked when trimming the process working set (e.g. SQLite shrink).
-pub fn set_trim_callback(callback: impl Fn() + Send + Sync + 'static) {
-    *TRIM_CALLBACK.lock() = Some(Box::new(callback));
-}
-
 /// Trim the process working set to release physical memory back to the OS.
 /// Typically called when the window is minimized or hidden in the tray.
 pub fn trim_working_set() {
-    // 1. Invoke custom trim hook (e.g. SQLite PRAGMA shrink_memory) first,
-    // so any newly freed memory can be collected by mimalloc below.
-    if let Some(ref cb) = *TRIM_CALLBACK.lock() {
-        cb();
-    }
-
-    // 2. Instruct mimalloc to release thread caches and decommit unused pages.
+    // 1. Instruct mimalloc to release thread caches and decommit unused pages.
     unsafe extern "C" {
         fn mi_collect(force: bool);
     }
@@ -1211,16 +1199,8 @@ mod tests {
     }
 
     #[test]
-    fn test_trim_working_set_and_callback() {
-        use std::sync::atomic::AtomicUsize;
-        static TRIM_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-        set_trim_callback(|| {
-            TRIM_COUNT.fetch_add(1, Ordering::SeqCst);
-        });
-
+    fn test_trim_working_set() {
         trim_working_set();
-        assert_eq!(TRIM_COUNT.load(Ordering::SeqCst), 1);
     }
 
     #[test]

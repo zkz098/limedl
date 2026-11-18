@@ -4356,6 +4356,7 @@ dependencies = [
  "foldhash 0.2.0",
  "http",
  "limedl-types",
+ "loom",
  "parking_lot 0.13.0",
  "redb",
  "serde",

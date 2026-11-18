@@ -791,39 +791,38 @@ impl DownloadManager {
     }
 
     pub async fn list(&self) -> Result<Vec<DownloadSummary>> {
-        let downloads = self.downloads.read().await;
-        let mut items = downloads
-            .values()
-            .cloned()
-            .map(|managed| DownloadSummary::from(&self.task_lifecycle.build_snapshot(managed)))
-            .collect::<Vec<_>>();
+        let managed_list: Vec<_> = self.downloads.read().await.values().cloned().collect();
+        let mut items: Vec<_> = managed_list
+            .into_iter()
+            .map(|m| DownloadSummary::from(&self.task_lifecycle.build_snapshot(m)))
+            .collect();
         items.sort_by_key(|right| std::cmp::Reverse(right.created_at_ms));
         Ok(items)
     }
 
     /// Get a single download summary by internal ID.
     pub async fn get_summary(&self, download_id: &str) -> Option<DownloadSummary> {
-        let downloads = self.downloads.read().await;
-        downloads.get(download_id).map(|managed| {
-            DownloadSummary::from(&self.task_lifecycle.build_snapshot(managed.clone()))
-        })
+        let managed = self.downloads.read().await.get(download_id).cloned();
+        managed.map(|m| DownloadSummary::from(&self.task_lifecycle.build_snapshot(m)))
     }
 
     /// Find a non-terminal download by URL. Returns the internal download ID if found.
     pub async fn find_active_by_url(&self, url: &str) -> Option<String> {
-        let downloads = self.downloads.read().await;
-        for (id, managed) in downloads.iter() {
+        let entries: Vec<_> = self
+            .downloads
+            .read()
+            .await
+            .iter()
+            .map(|(id, m)| (id.clone(), m.clone()))
+            .collect();
+        entries.into_iter().find_map(|(id, managed)| {
             let core = managed.lock_core();
-            if core.manifest.url == url
-                && !matches!(
-                    core.manifest.state,
-                    DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
-                )
-            {
-                return Some(id.clone());
-            }
-        }
-        None
+            let active = !matches!(
+                core.manifest.state,
+                DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
+            );
+            (core.manifest.url == url && active).then_some(id)
+        })
     }
 }
 

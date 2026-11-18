@@ -1,11 +1,14 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
-use redb::{DatabaseError, ReadTransaction, ReadableDatabase, StorageError, WriteTransaction};
+use anyhow::{Context, Result, bail};
+use redb::{
+    DatabaseError, ReadTransaction, ReadableDatabase, ReadableTable, StorageError, WriteTransaction,
+};
 
 use super::schema::{
-    ACTIVE_DOWNLOADS, ALT_SVC_CACHE, BT_TASKS, CHUNK_PROGRESS, TERMINAL_DOWNLOADS,
+    ACTIVE_DOWNLOADS, ALT_SVC_CACHE, BT_TASKS, CHUNK_PROGRESS, META, SCHEMA_VERSION,
+    TERMINAL_DOWNLOADS,
 };
 use super::writer::WriteActorHandle;
 
@@ -128,12 +131,6 @@ impl Database {
             .context("failed to begin alt-svc cache write transaction")
     }
 
-    /// Hint to release unused memory when idle.
-    ///
-    /// `redb` does not retain an unbounded SQLite-style page/statement cache,
-    /// so this is a lightweight no-op kept for lifecycle parity.
-    pub fn shrink_memory(&self) {}
-
     /// Execute a blocking database operation on Tokio's blocking thread pool.
     pub async fn run_blocking<F, T>(self: &Arc<Self>, f: F) -> Result<T>
     where
@@ -164,6 +161,17 @@ fn init_core_tables(db: &redb::Database) -> Result<()> {
         .begin_write()
         .context("failed to begin core table init")?;
     {
+        let mut meta = tx.open_table(META)?;
+        if let Some(existing) = meta.get("schema_version")? {
+            let version = existing.value();
+            if version != SCHEMA_VERSION {
+                bail!(
+                    "unsupported downloads.redb schema version {version} (expected {SCHEMA_VERSION})"
+                );
+            }
+        } else {
+            meta.insert("schema_version", SCHEMA_VERSION)?;
+        }
         let _ = tx.open_table(ACTIVE_DOWNLOADS)?;
         let _ = tx.open_table(TERMINAL_DOWNLOADS)?;
         let _ = tx.open_table(CHUNK_PROGRESS)?;

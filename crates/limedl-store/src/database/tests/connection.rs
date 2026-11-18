@@ -217,9 +217,3 @@ fn lock_contention_is_never_mistaken_for_corruption() {
         "lock contention must never quarantine the database (got {err})"
     );
 }
-
-#[test]
-fn shrink_memory_succeeds() {
-    let db = Database::open_in_memory().unwrap();
-    db.shrink_memory();
-}

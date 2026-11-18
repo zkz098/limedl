@@ -14,6 +14,12 @@ use redb::TableDefinition;
 
 use crate::types::DownloadState;
 
+/// Current schema version stored in `META["schema_version"]` for `downloads.redb`.
+pub const SCHEMA_VERSION: u64 = 1;
+
+/// Key-value metadata table for `downloads.redb` (e.g. `"schema_version"`).
+pub const META: TableDefinition<&str, u64> = TableDefinition::new("meta");
+
 /// Active (non-terminal) download manifests, keyed by `download_id`.
 pub const ACTIVE_DOWNLOADS: TableDefinition<&str, &[u8]> = TableDefinition::new("active_downloads");
 
@@ -37,9 +43,4 @@ pub fn is_terminal_state(state: &DownloadState) -> bool {
         state,
         DownloadState::Completed | DownloadState::Failed | DownloadState::Canceled
     )
-}
-
-/// Return `true` when the serialized state name is terminal.
-pub fn is_terminal_state_text(state: &str) -> bool {
-    matches!(state, "completed" | "failed" | "canceled")
 }

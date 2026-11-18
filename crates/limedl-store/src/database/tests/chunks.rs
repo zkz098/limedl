@@ -72,7 +72,7 @@ fn progress_empty_chunks_updates_row_only() {
     }];
     db.insert_download(&m).unwrap();
 
-    db.update_download_progress("empty-chunks", 100, &[], "downloading", 3000)
+    db.update_download_progress("empty-chunks", 100, &[], DownloadState::Downloading, 3000)
         .unwrap();
 
     let loaded = db

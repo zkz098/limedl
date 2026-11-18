@@ -11,7 +11,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 
 use super::{
-    database::{self, Database, ProgressBatchEntry},
+    database::{Database, ProgressBatchEntry},
     download::ManagedDownload,
     manifest::ChunkManifest,
 };
@@ -31,14 +31,14 @@ pub async fn persist_manifest_snapshot(
     db: &Arc<Database>,
     managed: &Arc<ManagedDownload>,
 ) -> Result<()> {
-    let (id, downloaded_bytes, state_text, updated_at_ms, dirty_chunks) = {
+    let (id, downloaded_bytes, state, updated_at_ms, dirty_chunks) = {
         let mut core = managed.lock_core();
         // The manifest's `downloaded_bytes` is the *received* counter; what goes to
         // the database is the durable one (clamped, so a reset path that forgot to
         // clear the counter cannot claim more than was received).
         let durable_bytes = core.durable_bytes.min(core.manifest.downloaded_bytes);
         let manifest = &mut core.manifest;
-        let state_text = database::download_state_to_text(&manifest.state);
+        let state = manifest.state;
 
         let dirty_chunks: Vec<ChunkManifest> = manifest
             .chunks
@@ -56,21 +56,15 @@ pub async fn persist_manifest_snapshot(
         (
             manifest.id.clone(),
             durable_bytes,
-            state_text.to_string(),
+            state,
             manifest.updated_at_ms,
             dirty_chunks,
         )
     };
 
-    db.update_download_progress_async(
-        id,
-        downloaded_bytes,
-        dirty_chunks,
-        state_text,
-        updated_at_ms,
-    )
-    .await
-    .context("failed to persist download snapshot")
+    db.update_download_progress_async(id, downloaded_bytes, dirty_chunks, state, updated_at_ms)
+        .await
+        .context("failed to persist download snapshot")
 }
 
 /// Persist progress snapshots for multiple downloads in a single coalesced
@@ -86,7 +80,7 @@ pub async fn persist_manifest_snapshots_batch(
         // Durable, not received — see `persist_manifest_snapshot`.
         let durable_bytes = core.durable_bytes.min(core.manifest.downloaded_bytes);
         let manifest = &mut core.manifest;
-        let state_text = database::download_state_to_text(&manifest.state);
+        let state = manifest.state;
 
         let dirty_chunks: Vec<ChunkManifest> = manifest
             .chunks
@@ -105,7 +99,7 @@ pub async fn persist_manifest_snapshots_batch(
             id: manifest.id.clone(),
             downloaded_bytes: durable_bytes,
             dirty_chunks,
-            state: state_text.to_string(),
+            state,
             updated_at_ms: manifest.updated_at_ms,
         });
     }
