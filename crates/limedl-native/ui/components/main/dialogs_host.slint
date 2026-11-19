@@ -1,0 +1,117 @@
+import {
+    ContextMenuState,
+    InspectorInfo,
+    PeerItem,
+    TorrentFileItem,
+    TrackerItem,
+} from "../../types.slint";
+import { ContextMenu } from "../context_menu.slint";
+import { BackgroundMenu } from "../background_menu.slint";
+import { TaskInspector } from "../inspector.slint";
+import { SpeedLimitDialog } from "../speed_limit_dialog.slint";
+import { PriorityMenu } from "../priority_menu.slint";
+import { MainActions } from "actions.slint";
+
+export component MainOverlaysHost inherits Rectangle {
+    in-out property <ContextMenuState> context_menu_state;
+    in-out property <bool> priority_menu_visible: false;
+    in-out property <length> priority_menu_x: 0px;
+    in-out property <length> priority_menu_y: 0px;
+    in-out property <string> priority_menu_task_id: "";
+    in-out property <string> priority_menu_current: "normal";
+    in property <bool> show_inspector: false;
+    in property <InspectorInfo> inspector_info;
+    in property <int> inspector_tab: 0;
+    in property <[PeerItem]> inspector_peers: [];
+    in property <[TrackerItem]> inspector_trackers: [];
+    in property <[TorrentFileItem]> inspector_files: [];
+    in property <image> inspector_piece_map;
+    in property <string> inspector_pieces_count_text: "";
+    in property <bool> show_speed_limit_dialog: false;
+    in-out property <string> speed_limit_dl_kb: "0";
+    in-out property <string> speed_limit_ul_kb: "0";
+    in-out property <bool> background_menu_visible: false;
+    in-out property <length> background_menu_x: 0px;
+    in-out property <length> background_menu_y: 0px;
+
+    callback open_inspector(string);
+    callback close_inspector();
+    callback set_inspector_tab(int);
+    callback open_speed_limit_dialog();
+    callback close_speed_limit_dialog();
+    callback submit_speed_limit(string, string);
+    callback pause_task(string);
+    callback resume_task(string);
+    callback remove_task(string);
+    callback toggle_inspector_file(int, bool);
+    callback open_new_task_dialog();
+    callback background_refresh();
+
+    width: 100%;
+    height: 100%;
+
+    if root.context_menu_state.visible : ContextMenu {
+        menu_state: root.context_menu_state;
+        close => { root.context_menu_state.visible = false; }
+        open_inspector(id) => { root.open_inspector(id); }
+        pause_task(id) => { root.pause_task(id); }
+        resume_task(id) => { root.resume_task(id); }
+        open_explorer(id) => { MainActions.open_task_explorer(id); }
+        verify_integrity(id) => { MainActions.verify_task_integrity(id); }
+        copy_url(url) => { MainActions.copy_task_url(url); }
+        copy_name(name) => { MainActions.copy_task_name(name); }
+        open_speed_limit(id) => { root.open_inspector(id); root.open_speed_limit_dialog(); }
+        set_priority(id) => {
+            root.priority_menu_task_id = id;
+            root.priority_menu_current = root.context_menu_state.priority_code;
+            root.priority_menu_x = root.context_menu_state.x;
+            root.priority_menu_y = root.context_menu_state.y;
+            root.priority_menu_visible = true;
+        }
+        remove_task(id) => { root.remove_task(id); }
+        purge_task(id) => { MainActions.purge_single_task(id); }
+    }
+
+    PriorityMenu {
+        is_open: root.priority_menu_visible;
+        menu_x: root.priority_menu_x;
+        menu_y: root.priority_menu_y;
+        task_id: root.priority_menu_task_id;
+        current_priority: root.priority_menu_current;
+        close => { root.priority_menu_visible = false; }
+        pick(id, code) => { MainActions.set_task_priority(id, code); }
+    }
+
+    TaskInspector {
+        is_open: root.show_inspector;
+        inspector_info: root.inspector_info;
+        inspector_tab: root.inspector_tab;
+        inspector_peers: root.inspector_peers;
+        inspector_trackers: root.inspector_trackers;
+        inspector_files: root.inspector_files;
+        inspector_piece_map: root.inspector_piece_map;
+        inspector_pieces_count_text: root.inspector_pieces_count_text;
+        close => { root.close_inspector(); }
+        set_tab(tab) => { root.set_inspector_tab(tab); }
+        open_speed_limit => { root.open_speed_limit_dialog(); }
+        open_explorer(id) => { MainActions.open_task_explorer(id); }
+        toggle_file(idx, included) => { root.toggle_inspector_file(idx, included); }
+    }
+
+    SpeedLimitDialog {
+        is_open: root.show_speed_limit_dialog;
+        speed_limit_dl_kb <=> root.speed_limit_dl_kb;
+        speed_limit_ul_kb <=> root.speed_limit_ul_kb;
+        close => { root.close_speed_limit_dialog(); }
+        submit(dl, ul) => { root.submit_speed_limit(dl, ul); }
+    }
+
+    if root.background_menu_visible : BackgroundMenu {
+        bg_visible: root.background_menu_visible;
+        menu_x: root.background_menu_x;
+        menu_y: root.background_menu_y;
+        close => { root.background_menu_visible = false; }
+        new_task => { root.open_new_task_dialog(); }
+        refresh_list => { root.background_refresh(); }
+    }
+}

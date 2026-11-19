@@ -1,0 +1,85 @@
+import { Theme } from "../../theme.slint";
+import { CustomSelect } from "../common.slint";
+import { BtStatPill } from "sidebar_widgets.slint";
+
+export component ToolbarDivider inherits VerticalLayout {
+    alignment: center;
+    Rectangle {
+        width: 1px;
+        height: 20px;
+        background: Theme.c242934;
+    }
+}
+
+export component BtStatusPillsGroup inherits HorizontalLayout {
+    in property <string> bt_dht_text;
+    in property <string> bt_upload_speed_text;
+    in property <string> bt_peers_text;
+
+    spacing: 4px;
+    alignment: center;
+
+    BtStatPill {
+        icon: @image-url("../../assets/icons/global-line.svg");
+        text: root.bt_dht_text;
+    }
+    BtStatPill {
+        icon: @image-url("../../assets/icons/file-upload-line.svg");
+        text: root.bt_upload_speed_text;
+    }
+    BtStatPill {
+        icon: @image-url("../../assets/icons/group-line.svg");
+        text: root.bt_peers_text;
+    }
+}
+
+export component ToolbarSortSelect inherits HorizontalLayout {
+    in property <int> sort_field;
+    callback set_sort_field(int);
+
+    spacing: 4px;
+    alignment: center;
+
+    Text {
+        text: @tr("Sort:");
+        color: Theme.c6b7280;
+        font-size: 11px;
+        vertical-alignment: center;
+    }
+
+    CustomSelect {
+        width: 92px;
+        select_height: 32px;
+        font_size: 12px;
+        model: [
+            @tr("Time"),
+            @tr("Size"),
+            @tr("Speed"),
+            @tr("Progress"),
+            @tr("File Name"),
+            @tr("Status"),
+        ];
+        current_index: root.sort_field;
+        selected_index(idx) => { root.set_sort_field(idx); }
+    }
+}
+
+export component ActiveCategoryTitle inherits Text {
+    in property <int> active_category: 0;
+
+    text: root.active_category == 0 ? @tr("All Tasks") : (
+        root.active_category == 1 ? @tr("Downloading") : (
+            root.active_category == 2 ? @tr("Paused") : (
+                root.active_category == 3 ? @tr("Completed") : @tr("Failed / Error")
+            )
+        )
+    );
+    color: Theme.cf3f4f6;
+    font-size: 16px;
+    font-weight: 700;
+    vertical-alignment: center;
+}
+
+export component CenterSlot inherits VerticalLayout {
+    alignment: center;
+}

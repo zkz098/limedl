@@ -74,6 +74,72 @@ pub fn register(ctx: &AppContext) {
     }
 }
 
+fn resolve_submit_checksum(
+    ui: &MainWindow,
+    ui_weak: &slint::Weak<MainWindow>,
+    store: &Arc<Mutex<TaskStore>>,
+    toast_queue: &ToastQueue,
+    aria2_checksum: Option<(ChecksumMode, String)>,
+) -> Option<(Option<ChecksumMode>, Option<String>)> {
+    let manual = ui.get_new_task_checksum().trim().to_string();
+    if !manual.is_empty() {
+        return match parse_user_checksum(&manual) {
+            Some((mode, hash)) => Some((Some(mode), Some(hash))),
+            None => {
+                let lang = store.lock().language();
+                push_toast(
+                    ui_weak,
+                    toast_queue,
+                    i18n::format_toast_invalid_checksum(lang),
+                    "error",
+                    Duration::from_secs(4),
+                );
+                None
+            }
+        };
+    }
+    if let Some((mode, hash)) = aria2_checksum {
+        return Some((Some(mode), Some(hash)));
+    }
+    if ui.get_new_task_probe_state().as_str() == "found" {
+        let hash = ui.get_new_task_probe_hash().to_string();
+        return Some((
+            (!hash.is_empty()).then_some(ChecksumMode::Sha256),
+            (!hash.is_empty()).then_some(hash),
+        ));
+    }
+    Some((None, None))
+}
+
+fn collect_selected_bt_files(
+    ui: &MainWindow,
+    store: &Arc<Mutex<TaskStore>>,
+    entries_cache: &Arc<Mutex<Vec<TorrentFileEntry>>>,
+    included_cache: &Arc<Mutex<Vec<bool>>>,
+) -> Option<Option<Vec<usize>>> {
+    let selected_file_indices = {
+        let entries = entries_cache.lock();
+        let included = included_cache.lock();
+        if entries.is_empty() || ui.get_new_task_preview_state().as_str() != "ready" {
+            None
+        } else {
+            let chosen: Vec<usize> = entries
+                .iter()
+                .zip(included.iter())
+                .filter(|(_, included)| **included)
+                .map(|(entry, _)| entry.index)
+                .collect();
+            (chosen.len() != entries.len()).then_some(chosen)
+        }
+    };
+    if selected_file_indices.as_ref().is_some_and(Vec::is_empty) {
+        let lang = store.lock().language();
+        ui.set_new_task_preview_status_text(SharedString::from(i18n::no_files_selected_text(lang)));
+        return None;
+    }
+    Some(selected_file_indices)
+}
+
 /// Collect the dialog state for a single submit and start the task.
 #[allow(clippy::too_many_arguments)]
 fn submit_single(
@@ -90,11 +156,8 @@ fn submit_single(
     let Some(payload) = read_ui(&ui_weak, |ui| {
         let raw_url = url.to_string();
         let dir = dir.to_string();
-        let file_name = if filename.trim().is_empty() {
-            None
-        } else {
-            Some(filename.trim().to_string())
-        };
+        let trimmed_name = filename.trim();
+        let file_name = (!trimmed_name.is_empty()).then(|| trimmed_name.to_string());
 
         // A pasted `aria2c` command stays in the URL field (that is the text the
         // user can keep editing), so the target and its mirrors are re-derived
@@ -115,65 +178,10 @@ fn submit_single(
                 None => (raw_url, Vec::new(), None, None),
             };
 
-        // Checksum: manual field first (it is what the user sees and can edit),
-        // then the parsed `--checksum`, then a detected probe hash.
-        let manual = ui.get_new_task_checksum().trim().to_string();
-        let (checksum, expected_checksum) = if !manual.is_empty() {
-            match parse_user_checksum(&manual) {
-                Some((mode, hash)) => (Some(mode), Some(hash)),
-                None => {
-                    let lang = store.lock().language();
-                    push_toast(
-                        &ui_weak,
-                        &toast_queue,
-                        i18n::format_toast_invalid_checksum(lang),
-                        "error",
-                        Duration::from_secs(4),
-                    );
-                    return None;
-                }
-            }
-        } else if let Some((mode, hash)) = aria2_checksum {
-            (Some(mode), Some(hash))
-        } else if ui.get_new_task_probe_state().as_str() == "found" {
-            let hash = ui.get_new_task_probe_hash().to_string();
-            (
-                (!hash.is_empty()).then_some(ChecksumMode::Sha256),
-                (!hash.is_empty()).then_some(hash),
-            )
-        } else {
-            (None, None)
-        };
-
-        // BT file selection: None downloads everything; an empty
-        // selection is rejected with a visible hint instead of a silent
-        // no-op task.
-        let selected_file_indices = {
-            let entries = entries_cache.lock();
-            let included = included_cache.lock();
-            if entries.is_empty() || ui.get_new_task_preview_state().as_str() != "ready" {
-                None
-            } else {
-                let chosen: Vec<usize> = entries
-                    .iter()
-                    .zip(included.iter())
-                    .filter(|(_, included)| **included)
-                    .map(|(entry, _)| entry.index)
-                    .collect();
-                if chosen.len() == entries.len() {
-                    None
-                } else {
-                    Some(chosen)
-                }
-            }
-        };
-        if selected_file_indices.as_ref().is_some_and(Vec::is_empty) {
-            let lang = store.lock().language();
-            ui.set_new_task_preview_status_text(SharedString::from(i18n::no_files_selected_text(
-                lang,
-            )));
-            return None;
-        }
+        let (checksum, expected_checksum) =
+            resolve_submit_checksum(ui, &ui_weak, &store, &toast_queue, aria2_checksum)?;
+        let selected_file_indices =
+            collect_selected_bt_files(ui, &store, &entries_cache, &included_cache)?;
 
         // The header textarea is editable, so it is read at submit time.
         let headers = parse_multiline(&ui.get_new_task_headers());

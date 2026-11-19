@@ -18,6 +18,7 @@ import { SettingsTabIo } from "settings/tab_io.slint";
 import { SettingsTabLog } from "settings/tab_log.slint";
 import { SettingsTabAria2 } from "settings/tab_aria2.slint";
 import { SettingsTabAbout } from "settings/tab_about.slint";
+import { MainActions } from "main/actions.slint";
 
 export component SettingsDialog inherits Rectangle {
     in property <int> settings_tab: 0;
@@ -35,19 +36,7 @@ export component SettingsDialog inherits Rectangle {
     callback close();
     callback set_tab(int);
     callback save(SettingsFormData);
-    callback toggle_game_mode();
-    callback toggle_overclock_mode();
-    callback fetch_trackers(string);
-    callback pick_default_folder();
-    callback pick_log_folder();
-    callback open_log_folder();
-    callback open_font_license();
-    callback open_github_repo();
-    callback check_updates();
-    callback start_download();
-    callback restart_now();
     callback restart_setup();
-    callback factory_reset();
     // Speed limit schedule editing (authoritative text state lives in Rust).
     callback schedule_set_enabled(bool);
     callback schedule_add();
@@ -225,7 +214,7 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 1: 下载 ──
                 if root.settings_tab == 1 : SettingsTabDownload {
                     settings_form <=> root.settings_form;
-                    pick_default_folder => { root.pick_default_folder(); }
+                    pick_default_folder => { MainActions.pick_default_folder(); }
                 }
 
                 // ── Tab 2: 代理 ──
@@ -247,15 +236,15 @@ export component SettingsDialog inherits Rectangle {
                 if root.settings_tab == 4 : SettingsTabBt {
                     settings_form <=> root.settings_form;
                     bt_show_advanced <=> root.bt_show_advanced;
-                    fetch_trackers(url) => { root.fetch_trackers(url); }
+                    fetch_trackers(url) => { MainActions.fetch_trackers_remote(url); }
                 }
 
                 // ── Tab 5: IO 实验室 ──
                 if root.settings_tab == 5 : SettingsTabIo {
                     settings_form <=> root.settings_form;
                     disk_type_overrides <=> root.disk_type_overrides;
-                    toggle_game_mode => { root.toggle_game_mode(); }
-                    toggle_overclock_mode => { root.toggle_overclock_mode(); }
+                    toggle_game_mode => { MainActions.toggle_game_mode(); }
+                    toggle_overclock_mode => { MainActions.toggle_overclock_mode(); }
                     disk_override_add => { root.disk_override_add(); }
                     disk_override_remove(index) => { root.disk_override_remove(index); }
                     disk_override_path_edited(index, path) => { root.disk_override_path_edited(index, path); }
@@ -265,8 +254,8 @@ export component SettingsDialog inherits Rectangle {
                 // ── Tab 6: 日志 ──
                 if root.settings_tab == 6 : SettingsTabLog {
                     settings_form <=> root.settings_form;
-                    pick_log_folder => { root.pick_log_folder(); }
-                    open_log_folder => { root.open_log_folder(); }
+                    pick_log_folder => { MainActions.pick_log_folder(); }
+                    open_log_folder => { MainActions.open_log_folder(); }
                 }
 
                 // ── Tab 7: Aria2 RPC ──
@@ -285,13 +274,13 @@ export component SettingsDialog inherits Rectangle {
                     settings_form <=> root.settings_form;
                     update_state <=> root.update_state;
                     reset_confirm <=> root.reset_confirm;
-                    check_updates => { root.check_updates(); }
-                    start_download => { root.start_download(); }
-                    restart_now => { root.restart_now(); }
+                    check_updates => { MainActions.check_for_updates(); }
+                    start_download => { MainActions.start_update_download(); }
+                    restart_now => { MainActions.restart_after_update(); }
                     restart_setup => { root.restart_setup(); }
-                    factory_reset => { root.factory_reset(); }
-                    open_font_license => { root.open_font_license(); }
-                    open_github_repo => { root.open_github_repo(); }
+                    factory_reset => { MainActions.factory_reset(); }
+                    open_font_license => { MainActions.open_font_license(); }
+                    open_github_repo => { MainActions.open_github_repo(); }
                 }
 
             }

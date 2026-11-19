@@ -1,0 +1,284 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../../theme.slint";
+import { SetupFormData } from "../../types.slint";
+import { CustomTextInput, SecondaryButton, ToggleSwitch } from "../common.slint";
+import { PerformanceCard, SummaryRow } from "cards.slint";
+
+export component WizardConfigSteps inherits Rectangle {
+    in property <int> current_step;
+    in-out property <SetupFormData> form;
+    in property <string> summary_language_text;
+    in property <string> summary_appearance_text;
+    in property <string> summary_cdn_text;
+    in property <string> summary_rpc_text;
+    in property <string> summary_performance_text;
+    in property <string> summary_system_text;
+
+    callback pick_directory();
+    callback go_to_step(int);
+
+    if root.current_step == 5 : ScrollView {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: start;
+
+            Text {
+                text: @tr("Download Directory");
+                color: Theme.cf3f4f6;
+                font-size: 17px;
+                font-weight: 700;
+            }
+            Text {
+                text: @tr("New tasks prefill this folder; you can still override it per task.");
+                color: Theme.c9ca3af;
+                font-size: 12px;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                CustomTextInput {
+                    horizontal-stretch: 1;
+                    text <=> root.form.default_dir;
+                    placeholder: @tr("e.g. C:\\Downloads");
+                }
+                SecondaryButton {
+                    text: @tr("Browse...");
+                    icon: @image-url("../../assets/icons/folder-open-line.svg");
+                    clicked => { root.pick_directory(); }
+                }
+            }
+
+            Text {
+                text: @tr("If left empty, the system default downloads folder is used.");
+                color: Theme.c8b95a5;
+                font-size: 11px;
+            }
+        }
+    }
+
+    if root.current_step == 6 : ScrollView {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: start;
+
+            Text {
+                text: @tr("Performance Preference");
+                color: Theme.cf3f4f6;
+                font-size: 17px;
+                font-weight: 700;
+            }
+            Text {
+                text: @tr("Controls thread allocation and adaptive behavior. Choose the preset that matches your machine, or pick custom values in Settings later.");
+                color: Theme.c9ca3af;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                width: 100%;
+                PerformanceCard {
+                    title: @tr("Power Saver");
+                    desc: @tr("Low concurrency, minimal threads");
+                    selected: root.form.scheduler_preset_idx == 0;
+                    clicked => { root.form.scheduler_preset_idx = 0; }
+                }
+                PerformanceCard {
+                    title: @tr("Balanced");
+                    desc: @tr("Good default for most machines");
+                    selected: root.form.scheduler_preset_idx == 1;
+                    clicked => { root.form.scheduler_preset_idx = 1; }
+                }
+                PerformanceCard {
+                    title: @tr("Max Speed");
+                    desc: @tr("Aggressive threads & parallelism");
+                    selected: root.form.scheduler_preset_idx == 2;
+                    clicked => { root.form.scheduler_preset_idx = 2; }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+                ToggleSwitch {
+                    checked: root.form.chunk_strategy_idx == 0;
+                    toggled => {
+                        root.form.chunk_strategy_idx = root.form.chunk_strategy_idx == 0 ? 1 : 0;
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 2px;
+                    Text {
+                        text: @tr("Intelligent chunk allocation");
+                        color: Theme.cf3f4f6;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    Text {
+                        text: @tr("Adapt chunk sizes to connection quality instead of fixed sizes");
+                        color: Theme.c8b95a5;
+                        font-size: 11px;
+                    }
+                }
+            }
+        }
+    }
+
+    if root.current_step == 7 : ScrollView {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: start;
+
+            Text {
+                text: @tr("System Settings");
+                color: Theme.cf3f4f6;
+                font-size: 17px;
+                font-weight: 700;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+                ToggleSwitch {
+                    checked: root.form.autostart;
+                    toggled => { root.form.autostart = !root.form.autostart; }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 2px;
+                    Text {
+                        text: @tr("Start with system");
+                        color: Theme.cf3f4f6;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    Text {
+                        text: @tr("Launch limedl minimized to tray on login");
+                        color: Theme.c8b95a5;
+                        font-size: 11px;
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+                ToggleSwitch {
+                    checked: root.form.notifications_enabled;
+                    toggled => { root.form.notifications_enabled = !root.form.notifications_enabled; }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 2px;
+                    Text {
+                        text: @tr("System notifications");
+                        color: Theme.cf3f4f6;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    Text {
+                        text: @tr("Desktop notification on task completion or failure");
+                        color: Theme.c8b95a5;
+                        font-size: 11px;
+                    }
+                }
+            }
+
+            Text {
+                text: @tr("Proxy");
+                color: Theme.c9ca3af;
+                font-size: 12px;
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                SecondaryButton {
+                    text: @tr("Disabled");
+                    active: root.form.proxy_mode_idx == 0;
+                    clicked => { root.form.proxy_mode_idx = 0; }
+                }
+                SecondaryButton {
+                    text: @tr("System");
+                    active: root.form.proxy_mode_idx == 1;
+                    clicked => { root.form.proxy_mode_idx = 1; }
+                }
+                SecondaryButton {
+                    text: @tr("Manual");
+                    active: root.form.proxy_mode_idx == 2;
+                    clicked => { root.form.proxy_mode_idx = 2; }
+                }
+            }
+
+            if root.form.proxy_mode_idx == 2 : CustomTextInput {
+                text <=> root.form.proxy_manual_url;
+                placeholder: "http://127.0.0.1:7890";
+            }
+        }
+    }
+
+    if root.current_step == 8 : ScrollView {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+            alignment: start;
+
+            Text {
+                text: @tr("Summary");
+                color: Theme.cf3f4f6;
+                font-size: 17px;
+                font-weight: 700;
+            }
+            Text {
+                text: @tr("Review your choices. Click any row to edit it.");
+                color: Theme.c9ca3af;
+                font-size: 12px;
+            }
+
+            SummaryRow {
+                label: @tr("Language");
+                value: root.summary_language_text;
+                edit_step: 1;
+                go => { root.go_to_step(self.edit_step); }
+            }
+            SummaryRow {
+                label: @tr("Appearance");
+                value: root.summary_appearance_text;
+                edit_step: 2;
+                go => { root.go_to_step(self.edit_step); }
+            }
+            SummaryRow {
+                label: @tr("CDN Acceleration");
+                value: root.summary_cdn_text;
+                edit_step: 3;
+                go => { root.go_to_step(self.edit_step); }
+            }
+            SummaryRow {
+                label: @tr("Aria2 RPC");
+                value: root.summary_rpc_text;
+                edit_step: 4;
+                go => { root.go_to_step(self.edit_step); }
+            }
+            SummaryRow {
+                label: @tr("Download Directory");
+                value: root.form.default_dir != "" ? root.form.default_dir : @tr("System default");
+                edit_step: 5;
+                go => { root.go_to_step(self.edit_step); }
+            }
+            SummaryRow {
+                label: @tr("Performance");
+                value: root.summary_performance_text;
+                edit_step: 6;
+                go => { root.go_to_step(self.edit_step); }
+            }
+            SummaryRow {
+                label: @tr("System");
+                value: root.summary_system_text;
+                edit_step: 7;
+                go => { root.go_to_step(self.edit_step); }
+            }
+        }
+    }
+}

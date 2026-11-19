@@ -1,0 +1,26 @@
+/// Direct window-independent action callbacks bound directly by Rust handlers.
+/// Moving pure action/dialog callbacks here avoids duplicating declarations and
+/// pass-through wiring inside `MainWindow` in `appwindow.slint`.
+export global MainActions {
+    callback open_font_license();
+    callback open_github_repo();
+    callback open_log_folder();
+    callback pick_log_folder();
+    callback pick_default_folder();
+    callback fetch_trackers_remote(string);
+    callback check_for_updates();
+    callback start_update_download();
+    callback restart_after_update();
+    callback toggle_game_mode();
+    callback toggle_overclock_mode();
+    callback factory_reset();
+    callback pick_setup_directory();
+    callback pick_torrent_file();
+    callback pick_save_folder();
+    callback copy_task_url(string);
+    callback copy_task_name(string);
+    callback purge_single_task(string);
+    callback open_task_explorer(string);
+    callback verify_task_integrity(string);
+    callback set_task_priority(string, string);
+}

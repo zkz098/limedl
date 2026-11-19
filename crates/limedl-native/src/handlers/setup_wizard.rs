@@ -7,14 +7,12 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use slint::SharedString;
+use slint::{ComponentHandle, SharedString};
 
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::error::DownloadError;
 use limedl_core::types::{ColorMode, ThemeColor};
 
-use crate::MainWindow;
-use crate::SetupFormData;
 use crate::bridge::TaskStore;
 use crate::bridge::update_app_settings_from_setup_form;
 use crate::context::AppContext;
@@ -22,6 +20,7 @@ use crate::handlers::common::with_ui;
 use crate::i18n::{self, Language};
 use crate::settings_sync::{PushOptions, SettingsSync};
 use crate::ui_sync::apply_appearance;
+use crate::{MainActions, MainWindow, SetupFormData};
 
 /// Map the wizard's language dropdown index to a language.
 fn language_from_idx(idx: i32) -> Language {
@@ -98,7 +97,7 @@ pub fn register(ctx: &AppContext) {
     {
         let ui_weak = ui_weak.clone();
         let store = store.clone();
-        ui.on_pick_setup_directory(move || {
+        ui.global::<MainActions>().on_pick_setup_directory(move || {
             let ui_weak = ui_weak.clone();
             let store = store.clone();
             tokio::spawn(async move {

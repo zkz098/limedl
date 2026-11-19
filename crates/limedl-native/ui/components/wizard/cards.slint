@@ -1,0 +1,225 @@
+import { Theme } from "../../theme.slint";
+import { IconButton } from "../common.slint";
+
+export component StepChip inherits Rectangle {
+    in property <int> index;
+    in property <string> label;
+    in property <bool> active: false;
+    in property <bool> done: false;
+    in property <bool> clickable: false;
+    callback clicked();
+
+    horizontal-stretch: 1;
+    min-width: 60px;
+    height: 40px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: root.active ? Theme.c84cc16 : (root.done ? (ta.has_hover && root.clickable ? Theme.c3b4352 : Theme.c2e3542) : (ta.has_hover && root.clickable ? Theme.c2e3542 : transparent));
+    background: root.active ? Theme.c232b1d : (root.done ? (ta.has_hover && root.clickable ? Theme.c1e2229 : Theme.c181b22) : (ta.has_hover && root.clickable ? Theme.c1e2229 : transparent));
+
+    animate background { duration: 150ms; }
+    animate border-color { duration: 150ms; }
+
+    ta := TouchArea {
+        enabled: root.clickable;
+        clicked => { root.clicked(); }
+        mouse-cursor: root.clickable ? pointer : default;
+    }
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 2px;
+        padding-left: 2px;
+        padding-right: 2px;
+
+        Text {
+            text: root.done ? "✓" : (root.index + 1);
+            color: root.active ? Theme.c84cc16 : (root.done ? Theme.c84cc16 : (ta.has_hover && root.clickable ? Theme.cf3f4f6 : Theme.c9ca3af));
+            font-size: 11px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.label;
+            color: root.active ? Theme.cf3f4f6 : (root.done ? (ta.has_hover && root.clickable ? Theme.cf3f4f6 : Theme.ce5e7eb) : (ta.has_hover && root.clickable ? Theme.cf3f4f6 : Theme.c9ca3af));
+            font-size: 11px;
+            font-weight: root.active ? 700 : 500;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+    }
+}
+
+export component LanguageCard inherits Rectangle {
+    in property <string> text;
+    in property <string> sub_text;
+    in property <bool> selected: false;
+    callback clicked();
+
+    background: root.selected ? Theme.c232b1d : (ta.has_hover ? Theme.c1a1e25 : Theme.c14171d);
+    border-color: root.selected ? Theme.c65a30d : Theme.c2b313d;
+    animate background { duration: 150ms; }
+    animate border-color { duration: 150ms; }
+    border-width: 1px;
+    border-radius: 8px;
+    height: 84px;
+    // Three cards share the row (1/3 each): a fixed 50% meant the row needed 150%
+    // of the modal and pushed the en-US card out of reach.
+    horizontal-stretch: 1;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 4px;
+        Text {
+            text: root.text;
+            color: root.selected ? Theme.c84cc16 : Theme.cf3f4f6;
+            font-size: 15px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.sub_text;
+            color: Theme.c8b95a5;
+            font-size: 11px;
+            horizontal-alignment: center;
+        }
+        if root.selected : Text {
+            text: "✓";
+            color: Theme.c84cc16;
+            font-size: 11px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+export component ThemeSwatch inherits Rectangle {
+    in property <color> swatch_color;
+    in property <string> label;
+    in property <bool> selected: false;
+    callback clicked();
+
+    background: Theme.c14171d;
+    border-color: root.selected ? root.swatch_color : (ta.has_hover ? Theme.c3b4352 : Theme.c2b313d);
+    animate border-color { duration: 150ms; }
+    border-width: 2px;
+    border-radius: 8px;
+    height: 76px;
+    width: 96px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 6px;
+        Rectangle {
+            width: 26px;
+            height: 26px;
+            border-radius: 13px;
+            background: root.swatch_color;
+        }
+        Text {
+            text: root.label;
+            color: root.selected ? root.swatch_color : Theme.c9ca3af;
+            font-size: 11px;
+            font-weight: root.selected ? 700 : 500;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+export component PerformanceCard inherits Rectangle {
+    in property <string> title;
+    in property <string> desc;
+    in property <bool> selected: false;
+    callback clicked();
+
+    background: root.selected ? Theme.c232b1d : (ta.has_hover ? Theme.c1a1e25 : Theme.c14171d);
+    border-color: root.selected ? Theme.c65a30d : Theme.c2b313d;
+    animate background { duration: 150ms; }
+    animate border-color { duration: 150ms; }
+    border-width: 1px;
+    border-radius: 8px;
+    height: 96px;
+    // Share the row with the other cards instead of 33.33% + gaps, which was 20px
+    // wider than the modal.
+    horizontal-stretch: 1;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    VerticalLayout {
+        padding: 12px;
+        alignment: center;
+        spacing: 5px;
+        Text {
+            text: root.title;
+            color: root.selected ? Theme.c84cc16 : Theme.cf3f4f6;
+            font-size: 13px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.desc;
+            color: Theme.c8b95a5;
+            font-size: 10px;
+            wrap: word-wrap;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+export component SummaryRow inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <int> edit_step;
+    callback go(int);
+
+    background: Theme.c14171d;
+    border-color: Theme.c232832;
+    border-width: 1px;
+    border-radius: 6px;
+    width: 100%;
+    height: self.preferred-height;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 8px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+        spacing: 10px;
+        alignment: space-between;
+
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            spacing: 2px;
+            Text {
+                text: root.label;
+                color: Theme.c9ca3af;
+                font-size: 10px;
+                font-weight: 600;
+            }
+            Text {
+                text: root.value;
+                color: Theme.cf3f4f6;
+                font-size: 12px;
+                overflow: elide;
+            }
+        }
+
+        IconButton {
+            text: @tr("Edit");
+            icon: @image-url("../../assets/icons/eraser-line.svg");
+            text_color: Theme.ca3e635;
+            clicked => { root.go(root.edit_step); }
+        }
+    }
+}

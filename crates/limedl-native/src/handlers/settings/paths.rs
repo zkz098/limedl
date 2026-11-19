@@ -6,10 +6,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use parking_lot::Mutex;
-use slint::SharedString;
+use slint::{ComponentHandle, SharedString};
 
-use crate::MainWindow;
-use crate::SettingsFormData;
 use crate::bridge::TaskStore;
 use crate::context::AppContext;
 use crate::handlers::common::with_ui;
@@ -18,6 +16,7 @@ use crate::paths::dirs_or_temp_dir;
 use crate::task_ops::open_path_in_explorer;
 use crate::toast::ToastQueue;
 use crate::toast::push_toast;
+use crate::{MainActions, MainWindow, SettingsFormData};
 use limedl_core::dispatcher::Dispatcher;
 
 /// Ask for a folder and store it in one settings-form field.
@@ -68,7 +67,8 @@ pub fn register(ctx: &AppContext) {
         let store = store.clone();
         let toast_queue = ctx.toast_queue.clone();
         let ui_weak = ui_weak.clone();
-        ui.on_fetch_trackers_remote(move |url_str| {
+        let actions = ui.global::<MainActions>();
+        actions.on_fetch_trackers_remote(move |url_str| {
             fetch_trackers_remote(
                 ui_weak.clone(),
                 dispatcher.clone(),
@@ -83,7 +83,7 @@ pub fn register(ctx: &AppContext) {
     {
         let ui_weak = ui_weak.clone();
         let store = store.clone();
-        ui.on_pick_default_folder(move || {
+        ui.global::<MainActions>().on_pick_default_folder(move || {
             pick_folder_into_form(
                 &ui_weak,
                 &store,
@@ -97,7 +97,7 @@ pub fn register(ctx: &AppContext) {
     {
         let ui_weak = ui_weak.clone();
         let store = store.clone();
-        ui.on_pick_log_folder(move || {
+        ui.global::<MainActions>().on_pick_log_folder(move || {
             pick_folder_into_form(
                 &ui_weak,
                 &store,
@@ -111,7 +111,7 @@ pub fn register(ctx: &AppContext) {
     // Reveal the log file's folder in the OS file manager.
     {
         let dispatcher = ctx.dispatcher.clone();
-        ui.on_open_log_folder(move || {
+        ui.global::<MainActions>().on_open_log_folder(move || {
             let settings = dispatcher.get_settings_blocking().unwrap_or_default();
             let log_path = if !settings.logging.file_path.trim().is_empty() {
                 PathBuf::from(&settings.logging.file_path)

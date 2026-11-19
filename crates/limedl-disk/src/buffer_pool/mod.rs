@@ -11,6 +11,7 @@
 //! the double-buffer machinery.
 
 pub mod download_buffer;
+mod flush_task;
 pub(crate) mod pingpong_sync;
 pub mod worker;
 

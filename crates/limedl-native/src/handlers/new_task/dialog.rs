@@ -4,11 +4,10 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use slint::SharedString;
+use slint::{ComponentHandle, SharedString};
 
 use limedl_core::types::TorrentFileEntry;
 
-use crate::MainWindow;
 use crate::bridge::{self, ClipboardPayload, TaskStore};
 use crate::context::AppContext;
 use crate::handlers::common::{read_ui, with_ui};
@@ -16,6 +15,7 @@ use crate::handlers::new_task::{
     apply_aria2_input, preview_torrent, push_torrent_items, reset_transient_state, spawn_probe,
 };
 use crate::i18n;
+use crate::{MainActions, MainWindow};
 use limedl_core::dispatcher::Dispatcher;
 
 pub fn register(ctx: &AppContext) {
@@ -101,7 +101,7 @@ pub fn register(ctx: &AppContext) {
         let store = ctx.store.clone();
         let entries_cache = ctx.new_task_torrent_entries.clone();
         let included_cache = ctx.new_task_torrent_included.clone();
-        ui.on_pick_torrent_file(move || {
+        ui.global::<MainActions>().on_pick_torrent_file(move || {
             pick_torrent_file(
                 ui_weak.clone(),
                 dispatcher.clone(),
@@ -116,7 +116,7 @@ pub fn register(ctx: &AppContext) {
     {
         let ui_weak = ctx.ui_weak.clone();
         let store = ctx.store.clone();
-        ui.on_pick_save_folder(move || {
+        ui.global::<MainActions>().on_pick_save_folder(move || {
             let ui_weak = ui_weak.clone();
             let store = store.clone();
             tokio::spawn(async move {

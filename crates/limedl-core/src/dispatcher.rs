@@ -545,43 +545,43 @@ impl Dispatcher {
         self.bt_backend()?.preview_torrent(source).await
     }
 
-    /// Get peer info for a BT task.
     #[cfg(feature = "bt")]
-    pub fn bt_get_peers(&self, task_id: &TaskId) -> Result<Vec<BtPeerInfo>> {
+    fn bt_task<'a>(
+        &'a self,
+        task_id: &'a TaskId,
+    ) -> Result<(&'a LazyBtBackend, &'a crate::types::InfoHash)> {
         let TaskId::Bt(info_hash) = task_id else {
             return Err(DownloadError::InvalidRequest("Not a BT task".into()));
         };
-        self.bt_backend()?.get_peers(info_hash_to_engine(info_hash))
+        Ok((self.bt_backend()?, info_hash))
+    }
+
+    /// Get peer info for a BT task.
+    #[cfg(feature = "bt")]
+    pub fn bt_get_peers(&self, task_id: &TaskId) -> Result<Vec<BtPeerInfo>> {
+        let (bt, info_hash) = self.bt_task(task_id)?;
+        bt.get_peers(info_hash_to_engine(info_hash))
     }
 
     /// Get tracker list for a BT task.
     #[cfg(feature = "bt")]
     pub fn bt_get_trackers(&self, task_id: &TaskId) -> Result<Vec<BtTrackerInfo>> {
-        let TaskId::Bt(info_hash) = task_id else {
-            return Err(DownloadError::InvalidRequest("Not a BT task".into()));
-        };
-        self.bt_backend()?
-            .get_trackers(info_hash_to_engine(info_hash))
+        let (bt, info_hash) = self.bt_task(task_id)?;
+        bt.get_trackers(info_hash_to_engine(info_hash))
     }
 
     /// Get piece info for a BT task.
     #[cfg(feature = "bt")]
     pub fn bt_get_pieces(&self, task_id: &TaskId) -> Result<Vec<BtPieceInfo>> {
-        let TaskId::Bt(info_hash) = task_id else {
-            return Err(DownloadError::InvalidRequest("Not a BT task".into()));
-        };
-        self.bt_backend()?
-            .get_pieces(info_hash_to_engine(info_hash))
+        let (bt, info_hash) = self.bt_task(task_id)?;
+        bt.get_pieces(info_hash_to_engine(info_hash))
     }
 
     /// Get file status for a BT task.
     #[cfg(feature = "bt")]
     pub fn bt_get_files(&self, task_id: &TaskId) -> Result<Vec<BtFileStatus>> {
-        let TaskId::Bt(info_hash) = task_id else {
-            return Err(DownloadError::InvalidRequest("Not a BT task".into()));
-        };
-        self.bt_backend()?
-            .get_torrent_files(info_hash_to_engine(info_hash))
+        let (bt, info_hash) = self.bt_task(task_id)?;
+        bt.get_torrent_files(info_hash_to_engine(info_hash))
     }
 
     /// Update which files are included in a BT download.
@@ -591,11 +591,8 @@ impl Dispatcher {
         task_id: &TaskId,
         included_indices: Vec<usize>,
     ) -> Result<()> {
-        let TaskId::Bt(info_hash) = task_id else {
-            return Err(DownloadError::InvalidRequest("Not a BT task".into()));
-        };
-        self.bt_backend()?
-            .update_torrent_files(info_hash_to_engine(info_hash), included_indices)
+        let (bt, info_hash) = self.bt_task(task_id)?;
+        bt.update_torrent_files(info_hash_to_engine(info_hash), included_indices)
             .await
     }
 

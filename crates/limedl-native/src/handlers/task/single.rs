@@ -9,14 +9,14 @@ use parking_lot::Mutex;
 use limedl_core::dispatcher::Dispatcher;
 use limedl_core::types::TaskId;
 
-use crate::MainWindow;
 use crate::bridge::{TaskStore, str_to_priority};
 use crate::context::AppContext;
 use crate::handlers::common::{TaskAction, drop_locally, reload_tasks, spawn_action};
 use crate::i18n;
 use crate::task_ops::handle_task_double_click;
 use crate::toast::{ToastQueue, push_toast};
-use slint::SharedString;
+use crate::{MainActions, MainWindow};
+use slint::{ComponentHandle, SharedString};
 
 /// Remove (or purge) one task: the row disappears immediately, the backend call
 /// runs in the background and the list is reloaded if it fails.
@@ -61,9 +61,10 @@ pub fn register(ctx: &AppContext) {
 
     {
         let dispatcher = ctx.dispatcher.clone();
-        ui.on_open_task_explorer(move |id_str| {
-            spawn_action(&dispatcher, id_str.to_string(), TaskAction::OpenInExplorer);
-        });
+        ui.global::<MainActions>()
+            .on_open_task_explorer(move |id_str| {
+                spawn_action(&dispatcher, id_str.to_string(), TaskAction::OpenInExplorer);
+            });
     }
 
     // Remove / purge a single task
@@ -89,16 +90,17 @@ pub fn register(ctx: &AppContext) {
         let store = ctx.store.clone();
         let dispatcher = ctx.dispatcher.clone();
         let active_inspector_id = ctx.active_inspector_id.clone();
-        ui.on_purge_single_task(move |id_str| {
-            remove_one(
-                &ui_weak,
-                &store,
-                &active_inspector_id,
-                &dispatcher,
-                id_str.to_string(),
-                TaskAction::Purge,
-            );
-        });
+        ui.global::<MainActions>()
+            .on_purge_single_task(move |id_str| {
+                remove_one(
+                    &ui_weak,
+                    &store,
+                    &active_inspector_id,
+                    &dispatcher,
+                    id_str.to_string(),
+                    TaskAction::Purge,
+                );
+            });
     }
 
     // Double-click behavior (Settings → General: double_click on_completed /
@@ -125,16 +127,17 @@ pub fn register(ctx: &AppContext) {
         let store = ctx.store.clone();
         let dispatcher = ctx.dispatcher.clone();
         let toast_queue = ctx.toast_queue.clone();
-        ui.on_set_task_priority(move |id_str, priority_code| {
-            set_task_priority(
-                ui_weak.clone(),
-                store.clone(),
-                dispatcher.clone(),
-                toast_queue.clone(),
-                id_str,
-                priority_code,
-            );
-        });
+        ui.global::<MainActions>()
+            .on_set_task_priority(move |id_str, priority_code| {
+                set_task_priority(
+                    ui_weak.clone(),
+                    store.clone(),
+                    dispatcher.clone(),
+                    toast_queue.clone(),
+                    id_str,
+                    priority_code,
+                );
+            });
     }
 
     // Manual integrity verification from context menu
@@ -143,15 +146,16 @@ pub fn register(ctx: &AppContext) {
         let store = ctx.store.clone();
         let dispatcher = ctx.dispatcher.clone();
         let toast_queue = ctx.toast_queue.clone();
-        ui.on_verify_task_integrity(move |id_str| {
-            verify_task_integrity(
-                ui_weak.clone(),
-                store.clone(),
-                dispatcher.clone(),
-                toast_queue.clone(),
-                id_str,
-            );
-        });
+        ui.global::<MainActions>()
+            .on_verify_task_integrity(move |id_str| {
+                verify_task_integrity(
+                    ui_weak.clone(),
+                    store.clone(),
+                    dispatcher.clone(),
+                    toast_queue.clone(),
+                    id_str,
+                );
+            });
     }
 }
 

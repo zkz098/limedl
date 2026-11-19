@@ -1,0 +1,387 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../../theme.slint";
+import { SetupFormData } from "../../types.slint";
+import { CustomTextInput, SecondaryButton, ToggleSwitch } from "../common.slint";
+import { LanguageCard, ThemeSwatch } from "cards.slint";
+
+export component WizardIntroSteps inherits Rectangle {
+    in property <int> current_step;
+    in-out property <SetupFormData> form;
+
+    callback set_language(int);
+    callback set_appearance(int, int);
+
+    if root.current_step == 0 : ScrollView {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: start;
+
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: start;
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../assets/logo.png");
+                        width: 56px;
+                        height: 56px;
+                        image-fit: contain;
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    Text {
+                        text: @tr("Welcome to limedl");
+                        color: Theme.cf3f4f6;
+                        font-size: 20px;
+                        font-weight: 700;
+                    }
+                    Text {
+                        text: @tr("The lightweight multi-protocol download manager.");
+                        color: Theme.c9ca3af;
+                        font-size: 12px;
+                    }
+                }
+            }
+
+            Rectangle {
+                background: Theme.c132a42;
+                border-color: Theme.c2e3542;
+                border-width: 1px;
+                border-radius: 8px;
+                width: 100%;
+                height: self.preferred-height;
+                HorizontalLayout {
+                    padding: 12px;
+                    spacing: 10px;
+                    alignment: start;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/file-copy-line.svg");
+                            colorize: Theme.c8b95a5;
+                            width: 16px;
+                            height: 16px;
+                            image-fit: contain;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 3px;
+                        Text {
+                            text: @tr("Open source license");
+                            color: Theme.c9ca3af;
+                            font-size: 11px;
+                            font-weight: 600;
+                        }
+                        Text {
+                            text: @tr("limedl is released under the GNU General Public License v3.0 or later. The bundled MiSans font is licensed separately and loaded only locally.");
+                            color: Theme.c9ca3af;
+                            font-size: 11px;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+
+            Text {
+                text: @tr("This quick setup configures the essential options. You can change everything later in Settings or Labs.");
+                color: Theme.c8b95a5;
+                font-size: 11px;
+                wrap: word-wrap;
+            }
+        }
+    }
+
+    if root.current_step == 1 : ScrollView {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: start;
+
+            Text {
+                text: @tr("Language");
+                color: Theme.cf3f4f6;
+                font-size: 17px;
+                font-weight: 700;
+            }
+            Text {
+                text: @tr("Choose the UI language. It applies immediately.");
+                color: Theme.c9ca3af;
+                font-size: 12px;
+            }
+
+            HorizontalLayout {
+                spacing: 12px;
+                width: 100%;
+                LanguageCard {
+                    text: "简体中文";
+                    sub_text: @tr("Chinese (Simplified)");
+                    selected: root.form.language_idx == 0;
+                    clicked => { root.set_language(0); root.form.language_idx = 0; }
+                }
+                LanguageCard {
+                    text: "繁體中文";
+                    sub_text: @tr("Chinese (Traditional)");
+                    selected: root.form.language_idx == 1;
+                    clicked => { root.set_language(1); root.form.language_idx = 1; }
+                }
+                LanguageCard {
+                    text: "English";
+                    sub_text: @tr("English");
+                    selected: root.form.language_idx == 2;
+                    clicked => { root.set_language(2); root.form.language_idx = 2; }
+                }
+            }
+        }
+    }
+
+    if root.current_step == 2 : ScrollView {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: start;
+
+            Text {
+                text: @tr("Appearance");
+                color: Theme.cf3f4f6;
+                font-size: 17px;
+                font-weight: 700;
+            }
+
+            Text {
+                text: @tr("Color Mode");
+                color: Theme.c9ca3af;
+                font-size: 12px;
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                SecondaryButton {
+                    text: @tr("System");
+                    active: root.form.color_mode_idx == 0;
+                    clicked => { root.set_appearance(0, root.form.theme_color_idx); }
+                }
+                SecondaryButton {
+                    text: @tr("Light");
+                    active: root.form.color_mode_idx == 1;
+                    clicked => { root.set_appearance(1, root.form.theme_color_idx); }
+                }
+                SecondaryButton {
+                    text: @tr("Dark");
+                    active: root.form.color_mode_idx == 2;
+                    clicked => { root.set_appearance(2, root.form.theme_color_idx); }
+                }
+            }
+
+            Text {
+                text: @tr("Accent Color");
+                color: Theme.c9ca3af;
+                font-size: 12px;
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                ThemeSwatch {
+                    swatch_color: Theme.c84cc16;
+                    label: @tr("Lime");
+                    selected: root.form.theme_color_idx == 2;
+                    clicked => { root.set_appearance(root.form.color_mode_idx, 2); }
+                }
+                ThemeSwatch {
+                    swatch_color: Theme.cf59e0b;
+                    label: @tr("Amber");
+                    selected: root.form.theme_color_idx == 0;
+                    clicked => { root.set_appearance(root.form.color_mode_idx, 0); }
+                }
+                ThemeSwatch {
+                    swatch_color: Theme.c38bdf8;
+                    label: @tr("Sky");
+                    selected: root.form.theme_color_idx == 1;
+                    clicked => { root.set_appearance(root.form.color_mode_idx, 1); }
+                }
+                ThemeSwatch {
+                    swatch_color: Theme.c8b5cf6;
+                    label: @tr("Violet");
+                    selected: root.form.theme_color_idx == 3;
+                    clicked => { root.set_appearance(root.form.color_mode_idx, 3); }
+                }
+                ThemeSwatch {
+                    swatch_color: Theme.cffffff;
+                    label: @tr("Monochrome");
+                    selected: root.form.theme_color_idx == 4;
+                    clicked => { root.set_appearance(root.form.color_mode_idx, 4); }
+                }
+            }
+        }
+    }
+
+    if root.current_step == 3 : ScrollView {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: start;
+
+            Text {
+                text: @tr("CDN Acceleration");
+                color: Theme.cf3f4f6;
+                font-size: 17px;
+                font-weight: 700;
+            }
+            Text {
+                text: @tr("Speed up downloads by routing through the fastest CDN edge node. You can re-test or disable it anytime in Labs.");
+                color: Theme.c9ca3af;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+                ToggleSwitch {
+                    checked: root.form.cdn_enabled;
+                    toggled => { root.form.cdn_enabled = !root.form.cdn_enabled; }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: @tr("Enable CDN Acceleration");
+                        color: Theme.cf3f4f6;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                }
+            }
+
+            Rectangle {
+                background: Theme.c132a42;
+                border-color: Theme.c2e3542;
+                border-width: 1px;
+                border-radius: 8px;
+                width: 100%;
+                height: self.preferred-height;
+                HorizontalLayout {
+                    padding: 12px;
+                    spacing: 10px;
+                    alignment: start;
+                    VerticalLayout {
+                        alignment: center;
+                        width: 18px;
+                        Image {
+                            source: @image-url("../../assets/icons/flashlight-line.svg");
+                            colorize: Theme.cf59e0b;
+                            width: 16px;
+                            height: 16px;
+                            image-fit: contain;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        Text {
+                            text: @tr("In mainland China, CDN acceleration typically improves GitHub / GitHub Release downloads the most.");
+                            color: Theme.c9ca3af;
+                            font-size: 11px;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+
+            if root.form.cdn_active_ip != "" : HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: @tr("Active edge node:");
+                    color: Theme.c9ca3af;
+                    font-size: 12px;
+                }
+                Text {
+                    text: root.form.cdn_active_ip;
+                    color: Theme.c84cc16;
+                    font-size: 12px;
+                    font-family: "Consolas";
+                    font-weight: 600;
+                }
+            }
+        }
+    }
+
+    if root.current_step == 4 : ScrollView {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: start;
+
+            Text {
+                text: @tr("Aria2 RPC");
+                color: Theme.cf3f4f6;
+                font-size: 17px;
+                font-weight: 700;
+            }
+            Text {
+                text: @tr("Expose a JSON-RPC endpoint so browser extensions (Aria2 Explorer) can send downloads to limedl. Disable it if you do not need it.");
+                color: Theme.c9ca3af;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+                ToggleSwitch {
+                    checked: root.form.rpc_enabled;
+                    toggled => { root.form.rpc_enabled = !root.form.rpc_enabled; }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: @tr("Enable Aria2 RPC");
+                        color: Theme.cf3f4f6;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                }
+            }
+
+            if root.form.rpc_enabled : VerticalLayout {
+                spacing: 10px;
+                HorizontalLayout {
+                    spacing: 10px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text {
+                            text: @tr("Port");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+                        CustomTextInput {
+                            text <=> root.form.rpc_port;
+                            placeholder: "6800";
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text {
+                            text: @tr("Secret token");
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                        }
+                        CustomTextInput {
+                            text <=> root.form.rpc_secret;
+                            placeholder: @tr("Optional");
+                        }
+                    }
+                }
+                Text {
+                    text: @tr("Tip: install the aria2-explorer extension and point it at this port to push links straight into limedl.");
+                    color: Theme.c8b95a5;
+                    font-size: 11px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+    }
+}

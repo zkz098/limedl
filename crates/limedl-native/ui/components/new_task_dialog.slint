@@ -3,6 +3,7 @@ import { ScrollView, TextEdit } from "std-widgets.slint";
 
 import { Theme } from "../theme.slint";
 import { NewTaskTorrentFileItem } from "../types.slint";
+import { MainActions } from "main/actions.slint";
 
 export component NewTaskDialog inherits Rectangle {
     // ── Two-way bound fields (persist on MainWindow across dialog reopen) ──
@@ -37,8 +38,6 @@ export component NewTaskDialog inherits Rectangle {
 
     callback close();
     callback submit(string, string, string);
-    callback pick_torrent_file();
-    callback pick_save_folder();
     callback probe_checksum();
     callback reset_probe();
     callback url_changed(string);
@@ -145,7 +144,7 @@ export component NewTaskDialog inherits Rectangle {
                             SecondaryButton {
                                 text: @tr("Select Torrent...");
                                 icon: @image-url("../assets/icons/file-upload-line.svg");
-                                clicked => { root.pick_torrent_file(); }
+                                clicked => { MainActions.pick_torrent_file(); }
                             }
                         }
 
@@ -361,7 +360,7 @@ export component NewTaskDialog inherits Rectangle {
                             SecondaryButton {
                                 text: @tr("Browse...");
                                 icon: @image-url("../assets/icons/folder-open-line.svg");
-                                clicked => { root.pick_save_folder(); }
+                                clicked => { MainActions.pick_save_folder(); }
                             }
                         }
                     }

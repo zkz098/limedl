@@ -10,16 +10,17 @@ use std::time::{Duration, Instant};
 
 use notify_rust::Notification;
 use parking_lot::Mutex;
+use slint::ComponentHandle;
 
 use limedl_core::dispatcher::Dispatcher;
 
-use crate::MainWindow;
 use crate::bridge::TaskStore;
 use crate::context::AppContext;
 use crate::i18n::{self, Language};
 use crate::toast::{ToastQueue, push_toast};
 use crate::ui_sync::{push_update_state, set_update_error};
 use crate::update::{self, AvailableUpdate, InstallKind, InstallOutcome};
+use crate::{MainActions, MainWindow};
 
 /// Handles shared by the update flows, cloned once per callback.
 #[derive(Clone)]
@@ -348,7 +349,7 @@ pub fn register(ctx: &AppContext) {
 
     {
         let ctx = update_ctx.clone();
-        ui.on_check_for_updates(move || {
+        ui.global::<MainActions>().on_check_for_updates(move || {
             let ctx = ctx.clone();
             let lang = ctx.lang();
             ctx.set_phase("checking", true);
@@ -363,29 +364,30 @@ pub fn register(ctx: &AppContext) {
 
     {
         let ctx = update_ctx.clone();
-        ui.on_start_update_download(move || {
-            let ctx = ctx.clone();
-            let lang = ctx.lang();
-            let Some(update) = ctx.available.lock().clone() else {
-                ctx.toast(
-                    i18n::format_toast_update_not_found(lang).to_string(),
-                    "warning",
-                    4,
-                );
-                return;
-            };
+        ui.global::<MainActions>()
+            .on_start_update_download(move || {
+                let ctx = ctx.clone();
+                let lang = ctx.lang();
+                let Some(update) = ctx.available.lock().clone() else {
+                    ctx.toast(
+                        i18n::format_toast_update_not_found(lang).to_string(),
+                        "warning",
+                        4,
+                    );
+                    return;
+                };
 
-            if update::detect_install_kind() == InstallKind::Store {
-                trigger_store_update(ctx, lang);
-                return;
-            }
-            download_and_install(ctx, update, lang);
-        });
+                if update::detect_install_kind() == InstallKind::Store {
+                    trigger_store_update(ctx, lang);
+                    return;
+                }
+                download_and_install(ctx, update, lang);
+            });
     }
 
     {
         let ctx = update_ctx.clone();
-        ui.on_restart_after_update(move || {
+        ui.global::<MainActions>().on_restart_after_update(move || {
             let lang = ctx.lang();
             // On success this never returns (spawns the new binary and exits).
             if let Err(err) = update::restart_application() {

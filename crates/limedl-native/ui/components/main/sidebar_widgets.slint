@@ -1,0 +1,246 @@
+import { Theme } from "../../theme.slint";
+import { MainActions } from "actions.slint";
+
+/// Compact pill showing one BT runtime metric in the top toolbar
+/// (DHT node count / upload speed / connected peers).
+export component BtStatPill inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+
+    height: 24px;
+    border-radius: 12px;
+    background: Theme.c181b22;
+    border-color: Theme.c252b36;
+    border-width: 1px;
+
+    HorizontalLayout {
+        padding-left: 6px;
+        padding-right: 6px;
+        spacing: 3px;
+        alignment: center;
+
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: Theme.c4ade80;
+                width: 12px;
+                height: 12px;
+                image-fit: contain;
+            }
+        }
+
+        Text {
+            text: root.text;
+            color: Theme.cd1d5db;
+            font-size: 11px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component SidebarBrand inherits HorizontalLayout {
+    spacing: 12px;
+    alignment: start;
+
+    VerticalLayout {
+        alignment: center;
+        Image {
+            source: @image-url("../../assets/logo.png");
+            width: 32px;
+            height: 32px;
+            image-fit: contain;
+        }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 1px;
+        Text {
+            text: "limedl";
+            color: Theme.cf3f4f6;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        Text {
+            text: @tr("Native Edition");
+            color: Theme.c84cc16;
+            font-size: 10px;
+            font-weight: 600;
+        }
+    }
+}
+
+export component SidebarQuickControls inherits VerticalLayout {
+    in property <bool> game_mode_active: false;
+    in property <bool> overclock_mode_active: false;
+    in property <string> global_speed_text: "0 B/s";
+
+    spacing: 12px;
+
+    VerticalLayout {
+        spacing: 6px;
+
+        Rectangle {
+            background: root.game_mode_active ? Theme.c351d0b : Theme.c181b22;
+            border-color: root.game_mode_active ? Theme.cf59e0b : Theme.c252b36;
+            border-width: 1px;
+            border-radius: 6px;
+            height: 36px;
+
+            TouchArea {
+                clicked => { MainActions.toggle_game_mode(); }
+            }
+
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                alignment: space-between;
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/gamepad-line.svg");
+                            colorize: root.game_mode_active ? Theme.cf59e0b : Theme.c8b95a5;
+                            width: 15px;
+                            height: 15px;
+                            image-fit: contain;
+                        }
+                    }
+                    Text {
+                        text: @tr("Game Mode");
+                        color: root.game_mode_active ? Theme.cf59e0b : Theme.c9ca3af;
+                        font-size: 12px;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                    }
+                }
+                Text {
+                    text: root.game_mode_active ? "ON" : "OFF";
+                    color: root.game_mode_active ? Theme.cfcd34d : Theme.c5d6778;
+                    font-size: 11px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        Rectangle {
+            background: root.overclock_mode_active ? Theme.c31132b : Theme.c181b22;
+            border-color: root.overclock_mode_active ? Theme.cec4899 : Theme.c252b36;
+            border-width: 1px;
+            border-radius: 6px;
+            height: 36px;
+
+            TouchArea {
+                clicked => { MainActions.toggle_overclock_mode(); }
+            }
+
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                alignment: space-between;
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/rocket-line.svg");
+                            colorize: root.overclock_mode_active ? Theme.cec4899 : Theme.c8b95a5;
+                            width: 15px;
+                            height: 15px;
+                            image-fit: contain;
+                        }
+                    }
+                    Text {
+                        text: @tr("Overclock Mode");
+                        color: root.overclock_mode_active ? Theme.cec4899 : Theme.c9ca3af;
+                        font-size: 12px;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                    }
+                }
+                Text {
+                    text: root.overclock_mode_active ? "ON" : "OFF";
+                    color: root.overclock_mode_active ? Theme.cf472b6 : Theme.c5d6778;
+                    font-size: 11px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        background: Theme.c181b22;
+        border-color: Theme.c252b36;
+        border-width: 1px;
+        border-radius: 8px;
+        height: 56px;
+
+        VerticalLayout {
+            padding-left: 12px;
+            padding-right: 12px;
+            alignment: space-around;
+            Text {
+                text: @tr("Realtime Download Speed");
+                color: Theme.c8b95a5;
+                font-size: 10px;
+                font-weight: 500;
+            }
+            Text {
+                text: root.global_speed_text;
+                color: Theme.c84cc16;
+                font-size: 15px;
+                font-weight: 700;
+            }
+        }
+    }
+}
+
+export component SidebarToolButton inherits Rectangle {
+    in property <string> label;
+    in property <image> icon;
+    in property <color> hover_accent: Theme.cffffff;
+    callback clicked();
+
+    background: ta.has_hover ? Theme.c222731 : Theme.c181b22;
+    border-color: Theme.c252b36;
+    border-width: 1px;
+    border-radius: 6px;
+    height: 36px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: center;
+        spacing: 6px;
+
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: ta.has_hover ? root.hover_accent : Theme.cd1d5db;
+                width: 15px;
+                height: 15px;
+                image-fit: contain;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: ta.has_hover ? root.hover_accent : Theme.cd1d5db;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}

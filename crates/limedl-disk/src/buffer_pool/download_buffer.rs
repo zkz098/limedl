@@ -9,13 +9,15 @@ use parking_lot::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
+use super::flush_task::{
+    entry_ranges, notify_flushed, spawn_background_flush, write_all_entries, write_oversized_direct,
+};
 pub use super::pingpong_sync::FlipTokenGuard;
-use super::pingpong_sync::{check_bg_error, clear_bg_error, set_bg_error, try_acquire_flip_token};
+use super::pingpong_sync::{check_bg_error, clear_bg_error, try_acquire_flip_token};
 use super::worker::IoWorker;
 use super::{BufferPool, SlotGuard};
 use crate::error::DownloadError;
 use crate::file_ops::SyncMode;
-use crate::file_ops::write_all_at;
 
 /// Notified once a flush has actually written its byte ranges to the file.
 ///
@@ -29,17 +31,17 @@ use crate::file_ops::write_all_at;
 pub type FlushObserver = Arc<dyn Fn(&[(u64, u64)]) + Send + Sync>;
 
 /// Configuration for the shared ping-pong flip logic.
-struct PingPongCfg<'a> {
+pub(super) struct PingPongCfg<'a> {
     /// Global buffer pool for HDD memory tracking. `None` for SSD (ping-pong) mode.
-    pool: Option<&'a Arc<BufferPool>>,
+    pub(super) pool: Option<&'a Arc<BufferPool>>,
     /// Whether to fsync in the IoWorker background flush path.
-    bg_sync: SyncMode,
+    pub(super) bg_sync: SyncMode,
     /// Whether to fsync in the spawn_blocking fallback background flush path.
-    bg_fsync: bool,
+    pub(super) bg_fsync: bool,
     /// Label for tracing/error messages (e.g., "HDD" or "SSD ping-pong").
-    label: &'static str,
+    pub(super) label: &'static str,
     /// Durable-progress notification for successful flushes.
-    observer: Option<&'a FlushObserver>,
+    pub(super) observer: Option<&'a FlushObserver>,
 }
 
 /// Synchronized foreground accumulation half for [`DownloadBuffer`].
@@ -165,9 +167,9 @@ pub enum BufferMode {
 /// The two are one thing — a sink cannot route a batch without a path — so they
 /// are stored together instead of as two `Option`s that could disagree, which is
 /// how the deleted path-less fallback used to be reachable.
-struct FlushSink {
-    worker: IoWorker,
-    path: PathBuf,
+pub(super) struct FlushSink {
+    pub(super) worker: IoWorker,
+    pub(super) path: PathBuf,
 }
 
 /// A per-download buffer that accumulates chunks in memory and flushes them
@@ -557,9 +559,7 @@ impl DownloadBuffer {
             } else {
                 let f = file.clone();
                 tokio::task::spawn_blocking(move || -> Result<(), DownloadError> {
-                    for (off, chunk) in &entries {
-                        write_all_at(&f, chunk, *off)?;
-                    }
+                    write_all_entries(&f, &entries)?;
                     if fallback_fsync {
                         f.sync_data()
                             .map_err(|e| DownloadError::Internal(format!("fsync failed: {e}")))?;
@@ -660,130 +660,6 @@ struct PingPongRefs<'a> {
     error_flag: &'a Arc<AtomicBool>,
     flip_token: &'a AtomicBool,
     file: &'a Arc<File>,
-}
-
-/// A single chunk larger than a half bypasses the buffer entirely.
-async fn write_oversized_direct(
-    file: &Arc<File>,
-    data: Bytes,
-    offset: u64,
-    observer: Option<&FlushObserver>,
-) -> Result<(), DownloadError> {
-    let len = data.len() as u64;
-    let f = file.clone();
-    tokio::task::spawn_blocking(move || write_all_at(&f, &data, offset))
-        .await
-        .map_err(|e| DownloadError::Internal(format!("background write failed: {e}")))??;
-    notify_flushed(observer, &[(offset, len)]);
-    Ok(())
-}
-
-/// The `(offset, len)` pairs of a flush batch, for the observer.
-fn entry_ranges(entries: &[(u64, Bytes)]) -> Vec<(u64, u64)> {
-    entries
-        .iter()
-        .map(|(offset, data)| (*offset, data.len() as u64))
-        .collect()
-}
-
-/// Report ranges as durable. Never called after a failed write.
-fn notify_flushed(observer: Option<&FlushObserver>, ranges: &[(u64, u64)]) {
-    if let Some(observer) = observer {
-        observer(ranges);
-    }
-}
-
-/// Spawn the background flush for a half that was just rotated out.
-///
-/// With a sink, the batch goes to the device queue; without one (the
-/// test/bench-only constructors) it is written inline on `spawn_blocking` with a
-/// panic guard (unwind builds only — see the note in the body).  Both paths set
-/// `error_flag` on failure and notify waiters when done.
-fn spawn_background_flush(
-    sink: Option<&FlushSink>,
-    cfg: &PingPongCfg<'_>,
-    file: &Arc<File>,
-    error_flag: &Arc<AtomicBool>,
-    notify: &Arc<Notify>,
-    entries: Vec<(u64, Bytes)>,
-) -> JoinHandle<()> {
-    let bg_file = file.clone();
-    let bg_error = Arc::clone(error_flag);
-    let bg_notify = notify.clone();
-    let bg_sync = cfg.bg_sync;
-    let bg_fsync = cfg.bg_fsync;
-    let label = cfg.label;
-    let bg_observer = cfg.observer.cloned();
-    let ranges = entry_ranges(&entries);
-
-    if let Some(sink) = sink {
-        let worker = sink.worker.clone();
-        let bg_path = sink.path.clone();
-        tokio::spawn(async move {
-            match worker
-                .write_batch(&bg_path, bg_file, entries, bg_sync)
-                .await
-            {
-                Ok(()) => notify_flushed(bg_observer.as_ref(), &ranges),
-                Err(e) => {
-                    set_bg_error(&bg_error);
-                    tracing::error!("background {label} buffer flush failed (device queue): {e}");
-                }
-            }
-            bg_notify.notify_waiters();
-        })
-    } else {
-        tokio::task::spawn_blocking(move || {
-            // The panic guard is a development-build (and `test-utils`) safety
-            // net only. The shipping profile builds with `panic = "abort"`
-            // (workspace `Cargo.toml`), where `catch_unwind` cannot catch
-            // anything: a panic here takes the process down, and the only
-            // evidence is the native client's panic hook (`crash.rs`). Do not
-            // treat this arm as production error recovery.
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                write_all_entries(&bg_file, &entries)
-            }));
-            match result {
-                Ok(Ok(())) => {
-                    if bg_fsync && let Err(e) = bg_file.sync_data() {
-                        set_bg_error(&bg_error);
-                        tracing::error!("background {label} buffer flush fsync failed: {e}");
-                    }
-                    // `sync_data` failing still means the bytes are in the file
-                    // (only the power-loss guarantee is missing), so the ranges
-                    // count as durable either way.
-                    notify_flushed(bg_observer.as_ref(), &ranges);
-                }
-                Ok(Err(e)) => {
-                    set_bg_error(&bg_error);
-                    tracing::error!("background {label} buffer flush failed: {e}");
-                }
-                Err(payload) => {
-                    set_bg_error(&bg_error);
-                    let msg = panic_payload_message(payload.as_ref());
-                    tracing::error!("background {label} flush task panicked: {msg}");
-                }
-            }
-            bg_notify.notify_waiters();
-        })
-    }
-}
-
-/// Write a batch of entries sequentially.
-fn write_all_entries(file: &File, entries: &[(u64, Bytes)]) -> Result<(), DownloadError> {
-    for (off, chunk) in entries {
-        write_all_at(file, chunk, *off)?;
-    }
-    Ok(())
-}
-
-/// Message from a `catch_unwind` payload, for the flush-failure log.
-fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> &str {
-    payload
-        .downcast_ref::<String>()
-        .map(String::as_str)
-        .or_else(|| payload.downcast_ref::<&'static str>().copied())
-        .unwrap_or("<non-string panic payload>")
 }
 
 impl Drop for DownloadBuffer {

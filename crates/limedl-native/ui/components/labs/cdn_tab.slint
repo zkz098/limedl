@@ -1,0 +1,391 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../../theme.slint";
+import { CdnCandidateItem, LabsFormData } from "../../types.slint";
+import {
+    CustomSelect,
+    CustomTextInput,
+    DangerButton,
+    IconButton,
+    PrimaryButton,
+    SecondaryButton,
+    ToggleSwitch,
+    ToneBadge,
+} from "../common.slint";
+
+export component LabsCdnTab inherits ScrollView {
+    in-out property <LabsFormData> labs_form;
+    in property <[CdnCandidateItem]> cdn_candidates: [];
+
+    callback start_cdn_test();
+    callback cancel_cdn_test();
+    callback clear_cdn_test();
+    callback apply_cdn_candidate(string, float);
+    callback toggle_cdn_advanced();
+    callback apply_manual_cdn_ip(string);
+
+    VerticalLayout {
+        alignment: start;
+        padding: 18px;
+        spacing: 14px;
+
+        // Title & Status Badge
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("CDN Smart Optimization"); color: Theme.ca3e635; font-size: 14px; font-weight: 700; }
+                Text { text: @tr("Selects optimal edge IPs to bypass DNS pollution and boost download speeds"); color: #6b7280; font-size: 11px; }
+            }
+            ToneBadge {
+                text: root.labs_form.cdn_status_label;
+                tone: root.labs_form.cdn_status_type == "ready" ? "success" : (
+                    root.labs_form.cdn_status_type == "testing" ? "info" : (
+                        root.labs_form.cdn_status_type == "error" ? "danger" : "neutral"
+                    )
+                );
+            }
+        }
+
+        // Enable Switch
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: @tr("Enable CDN Optimization"); color: Theme.cf3f4f6; font-size: 13px; font-weight: 600; }
+                Text { text: @tr("Automatically applies high-speed edge IPs when initiating HTTP downloads"); color: #6b7280; font-size: 11px; }
+            }
+            ToggleSwitch {
+                checked: root.labs_form.cdn_enabled;
+                toggled => { root.labs_form.cdn_enabled = !root.labs_form.cdn_enabled; }
+            }
+        }
+
+        // Provider Selection
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: @tr("Optimization Provider:"); color: Theme.c9ca3af; font-size: 12px; }
+            CustomSelect {
+                model: ["cloudflare", "fastly", "custom"];
+                current-value <=> root.labs_form.cdn_provider;
+                height: 36px;
+            }
+        }
+
+        // Custom Provider Options
+        if root.labs_form.cdn_provider == "custom" : VerticalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Custom Speedtest File URL:"); color: Theme.c9ca3af; font-size: 12px; }
+                CustomTextInput {
+                    text <=> root.labs_form.cdn_custom_test_url;
+                    placeholder: "https://example.com/speedtest-file.bin";
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: @tr("Custom CIDR Ranges (comma separated):"); color: Theme.c9ca3af; font-size: 12px; }
+                CustomTextInput {
+                    text <=> root.labs_form.cdn_custom_cidrs;
+                    placeholder: "1.2.3.0/24, 2606:4700::/32";
+                }
+            }
+        }
+
+        // Staged Progress Area
+        if root.labs_form.cdn_is_testing : Rectangle {
+            background: Theme.c181d26;
+            border-color: Theme.c2b3342;
+            border-width: 1px;
+            border-radius: 6px;
+
+            VerticalLayout {
+                padding: 12px;
+                spacing: 8px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/refresh-line.svg");
+                                colorize: Theme.c38bdf8;
+                                width: 14px;
+                                height: 14px;
+                                image-fit: contain;
+                            }
+                        }
+                        Text {
+                            text: root.labs_form.cdn_phase_label;
+                            color: Theme.c38bdf8;
+                            font-size: 12px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Text {
+                        text: root.labs_form.cdn_progress_label;
+                        color: Theme.c9ca3af;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+                }
+
+                Rectangle {
+                    height: 6px;
+                    background: Theme.c232a38;
+                    border-radius: 3px;
+                    Rectangle {
+                        x: 0;
+                        y: 0;
+                        height: 100%;
+                        width: min(parent.width * root.labs_form.cdn_progress_percent / 100.0, parent.width);
+                        background: Theme.c38bdf8;
+                        border-radius: 3px;
+                        animate width { duration: 250ms; easing: ease-out; }
+                    }
+                }
+            }
+        }
+
+        // Action Buttons
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: start;
+
+            if !root.labs_form.cdn_is_testing : PrimaryButton {
+                text: root.labs_form.cdn_active_ip != "" ? @tr("Retest Speed") : @tr("Start Speedtest");
+                icon: @image-url("../../assets/icons/rocket-line.svg");
+                clicked => { root.start_cdn_test(); }
+            }
+
+            if root.labs_form.cdn_is_testing : DangerButton {
+                text: @tr("Stop Speedtest");
+                icon: @image-url("../../assets/icons/pause-line.svg");
+                clicked => { root.cancel_cdn_test(); }
+            }
+
+            if root.labs_form.cdn_status_type == "ready" : SecondaryButton {
+                text: @tr("Clear Optimization");
+                icon: @image-url("../../assets/icons/eraser-line.svg");
+                clicked => { root.clear_cdn_test(); }
+            }
+        }
+
+        Text {
+            text: @tr("Tip: Speedtest will consume approx 20-50MB traffic to measure candidate node throughput.");
+            color: #6b7280;
+            font-size: 11px;
+        }
+
+        // Error message
+        if root.labs_form.cdn_last_error != "" : Rectangle {
+            background: Theme.c351417;
+            border-color: Theme.cef4444;
+            border-width: 1px;
+            border-radius: 6px;
+            HorizontalLayout {
+                padding: 10px;
+                spacing: 8px;
+                Image {
+                    source: @image-url("../../assets/icons/error-warning-line.svg");
+                    colorize: Theme.cef4444;
+                    width: 16px;
+                    height: 16px;
+                }
+                Text {
+                    text: @tr("Speedtest Failed: ") + root.labs_form.cdn_last_error;
+                    color: Theme.cfca5a5;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Best Result Card
+        if root.labs_form.cdn_active_ip != "" : Rectangle {
+            background: Theme.c141922;
+            border-color: Theme.c22c55e;
+            border-width: 1px;
+            border-radius: 8px;
+
+            VerticalLayout {
+                padding: 14px;
+                spacing: 10px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    VerticalLayout {
+                        spacing: 2px;
+                        Text { text: @tr("Active Node"); color: Theme.c86efac; font-size: 12px; font-weight: 600; }
+                        Text { text: root.labs_form.cdn_active_ip; color: Theme.cf3f4f6; font-size: 15px; font-weight: 700; font-family: "Consolas"; }
+                    }
+                    VerticalLayout {
+                        spacing: 2px;
+                        Text { text: @tr("Measured Bandwidth"); color: Theme.c86efac; font-size: 12px; font-weight: 600; }
+                        Text { text: root.labs_form.cdn_active_speed_text; color: Theme.ca3e635; font-size: 15px; font-weight: 700; }
+                    }
+                    VerticalLayout {
+                        spacing: 2px;
+                        Text { text: @tr("Test Time"); color: Theme.c9ca3af; font-size: 12px; }
+                        Text { text: root.labs_form.cdn_last_test_time; color: Theme.cd1d5db; font-size: 12px; }
+                    }
+                }
+
+                if root.labs_form.cdn_speed_improvement_text != "" : HorizontalLayout {
+                    spacing: 12px;
+                    Text {
+                        text: @tr("vs Direct: ") + root.labs_form.cdn_speed_improvement_text;
+                        color: Theme.c4ade80;
+                        font-size: 12px;
+                        font-weight: 600;
+                    }
+                    Text {
+                        text: @tr("Latency Diff: ") + root.labs_form.cdn_latency_improvement_text;
+                        color: Theme.c38bdf8;
+                        font-size: 12px;
+                        font-weight: 600;
+                    }
+                    Text {
+                        text: "(" + @tr("Benchmark: ") + root.labs_form.cdn_default_node_text + ")";
+                        color: #6b7280;
+                        font-size: 11px;
+                    }
+                }
+            }
+        }
+
+        // Candidate Nodes Table
+        if root.cdn_candidates.length > 0 : VerticalLayout {
+            spacing: 6px;
+            Text { text: @tr("Candidate Nodes Details:"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; }
+
+            Rectangle {
+                background: Theme.c14171d;
+                border-color: Theme.c232832;
+                border-width: 1px;
+                border-radius: 6px;
+
+                VerticalLayout {
+                    padding: 8px;
+                    spacing: 4px;
+
+                    // Table Header
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        height: 24px;
+                        Text { width: 180px; text: @tr("IP Address"); color: #6b7280; font-size: 11px; font-weight: 600; }
+                        Text { width: 120px; text: @tr("TCP Latency"); color: #6b7280; font-size: 11px; font-weight: 600; }
+                        Text { width: 140px; text: @tr("Bandwidth"); color: #6b7280; font-size: 11px; font-weight: 600; }
+                        Text { width: 100px; text: @tr("Status"); color: #6b7280; font-size: 11px; font-weight: 600; }
+                        Text { text: @tr("Action"); color: #6b7280; font-size: 11px; font-weight: 600; }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.c1f242e; }
+
+                    // Table Rows
+                    for cand in root.cdn_candidates : HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        height: 32px;
+                        alignment: space-between;
+
+                        Text {
+                            width: 180px;
+                            text: cand.ip;
+                            color: cand.is_active ? Theme.ca3e635 : Theme.ce5e7eb;
+                            font-size: 12px;
+                            font-family: "Consolas";
+                            font-weight: cand.is_active ? 700 : 400;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            width: 120px;
+                            text: cand.latency_text;
+                            color: Theme.c9ca3af;
+                            font-size: 12px;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            width: 140px;
+                            text: cand.throughput_text;
+                            color: cand.throughput_text != "-" ? Theme.c38bdf8 : #6b7280;
+                            font-size: 12px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        VerticalLayout {
+                            width: 100px;
+                            alignment: center;
+                            if cand.is_active : ToneBadge { text: @tr("Active"); tone: "success"; }
+                            if !cand.is_active && cand.is_failed : ToneBadge { text: @tr("Failed"); tone: "danger"; }
+                            if !cand.is_active && !cand.is_failed : ToneBadge { text: @tr("Standby"); tone: "neutral"; }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            if !cand.is_active && !cand.is_failed : SecondaryButton {
+                                text: @tr("Apply");
+                                clicked => { root.apply_cdn_candidate(cand.ip, cand.throughput_mbps); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Advanced Panel (CIDRs and Manual IP)
+        Rectangle {
+            background: Theme.c151921;
+            border-color: Theme.c272f3e;
+            border-width: 1px;
+            border-radius: 6px;
+
+            VerticalLayout {
+                padding: 12px;
+                spacing: 10px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text { text: @tr("Advanced Ranges & Manual IP Override"); color: Theme.c9ca3af; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                    IconButton {
+                        text: root.labs_form.cdn_show_advanced ? @tr("Collapse") : @tr("Expand");
+                        icon: @image-url("../../assets/icons/settings-3-line.svg");
+                        clicked => { root.toggle_cdn_advanced(); }
+                    }
+                }
+
+                if root.labs_form.cdn_show_advanced : VerticalLayout {
+                    spacing: 10px;
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: @tr("Cloudflare Preset CIDRs:"); color: #6b7280; font-size: 11px; }
+                        Text { text: root.labs_form.cdn_ranges_text; color: Theme.ca3e635; font-size: 11px; wrap: word-wrap; }
+                    }
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: @tr("Manual IP Override (Applies immediately):"); color: Theme.c9ca3af; font-size: 12px; }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            CustomTextInput {
+                                horizontal-stretch: 1;
+                                text <=> root.labs_form.cdn_manual_ip;
+                                placeholder: @tr("e.g. 104.16.0.1");
+                            }
+                            SecondaryButton {
+                                horizontal-stretch: 0;
+                                text: @tr("Apply Now");
+                                clicked => { root.apply_manual_cdn_ip(root.labs_form.cdn_manual_ip); }
+                            }
+                        }
+                        if root.labs_form.cdn_manual_ip_error != "" : Text {
+                            text: root.labs_form.cdn_manual_ip_error;
+                            color: Theme.cef4444;
+                            font-size: 11px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

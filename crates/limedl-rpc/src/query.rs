@@ -79,66 +79,86 @@ async fn enrich_status(
     status: &mut Value,
 ) {
     match task_id {
-        TaskId::Http(uuid) => {
-            if let Some((piece_length, bits)) = http_pieces(ctx, &uuid.to_string()).await
-                && !bits.is_empty()
-            {
-                status["numPieces"] = Value::String(bits.len().to_string());
-                status["bitfield"] = Value::String(bitfield_from_bits(&bits));
-                if let Some(length) = piece_length {
-                    status["pieceLength"] = Value::String(length.to_string());
-                }
-            }
-        }
-        TaskId::Bt(info_hash) => {
-            let files = file_list_for(ctx, task_id, summary);
-            let file_count = files.as_array().map_or(0, Vec::len);
-            status["files"] = files;
+        TaskId::Http(uuid) => enrich_http_status(ctx, &uuid.to_string(), status).await,
+        TaskId::Bt(info_hash) => enrich_bt_status(ctx, task_id, info_hash, summary, status),
+    }
+}
 
-            // No `bittorrent` object until the torrent metadata has arrived
-            // (`files` is empty for a fresh magnet), mirroring aria2.
-            if file_count == 0 {
-                return;
-            }
-
-            let mut bittorrent = serde_json::Map::new();
-            bittorrent.insert(
-                "mode".to_string(),
-                Value::String(if file_count > 1 { "multi" } else { "single" }.to_string()),
-            );
-            // aria2's `bittorrent.info.name` is the torrent's display name.
-            bittorrent.insert(
-                "info".to_string(),
-                serde_json::json!({ "name": summary.file_name }),
-            );
-            if let Some(backend) = ctx.bt() {
-                if let Ok(trackers) = backend.get_trackers(info_hash_to_engine(info_hash)) {
-                    let announce: Vec<Value> = trackers
-                        .iter()
-                        .map(|tracker| Value::String(tracker.url.clone()))
-                        .collect();
-                    if !announce.is_empty() {
-                        // aria2 wraps tiers in an outer array; limedl has a
-                        // flat tracker list, so it is one tier.
-                        bittorrent.insert(
-                            "announceList".to_string(),
-                            Value::Array(vec![Value::Array(announce)]),
-                        );
-                    }
-                }
-                if let Ok(pieces) = backend.get_pieces(info_hash_to_engine(info_hash)) {
-                    let mut ordered = pieces;
-                    ordered.sort_by_key(|piece| piece.index);
-                    let bits: Vec<bool> = ordered.iter().map(|piece| piece.completed).collect();
-                    if !bits.is_empty() {
-                        status["numPieces"] = Value::String(bits.len().to_string());
-                        status["bitfield"] = Value::String(bitfield_from_bits(&bits));
-                    }
-                }
-            }
-            status["bittorrent"] = Value::Object(bittorrent);
+async fn enrich_http_status(ctx: &RpcContext, raw_id: &str, status: &mut Value) {
+    if let Some((piece_length, bits)) = http_pieces(ctx, raw_id).await
+        && !bits.is_empty()
+    {
+        status["numPieces"] = Value::String(bits.len().to_string());
+        status["bitfield"] = Value::String(bitfield_from_bits(&bits));
+        if let Some(length) = piece_length {
+            status["pieceLength"] = Value::String(length.to_string());
         }
     }
+}
+
+fn enrich_bt_status(
+    ctx: &RpcContext,
+    task_id: &TaskId,
+    info_hash: &crate::types::InfoHash,
+    summary: &DownloadSummary,
+    status: &mut Value,
+) {
+    let files = file_list_for(ctx, task_id, summary);
+    let file_count = files.as_array().map_or(0, Vec::len);
+    status["files"] = files;
+
+    // No `bittorrent` object until the torrent metadata has arrived
+    // (`files` is empty for a fresh magnet), mirroring aria2.
+    if file_count == 0 {
+        return;
+    }
+
+    let mut bittorrent = serde_json::Map::new();
+    bittorrent.insert(
+        "mode".to_string(),
+        Value::String(if file_count > 1 { "multi" } else { "single" }.to_string()),
+    );
+    // aria2's `bittorrent.info.name` is the torrent's display name.
+    bittorrent.insert(
+        "info".to_string(),
+        serde_json::json!({ "name": summary.file_name }),
+    );
+    if let Some(backend) = ctx.bt() {
+        if let Some(announce) = bt_announce_list(backend, info_hash) {
+            bittorrent.insert("announceList".to_string(), announce);
+        }
+        if let Some((num_pieces, bitfield)) = bt_piece_bitfield(backend, info_hash) {
+            status["numPieces"] = Value::String(num_pieces.to_string());
+            status["bitfield"] = Value::String(bitfield);
+        }
+    }
+    status["bittorrent"] = Value::Object(bittorrent);
+}
+
+fn bt_announce_list(
+    backend: &crate::bt_backend::LazyBtBackend,
+    info_hash: &crate::types::InfoHash,
+) -> Option<Value> {
+    let trackers = backend.get_trackers(info_hash_to_engine(info_hash)).ok()?;
+    let announce: Vec<Value> = trackers
+        .iter()
+        .map(|tracker| Value::String(tracker.url.clone()))
+        .collect();
+    if announce.is_empty() {
+        return None;
+    }
+    // aria2 wraps tiers in an outer array; limedl has a flat tracker list, so it is one tier.
+    Some(Value::Array(vec![Value::Array(announce)]))
+}
+
+fn bt_piece_bitfield(
+    backend: &crate::bt_backend::LazyBtBackend,
+    info_hash: &crate::types::InfoHash,
+) -> Option<(usize, String)> {
+    let mut ordered = backend.get_pieces(info_hash_to_engine(info_hash)).ok()?;
+    ordered.sort_by_key(|piece| piece.index);
+    let bits: Vec<bool> = ordered.iter().map(|piece| piece.completed).collect();
+    (!bits.is_empty()).then(|| (bits.len(), bitfield_from_bits(&bits)))
 }
 
 /// aria2 models per-file server lists. limedl's HTTP downloads are

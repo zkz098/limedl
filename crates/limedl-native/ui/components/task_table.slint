@@ -1,7 +1,8 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
-import { TaskItem } from "../types.slint";
+import { ContextMenuState, TaskItem } from "../types.slint";
 import { CustomCheckBox, IconButton } from "common.slint";
+import { MainActions } from "main/actions.slint";
 
 export component TaskTable inherits Rectangle {
     in property <[TaskItem]> tasks: [];
@@ -28,10 +29,9 @@ export component TaskTable inherits Rectangle {
     callback open_inspector(string);
     callback pause_task(string);
     callback resume_task(string);
-    callback open_explorer(string);
     callback remove_task(string);
     callback double_clicked(string);
-    callback show_menu(TaskItem, length, length); // item, absolute_x, absolute_y
+    callback show_context_menu(ContextMenuState);
     callback show_priority_menu(TaskItem, length, length); // item, absolute_x, absolute_y
     callback header_sort_clicked(int);
     callback select_all();
@@ -390,7 +390,18 @@ export component TaskTable inherits Rectangle {
                     ta_row := TouchArea {
                         pointer-event(event) => {
                             if event.button == PointerEventButton.right && event.kind == PointerEventKind.up {
-                                root.show_menu(task, row_rect.absolute-position.x + self.mouse-x + 8px, row_rect.absolute-position.y + self.mouse-y + 8px);
+                                root.show_context_menu({
+                                    visible: true,
+                                    x: row_rect.absolute-position.x + self.mouse-x + 8px,
+                                    y: row_rect.absolute-position.y + self.mouse-y + 8px,
+                                    task_id: task.id,
+                                    task_name: task.file_name,
+                                    task_url: task.url,
+                                    can_pause: task.can_pause,
+                                    can_resume: task.can_resume,
+                                    is_bt: task.kind == "bt",
+                                    priority_code: task.priority_code,
+                                });
                             } else if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                                 shift_click = event.modifiers.shift;
                             }
@@ -721,7 +732,7 @@ export component TaskTable inherits Rectangle {
                                     }
                                     ta_explorer := IconButton {
                                         icon: @image-url("../assets/icons/folder-open-line.svg");
-                                        clicked => { root.open_explorer(task.id); }
+                                        clicked => { MainActions.open_task_explorer(task.id); }
                                     }
                                     ta_details := IconButton {
                                         icon: @image-url("../assets/icons/information-line.svg");

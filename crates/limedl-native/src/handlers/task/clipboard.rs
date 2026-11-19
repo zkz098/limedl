@@ -2,10 +2,12 @@
 
 use std::time::Duration;
 
-use crate::MainWindow;
+use slint::ComponentHandle;
+
 use crate::context::AppContext;
 use crate::i18n;
 use crate::toast::{ToastQueue, push_toast};
+use crate::{MainActions, MainWindow};
 
 /// Copy `text` and confirm with a toast. The clipboard call itself runs off the
 /// UI thread because it can block on the Windows clipboard.
@@ -41,7 +43,7 @@ pub fn register(ctx: &AppContext) {
         let ui_weak = ui_weak.clone();
         let store = store.clone();
         let toast_queue = toast_queue.clone();
-        ui.on_copy_task_url(move |url| {
+        ui.global::<MainActions>().on_copy_task_url(move |url| {
             let message = i18n::format_toast_link_copied(store.lock().language()).to_string();
             copy_and_confirm(&ui_weak, &toast_queue, url.to_string(), message);
         });
@@ -51,7 +53,7 @@ pub fn register(ctx: &AppContext) {
         let ui_weak = ui_weak.clone();
         let store = store.clone();
         let toast_queue = toast_queue.clone();
-        ui.on_copy_task_name(move |name| {
+        ui.global::<MainActions>().on_copy_task_name(move |name| {
             let message = i18n::format_toast_filename_copied(store.lock().language()).to_string();
             copy_and_confirm(&ui_weak, &toast_queue, name.to_string(), message);
         });

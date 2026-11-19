@@ -523,6 +523,33 @@ mod tests {
             .join(".")
     }
 
+    fn skip_line_comment(chars: &[char], mut i: usize) -> usize {
+        while i < chars.len() && chars[i] != '\n' {
+            i += 1;
+        }
+        i
+    }
+
+    fn skip_block_comment(chars: &[char], mut i: usize) -> usize {
+        i += 2;
+        while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+            i += 1;
+        }
+        i + 2
+    }
+
+    fn skip_string_literal(chars: &[char], mut i: usize) -> usize {
+        i += 1;
+        while i < chars.len() {
+            match chars[i] {
+                '\\' => i += 2,
+                '"' => return i + 1,
+                _ => i += 1,
+            }
+        }
+        i
+    }
+
     /// Remove comments and string/char literal contents so a field name in a
     /// doc comment or a catalog string is not mistaken for a read.
     fn strip_comments_and_strings(text: &str) -> String {
@@ -530,49 +557,33 @@ mod tests {
         let mut out = String::with_capacity(text.len());
         let mut i = 0;
         while i < chars.len() {
-            let c = chars[i];
-            if c == '/' && chars.get(i + 1) == Some(&'/') {
-                while i < chars.len() && chars[i] != '\n' {
+            let next = chars.get(i + 1).copied();
+            match (chars[i], next) {
+                ('/', Some('/')) => {
+                    i = skip_line_comment(&chars, i);
+                    out.push('\n');
+                }
+                ('/', Some('*')) => {
+                    i = skip_block_comment(&chars, i);
+                    out.push(' ');
+                }
+                ('\'', _) => {
+                    i += if chars.get(i + 2) == Some(&'\'') {
+                        3
+                    } else {
+                        1
+                    };
+                    out.push(' ');
+                }
+                ('"', _) => {
+                    i = skip_string_literal(&chars, i);
+                    out.push(' ');
+                }
+                (c, _) => {
+                    out.push(c);
                     i += 1;
                 }
-                out.push('\n');
-                continue;
             }
-            if c == '/' && chars.get(i + 1) == Some(&'*') {
-                i += 2;
-                while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
-                    i += 1;
-                }
-                i += 2;
-                out.push(' ');
-                continue;
-            }
-            if c == '\'' {
-                i += if chars.get(i + 2) == Some(&'\'') {
-                    3
-                } else {
-                    1
-                };
-                out.push(' ');
-                continue;
-            }
-            if c == '"' {
-                i += 1;
-                while i < chars.len() {
-                    match chars[i] {
-                        '\\' => i += 2,
-                        '"' => {
-                            i += 1;
-                            break;
-                        }
-                        _ => i += 1,
-                    }
-                }
-                out.push(' ');
-                continue;
-            }
-            out.push(c);
-            i += 1;
         }
         out
     }

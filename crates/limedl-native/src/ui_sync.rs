@@ -229,28 +229,35 @@ pub(crate) fn apply_tasks(ui: &MainWindow, items: Vec<TaskItem>) {
         return;
     };
 
-    // Fast path: if the IDs are identical and in the exact same order (the common
-    // case for in-progress download progress ticks), update changed rows in place.
+    if try_update_tasks_in_place(model, &items) {
+        return;
+    }
+
+    remove_stale_task_rows(model, &items);
+    reconcile_task_order(model, items);
+}
+
+fn try_update_tasks_in_place(model: &VecModel<TaskItem>, items: &[TaskItem]) -> bool {
     let same_order = model.row_count() == items.len()
         && (0..items.len()).all(|i| {
             model
                 .row_data(i)
                 .is_some_and(|m| m.id.as_str() == items[i].id.as_str())
         });
-
-    if same_order {
-        for (row, item) in items.into_iter().enumerate() {
-            if let Some(existing) = model.row_data(row)
-                && existing != item
-            {
-                model.set_row_data(row, item);
-            }
-        }
-        return;
+    if !same_order {
+        return false;
     }
+    for (row, item) in items.iter().enumerate() {
+        if let Some(existing) = model.row_data(row)
+            && &existing != item
+        {
+            model.set_row_data(row, item.clone());
+        }
+    }
+    true
+}
 
-    // General reconciliation:
-    // 1. Remove rows that no longer exist in the target items.
+fn remove_stale_task_rows(model: &VecModel<TaskItem>, items: &[TaskItem]) {
     let target_ids: foldhash::HashSet<&str> = items.iter().map(|item| item.id.as_str()).collect();
     let mut row = 0;
     while row < model.row_count() {
@@ -263,31 +270,25 @@ pub(crate) fn apply_tasks(ui: &MainWindow, items: Vec<TaskItem>) {
             model.remove(row);
         }
     }
+}
 
-    // 2. Align items row-by-row with target order.
+fn reconcile_task_order(model: &VecModel<TaskItem>, items: Vec<TaskItem>) {
     let target_len = items.len();
     for (target_idx, item) in items.into_iter().enumerate() {
-        match model.row_data(target_idx) {
-            Some(existing) if existing.id == item.id => {
-                if existing != item {
-                    model.set_row_data(target_idx, item);
-                }
+        if let Some(existing) = model.row_data(target_idx)
+            && existing.id == item.id
+        {
+            if existing != item {
+                model.set_row_data(target_idx, item);
             }
-            _ => {
-                let mut found_later = false;
-                for j in (target_idx + 1)..model.row_count() {
-                    if model.row_data(j).is_some_and(|m| m.id == item.id) {
-                        model.remove(j);
-                        model.insert(target_idx, item.clone());
-                        found_later = true;
-                        break;
-                    }
-                }
-                if !found_later {
-                    model.insert(target_idx, item);
-                }
-            }
+            continue;
         }
+        let found = ((target_idx + 1)..model.row_count())
+            .find(|&j| model.row_data(j).is_some_and(|m| m.id == item.id));
+        if let Some(j) = found {
+            model.remove(j);
+        }
+        model.insert(target_idx, item);
     }
 
     while model.row_count() > target_len {

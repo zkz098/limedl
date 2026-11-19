@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use notify_rust::Notification;
 use parking_lot::Mutex;
+use slint::ComponentHandle;
 
 use limedl_core::backend_registry::BackendRegistry;
 use limedl_core::dispatcher::Dispatcher;
@@ -28,7 +29,7 @@ use crate::toast::{ToastQueue, push_toast};
 use crate::ui_sync::{
     read_aria2_client_rows, read_disk_override_rows, read_schedule_rows, refresh_settings_state,
 };
-use crate::{MainWindow, POWER_GUARD, SettingsFormData};
+use crate::{MainActions, MainWindow, POWER_GUARD, SettingsFormData};
 
 /// Pre-collected text state of all dialog table/list editors before crossing to
 /// the worker thread.
@@ -243,7 +244,7 @@ pub fn register(ctx: &AppContext) {
         let dispatcher = dispatcher.clone();
         let game_mode = ctx.game_mode_active.clone();
         let ui_weak = ui_weak.clone();
-        ui.on_toggle_game_mode(move || {
+        ui.global::<MainActions>().on_toggle_game_mode(move || {
             toggle_mode(
                 &dispatcher,
                 &game_mode,
@@ -259,25 +260,26 @@ pub fn register(ctx: &AppContext) {
         let dispatcher = dispatcher.clone();
         let overclock_mode = ctx.is_overclock_mode.clone();
         let ui_weak = ui_weak.clone();
-        ui.on_toggle_overclock_mode(move || {
-            toggle_mode(
-                &dispatcher,
-                &overclock_mode,
-                &ui_weak,
-                |dispatcher| dispatcher.toggle_overclock_mode(None),
-                |ui, value| ui.set_overclock_mode_active(value),
-                |form, value| form.overclock_mode = value,
-            );
-        });
+        ui.global::<MainActions>()
+            .on_toggle_overclock_mode(move || {
+                toggle_mode(
+                    &dispatcher,
+                    &overclock_mode,
+                    &ui_weak,
+                    |dispatcher| dispatcher.toggle_overclock_mode(None),
+                    |ui, value| ui.set_overclock_mode_active(value),
+                    |form, value| form.overclock_mode = value,
+                );
+            });
     }
 
     // Open the MiSans font license page (About tab attribution link)
-    ui.on_open_font_license(move || {
+    ui.global::<MainActions>().on_open_font_license(move || {
         let _ = open_url_in_browser("https://hyperos.mi.com/font/zh/download");
     });
 
     // Open the project GitHub repository page (About tab link/button)
-    ui.on_open_github_repo(move || {
+    ui.global::<MainActions>().on_open_github_repo(move || {
         let _ = open_url_in_browser("https://github.com/zkz098/limedl");
     });
 
@@ -301,7 +303,7 @@ pub fn register(ctx: &AppContext) {
         let toast_queue = ctx.toast_queue.clone();
         let ui_weak = ui_weak.clone();
         let data_dir = ctx.base_dir.clone();
-        ui.on_factory_reset(move || {
+        ui.global::<MainActions>().on_factory_reset(move || {
             factory_reset(
                 ui_weak.clone(),
                 dispatcher.clone(),

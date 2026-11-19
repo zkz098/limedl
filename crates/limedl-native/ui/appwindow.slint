@@ -9,102 +9,31 @@ import { Theme, ColorModePref } from "theme.slint";
 import "../assets/fonts/MiSansVF.ttf";
 
 export { Theme, ColorModePref }
+export { MainActions } from "components/main/actions.slint";
 export {
-    TaskItem,
-    PeerItem,
-    TrackerItem,
-    TorrentFileItem,
-    NewTaskTorrentFileItem,
-    InspectorInfo,
-    SettingsFormData,
-    ContextMenuState,
-    CdnCandidateItem,
-    UrlRewriteTargetItem,
-    UrlRewriteRuleItem,
-    LabsFormData,
-    SetupFormData,
-    ToastItem,
+    TaskItem, PeerItem, TrackerItem, TorrentFileItem, NewTaskTorrentFileItem,
+    InspectorInfo, SettingsFormData, ContextMenuState, CdnCandidateItem,
+    UrlRewriteTargetItem, UrlRewriteRuleItem, LabsFormData, SetupFormData, ToastItem,
 } from "types.slint";
 
 import {
-    TaskItem,
-    PeerItem,
-    TrackerItem,
-    TorrentFileItem,
-    NewTaskTorrentFileItem,
-    InspectorInfo,
-    SettingsFormData,
-    ContextMenuState,
-    CdnCandidateItem,
-    UrlRewriteTargetItem,
-    UrlRewriteRuleItem,
-    LabsFormData,
-    SetupFormData,
-    DiskTypeOverrideItem,
-    SpeedLimitSlotItem,
-    Aria2ClientItem,
-    ToastItem,
-    UpdateState,
+    TaskItem, PeerItem, TrackerItem, TorrentFileItem, NewTaskTorrentFileItem,
+    InspectorInfo, SettingsFormData, ContextMenuState, CdnCandidateItem,
+    UrlRewriteTargetItem, UrlRewriteRuleItem, LabsFormData, SetupFormData,
+    DiskTypeOverrideItem, SpeedLimitSlotItem, Aria2ClientItem, ToastItem, UpdateState,
 } from "types.slint";
 
-import {
-    CategoryButton,
-    CustomSelect,
-    IconButton,
-    PrimaryButton,
-    SearchInput,
-    SecondaryButton,
-} from "components/common.slint";
-import { TaskCard } from "components/task_card.slint";
+import { CategoryButton, IconButton, PrimaryButton, SearchInput, SecondaryButton } from "components/common.slint";
 import { TaskTable } from "components/task_table.slint";
-import { ContextMenu } from "components/context_menu.slint";
-import { BackgroundMenu } from "components/background_menu.slint";
 import { ToastStack } from "components/toast_stack.slint";
 import { NewTaskDialog } from "components/new_task_dialog.slint";
-import { TaskInspector } from "components/inspector.slint";
-import { SpeedLimitDialog } from "components/speed_limit_dialog.slint";
 import { SettingsDialog } from "components/settings_dialog.slint";
 import { LabsDialog } from "components/labs_dialog.slint";
 import { SetupWizard } from "components/setup_wizard.slint";
-import { PriorityMenu } from "components/priority_menu.slint";
-
-/// Compact pill showing one BT runtime metric in the top toolbar
-/// (DHT node count / upload speed / connected peers).
-component BtStatPill inherits Rectangle {
-    in property <string> text;
-    in property <image> icon;
-
-    height: 24px;
-    border-radius: 12px;
-    background: Theme.c181b22;
-    border-color: Theme.c252b36;
-    border-width: 1px;
-
-    HorizontalLayout {
-        padding-left: 6px;
-        padding-right: 6px;
-        spacing: 3px;
-        alignment: center;
-
-        VerticalLayout {
-            alignment: center;
-            Image {
-                source: root.icon;
-                colorize: Theme.c4ade80;
-                width: 12px;
-                height: 12px;
-                image-fit: contain;
-            }
-        }
-
-        Text {
-            text: root.text;
-            color: Theme.c9ca3af;
-            font-size: 11px;
-            vertical-alignment: center;
-        }
-    }
-}
+import { SidebarBrand, SidebarQuickControls, SidebarToolButton } from "components/main/sidebar_widgets.slint";
+import { ActiveCategoryTitle, BtStatusPillsGroup, CenterSlot, ToolbarDivider, ToolbarSortSelect } from "components/main/toolbar_widgets.slint";
+import { BackgroundMenuArea, EmptyStateBadge, TaskCardList } from "components/main/task_views.slint";
+import { MainOverlaysHost } from "components/main/dialogs_host.slint";
 
 export component MainWindow inherits Window {
     title: "limedl - Native";
@@ -118,53 +47,34 @@ export component MainWindow inherits Window {
     min-height: 660px;
     preferred-width: 1280px;
     preferred-height: 800px;
-    // NOTE: font-family in Slint is a SINGLE family name (no CSS fallback
-    // stacks). MiSans VF is bundled via the import above, so this resolves on
-    // every platform and all UI text renders with the same typeface; glyphs
-    // missing from MiSans (emoji, rare Han) still fall back to system fonts.
+    // NOTE: font-family in Slint is a SINGLE family name (no CSS fallback stacks).
+    // MiSans VF is bundled via the import above, so this resolves on every platform.
     default-font-family: "MiSans VF";
     background: Theme.c0d0f12;
     forward-focus: root_focus;
 
     public function handle_key_escape() {
-        if root.show_new_task_dialog {
-            root.close_new_task_dialog();
-        } else if root.show_settings {
-            root.close_settings();
-        } else if root.show_labs {
-            root.close_labs();
-        } else if root.show_inspector {
-            root.close_inspector();
-        } else if root.show_speed_limit_dialog {
-            root.close_speed_limit_dialog();
-        } else if root.priority_menu_visible {
-            root.priority_menu_visible = false;
-        } else if root.context_menu_state.visible {
-            root.context_menu_state.visible = false;
-        } else if root.background_menu_visible {
-            root.background_menu_visible = false;
-        } else if root.selected_count > 0 {
-            root.clear_selection();
-        } else if root.search_query != "" {
-            root.search_query = "";
-            root.search_changed("");
-        }
+        if root.show_new_task_dialog { root.close_new_task_dialog(); }
+        else if root.show_settings { root.close_settings(); }
+        else if root.show_labs { root.close_labs(); }
+        else if root.show_inspector { root.close_inspector(); }
+        else if root.show_speed_limit_dialog { root.close_speed_limit_dialog(); }
+        else if root.priority_menu_visible { root.priority_menu_visible = false; }
+        else if root.context_menu_state.visible { root.context_menu_state.visible = false; }
+        else if root.background_menu_visible { root.background_menu_visible = false; }
+        else if root.selected_count > 0 { root.clear_selection(); }
+        else if root.search_query != "" { root.search_query = ""; root.search_changed(""); }
     }
 
-    // State properties
     in property <[TaskItem]> tasks: [];
-    in property <int> active_category: 0; // 0: All, 1: Downloading, 2: Paused, 3: Completed, 4: Failed
+    in property <int> active_category: 0;
     in property <string> count_all: "0";
     in property <string> count_downloading: "0";
     in property <string> count_paused: "0";
     in property <string> count_completed: "0";
     in property <string> count_failed: "0";
     in property <string> global_speed_text: "0 B/s";
-    // BT runtime status pills (hidden while the BT backend is unavailable).
     in property <bool> bt_status_visible: false;
-    // Window width below which the BT status pills are collapsed. Chosen so the
-    // toolbar still fits with the pills plus the English button labels (the
-    // widest ones) and the `>= 1360px` view-mode label.
     property <length> bt_pills_min_width: 1280px;
     in property <string> bt_dht_text: "0";
     in property <string> bt_upload_speed_text: "0 B/s";
@@ -172,15 +82,12 @@ export component MainWindow inherits Window {
     in property <string> default_download_dir: "";
     in property <bool> show_new_task_dialog: false;
 
-    // Search & Sort state
     in-out property <string> search_query: "";
-    in property <int> sort_field: 0; // 0: Created, 1: Size, 2: Speed, 3: Progress, 4: Name
+    in property <int> sort_field: 0;
     in property <bool> sort_asc: false;
     in property <int> selected_count: 0;
-    in-out property <int> view_mode: 0; // 0: Cards, 1: Table
+    in-out property <int> view_mode: 0;
 
-
-    // Phase 3: Inspector state
     in property <bool> show_inspector: false;
     in property <InspectorInfo> inspector_info;
     in property <int> inspector_tab: 0;
@@ -193,7 +100,6 @@ export component MainWindow inherits Window {
     in-out property <string> speed_limit_dl_kb: "0";
     in-out property <string> speed_limit_ul_kb: "0";
 
-    // Table layout / density (Appearance → table columns + compact view)
     in property <bool> compact_view: false;
     in property <bool> column_file: true;
     in property <bool> column_size: true;
@@ -206,106 +112,65 @@ export component MainWindow inherits Window {
     in property <bool> column_seeds: false;
     in property <bool> column_eta: true;
 
-    // Speed limit schedule editor rows (authoritative: the VecModel behind this
-    // property; persisted on Save).
     in-out property <[SpeedLimitSlotItem]> speed_limit_slots: [];
-
-    // Per-directory media override rows (same contract as the schedule rows).
     in-out property <[DiskTypeOverrideItem]> disk_type_overrides: [];
-
-    // Per-client Aria2 RPC token rows (same contract as the schedule rows).
     in-out property <[Aria2ClientItem]> aria2_clients: [];
 
-    // Priority popup menu (opened from the table badge or task context menu)
     in-out property <bool> priority_menu_visible: false;
     in-out property <length> priority_menu_x: 0px;
     in-out property <length> priority_menu_y: 0px;
     in-out property <string> priority_menu_task_id: "";
     in-out property <string> priority_menu_current: "normal";
 
-    // Phase 4: Settings & Performance Modes state
     in property <bool> show_settings: false;
     in property <int> settings_tab: 0;
     in-out property <SettingsFormData> settings_form;
     in property <bool> game_mode_active: false;
     in property <bool> overclock_mode_active: false;
-
-    // Two-step confirmation of the destructive "Factory Reset" in the About tab.
-    // It lives on the window (not on the dialog) so closing the dialog can
-    // disarm it: leaving it armed would put the data-destroying button one click
-    // away on the *next* visit.
     in-out property <bool> reset_confirm: false;
-
-    // Self-update state (rendered in Settings → About)
     in-out property <UpdateState> update_state: {
-        phase: "idle",
-        latest_version: "",
-        notes: "",
-        progress_percent: 0,
-        progress_label: "",
-        error_text: "",
-        install_kind: "portable",
+        phase: "idle", latest_version: "", notes: "", progress_percent: 0,
+        progress_label: "", error_text: "", install_kind: "portable",
     };
 
-    // Phase 6: Labs (CDN Acceleration & URL Rewrite) state
     in property <bool> show_labs: false;
     in property <int> labs_tab: 0;
     in-out property <LabsFormData> labs_form;
     in property <[CdnCandidateItem]> cdn_candidates: [];
     in property <[UrlRewriteRuleItem]> rewrite_rules: [];
 
-    // First-run setup wizard state
     in property <bool> show_setup_wizard: false;
     in property <int> setup_start_step: 0;
     in-out property <SetupFormData> setup_form;
 
-    // In-app toast notifications (driven from Rust)
     in-out property <[ToastItem]> toasts: [];
-
-    // Task-list background context menu state
     in-out property <bool> background_menu_visible: false;
     in-out property <length> background_menu_x: 0px;
     in-out property <length> background_menu_y: 0px;
-
-    // Context Menu state
     in-out property <ContextMenuState> context_menu_state: {
-        visible: false,
-        x: 0px,
-        y: 0px,
-        task_id: "",
-        task_name: "",
-        task_url: "",
-        can_pause: false,
-        can_resume: false,
-        is_bt: false,
+        visible: false, x: 0px, y: 0px, task_id: "", task_name: "",
+        task_url: "", can_pause: false, can_resume: false, is_bt: false,
     };
 
-    // New task form fields
     in-out property <string> new_task_url: "";
     in-out property <string> new_task_dir: "";
     in-out property <string> new_task_filename: "";
     in-out property <string> new_task_checksum: "";
-    // One `Name: value` per line; visible and editable in the dialog.
     in-out property <string> new_task_headers: "";
-    // Parse feedback shown under the URL field when it holds an aria2c command.
     in-out property <string> new_task_aria2_hint: "";
     in-out property <bool> new_task_batch_mode: false;
     in-out property <string> new_task_batch_text: "";
-    // Checksum probe state: probe_state "idle" | "probing" | "found" | "missing" | "not_http"
     in-out property <string> new_task_probe_state: "idle";
     in-out property <string> new_task_probe_status_text: "";
-    in-out property <string> new_task_probe_hash: ""; // raw detected hash (submit input)
-    // Torrent preview state: "none" | "loading" | "ready" | "error"
+    in-out property <string> new_task_probe_hash: "";
     in-out property <string> new_task_preview_state: "none";
     in-out property <string> new_task_preview_status_text: "";
     in-out property <string> new_task_preview_summary_text: "";
     in property <[NewTaskTorrentFileItem]> new_task_torrent_files: [];
-    // Batch mode state
     in-out property <string> new_task_batch_count_text: "";
     in-out property <bool> new_task_batch_submitting: false;
     in-out property <string> new_task_batch_status_text: "";
 
-    // Callbacks to Rust
     callback select_category(int);
     callback open_new_task_dialog();
     callback close_new_task_dialog();
@@ -315,12 +180,8 @@ export component MainWindow inherits Window {
     callback clear_completed();
     callback pause_task(string);
     callback resume_task(string);
-    callback open_task_explorer(string);
-    callback verify_task_integrity(string);
     callback remove_task(string);
     callback task_double_clicked(string);
-
-    // Phase 2 Callbacks
     callback search_changed(string);
     callback set_sort_field(int);
     callback toggle_sort_asc();
@@ -335,30 +196,16 @@ export component MainWindow inherits Window {
     callback table_sort_clicked(int);
     callback hotkey_space();
     callback hotkey_delete(bool);
-
-    // Phase 3 Callbacks
     callback open_inspector(string);
     callback close_inspector();
     callback set_inspector_tab(int);
     callback open_speed_limit_dialog();
     callback close_speed_limit_dialog();
     callback submit_speed_limit(string, string);
-
-    // Phase 4 Settings Callbacks
     callback open_settings();
     callback close_settings();
     callback set_settings_tab(int);
     callback save_settings(SettingsFormData);
-    callback toggle_game_mode();
-    callback toggle_overclock_mode();
-    callback fetch_trackers_remote(string);
-
-    // Self-update callbacks
-    callback check_for_updates();
-    callback start_update_download();
-    callback restart_after_update();
-
-    // Phase 6 Labs Callbacks
     callback open_labs();
     callback close_labs();
     callback set_labs_tab(int);
@@ -385,53 +232,27 @@ export component MainWindow inherits Window {
     callback update_rule_target(int, int, string);
     callback toggle_rule_target(int, int);
     callback test_url_changed(string);
-
-    // Phase 5 Native Pickers & Clipboard Callbacks
-    callback pick_torrent_file();
-    callback pick_save_folder();
-    callback pick_default_folder();
-    callback pick_log_folder();
-    callback open_log_folder();
-    callback open_font_license();
-    callback open_github_repo();
-    callback copy_task_url(string);
-    callback copy_task_name(string);
-    callback purge_single_task(string);
-    callback set_task_priority(string, string); // task_id, priority code
-    callback toggle_inspector_file(int, bool); // file index, currently included
-    // Speed limit schedule editing
+    callback toggle_inspector_file(int, bool);
     callback schedule_set_enabled(bool);
     callback schedule_add();
     callback schedule_remove(int);
-    callback schedule_update(int, string, string); // index, field, value
-    // Per-directory media override editing
+    callback schedule_update(int, string, string);
     callback disk_override_add();
     callback disk_override_remove(int);
-    callback disk_override_path_edited(int, string); // index, typed path
-    callback disk_override_media_selected(int, int); // index, media combo index
-    // Per-client Aria2 token editing
+    callback disk_override_path_edited(int, string);
+    callback disk_override_media_selected(int, int);
     callback aria2_client_add();
     callback aria2_client_remove(int);
-    callback aria2_client_name_edited(int, string); // index, typed name
+    callback aria2_client_name_edited(int, string);
     callback aria2_client_regenerate(int);
     callback aria2_client_copy_token(int);
-
-    // Setup wizard callbacks
     callback close_setup_wizard(int);
     callback finish_setup(SetupFormData);
-    callback pick_setup_directory();
     callback setup_set_language(int);
     callback setup_set_appearance(int, int);
     callback restart_setup();
-    callback factory_reset();
-
-    // In-app toast dismiss (auto-expire also handled in Rust)
     callback dismiss_toast(int);
-
-    // Task-list background menu
     callback background_refresh();
-
-    // New-task dialog: checksum probe / torrent file pre-selection / batch mode
     callback probe_new_task_checksum();
     callback reset_new_task_probe();
     callback new_task_url_changed(string);
@@ -442,46 +263,21 @@ export component MainWindow inherits Window {
 
     root_focus := FocusScope {
         key-pressed(event) => {
-            if event.text == Key.Escape {
-                root.handle_key_escape();
-                accept
-            } else if root.show_new_task_dialog || root.show_settings || root.show_labs || root.show_setup_wizard || root.show_speed_limit_dialog {
-                // A dialog owns the keyboard: swallow the global shortcuts.
-                //
-                // This branch has to be part of the `else if` chain below — as a
-                // bare `if … { reject }` before it, the value is discarded and the
-                // chain still ran, so Ctrl+A / Space / Delete kept acting on the
-                // list *behind* the modal (Delete removed the selection).
-                accept
-            } else if event.modifiers.control && (event.text == "a" || event.text == "A") {
-                root.select_all();
-                accept
-            } else if event.modifiers.control && (event.text == "n" || event.text == "N") {
-                root.open_new_task_dialog();
-                accept
-            } else if event.modifiers.control && (event.text == "f" || event.text == "F") {
-                search_box.focus_input();
-                accept
-            } else if event.modifiers.control && event.text == "," {
-                root.open_settings();
-                accept
-            } else if event.text == " " {
-                root.hotkey_space();
-                accept
-            } else if event.text == Key.Delete {
-                root.hotkey_delete(event.modifiers.shift);
-                accept
-            } else {
-                reject
-            }
+            if event.text == Key.Escape { root.handle_key_escape(); accept }
+            else if root.show_new_task_dialog || root.show_settings || root.show_labs || root.show_setup_wizard || root.show_speed_limit_dialog { accept }
+            else if event.modifiers.control && (event.text == "a" || event.text == "A") { root.select_all(); accept }
+            else if event.modifiers.control && (event.text == "n" || event.text == "N") { root.open_new_task_dialog(); accept }
+            else if event.modifiers.control && (event.text == "f" || event.text == "F") { search_box.focus_input(); accept }
+            else if event.modifiers.control && event.text == "," { root.open_settings(); accept }
+            else if event.text == " " { root.hotkey_space(); accept }
+            else if event.text == Key.Delete { root.hotkey_delete(event.modifiers.shift); accept }
+            else { reject }
         }
     }
 
     HorizontalLayout {
-        x: 0;
-        y: 0;
-        width: 100%;
-        height: 100%;
+        x: 0; y: 0; width: 100%; height: 100%;
+
         // Left Sidebar
         Rectangle {
             width: 250px;
@@ -490,8 +286,7 @@ export component MainWindow inherits Window {
             border-width: 1px;
 
             ScrollView {
-                width: 100%;
-                height: 100%;
+                width: 100%; height: 100%;
 
                 VerticalLayout {
                     padding-top: root.height < 660px ? 12px : 20px;
@@ -500,298 +295,77 @@ export component MainWindow inherits Window {
                     padding-right: 16px;
                     spacing: root.height < 660px ? 10px : 18px;
 
-                // App Brand
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
+                    SidebarBrand {}
+
+                    // Category List (`cat_*` ids are the stable handles for ui_tests)
                     VerticalLayout {
-                        alignment: center;
-                        Image {
-                            source: @image-url("assets/logo.png");
-                            width: 32px;
-                            height: 32px;
-                            image-fit: contain;
+                        spacing: 6px;
+                        cat_all := CategoryButton {
+                            title: @tr("All Tasks");
+                            icon_source: @image-url("assets/icons/download-cloud-2-line.svg");
+                            count_text: root.count_all;
+                            active: root.active_category == 0;
+                            clicked => { root.select_category(0); }
                         }
-                    }
-                    VerticalLayout {
-                        alignment: center;
-                        spacing: 1px;
-                        Text {
-                            text: "limedl";
-                            color: Theme.cf3f4f6;
-                            font-size: 16px;
-                            font-weight: 700;
+                        cat_downloading := CategoryButton {
+                            title: @tr("Downloading");
+                            icon_source: @image-url("assets/icons/download-line.svg");
+                            count_text: root.count_downloading;
+                            active: root.active_category == 1;
+                            clicked => { root.select_category(1); }
                         }
-                        Text {
-                            text: @tr("Native Edition");
-                            color: Theme.c84cc16;
-                            font-size: 10px;
-                            font-weight: 600;
+                        cat_paused := CategoryButton {
+                            title: @tr("Paused");
+                            icon_source: @image-url("assets/icons/pause-circle-line.svg");
+                            count_text: root.count_paused;
+                            active: root.active_category == 2;
+                            clicked => { root.select_category(2); }
                         }
-                    }
-                }
-
-                // Category List
-                //
-                // The `cat_*` ids are the stable handles for the in-process UI
-                // tests (src/ui_tests/) and for element introspection (L2/MCP):
-                // a click on the real control is what proves the wiring, so
-                // renaming one of these must be reflected in the tests.
-                VerticalLayout {
-                    spacing: 6px;
-                    cat_all := CategoryButton {
-                        title: @tr("All Tasks");
-                        icon_source: @image-url("assets/icons/download-cloud-2-line.svg");
-                        count_text: root.count_all;
-                        active: root.active_category == 0;
-                        clicked => { root.select_category(0); }
-                    }
-                    cat_downloading := CategoryButton {
-                        title: @tr("Downloading");
-                        icon_source: @image-url("assets/icons/download-line.svg");
-                        count_text: root.count_downloading;
-                        active: root.active_category == 1;
-                        clicked => { root.select_category(1); }
-                    }
-                    cat_paused := CategoryButton {
-                        title: @tr("Paused");
-                        icon_source: @image-url("assets/icons/pause-circle-line.svg");
-                        count_text: root.count_paused;
-                        active: root.active_category == 2;
-                        clicked => { root.select_category(2); }
-                    }
-                    cat_completed := CategoryButton {
-                        title: @tr("Completed");
-                        icon_source: @image-url("assets/icons/checkbox-circle-line.svg");
-                        count_text: root.count_completed;
-                        active: root.active_category == 3;
-                        clicked => { root.select_category(3); }
-                    }
-                    cat_failed := CategoryButton {
-                        title: @tr("Failed / Error");
-                        icon_source: @image-url("assets/icons/error-warning-line.svg");
-                        count_text: root.count_failed;
-                        active: root.active_category == 4;
-                        clicked => { root.select_category(4); }
-                    }
-                }
-
-                // Spacer
-                Rectangle {}
-
-                // Quick Mode Controls (Game Mode & Overclock)
-                VerticalLayout {
-                    spacing: 6px;
-
-                    Rectangle {
-                        background: root.game_mode_active ? Theme.c351d0b : Theme.c181b22;
-                        border-color: root.game_mode_active ? Theme.cf59e0b : Theme.c252b36;
-                        border-width: 1px;
-                        border-radius: 6px;
-                        height: 36px;
-
-                        TouchArea {
-                            clicked => { root.toggle_game_mode(); }
+                        cat_completed := CategoryButton {
+                            title: @tr("Completed");
+                            icon_source: @image-url("assets/icons/checkbox-circle-line.svg");
+                            count_text: root.count_completed;
+                            active: root.active_category == 3;
+                            clicked => { root.select_category(3); }
                         }
-
-                        HorizontalLayout {
-                            padding-left: 10px;
-                            padding-right: 10px;
-                            alignment: space-between;
-                            HorizontalLayout {
-                                spacing: 8px;
-                                alignment: start;
-                                VerticalLayout {
-                                    alignment: center;
-                                    Image {
-                                        source: @image-url("assets/icons/gamepad-line.svg");
-                                        colorize: root.game_mode_active ? Theme.cf59e0b : Theme.c8b95a5;
-                                        width: 15px;
-                                        height: 15px;
-                                        image-fit: contain;
-                                    }
-                                }
-                                Text {
-                                    text: @tr("Game Mode");
-                                    color: root.game_mode_active ? Theme.cf59e0b : Theme.c9ca3af;
-                                    font-size: 12px;
-                                    font-weight: 500;
-                                    vertical-alignment: center;
-                                }
-                            }
-                            Text {
-                                text: root.game_mode_active ? "ON" : "OFF";
-                                color: root.game_mode_active ? Theme.cfcd34d : Theme.c5d6778;
-                                font-size: 11px;
-                                font-weight: 700;
-                                vertical-alignment: center;
-                            }
+                        cat_failed := CategoryButton {
+                            title: @tr("Failed / Error");
+                            icon_source: @image-url("assets/icons/error-warning-line.svg");
+                            count_text: root.count_failed;
+                            active: root.active_category == 4;
+                            clicked => { root.select_category(4); }
                         }
                     }
 
-                    Rectangle {
-                        background: root.overclock_mode_active ? Theme.c31132b : Theme.c181b22;
-                        border-color: root.overclock_mode_active ? Theme.cec4899 : Theme.c252b36;
-                        border-width: 1px;
-                        border-radius: 6px;
-                        height: 36px;
+                    Rectangle {}
 
-                        TouchArea {
-                            clicked => { root.toggle_overclock_mode(); }
-                        }
-
-                        HorizontalLayout {
-                            padding-left: 10px;
-                            padding-right: 10px;
-                            alignment: space-between;
-                            HorizontalLayout {
-                                spacing: 8px;
-                                alignment: start;
-                                VerticalLayout {
-                                    alignment: center;
-                                    Image {
-                                        source: @image-url("assets/icons/rocket-line.svg");
-                                        colorize: root.overclock_mode_active ? Theme.cec4899 : Theme.c8b95a5;
-                                        width: 15px;
-                                        height: 15px;
-                                        image-fit: contain;
-                                    }
-                                }
-                                Text {
-                                    text: @tr("Overclock Mode");
-                                    color: root.overclock_mode_active ? Theme.cec4899 : Theme.c9ca3af;
-                                    font-size: 12px;
-                                    font-weight: 500;
-                                    vertical-alignment: center;
-                                }
-                            }
-                            Text {
-                                text: root.overclock_mode_active ? "ON" : "OFF";
-                                color: root.overclock_mode_active ? Theme.cf472b6 : Theme.c5d6778;
-                                font-size: 11px;
-                                font-weight: 700;
-                                vertical-alignment: center;
-                            }
-                        }
+                    SidebarQuickControls {
+                        game_mode_active: root.game_mode_active;
+                        overclock_mode_active: root.overclock_mode_active;
+                        global_speed_text: root.global_speed_text;
                     }
-                }
 
-                // Global Speed Widget
-                Rectangle {
-                    background: Theme.c181b22;
-                    border-color: Theme.c252b36;
-                    border-width: 1px;
-                    border-radius: 8px;
-                    height: 56px;
-
-                    VerticalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        alignment: space-around;
-                        Text {
-                            text: @tr("Realtime Download Speed");
-                            color: Theme.c8b95a5;
-                            font-size: 10px;
-                            font-weight: 500;
-                        }
-                        Text {
-                            text: root.global_speed_text;
-                            color: Theme.c84cc16;
-                            font-size: 15px;
-                            font-weight: 700;
-                        }
-                    }
-                }
-
-                // Settings & Labs Buttons
-                HorizontalLayout {
-                    spacing: 8px;
-
-                    // Settings Button
-                    Rectangle {
-                        background: ta_set.has_hover ? Theme.c222731 : Theme.c181b22;
-                        border-color: Theme.c252b36;
-                        border-width: 1px;
-                        border-radius: 6px;
-                        height: 36px;
-
-                        ta_set := TouchArea {
+                    HorizontalLayout {
+                        spacing: 8px;
+                        ta_set := SidebarToolButton {
+                            label: @tr("Settings");
+                            icon: @image-url("assets/icons/settings-3-line.svg");
+                            hover_accent: Theme.cffffff;
                             clicked => { root.open_settings(); }
                         }
-
-                        HorizontalLayout {
-                            padding-left: 10px;
-                            padding-right: 10px;
-                            alignment: center;
-                            spacing: 6px;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Image {
-                                    source: @image-url("assets/icons/settings-3-line.svg");
-                                    colorize: ta_set.has_hover ? Theme.cffffff : Theme.cd1d5db;
-                                    width: 15px;
-                                    height: 15px;
-                                    image-fit: contain;
-                                }
-                            }
-
-                            Text {
-                                text: @tr("Settings");
-                                color: ta_set.has_hover ? Theme.cffffff : Theme.cd1d5db;
-                                font-size: 12px;
-                                font-weight: 600;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-
-                    // Labs Button
-                    Rectangle {
-                        background: ta_lab.has_hover ? Theme.c222731 : Theme.c181b22;
-                        border-color: Theme.c252b36;
-                        border-width: 1px;
-                        border-radius: 6px;
-                        height: 36px;
-
-                        ta_lab := TouchArea {
+                        ta_lab := SidebarToolButton {
+                            label: @tr("Labs");
+                            icon: @image-url("assets/icons/flask-line.svg");
+                            hover_accent: Theme.ca3e635;
                             clicked => { root.open_labs(); }
-                        }
-
-                        HorizontalLayout {
-                            padding-left: 10px;
-                            padding-right: 10px;
-                            alignment: center;
-                            spacing: 6px;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Image {
-                                    source: @image-url("assets/icons/flask-line.svg");
-                                    colorize: ta_lab.has_hover ? Theme.ca3e635 : Theme.cd1d5db;
-                                    width: 15px;
-                                    height: 15px;
-                                    image-fit: contain;
-                                }
-                            }
-
-                            Text {
-                                text: @tr("Labs");
-                                color: ta_lab.has_hover ? Theme.ca3e635 : Theme.cd1d5db;
-                                font-size: 12px;
-                                font-weight: 600;
-                                vertical-alignment: center;
-                            }
                         }
                     }
                 }
             }
         }
-    }
 
         // Right Main Content
         VerticalLayout {
-            // Top Toolbar with vertical centering and proper padding
             Rectangle {
                 height: 66px;
                 background: Theme.c111419;
@@ -804,31 +378,13 @@ export component MainWindow inherits Window {
                     padding-top: 15px;
                     padding-bottom: 15px;
                     spacing: 10px;
+                    alignment: stretch;
 
-                    // Left Title & Search
                     HorizontalLayout {
                         spacing: 12px;
                         alignment: start;
-
-                        VerticalLayout {
-                            alignment: center;
-                            Text {
-                                text: root.active_category == 0 ? @tr("All Tasks") : (
-                                    root.active_category == 1 ? @tr("Downloading") : (
-                                        root.active_category == 2 ? @tr("Paused") : (
-                                            root.active_category == 3 ? @tr("Completed") : @tr("Failed / Error")
-                                        )
-                                    )
-                                );
-                                color: Theme.cf3f4f6;
-                                font-size: 16px;
-                                font-weight: 700;
-                                vertical-alignment: center;
-                            }
-                        }
-
-                        VerticalLayout {
-                            alignment: center;
+                        ActiveCategoryTitle { active_category: root.active_category; }
+                        CenterSlot {
                             search_box := SearchInput {
                                 input_width: 170px;
                                 text <=> root.search_query;
@@ -837,20 +393,13 @@ export component MainWindow inherits Window {
                         }
                     }
 
-                    // Flexible Spacer between left and right groups
-                    Rectangle {
-                        horizontal-stretch: 1;
-                        min-width: 8px;
-                    }
+                    Rectangle { horizontal-stretch: 1; min-width: 8px; }
 
-                    // Middle / Right Actions
                     HorizontalLayout {
                         spacing: 5px;
                         alignment: center;
 
-                        // View Mode Toggle (Cards / Table)
-                        VerticalLayout {
-                            alignment: center;
+                        CenterSlot {
                             btn_view_mode := IconButton {
                                 text: root.width >= 1360px ? (root.view_mode == 0 ? @tr("Table View") : @tr("Cards View")) : "";
                                 icon: root.view_mode == 0 ? @image-url("assets/icons/file-list-line.svg") : @image-url("assets/icons/layout-grid-line.svg");
@@ -859,82 +408,24 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        // BT runtime status pills (DHT nodes / upload speed / peers).
-                        //
-                        // The three pills add ~107px, so the toolbar only has room
-                        // for them at/above `bt_pills_min_width`; keeping the
-                        // declared `min-width` honest is what this breakpoint is
-                        // for. `root.width` is the monitor work area on a maximized
-                        // window, and maximizing cannot widen a window past it, so
-                        // below the breakpoint the right-hand actions would otherwise
-                        // clip with no way to scroll to them.
-                        //
-                        // `src/ui_tests/layout.rs` drives `bt_status_visible` (only
-                        // the runtime BT poller otherwise sets it), so the fixture
-                        // lays this out instead of validating a toolbar ~107px
-                        // narrower than the one users get.
-                        if root.bt_status_visible && root.width >= root.bt_pills_min_width : bt_status_pills := VerticalLayout {
-                            alignment: center;
-                            HorizontalLayout {
-                                spacing: 4px;
-                                alignment: center;
-
-                                BtStatPill {
-                                    icon: @image-url("assets/icons/global-line.svg");
-                                    text: root.bt_dht_text;
-                                }
-                                BtStatPill {
-                                    icon: @image-url("assets/icons/file-upload-line.svg");
-                                    text: root.bt_upload_speed_text;
-                                }
-                                BtStatPill {
-                                    icon: @image-url("assets/icons/group-line.svg");
-                                    text: root.bt_peers_text;
-                                }
+                        if root.bt_status_visible && root.width >= root.bt_pills_min_width : bt_status_pills := CenterSlot {
+                            BtStatusPillsGroup {
+                                bt_dht_text: root.bt_dht_text;
+                                bt_upload_speed_text: root.bt_upload_speed_text;
+                                bt_peers_text: root.bt_peers_text;
                             }
                         }
 
-                        VerticalLayout {
-                            alignment: center;
-                            Rectangle {
-                                width: 1px;
-                                height: 20px;
-                                background: Theme.c242934;
-                            }
-                        }
+                        ToolbarDivider {}
 
-                        // Sort Selector
                         HorizontalLayout {
                             spacing: 4px;
                             alignment: center;
-
-                            Text {
-                                text: @tr("Sort:");
-                                color: #6b7280;
-                                font-size: 11px;
-                                vertical-alignment: center;
+                            ToolbarSortSelect {
+                                sort_field: root.sort_field;
+                                set_sort_field(idx) => { root.set_sort_field(idx); }
                             }
-
-                            CustomSelect {
-                                width: 92px;
-                                select_height: 32px;
-                                font_size: 12px;
-                                model: [
-                                    @tr("Time"),
-                                    @tr("Size"),
-                                    @tr("Speed"),
-                                    @tr("Progress"),
-                                    @tr("File Name"),
-                                    @tr("Status"),
-                                ];
-                                current_index: root.sort_field;
-                                selected_index(idx) => {
-                                    root.set_sort_field(idx);
-                                }
-                            }
-
-                            VerticalLayout {
-                                alignment: center;
+                            CenterSlot {
                                 btn_sort_order := IconButton {
                                     icon: root.sort_asc ? @image-url("assets/icons/sort-asc.svg") : @image-url("assets/icons/sort-desc.svg");
                                     text_color: Theme.ca3e635;
@@ -943,14 +434,7 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        VerticalLayout {
-                            alignment: center;
-                            Rectangle {
-                                width: 1px;
-                                height: 20px;
-                                background: Theme.c242934;
-                            }
-                        }
+                        ToolbarDivider {}
 
                         btn_pause_all := SecondaryButton {
                             text: root.width >= (root.bt_status_visible ? 1360px : 1200px) ? @tr("Pause All") : "";
@@ -958,25 +442,18 @@ export component MainWindow inherits Window {
                             icon: @image-url("assets/icons/pause-line.svg");
                             clicked => { root.pause_all(); }
                         }
-
                         btn_resume_all := SecondaryButton {
                             text: root.width >= (root.bt_status_visible ? 1360px : 1200px) ? @tr("Resume All") : "";
                             tooltip: @tr("Resume All");
                             icon: @image-url("assets/icons/play-line.svg");
                             clicked => { root.resume_all(); }
                         }
-
                         btn_clear_completed := SecondaryButton {
                             text: root.width >= (root.bt_status_visible ? 1360px : 1200px) ? @tr("Clear Completed") : "";
                             tooltip: @tr("Clear Completed");
                             icon: @image-url("assets/icons/eraser-line.svg");
                             clicked => { root.clear_completed(); }
                         }
-
-                        // Always visible, next to the pause/resume/clear buttons.
-                        // The empty state has its own `ta_create_task` button
-                        // instead; only that one is conditional, and the UI tests
-                        // assert the difference (see `src/ui_tests/list.rs`).
                         ta_new_task := PrimaryButton {
                             text: @tr("New Task");
                             icon: @image-url("assets/icons/add-line.svg");
@@ -991,77 +468,27 @@ export component MainWindow inherits Window {
                 background: Theme.c0d0f12;
 
                 if root.tasks.length == 0 : Rectangle {
-                    width: 100%;
-                    height: 100%;
+                    width: 100%; height: 100%;
 
-                    empty_menu_ta := TouchArea {
-                        pointer-event(event) => {
-                            if event.button == PointerEventButton.right && event.kind == PointerEventKind.up {
-                                // Empty list → background menu covers the whole area
-                                root.background_menu_x = self.absolute-position.x + self.mouse-x + 8px;
-                                root.background_menu_y = self.absolute-position.y + self.mouse-y + 8px;
-                                root.background_menu_visible = true;
-                            }
+                    empty_menu_ta := BackgroundMenuArea {
+                        open_menu(mx, my) => {
+                            root.background_menu_x = mx; root.background_menu_y = my; root.background_menu_visible = true;
                         }
                     }
 
                     VerticalLayout {
                         alignment: center;
                         spacing: 16px;
+                        EmptyStateBadge { search_query: root.search_query; }
 
-                        // Icon badge
-                        HorizontalLayout {
-                            alignment: center;
-                            Rectangle {
-                                width: 68px;
-                                height: 68px;
-                                border-radius: 34px;
-                                background: root.search_query != "" ? Theme.c14171d : Theme.c181b22;
-                                border-width: 1px;
-                                border-color: root.search_query != "" ? Theme.c272d38 : Theme.c343c4a;
-
-                                Image {
-                                    width: 32px;
-                                    height: 32px;
-                                    source: root.search_query != "" ? @image-url("assets/icons/search-line.svg") : @image-url("assets/icons/download-cloud-2-line.svg");
-                                    colorize: root.search_query != "" ? Theme.c9ca3af : Theme.ca3e635;
-                                    image-fit: contain;
-                                }
-                            }
-                        }
-
-                        // Texts
-                        VerticalLayout {
-                            spacing: 6px;
-                            Text {
-                                text: root.search_query != "" ? @tr("No matching download tasks found") : @tr("No download tasks yet");
-                                color: Theme.ce5e7eb;
-                                font-size: 16px;
-                                font-weight: 600;
-                                horizontal-alignment: center;
-                            }
-                            Text {
-                                text: root.search_query != "" ? @tr("Try clearing your search keywords") : @tr("Add a URL or drag & drop files here to begin downloading");
-                                color: Theme.c6b7280;
-                                font-size: 13px;
-                                horizontal-alignment: center;
-                            }
-                        }
-
-                        // Action button & hints
                         HorizontalLayout {
                             alignment: center;
                             spacing: 10px;
-
                             if root.search_query != "" : SecondaryButton {
                                 text: @tr("Clear Search");
                                 icon: @image-url("assets/icons/close-line.svg");
-                                clicked => {
-                                    root.search_query = "";
-                                    root.search_changed("");
-                                }
+                                clicked => { root.search_query = ""; root.search_changed(""); }
                             }
-
                             if root.search_query == "" : ta_create_task := PrimaryButton {
                                 text: @tr("Create New Task");
                                 icon: @image-url("assets/icons/add-line.svg");
@@ -1072,33 +499,20 @@ export component MainWindow inherits Window {
                         if root.search_query == "" : HorizontalLayout {
                             alignment: center;
                             drop_hint_pill := Rectangle {
-                                height: 26px;
-                                border-radius: 13px;
-                                background: Theme.c14171d;
-                                border-width: 1px;
-                                border-color: Theme.c242934;
-
+                                height: 26px; border-radius: 13px; background: Theme.c14171d;
+                                border-width: 1px; border-color: Theme.c242934;
                                 HorizontalLayout {
-                                    padding-left: 12px;
-                                    padding-right: 12px;
-                                    spacing: 6px;
-                                    alignment: center;
-
-                                    VerticalLayout {
-                                        alignment: center;
+                                    padding-left: 12px; padding-right: 12px; spacing: 6px; alignment: center;
+                                    CenterSlot {
                                         drop_hint_icon := Image {
-                                            width: 13px;
-                                            height: 13px;
+                                            width: 13px; height: 13px;
                                             source: @image-url("assets/icons/file-upload-line.svg");
-                                            colorize: Theme.c6b7280;
-                                            image-fit: contain;
+                                            colorize: Theme.c6b7280; image-fit: contain;
                                         }
                                     }
                                     drop_hint_text := Text {
                                         text: @tr("Drop .torrent or metalink files to start");
-                                        color: Theme.c6b7280;
-                                        font-size: 11px;
-                                        vertical-alignment: center;
+                                        color: Theme.c6b7280; font-size: 11px; vertical-alignment: center;
                                     }
                                 }
                             }
@@ -1108,67 +522,26 @@ export component MainWindow inherits Window {
 
                 if root.tasks.length > 0 && root.view_mode == 0 : ScrollView {
                     content-y: 0;
-                    // Background layer: non-layout child, pinned to the full
-                    // viewport, declared BEFORE the layout so it sits below the
-                    // cards in z-order. Right-clicks on empty list space (padding,
-                    // gaps, the area below the last card) hit this TouchArea;
-                    // card clicks are captured by the card TouchAreas above.
                     Rectangle {
-                        width: 100%;
-                        height: 100%;
-
-                        list_menu_ta := TouchArea {
-                            pointer-event(event) => {
-                                if event.button == PointerEventButton.right && event.kind == PointerEventKind.up {
-                                    // absolute-position is window-relative and already
-                                    // accounts for ScrollView offsets.
-                                    root.background_menu_x = self.absolute-position.x + self.mouse-x + 8px;
-                                    root.background_menu_y = self.absolute-position.y + self.mouse-y + 8px;
-                                    root.background_menu_visible = true;
-                                }
+                        width: 100%; height: 100%;
+                        list_menu_ta := BackgroundMenuArea {
+                            open_menu(mx, my) => {
+                                root.background_menu_x = mx; root.background_menu_y = my; root.background_menu_visible = true;
                             }
                         }
                     }
-
-                    // Card list: layout child (viewport-stretched, top-aligned)
-                    VerticalLayout {
-                        padding-left: 24px;
-                        padding-right: 24px;
-                        padding-top: 18px;
-                        padding-bottom: root.selected_count > 0 ? 80px : 20px;
-                        spacing: 12px;
-                        alignment: start;
-
-                        for task[idx] in root.tasks : task_card := TaskCard {
-                            item: task;
-                            compact: root.compact_view;
-                            toggle_select => { root.toggle_select_task(task.id); }
-                            range_select => { root.range_select_task(task.id); }
-                            open_inspector => { root.open_inspector(task.id); }
-                            pause_task => { root.pause_task(task.id); }
-                            resume_task => { root.resume_task(task.id); }
-                            open_explorer => { root.open_task_explorer(task.id); }
-                            remove_task => { root.remove_task(task.id); }
-                            double_clicked => { root.task_double_clicked(task.id); }
-                            show_menu(mx, my) => {
-                                // `absolute-position` is window-relative and
-                                // already accounts for ScrollView offsets, so
-                                // adding the card-local cursor position gives
-                                // true window coordinates for the popup.
-                                root.context_menu_state = {
-                                    visible: true,
-                                    x: task_card.absolute-position.x + mx + 8px,
-                                    y: task_card.absolute-position.y + my + 8px,
-                                    task_id: task.id,
-                                    task_name: task.file_name,
-                                    task_url: task.url,
-                                    can_pause: task.can_pause,
-                                    can_resume: task.can_resume,
-                                    is_bt: task.kind == "bt",
-                                    priority_code: task.priority_code,
-                                };
-                            }
-                        }
+                    TaskCardList {
+                        tasks: root.tasks;
+                        selected_count: root.selected_count;
+                        compact_view: root.compact_view;
+                        toggle_select_task(id) => { root.toggle_select_task(id); }
+                        range_select_task(id) => { root.range_select_task(id); }
+                        open_inspector(id) => { root.open_inspector(id); }
+                        pause_task(id) => { root.pause_task(id); }
+                        resume_task(id) => { root.resume_task(id); }
+                        remove_task(id) => { root.remove_task(id); }
+                        task_double_clicked(id) => { root.task_double_clicked(id); }
+                        show_context_menu(st) => { root.context_menu_state = st; }
                     }
                 }
 
@@ -1193,12 +566,12 @@ export component MainWindow inherits Window {
                     open_inspector(id) => { root.open_inspector(id); }
                     pause_task(id) => { root.pause_task(id); }
                     resume_task(id) => { root.resume_task(id); }
-                    open_explorer(id) => { root.open_task_explorer(id); }
                     remove_task(id) => { root.remove_task(id); }
                     double_clicked(id) => { root.task_double_clicked(id); }
                     header_sort_clicked(f) => { root.table_sort_clicked(f); }
                     select_all => { root.select_all(); }
                     clear_selection => { root.clear_selection(); }
+                    show_context_menu(st) => { root.context_menu_state = st; }
                     show_priority_menu(t, mx, my) => {
                         root.priority_menu_task_id = t.id;
                         root.priority_menu_current = t.priority_code;
@@ -1206,26 +579,8 @@ export component MainWindow inherits Window {
                         root.priority_menu_y = my;
                         root.priority_menu_visible = true;
                     }
-                    show_menu(t, mx, my) => {
-                        root.context_menu_state = {
-                            visible: true,
-                            x: mx,
-                            y: my,
-                            task_id: t.id,
-                            task_name: t.file_name,
-                            task_url: t.url,
-                            can_pause: t.can_pause,
-                            can_resume: t.can_resume,
-                            is_bt: t.kind == "bt",
-                            priority_code: t.priority_code,
-                        };
-                    }
                 }
 
-                // Floating Batch Action Bar
-                // The batch action bar. Its ids are the handles the UI tests use to
-                // separate the safe actions from the two destructive ones —
-                // "Remove Records" must never delete files on disk.
                 if root.selected_count > 0 : batch_bar := Rectangle {
                     x: (parent.width - self.width) / 2;
                     y: parent.height - self.height - 24px;
@@ -1241,37 +596,26 @@ export component MainWindow inherits Window {
                     HorizontalLayout {
                         padding-left: 16px;
                         padding-right: 16px;
+                        padding-top: 12px;
+                        padding-bottom: 12px;
                         alignment: space-between;
 
                         HorizontalLayout {
                             spacing: 10px;
                             alignment: start;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Text {
-                                    text: @tr("Selected ") + root.selected_count + @tr(" tasks");
-                                    color: Theme.c84cc16;
-                                    font-size: 13px;
-                                    font-weight: 700;
-                                    vertical-alignment: center;
-                                }
+                            Text {
+                                text: @tr("Selected ") + root.selected_count + @tr(" tasks");
+                                color: Theme.c84cc16; font-size: 13px; font-weight: 700; vertical-alignment: center;
                             }
-
-                            VerticalLayout {
-                                alignment: center;
+                            CenterSlot {
                                 batch_select_all := IconButton {
-                                    text: @tr("Select All");
-                                    text_color: Theme.c9ca3af;
+                                    text: @tr("Select All"); text_color: Theme.c9ca3af;
                                     clicked => { root.select_all(); }
                                 }
                             }
-
-                            VerticalLayout {
-                                alignment: center;
+                            CenterSlot {
                                 batch_deselect := IconButton {
-                                    text: @tr("Deselect");
-                                    text_color: Theme.c9ca3af;
+                                    text: @tr("Deselect"); text_color: Theme.c9ca3af;
                                     clicked => { root.clear_selection(); }
                                 }
                             }
@@ -1280,41 +624,21 @@ export component MainWindow inherits Window {
                         HorizontalLayout {
                             spacing: 8px;
                             alignment: end;
-
-                            VerticalLayout {
-                                alignment: center;
-                                batch_pause_btn := SecondaryButton {
-                                    text: @tr("Pause Selected");
-                                    icon: @image-url("assets/icons/pause-line.svg");
-                                    clicked => { root.batch_pause(); }
-                                }
+                            batch_pause_btn := SecondaryButton {
+                                text: @tr("Pause Selected"); icon: @image-url("assets/icons/pause-line.svg");
+                                clicked => { root.batch_pause(); }
                             }
-
-                            VerticalLayout {
-                                alignment: center;
-                                batch_resume_btn := SecondaryButton {
-                                    text: @tr("Resume Selected");
-                                    icon: @image-url("assets/icons/play-line.svg");
-                                    clicked => { root.batch_resume(); }
-                                }
+                            batch_resume_btn := SecondaryButton {
+                                text: @tr("Resume Selected"); icon: @image-url("assets/icons/play-line.svg");
+                                clicked => { root.batch_resume(); }
                             }
-
-                            VerticalLayout {
-                                alignment: center;
-                                batch_remove_btn := SecondaryButton {
-                                    text: @tr("Remove Records");
-                                    icon: @image-url("assets/icons/delete-bin-line.svg");
-                                    clicked => { root.batch_remove(false); }
-                                }
+                            batch_remove_btn := SecondaryButton {
+                                text: @tr("Remove Records"); icon: @image-url("assets/icons/delete-bin-line.svg");
+                                clicked => { root.batch_remove(false); }
                             }
-
-                            VerticalLayout {
-                                alignment: center;
-                                batch_purge_btn := PrimaryButton {
-                                    text: @tr("Delete Files");
-                                    icon: @image-url("assets/icons/delete-bin-6-line.svg");
-                                    clicked => { root.batch_remove(true); }
-                                }
+                            batch_purge_btn := PrimaryButton {
+                                text: @tr("Delete Files"); icon: @image-url("assets/icons/delete-bin-6-line.svg");
+                                clicked => { root.batch_remove(true); }
                             }
                         }
                     }
@@ -1323,43 +647,41 @@ export component MainWindow inherits Window {
         }
     }
 
-    // Context Menu Overlay
-    if root.context_menu_state.visible : ContextMenu {
-        menu_state: root.context_menu_state;
-        close => { root.context_menu_state.visible = false; }
+    MainOverlaysHost {
+        context_menu_state <=> root.context_menu_state;
+        priority_menu_visible <=> root.priority_menu_visible;
+        priority_menu_x <=> root.priority_menu_x;
+        priority_menu_y <=> root.priority_menu_y;
+        priority_menu_task_id <=> root.priority_menu_task_id;
+        priority_menu_current <=> root.priority_menu_current;
+        show_inspector: root.show_inspector;
+        inspector_info: root.inspector_info;
+        inspector_tab: root.inspector_tab;
+        inspector_peers: root.inspector_peers;
+        inspector_trackers: root.inspector_trackers;
+        inspector_files: root.inspector_files;
+        inspector_piece_map: root.inspector_piece_map;
+        inspector_pieces_count_text: root.inspector_pieces_count_text;
+        show_speed_limit_dialog: root.show_speed_limit_dialog;
+        speed_limit_dl_kb <=> root.speed_limit_dl_kb;
+        speed_limit_ul_kb <=> root.speed_limit_ul_kb;
+        background_menu_visible <=> root.background_menu_visible;
+        background_menu_x <=> root.background_menu_x;
+        background_menu_y <=> root.background_menu_y;
         open_inspector(id) => { root.open_inspector(id); }
+        close_inspector => { root.close_inspector(); }
+        set_inspector_tab(tab) => { root.set_inspector_tab(tab); }
+        open_speed_limit_dialog => { root.open_speed_limit_dialog(); }
+        close_speed_limit_dialog => { root.close_speed_limit_dialog(); }
+        submit_speed_limit(dl, ul) => { root.submit_speed_limit(dl, ul); }
         pause_task(id) => { root.pause_task(id); }
         resume_task(id) => { root.resume_task(id); }
-        open_explorer(id) => { root.open_task_explorer(id); }
-        verify_integrity(id) => { root.verify_task_integrity(id); }
-        copy_url(url) => { root.copy_task_url(url); }
-        copy_name(name) => { root.copy_task_name(name); }
-        open_speed_limit(id) => { root.open_inspector(id); root.open_speed_limit_dialog(); }
-        set_priority(id) => {
-            // Open the popup anchored under the task's row (the context menu
-            // already knows the row it was opened from).
-            root.priority_menu_task_id = id;
-            root.priority_menu_current = root.context_menu_state.priority_code;
-            root.priority_menu_x = root.context_menu_state.x;
-            root.priority_menu_y = root.context_menu_state.y;
-            root.priority_menu_visible = true;
-        }
         remove_task(id) => { root.remove_task(id); }
-        purge_task(id) => { root.purge_single_task(id); }
+        toggle_inspector_file(idx, inc) => { root.toggle_inspector_file(idx, inc); }
+        open_new_task_dialog => { root.open_new_task_dialog(); }
+        background_refresh => { root.background_refresh(); }
     }
 
-    // Priority popup menu (table badge / task context menu)
-    PriorityMenu {
-        is_open: root.priority_menu_visible;
-        menu_x: root.priority_menu_x;
-        menu_y: root.priority_menu_y;
-        task_id: root.priority_menu_task_id;
-        current_priority: root.priority_menu_current;
-        close => { root.priority_menu_visible = false; }
-        pick(id, code) => { root.set_task_priority(id, code); }
-    }
-
-    // Dialog: Settings Center
     SettingsDialog {
         is_open: root.show_settings;
         settings_tab: root.settings_tab;
@@ -1372,19 +694,7 @@ export component MainWindow inherits Window {
         close => { root.close_settings(); }
         set_tab(tab) => { root.set_settings_tab(tab); }
         save(form) => { root.save_settings(form); }
-        toggle_game_mode => { root.toggle_game_mode(); }
-        toggle_overclock_mode => { root.toggle_overclock_mode(); }
-        fetch_trackers(url) => { root.fetch_trackers_remote(url); }
-        pick_default_folder => { root.pick_default_folder(); }
-        pick_log_folder => { root.pick_log_folder(); }
-        open_log_folder => { root.open_log_folder(); }
-        open_font_license => { root.open_font_license(); }
-        open_github_repo => { root.open_github_repo(); }
-        check_updates => { root.check_for_updates(); }
-        start_download => { root.start_update_download(); }
-        restart_now => { root.restart_after_update(); }
         restart_setup => { root.restart_setup(); }
-        factory_reset => { root.factory_reset(); }
         schedule_set_enabled(enabled) => { root.schedule_set_enabled(enabled); }
         schedule_add => { root.schedule_add(); }
         schedule_remove(idx) => { root.schedule_remove(idx); }
@@ -1400,7 +710,6 @@ export component MainWindow inherits Window {
         aria2_client_copy_token(idx) => { root.aria2_client_copy_token(idx); }
     }
 
-    // Dialog: Labs (CDN Acceleration & URL Rewrite)
     LabsDialog {
         is_open: root.show_labs;
         labs_tab: root.labs_tab;
@@ -1434,33 +743,6 @@ export component MainWindow inherits Window {
         test_url_changed(url) => { root.test_url_changed(url); }
     }
 
-    // Dialog: Task Inspector
-    TaskInspector {
-        is_open: root.show_inspector;
-        inspector_info: root.inspector_info;
-        inspector_tab: root.inspector_tab;
-        inspector_peers: root.inspector_peers;
-        inspector_trackers: root.inspector_trackers;
-        inspector_files: root.inspector_files;
-        inspector_piece_map: root.inspector_piece_map;
-        inspector_pieces_count_text: root.inspector_pieces_count_text;
-        close => { root.close_inspector(); }
-        set_tab(tab) => { root.set_inspector_tab(tab); }
-        open_speed_limit => { root.open_speed_limit_dialog(); }
-        open_explorer(id) => { root.open_task_explorer(id); }
-        toggle_file(idx, included) => { root.toggle_inspector_file(idx, included); }
-    }
-
-    // Dialog: Speed Limit
-    SpeedLimitDialog {
-        is_open: root.show_speed_limit_dialog;
-        speed_limit_dl_kb <=> root.speed_limit_dl_kb;
-        speed_limit_ul_kb <=> root.speed_limit_ul_kb;
-        close => { root.close_speed_limit_dialog(); }
-        submit(dl, ul) => { root.submit_speed_limit(dl, ul); }
-    }
-
-    // Dialog: New Task
     NewTaskDialog {
         is_open: root.show_new_task_dialog;
         new_task_url <=> root.new_task_url;
@@ -1483,8 +765,6 @@ export component MainWindow inherits Window {
         batch_text <=> root.new_task_batch_text;
         close => { root.close_new_task_dialog(); }
         submit(url, dir, filename) => { root.submit_new_task(url, dir, filename); }
-        pick_torrent_file => { root.pick_torrent_file(); }
-        pick_save_folder => { root.pick_save_folder(); }
         probe_checksum => { root.probe_new_task_checksum(); }
         reset_probe => { root.reset_new_task_probe(); }
         url_changed(text) => { root.new_task_url_changed(text); }
@@ -1494,29 +774,16 @@ export component MainWindow inherits Window {
         submit_batch(text, dir) => { root.submit_new_task_batch(text, dir); }
     }
 
-    // First-run setup wizard (modal, above all dialogs)
     SetupWizard {
         is_open: root.show_setup_wizard;
         form <=> root.setup_form;
         start_step: root.setup_start_step;
         close(step) => { root.close_setup_wizard(step); }
         finish(form) => { root.finish_setup(form); }
-        pick_directory => { root.pick_setup_directory(); }
         set_language(idx) => { root.setup_set_language(idx); }
         set_appearance(cm, tc) => { root.setup_set_appearance(cm, tc); }
     }
 
-    // Task-list background context menu
-    if root.background_menu_visible : BackgroundMenu {
-        bg_visible: root.background_menu_visible;
-        menu_x: root.background_menu_x;
-        menu_y: root.background_menu_y;
-        close => { root.background_menu_visible = false; }
-        new_task => { root.open_new_task_dialog(); }
-        refresh_list => { root.background_refresh(); }
-    }
-
-    // In-app toasts (topmost layer: above dialogs, handles own visibility and animations)
     ToastStack {
         toasts <=> root.toasts;
         dismiss(id) => { root.dismiss_toast(id); }
